@@ -1,69 +1,292 @@
-import Image from "next/image";
+import Link from "next/link";
+import {
+  ArrowRight,
+  Bell,
+  BookOpenCheck,
+  ChevronDown,
+  CirclePlay,
+  ContactRound,
+  FileDown,
+  FileSpreadsheet,
+  HandCoins,
+  LayoutGrid,
+  MessageSquareText,
+  Palette,
+  Search,
+  Settings2,
+  ShoppingCart,
+  Sparkles,
+  Users,
+  WandSparkles,
+} from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
-export default function Home() {
+const services = [
+  {
+    key: "course-operations",
+    title: "강의 운영 자동화",
+    description:
+      "강의 ID를 기준으로 일정, 옵션, 수강생 명단과 문자 제작물을 연결합니다.",
+    active: true,
+    route: "/services/course-operations",
+    icon: BookOpenCheck,
+    meta: "강의 중심 통합 관리",
+  },
+  {
+    key: "course-roster",
+    title: "수강생 명단 분석",
+    description:
+      "엑셀 신청자 명단을 분류·분석하고 알림톡 발송과 맞춤 다운로드까지 관리합니다.",
+    active: true,
+    route: "/services/course-roster",
+    icon: Users,
+    meta: "최근 실행 2시간 전",
+  },
+  {
+    key: "address-books",
+    title: "주소록 매니저",
+    description:
+      "Excel 또는 CSV로 주소록을 만들고 연락처를 검색·수정·업데이트합니다.",
+    active: true,
+    route: "/services/address-books",
+    icon: ContactRound,
+    meta: "주소록 전용 관리",
+  },
+  {
+    key: "message-automation",
+    title: "알림톡·문자 자동화",
+    description:
+      "기존 주소록을 선택하고 Shoong 템플릿으로 알림톡과 문자를 발송합니다.",
+    active: true,
+    route: "/services/message-automation",
+    icon: MessageSquareText,
+    meta: "Shoong 메시지 발송",
+  },
+  {
+    key: "message-studio",
+    title: "문자 생성·제작 프로그램",
+    description:
+      "예시 문자 30개를 바탕으로 강의별 신규 마케팅 문자 30개를 AI로 제작합니다.",
+    active: true,
+    route: "/services/message-studio",
+    icon: WandSparkles,
+    meta: "강의별 AI 문자 제작",
+  },
+  {
+    key: "settlement-analysis",
+    title: "강의별 정산",
+    description:
+      "월별 비즈업 정산 엑셀을 분석하고 강사별 정산표와 최종 정산서를 작성합니다.",
+    active: true,
+    route: "/services/settlement-analysis",
+    icon: HandCoins,
+    meta: "월별 분석·강사 정산서",
+  },
+  {
+    key: "purchase-analysis",
+    title: "주문결제 매출분석",
+    description:
+      "주문결제 엑셀을 강의·상품·광고 유입별로 분석하고 환불과 중복 구매자를 확인합니다.",
+    active: true,
+    route: "/services/purchase-analysis",
+    icon: ShoppingCart,
+    meta: "실결제·환불·유입 분석",
+  },
+  {
+    key: "kakao-ad-maker",
+    title: "플친소재 메이커",
+    description:
+      "강의 정보와 참고 이미지를 바탕으로 서로 다른 5개 전략의 홍보소재 생성 프롬프트를 만듭니다.",
+    active: true,
+    route: "/services/kakao-ad-maker",
+    icon: Palette,
+    meta: "OpenAI 이미지 프롬프트",
+  },
+  {
+    key: "campaign-report",
+    title: "캠페인 성과 리포트",
+    description:
+      "유입경로와 광고매체별 성과를 연결해 핵심 지표를 빠르게 확인합니다.",
+    active: false,
+    route: "#",
+    icon: FileSpreadsheet,
+    meta: "준비 중",
+  },
+];
+
+export default function DashboardPage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="min-h-screen">
+      <header className="border-b bg-background">
+        <div className="mx-auto flex h-18 max-w-[1600px] items-center gap-6 px-5 lg:px-8">
+          <Link
+            href="/"
+            className="flex items-center gap-2 font-semibold tracking-tight"
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+            <span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+              <Sparkles className="size-4" />
+            </span>
+            <span className="text-lg">BIZUP</span>
+          </Link>
+          <nav className="hidden items-center gap-1 md:flex">
+            <Button variant="secondary" size="sm">
+              <LayoutGrid />
+              서비스
+            </Button>
+            <Button variant="ghost" size="sm">
+              <Settings2 />
+              설정
+            </Button>
+          </nav>
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="ghost" size="icon" aria-label="알림">
+              <Bell />
+            </Button>
+            <Button variant="ghost" className="gap-2 px-2">
+              <Avatar className="size-7">
+                <AvatarFallback>운</AvatarFallback>
+              </Avatar>
+              <span className="hidden text-sm sm:inline">운영자</span>
+              <ChevronDown className="size-3.5" />
+            </Button>
+          </div>
+        </div>
+      </header>
+      <div className="mx-auto max-w-[1600px] px-5 py-12 lg:px-8 lg:py-16">
+        <section className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+          <div>
+            <Badge variant="outline" className="mb-4 bg-background/70">
+              운영 워크스페이스
+            </Badge>
+            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              오늘 어떤 업무를 시작할까요?
+            </h1>
+            <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
+              비즈업 운영에 필요한 도구를 한곳에서 실행하고 최근 작업 상태를
+              확인하세요.
+            </p>
+          </div>
+          <div className="relative w-full md:w-72">
+            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="bg-background pl-9"
+              placeholder="서비스 검색"
+              aria-label="서비스 검색"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+          </div>
+        </section>
+        <section
+          className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3"
+          aria-label="서비스 목록"
+        >
+          {services.map((service) => {
+            const Icon = service.icon;
+            return (
+              <Card
+                key={service.key}
+                className="group overflow-hidden border-border/80 bg-card/90 transition-all hover:-translate-y-0.5 hover:shadow-lg"
+              >
+                <CardHeader className="gap-5">
+                  <div className="flex items-start justify-between">
+                    <span className="grid size-11 place-items-center rounded-xl bg-primary/10 text-primary">
+                      <Icon className="size-5" />
+                    </span>
+                    <Badge variant={service.active ? "default" : "secondary"}>
+                      {service.active ? "사용 가능" : "준비 중"}
+                    </Badge>
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">{service.title}</CardTitle>
+                    <CardDescription className="mt-2 min-h-12 leading-6">
+                      {service.description}
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex items-center justify-between border-t pt-5">
+                  <span className="text-xs text-muted-foreground">
+                    {service.meta}
+                  </span>
+                  {service.active ? (
+                    <Button asChild size="sm">
+                      <Link href={service.route}>
+                        실행하기 <ArrowRight />
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button size="sm" disabled>
+                      준비 중
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </section>
+        <section className="mt-12 border-t pt-8" aria-label="간편 도구">
+          <div className="mb-4">
+            <Badge
+              variant="outline"
+              className="border-teal-500/40 bg-teal-500/10 text-teal-700 dark:text-teal-300"
+            >
+              간편 도구
+            </Badge>
+            <h2 className="mt-3 text-xl font-semibold tracking-tight">
+              빠르게 처리할 작업
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              별도 프로젝트를 만들지 않고 바로 사용할 수 있습니다.
+            </p>
+          </div>
+          <div className="grid max-w-5xl gap-4 md:grid-cols-2"><Card className="border-teal-500/30 bg-teal-500/5 transition-colors hover:bg-teal-500/10">
+            <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+              <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-teal-600 text-white shadow-sm">
+                <FileDown className="size-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">연락처 CSV 추출</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  이름·전화번호·이메일 3열을 붙여넣고 CSV로 저장합니다.
+                </p>
+              </div>
+              <Button
+                asChild
+                size="sm"
+                className="bg-teal-600 text-white hover:bg-teal-700"
+              >
+                <Link href="/services/contact-csv">
+                  실행하기 <ArrowRight />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card><Card className="border-red-500/30 bg-red-500/5 transition-colors hover:bg-red-500/10"><CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center"><span className="grid size-10 shrink-0 place-items-center rounded-lg bg-red-600 text-white shadow-sm"><CirclePlay className="size-5" /></span><div className="min-w-0 flex-1"><p className="font-semibold">유튜브 영상 다운로드</p><p className="mt-1 text-sm text-muted-foreground">공개 영상 URL을 확인하고 영상 파일로 저장합니다.</p></div><Button asChild size="sm" className="bg-red-600 text-white hover:bg-red-700"><Link href="/services/youtube-download">실행하기 <ArrowRight /></Link></Button></CardContent></Card></div>
+        </section>
+        <section className="mt-10 rounded-2xl border bg-card/75 p-6">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div>
+              <p className="font-medium">첫 번째 서비스가 준비되었습니다</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                수강생 명단 분석에서 새 작업을 만들고 엑셀 가져오기 흐름을
+                시작할 수 있습니다.
+              </p>
+            </div>
+            <Button variant="outline" asChild>
+              <Link href="/services/course-roster">
+                작업 목록 보기 <ArrowRight />
+              </Link>
+            </Button>
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }
