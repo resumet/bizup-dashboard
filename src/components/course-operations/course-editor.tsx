@@ -440,7 +440,7 @@ export function CourseOperationsEditor({
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-5 md:grid-cols-3">
-            <div className="grid gap-2 md:col-span-3">
+            <div className="grid gap-2 md:col-span-2">
               <Label htmlFor="course-name">강의명</Label>
               <Input
                 id="course-name"
@@ -451,7 +451,7 @@ export function CourseOperationsEditor({
                 onChange={(event) => updateField("name", event.target.value)}
               />
             </div>
-            <div className="grid gap-2 md:col-span-3">
+            <div className="grid gap-2">
               <Label htmlFor="instructor-name">강사명</Label>
               <Input
                 id="instructor-name"
@@ -614,9 +614,9 @@ export function CourseOperationsEditor({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto pb-1">
-              <div className="min-w-[1160px] space-y-2">
-                <div className="grid grid-cols-[minmax(200px,1fr)_130px_130px_72px_minmax(260px,1fr)_120px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
+            <div className="pb-1">
+              <div className="space-y-2">
+                <div className="hidden grid-cols-[minmax(120px,0.8fr)_110px_110px_64px_minmax(180px,1fr)_90px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground lg:grid">
                   <span>옵션명</span>
                   <span>정가</span>
                   <span>할인가</span>
@@ -628,11 +628,11 @@ export function CourseOperationsEditor({
                 {draft.options.map((option, index) => (
                   <div
                     key={`option-${index}`}
-                    className="grid grid-cols-[minmax(200px,1fr)_130px_130px_72px_minmax(260px,1fr)_120px_44px] items-center gap-2"
+                    className="grid grid-cols-1 items-center gap-2 lg:grid-cols-[minmax(120px,0.8fr)_110px_110px_64px_minmax(180px,1fr)_90px_44px]"
                   >
                     <Input
                       id={`option-name-${index}`}
-                      className="h-10"
+                      className="h-10 text-sm"
                       aria-label={`${index + 1}번 옵션명`}
                       placeholder="예: 기본 과정"
                       value={option.name}

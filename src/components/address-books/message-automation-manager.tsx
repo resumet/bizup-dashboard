@@ -94,6 +94,9 @@ export function MessageAutomationManager({
     Record<string, VariableInputMode>
   >({});
   const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [selectedLinkFields, setSelectedLinkFields] = useState<
+    Record<string, string>
+  >({});
   const [verifiedTestKey, setVerifiedTestKey] = useState("");
   const [testing, setTesting] = useState(false);
   const [sending, setSending] = useState(false);
@@ -294,13 +297,14 @@ export function MessageAutomationManager({
         </Alert>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Badge>1</Badge>대상 주소록 선택
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Badge>1</Badge>대상 주소록 선택
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
           {selectedContact ? (
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border bg-background p-4">
               <div className="flex items-center gap-3">
@@ -355,47 +359,49 @@ export function MessageAutomationManager({
                 : `${selectedBook.name}의 전체 ${recipientCount.toLocaleString("ko-KR")}명이 발송 대상입니다.`}
             </div>
           ) : null}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Badge>2</Badge>보낼 템플릿 선택
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Select
-            value={templateId}
-            onValueChange={(value) => {
-              setTemplateId(value);
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Badge>2</Badge>보낼 템플릿 선택
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Select
+              value={templateId}
+              onValueChange={(value) => {
+                setTemplateId(value);
               setVariableValues({});
               setVariableModes({});
               setSelectedCourseId("");
+              setSelectedLinkFields({});
               setResult("");
             }}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="템플릿을 선택하세요" />
-            </SelectTrigger>
-            <SelectContent>
-              {templates.map((template) => (
-                <SelectItem key={template.id} value={template.id}>
-                  {formatTemplateSelectionLabel(
-                    template.send_type,
-                    template.name,
-                  )}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {selectedTemplate ? (
-            <p className="text-xs text-muted-foreground">
-              Template Code: {selectedTemplate.template_code}
-            </p>
-          ) : null}
-        </CardContent>
-      </Card>
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="템플릿을 선택하세요" />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.map((template) => (
+                  <SelectItem key={template.id} value={template.id}>
+                    {formatTemplateSelectionLabel(
+                      template.send_type,
+                      template.name,
+                    )}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedTemplate ? (
+              <p className="text-xs text-muted-foreground">
+                Template Code: {selectedTemplate.template_code}
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
@@ -445,16 +451,33 @@ export function MessageAutomationManager({
                                 .map((linkVariable) => [linkVariable, ""]),
                             ),
                           }));
+                          setSelectedLinkFields({});
                           setResult("");
                         }}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="강의를 선택하세요" />
+                          {selectedCourse ? (
+                            <span className="flex min-w-0 items-center gap-2">
+                              <span className="truncate">
+                                {formatCourseSelectionLabel(selectedCourse)}
+                              </span>
+                              <Check className="size-4 shrink-0 text-emerald-600" />
+                            </span>
+                          ) : (
+                            <SelectValue placeholder="강의를 선택하세요" />
+                          )}
                         </SelectTrigger>
                         <SelectContent>
                           {courses.map((course) => (
                             <SelectItem key={course.id} value={course.id}>
-                              {formatCourseSelectionLabel(course)}
+                              <span className="flex min-w-0 items-center gap-2">
+                                <span className="truncate">
+                                  {formatCourseSelectionLabel(course)}
+                                </span>
+                                {selectedCourseId === course.id ? (
+                                  <Check className="size-4 shrink-0 text-emerald-600" />
+                                ) : null}
+                              </span>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -484,11 +507,26 @@ export function MessageAutomationManager({
                     {usesCourseLink ? (
                       <div className="flex flex-wrap gap-2">
                         <Select
-                          value={variableValues[variable] ?? ""}
-                          onValueChange={(value) => {
+                          value={
+                            selectedLinkFields[variable] ??
+                            courseLinkOptions.find(
+                              (option) =>
+                                option.url &&
+                                option.url === variableValues[variable],
+                            )?.field ??
+                            ""
+                          }
+                          onValueChange={(field) => {
+                            const option = courseLinkOptions.find(
+                              (item) => item.field === field,
+                            );
                             setVariableValues((current) => ({
                               ...current,
-                              [variable]: value,
+                              [variable]: option?.url ?? "",
+                            }));
+                            setSelectedLinkFields((current) => ({
+                              ...current,
+                              [variable]: field,
                             }));
                             setCopiedLinkVariable("");
                             setResult("");
@@ -508,7 +546,7 @@ export function MessageAutomationManager({
                             {courseLinkOptions.map((option) => (
                               <SelectItem
                                 key={option.field}
-                                value={option.url || `empty:${option.field}`}
+                                value={option.field}
                                 disabled={!option.url}
                               >
                                 {option.label}
@@ -539,16 +577,11 @@ export function MessageAutomationManager({
                           {copiedLinkVariable === variable ? "복사됨" : "복사"}
                         </Button>
                       </div>
-                    ) : (
+                    ) : usesCourseName || usesRecipientName ? null : (
                       <Input
                         id={`automation-variable-${variable}`}
-                        value={
-                          usesRecipientName
-                            ? "주소록의 각 수신자 이름 자동 적용"
-                            : (variableValues[variable] ?? "")
-                        }
+                        value={variableValues[variable] ?? ""}
                         placeholder={`${variable} 값을 입력하세요`}
-                        disabled={usesRecipientName || usesCourseName}
                         onChange={(event) => {
                           setVariableValues((current) => ({
                             ...current,

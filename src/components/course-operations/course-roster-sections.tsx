@@ -86,12 +86,14 @@ export function CourseRosterSections({
   const [addressQuery, setAddressQuery] = useState("");
   const deferredAddressQuery = useDeferredValue(addressQuery.trim().toLocaleLowerCase("ko-KR"));
   const [pendingAddressBookId, setPendingAddressBookId] = useState("");
+  const [freeRosterOpen, setFreeRosterOpen] = useState(false);
 
   const selectedRoster =
     rosterJobs.find((job) => job.id === selectedRosterIds[0]) ?? null;
   const visiblePaidStudentPreview = paidStudentPreview.filter((student) =>
     selectedRosterIds.includes(student.sourceJobId),
   );
+  const paidStudentPreviewRows = visiblePaidStudentPreview.slice(0, 5);
   const visiblePaidRosterAnalysis =
     paidRosterAnalysis?.sourceJobId === selectedRoster?.id
       ? paidRosterAnalysis
@@ -108,6 +110,7 @@ export function CourseRosterSections({
   const visibleFreeStudentPreview = freeStudentPreview.filter(
     (student) => student.sourceAddressBookId === freeAddressBookId,
   );
+  const freeStudentPreviewRows = visibleFreeStudentPreview.slice(0, 5);
   const filteredAddressBooks = deferredAddressQuery
     ? addressBooks.filter((book) =>
         book.name.toLocaleLowerCase("ko-KR").includes(deferredAddressQuery),
@@ -190,7 +193,7 @@ export function CourseRosterSections({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {visiblePaidStudentPreview.map((student) => (
+                      {paidStudentPreviewRows.map((student) => (
                         <TableRow key={`${student.sourceJobId}-${student.id}`}>
                           <TableCell className="font-medium">{student.name || "-"}</TableCell>
                           <TableCell className="font-mono">{formatPhone(student.phone)}</TableCell>
@@ -201,9 +204,9 @@ export function CourseRosterSections({
                   </Table>
                 </div>
               )}
-              {selectedRoster.valid_count > 20 ? (
+              {selectedRoster.valid_count > 5 ? (
                 <p className="text-xs text-muted-foreground">
-                  화면에는 앞 20명까지 표시합니다.
+                  화면에는 앞 5명까지 표시합니다.
                 </p>
               ) : null}
             </div>
@@ -297,8 +300,19 @@ export function CourseRosterSections({
             >
               <BookUser />{selectedAddressBook ? "주소록 교체" : "주소록 연결"}
             </Button>
+            {selectedAddressBook ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setFreeRosterOpen((open) => !open)}
+              >
+                {freeRosterOpen ? "접기" : "펼치기"}
+              </Button>
+            ) : null}
           </div>
         </CardHeader>
+        {!selectedAddressBook || freeRosterOpen ? (
         <CardContent>
           {selectedAddressBook ? (
             <div className="space-y-4">
@@ -321,7 +335,7 @@ export function CourseRosterSections({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {visibleFreeStudentPreview.map((student) => (
+                      {freeStudentPreviewRows.map((student) => (
                         <TableRow key={student.id}>
                           <TableCell className="font-medium">{student.name || "-"}</TableCell>
                           <TableCell className="font-mono">{formatPhone(student.phone)}</TableCell>
@@ -336,9 +350,9 @@ export function CourseRosterSections({
                   변경된 주소록은 저장 후 명단에 반영됩니다.
                 </div>
               )}
-              {selectedAddressBook.contact_count > 20 ? (
+              {selectedAddressBook.contact_count > 5 ? (
                 <p className="text-xs text-muted-foreground">
-                  화면에는 앞 20명까지 표시합니다.
+                  화면에는 앞 5명까지 표시합니다.
                 </p>
               ) : null}
             </div>
@@ -351,6 +365,7 @@ export function CourseRosterSections({
             </div>
           )}
         </CardContent>
+        ) : null}
       </Card>
 
       <Dialog open={addressDialogOpen} onOpenChange={setAddressDialogOpen}>
