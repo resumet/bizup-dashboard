@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { AdminManagementButton } from "@/components/admin/admin-management-button";
+import { UserAccountMenu } from "@/components/auth/user-account-menu";
+import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { Button } from "@/components/ui/button";
 
 const SERVICE_LINKS = [
@@ -12,19 +15,13 @@ const SERVICE_LINKS = [
   { label: "플친소재", href: "/services/kakao-ad-maker" },
 ] as const;
 
-export function ServiceQuickLinks() {
+export function ServiceQuickLinks({ email }: { email: string }) {
   const pathname = usePathname();
 
   return (
     <header className="border-b bg-background">
       <div className="mx-auto flex min-h-14 max-w-[1600px] items-center gap-3 px-5 lg:px-8">
-        <Link
-          href="/"
-          className="shrink-0 font-semibold tracking-tight"
-          aria-label="서비스 홈"
-        >
-          BizUp
-        </Link>
+        <BrandHomeLink showName={false} />
         <div className="h-5 w-px shrink-0 bg-border" />
         <nav
           className="flex min-w-0 flex-1 gap-1 overflow-x-auto py-2"
@@ -50,6 +47,8 @@ export function ServiceQuickLinks() {
             );
           })}
         </nav>
+        <AdminManagementButton email={email} />
+        <UserAccountMenu email={email} />
       </div>
     </header>
   );

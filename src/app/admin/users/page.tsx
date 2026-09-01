@@ -1,0 +1,274 @@
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Clock3,
+  Search,
+  UserRoundCheck,
+  UsersRound,
+} from "lucide-react";
+
+import { AdminManagementButton } from "@/components/admin/admin-management-button";
+import { UserAccountMenu } from "@/components/auth/user-account-menu";
+import { BrandHomeLink } from "@/components/layout/brand-home-link";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  isMainAdminEmail,
+  MAIN_ADMIN_EMAIL,
+} from "@/lib/admin/access";
+import { loadAdminUsers } from "@/lib/admin/users";
+import { getAuthenticatedUser } from "@/lib/supabase/auth";
+import { createClient } from "@/lib/supabase/server";
+
+type AdminUsersPageProps = {
+  searchParams: Promise<{ q?: string | string[] }>;
+};
+
+const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "Asia/Seoul",
+});
+
+function formatDate(value: string | null) {
+  return value ? dateFormatter.format(new Date(value)) : "기록 없음";
+}
+
+function roleLabel(role: string) {
+  if (role === "admin") return "관리자";
+  if (role === "operator") return "운영자";
+  if (role === "viewer") return "조회자";
+  return role;
+}
+
+export default async function AdminUsersPage({
+  searchParams,
+}: AdminUsersPageProps) {
+  const supabase = await createClient();
+  const currentUser = await getAuthenticatedUser(supabase);
+
+  if (!currentUser) redirect("/login");
+  if (!isMainAdminEmail(currentUser.email)) notFound();
+
+  const params = await searchParams;
+  const queryValue = Array.isArray(params.q) ? params.q[0] : params.q;
+  const query = queryValue?.trim() ?? "";
+  const normalizedQuery = query.toLowerCase();
+  const result = await loadAdminUsers().then(
+    (users) => ({ users, error: null }),
+    (error: unknown) => ({
+      users: [],
+      error:
+        error instanceof Error
+          ? error.message
+          : "계정 정보를 불러오지 못했습니다.",
+    }),
+  );
+
+  const sortedUsers = result.users.toSorted((left, right) => {
+    const leftIsMain = isMainAdminEmail(left.email);
+    const rightIsMain = isMainAdminEmail(right.email);
+    if (leftIsMain !== rightIsMain) return leftIsMain ? -1 : 1;
+    return right.createdAt.localeCompare(left.createdAt);
+  });
+  const filteredUsers = normalizedQuery
+    ? sortedUsers.filter((user) =>
+        [
+          user.email,
+          user.id,
+          ...user.providers,
+          ...user.workspaces.flatMap((workspace) => [
+            workspace.name,
+            roleLabel(workspace.role),
+          ]),
+        ].some((value) => value.toLowerCase().includes(normalizedQuery)),
+      )
+    : sortedUsers;
+  const subAccountCount = sortedUsers.filter(
+    (user) => !isMainAdminEmail(user.email),
+  ).length;
+  const confirmedCount = sortedUsers.filter(
+    (user) => user.emailConfirmedAt,
+  ).length;
+  const signedInCount = sortedUsers.filter((user) => user.lastSignInAt).length;
+
+  return (
+    <main className="min-h-screen bg-muted/30">
+      <header className="border-b bg-background">
+        <div className="mx-auto flex h-18 max-w-[1600px] items-center justify-between gap-4 px-5 lg:px-8">
+          <div className="flex items-center gap-3">
+            <BrandHomeLink showName={false} />
+            <div>
+              <p className="font-semibold">사용자 계정 관리</p>
+              <p className="text-xs text-muted-foreground">Supabase Auth 조회 전용</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <AdminManagementButton
+              email={currentUser.email ?? MAIN_ADMIN_EMAIL}
+            />
+            <UserAccountMenu email={currentUser.email ?? MAIN_ADMIN_EMAIL} />
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-[1600px] space-y-6 px-5 py-8 lg:px-8">
+        <section>
+          <Badge variant="secondary" className="mb-3">관리자 전용</Badge>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Supabase 사용자 계정
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            메인 계정과 등록된 부계정의 인증 상태, 로그인 기록 및 워크스페이스
+            권한을 확인합니다. 이 화면에서는 계정 정보가 변경되지 않습니다.
+          </p>
+        </section>
+
+        {result.error ? (
+          <Alert variant="destructive">
+            <AlertCircle />
+            <AlertTitle>계정 정보를 불러오지 못했습니다</AlertTitle>
+            <AlertDescription>{result.error}</AlertDescription>
+          </Alert>
+        ) : (
+          <>
+            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="계정 요약">
+              {[
+                { label: "전체 계정", value: sortedUsers.length, icon: UsersRound },
+                { label: "부계정", value: subAccountCount, icon: UserRoundCheck },
+                { label: "이메일 인증", value: confirmedCount, icon: CheckCircle2 },
+                { label: "로그인 기록 있음", value: signedInCount, icon: Clock3 },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Card key={item.label}>
+                    <CardContent className="flex items-center justify-between p-5">
+                      <div>
+                        <p className="text-sm text-muted-foreground">{item.label}</p>
+                        <p className="mt-1 text-2xl font-semibold">{item.value}명</p>
+                      </div>
+                      <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                        <Icon className="size-5" />
+                      </span>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </section>
+
+            <Card>
+              <CardHeader className="gap-4 border-b sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <CardTitle>계정 목록</CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    메인 계정: {MAIN_ADMIN_EMAIL}
+                  </p>
+                </div>
+                <form method="get" className="flex w-full gap-2 sm:w-auto">
+                  <div className="relative min-w-0 flex-1 sm:w-80">
+                    <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      name="q"
+                      defaultValue={query}
+                      className="pl-9"
+                      placeholder="이메일, 역할, 워크스페이스 검색"
+                      aria-label="사용자 계정 검색"
+                    />
+                  </div>
+                  <Button type="submit" variant="outline">검색</Button>
+                  {query ? (
+                    <Button asChild variant="ghost">
+                      <Link href="/admin/users">초기화</Link>
+                    </Button>
+                  ) : null}
+                </form>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="px-5">계정</TableHead>
+                      <TableHead>인증</TableHead>
+                      <TableHead>워크스페이스 / 역할</TableHead>
+                      <TableHead>가입일</TableHead>
+                      <TableHead className="pr-5">최근 로그인</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUsers.length ? (
+                      filteredUsers.map((user) => {
+                        const isMain = isMainAdminEmail(user.email);
+                        return (
+                          <TableRow key={user.id}>
+                            <TableCell className="px-5 py-4">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{user.email}</span>
+                                <Badge variant={isMain ? "default" : "secondary"}>
+                                  {isMain ? "메인" : "부계정"}
+                                </Badge>
+                              </div>
+                              <p className="mt-1 font-mono text-xs text-muted-foreground">
+                                {user.id}
+                              </p>
+                              {user.providers.length ? (
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  로그인 방식: {user.providers.join(", ")}
+                                </p>
+                              ) : null}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={user.emailConfirmedAt ? "outline" : "destructive"}>
+                                {user.emailConfirmedAt ? "인증 완료" : "미인증"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {user.workspaces.length ? (
+                                <div className="space-y-1.5">
+                                  {user.workspaces.map((workspace) => (
+                                    <div key={`${workspace.name}-${workspace.joinedAt}`} className="flex items-center gap-2">
+                                      <span>{workspace.name}</span>
+                                      <Badge variant="outline">{roleLabel(workspace.role)}</Badge>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">연결 없음</span>
+                              )}
+                            </TableCell>
+                            <TableCell>{formatDate(user.createdAt)}</TableCell>
+                            <TableCell className="pr-5">
+                              {formatDate(user.lastSignInAt)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+                          {query ? "검색 조건에 맞는 계정이 없습니다." : "등록된 계정이 없습니다."}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </>
+        )}
+      </div>
+    </main>
+  );
+}

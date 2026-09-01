@@ -1,9 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   ArrowRight,
   Bell,
   BookOpenCheck,
-  ChevronDown,
   CirclePlay,
   ContactRound,
   FileDown,
@@ -13,13 +13,13 @@ import {
   MessageSquareText,
   Palette,
   Search,
-  Settings2,
   ShoppingCart,
-  Sparkles,
   Users,
   WandSparkles,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { AdminManagementButton } from "@/components/admin/admin-management-button";
+import { UserAccountMenu } from "@/components/auth/user-account-menu";
+import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +30,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { getAuthenticatedUser } from "@/lib/supabase/auth";
+import { createClient } from "@/lib/supabase/server";
 
 const services = [
   {
@@ -124,41 +126,31 @@ const services = [
   },
 ];
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const supabase = await createClient();
+  const currentUser = await getAuthenticatedUser(supabase);
+
+  if (!currentUser) redirect("/login");
+
+  const email = currentUser.email ?? "이메일 정보 없음";
+
   return (
     <main className="min-h-screen">
       <header className="border-b bg-background">
         <div className="mx-auto flex h-18 max-w-[1600px] items-center gap-6 px-5 lg:px-8">
-          <Link
-            href="/"
-            className="flex items-center gap-2 font-semibold tracking-tight"
-          >
-            <span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-              <Sparkles className="size-4" />
-            </span>
-            <span className="text-lg">BIZUP</span>
-          </Link>
+          <BrandHomeLink />
           <nav className="hidden items-center gap-1 md:flex">
             <Button variant="secondary" size="sm">
               <LayoutGrid />
               서비스
             </Button>
-            <Button variant="ghost" size="sm">
-              <Settings2 />
-              설정
-            </Button>
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            <AdminManagementButton email={email} />
             <Button variant="ghost" size="icon" aria-label="알림">
               <Bell />
             </Button>
-            <Button variant="ghost" className="gap-2 px-2">
-              <Avatar className="size-7">
-                <AvatarFallback>운</AvatarFallback>
-              </Avatar>
-              <span className="hidden text-sm sm:inline">운영자</span>
-              <ChevronDown className="size-3.5" />
-            </Button>
+            <UserAccountMenu email={email} />
           </div>
         </div>
       </header>
