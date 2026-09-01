@@ -161,6 +161,25 @@ test("유튜브 채널 주소는 웹 URL이어야 한다", () => {
   );
 });
 
+test("퍼센트 인코딩된 한글 유튜브 채널 주소를 한글로 저장한다", () => {
+  const parsed = parseCourseOperationsInput({
+    ...validInput,
+    youtubeAppearances: [
+      {
+        channelName: "두시간부업만",
+        channelUrl:
+          "https://www.youtube.com/@%EB%91%90%EC%8B%9C%EA%B0%84%EB%B6%80%EC%97%85%EB%A7%8C",
+        videoUrl: "",
+      },
+    ],
+  });
+
+  assert.equal(
+    parsed.youtubeAppearances[0].channelUrl,
+    "https://www.youtube.com/@두시간부업만",
+  );
+});
+
 test("무료강의 수강생 주소록은 비어 있거나 UUID여야 한다", () => {
   assert.equal(parseCourseOperationsInput(validInput).freeAddressBookId, "");
   assert.throws(

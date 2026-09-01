@@ -9,6 +9,7 @@ import type {
   LinkableMessageProject,
   LinkableRosterJob,
 } from "@/lib/course-operations/types";
+import { buildYoutubeChannelSuggestions } from "@/lib/course-operations/youtube-channels";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -45,7 +46,7 @@ export default async function NewCourseOperationsPage() {
   const user = await getAuthenticatedUser(supabase);
   if (!user) redirect("/login");
 
-  const [jobsResult, projectsResult] = await Promise.all([
+  const [jobsResult, projectsResult, youtubeChannelsResult] = await Promise.all([
     supabase
       .from("course_jobs")
       .select("id,name,default_course_name,valid_count,course_id,latest_version")
@@ -58,8 +59,16 @@ export default async function NewCourseOperationsPage() {
       )
       .is("course_id", null)
       .order("updated_at", { ascending: false }),
+    supabase
+      .from("course_youtube_appearances")
+      .select("channel_name,channel_url,created_at")
+      .order("created_at", { ascending: false })
+      .limit(500),
   ]);
-  const loadError = jobsResult.error?.message || projectsResult.error?.message;
+  const loadError =
+    jobsResult.error?.message ||
+    projectsResult.error?.message ||
+    youtubeChannelsResult.error?.message;
 
   return (
     <main className="min-h-screen">
@@ -80,6 +89,9 @@ export default async function NewCourseOperationsPage() {
           rosterJobs={(jobsResult.data ?? []) as LinkableRosterJob[]}
           messageProjects={(projectsResult.data ?? []) as LinkableMessageProject[]}
           addressBooks={[]}
+          youtubeChannelSuggestions={buildYoutubeChannelSuggestions(
+            youtubeChannelsResult.data ?? [],
+          )}
           loadError={loadError}
         />
       </div>

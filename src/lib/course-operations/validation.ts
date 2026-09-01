@@ -3,6 +3,7 @@ import {
   isAllowedWebinarTime,
   isKoreaDateOnly,
 } from "./schedule";
+import { decodeReadableUrl } from "./youtube-channels";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -23,13 +24,19 @@ function timestamp(value: unknown, label: string) {
   return parsed.toISOString();
 }
 
-function url(value: unknown, label: string, required: boolean) {
+function url(
+  value: unknown,
+  label: string,
+  required: boolean,
+  decodeForStorage = false,
+) {
   const normalized = text(value, label, 2_000, required);
   if (!normalized) return "";
   try {
     const parsed = new URL(normalized);
     if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error();
-    return parsed.toString();
+    const serialized = parsed.toString();
+    return decodeForStorage ? decodeReadableUrl(serialized) : serialized;
   } catch {
     throw new Error(`${label}은(는) http 또는 https 주소여야 합니다.`);
   }
@@ -147,7 +154,12 @@ export function parseCourseOperationsInput(value: unknown): CourseOperationsInpu
           : {};
       return {
         channelName: text(appearance.channelName, `${index + 1}번 유튜브 채널명`, 200),
-        channelUrl: url(appearance.channelUrl, `${index + 1}번 유튜브 채널 주소`, true),
+        channelUrl: url(
+          appearance.channelUrl,
+          `${index + 1}번 유튜브 채널 주소`,
+          true,
+          true,
+        ),
         videoUrl: url(appearance.videoUrl, `${index + 1}번 영상 주소`, false),
       };
     }),

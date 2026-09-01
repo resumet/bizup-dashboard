@@ -12,6 +12,11 @@ export type YoutubeAppearanceDraft = {
   videoUrl: string;
 };
 
+export type YoutubeChannelSuggestion = {
+  channelName: string;
+  channelUrl: string;
+};
+
 export type CourseOperationsDraft = {
   name: string;
   instructorName: string;

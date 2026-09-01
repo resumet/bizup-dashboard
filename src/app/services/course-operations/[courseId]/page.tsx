@@ -14,6 +14,10 @@ import type {
   LinkableRosterJob,
 } from "@/lib/course-operations/types";
 import {
+  buildYoutubeChannelSuggestions,
+  decodeReadableUrl,
+} from "@/lib/course-operations/youtube-channels";
+import {
   analyzeRosterOptions,
   analyzeRosterSources,
   countGroupChatParticipants,
@@ -120,6 +124,7 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
     jobsResult,
     projectsResult,
     addressBooksResult,
+    youtubeChannelsResult,
   ] =
     await Promise.all([
       supabase
@@ -148,6 +153,11 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
         .from("address_books")
         .select("id,name,contact_count,updated_at")
         .order("updated_at", { ascending: false }),
+      supabase
+        .from("course_youtube_appearances")
+        .select("channel_name,channel_url,created_at")
+        .order("created_at", { ascending: false })
+        .limit(500),
     ]);
 
   const loadError =
@@ -155,7 +165,8 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
     appearancesResult.error?.message ||
     jobsResult.error?.message ||
     projectsResult.error?.message ||
-    addressBooksResult.error?.message;
+    addressBooksResult.error?.message ||
+    youtubeChannelsResult.error?.message;
   const linkedJobs = (jobsResult.data ?? []).filter(
     (job) => job.course_id === courseId,
   );
@@ -233,7 +244,7 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
     })),
     youtubeAppearances: (appearancesResult.data ?? []).map((appearance) => ({
       channelName: appearance.channel_name,
-      channelUrl: appearance.channel_url,
+      channelUrl: decodeReadableUrl(appearance.channel_url),
       videoUrl: appearance.video_url,
     })),
     rosterJobIds: linkedJobs.slice(0, 1).map((job) => job.id),
@@ -263,6 +274,9 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
           rosterJobs={(jobsResult.data ?? []) as LinkableRosterJob[]}
           messageProjects={(projectsResult.data ?? []) as LinkableMessageProject[]}
           addressBooks={(addressBooksResult.data ?? []) as AddressBookSummary[]}
+          youtubeChannelSuggestions={buildYoutubeChannelSuggestions(
+            youtubeChannelsResult.data ?? [],
+          )}
           paidStudentPreview={paidStudentPreview}
           paidRosterAnalysis={paidRosterAnalysisResult.data}
           freeStudentPreview={freeStudentPreview}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ExternalLink,
   Calculator,
@@ -51,7 +51,9 @@ import type {
   FreeStudentPreview,
   LinkableMessageProject,
   LinkableRosterJob,
+  YoutubeChannelSuggestion,
 } from "@/lib/course-operations/types";
+import { decodeReadableUrl } from "@/lib/course-operations/youtube-channels";
 import { calculateDiscountRate } from "@/lib/course-operations/pricing";
 import {
   koreaDateTimeToIso,
@@ -166,6 +168,7 @@ export function CourseOperationsEditor({
   rosterJobs,
   messageProjects,
   addressBooks,
+  youtubeChannelSuggestions = [],
   paidStudentPreview = [],
   paidRosterAnalysis,
   freeStudentPreview = [],
@@ -176,6 +179,7 @@ export function CourseOperationsEditor({
   rosterJobs: LinkableRosterJob[];
   messageProjects: LinkableMessageProject[];
   addressBooks: AddressBookSummary[];
+  youtubeChannelSuggestions?: YoutubeChannelSuggestion[];
   paidStudentPreview?: CourseStudentPreview[];
   paidRosterAnalysis?: CourseRosterAnalysis;
   freeStudentPreview?: FreeStudentPreview[];
@@ -192,6 +196,28 @@ export function CourseOperationsEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const uniqueChannelNames = useMemo(
+    () =>
+      youtubeChannelSuggestions.filter(
+        (suggestion, index, suggestions) =>
+          suggestion.channelName &&
+          suggestions.findIndex(
+            (item) => item.channelName === suggestion.channelName,
+          ) === index,
+      ),
+    [youtubeChannelSuggestions],
+  );
+  const uniqueChannelUrls = useMemo(
+    () =>
+      youtubeChannelSuggestions.filter(
+        (suggestion, index, suggestions) =>
+          suggestion.channelUrl &&
+          suggestions.findIndex(
+            (item) => item.channelUrl === suggestion.channelUrl,
+          ) === index,
+      ),
+    [youtubeChannelSuggestions],
+  );
 
   function updateField(
     field: Exclude<
@@ -201,6 +227,39 @@ export function CourseOperationsEditor({
     value: string,
   ) {
     setDraft((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateYoutubeAppearance(
+    index: number,
+    patch: Partial<CourseOperationsDraft["youtubeAppearances"][number]>,
+  ) {
+    setDraft((current) => ({
+      ...current,
+      youtubeAppearances: current.youtubeAppearances.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...patch } : item,
+      ),
+    }));
+  }
+
+  function updateYoutubeChannelName(index: number, channelName: string) {
+    const selected = youtubeChannelSuggestions.find(
+      (suggestion) => suggestion.channelName === channelName,
+    );
+    updateYoutubeAppearance(index, {
+      channelName,
+      ...(selected?.channelUrl ? { channelUrl: selected.channelUrl } : {}),
+    });
+  }
+
+  function updateYoutubeChannelUrl(index: number, channelUrl: string) {
+    const readableUrl = decodeReadableUrl(channelUrl);
+    const selected = youtubeChannelSuggestions.find(
+      (suggestion) => suggestion.channelUrl === readableUrl,
+    );
+    updateYoutubeAppearance(index, {
+      channelUrl: readableUrl,
+      ...(selected?.channelName ? { channelName: selected.channelName } : {}),
+    });
   }
 
   async function saveCourse() {
@@ -789,6 +848,24 @@ export function CourseOperationsEditor({
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <datalist id="youtube-channel-name-suggestions">
+              {uniqueChannelNames.map((suggestion) => (
+                <option
+                  key={`${suggestion.channelName}-${suggestion.channelUrl}`}
+                  value={suggestion.channelName}
+                  label={suggestion.channelUrl}
+                />
+              ))}
+            </datalist>
+            <datalist id="youtube-channel-url-suggestions">
+              {uniqueChannelUrls.map((suggestion) => (
+                <option
+                  key={`${suggestion.channelUrl}-${suggestion.channelName}`}
+                  value={suggestion.channelUrl}
+                  label={suggestion.channelName}
+                />
+              ))}
+            </datalist>
             {draft.youtubeAppearances.length === 0 ? (
               <div className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
                 아직 등록된 유튜브 출연 정보가 없습니다.
@@ -813,20 +890,11 @@ export function CourseOperationsEditor({
                         className="h-10"
                         aria-label={`${index + 1}번 유튜브 채널명`}
                         placeholder="채널명"
+                        list="youtube-channel-name-suggestions"
+                        autoComplete="off"
                         value={appearance.channelName}
                         onChange={(event) =>
-                          setDraft((current) => ({
-                            ...current,
-                            youtubeAppearances: current.youtubeAppearances.map(
-                              (item, itemIndex) =>
-                                itemIndex === index
-                                  ? {
-                                      ...item,
-                                      channelName: event.target.value,
-                                    }
-                                  : item,
-                            ),
-                          }))
+                          updateYoutubeChannelName(index, event.target.value)
                         }
                       />
                       <Input
@@ -835,20 +903,16 @@ export function CourseOperationsEditor({
                         aria-label={`${index + 1}번 유튜브 채널 주소`}
                         type="url"
                         placeholder="https://youtube.com/@channel"
+                        list="youtube-channel-url-suggestions"
+                        autoComplete="off"
                         value={appearance.channelUrl}
                         onChange={(event) =>
-                          setDraft((current) => ({
-                            ...current,
-                            youtubeAppearances: current.youtubeAppearances.map(
-                              (item, itemIndex) =>
-                                itemIndex === index
-                                  ? {
-                                      ...item,
-                                      channelUrl: event.target.value,
-                                    }
-                                  : item,
-                            ),
-                          }))
+                          updateYoutubeAppearance(index, {
+                            channelUrl: event.target.value,
+                          })
+                        }
+                        onBlur={(event) =>
+                          updateYoutubeChannelUrl(index, event.target.value)
                         }
                       />
                       <Input
