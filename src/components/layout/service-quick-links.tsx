@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 const SERVICE_LINKS = [
   { label: "강의운영", href: "/services/course-operations" },
   { label: "수강생 명단", href: "/services/course-roster" },
+  { label: "전화세일즈", href: "/services/phone-sales-list" },
   { label: "알림톡/문자", href: "/services/message-automation" },
   { label: "플친소재", href: "/services/kakao-ad-maker" },
 ] as const;

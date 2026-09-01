@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  Download,
   FileUp,
   Loader2,
   MessageSquareText,
@@ -260,6 +261,12 @@ export function AddressBookDetail({
         </div>
         {mode === "manager" ? (
           <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <a href={`/api/address-books/${book.id}/export`}>
+                <Download />
+                Excel 다운로드
+              </a>
+            </Button>
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="outline">

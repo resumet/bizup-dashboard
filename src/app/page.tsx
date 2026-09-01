@@ -12,6 +12,7 @@ import {
   LayoutGrid,
   MessageSquareText,
   Palette,
+  PhoneCall,
   Search,
   ShoppingCart,
   Users,
@@ -63,6 +64,16 @@ const services = [
     route: "/services/address-books",
     icon: ContactRound,
     meta: "주소록 전용 관리",
+  },
+  {
+    key: "phone-sales-list",
+    title: "전화세일즈 명단 만들기",
+    description:
+      "무료강의 신청자 명단에서 유료강의 신청자를 제외해 전화 세일즈 대상과 콜 인력 비용을 계산합니다.",
+    active: true,
+    route: "/services/phone-sales-list",
+    icon: PhoneCall,
+    meta: "무료/유료 명단 차집합",
   },
   {
     key: "message-automation",
