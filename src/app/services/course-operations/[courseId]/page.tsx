@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { CourseOperationsEditor } from "@/components/course-operations/course-editor";
 import { Button } from "@/components/ui/button";
+import { toCourseNote, type CourseNote } from "@/lib/course-operations/notes";
 import type {
   AddressBookSummary,
   CourseRosterAnalysis,
@@ -126,6 +127,7 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
     projectsResult,
     addressBooksResult,
     youtubeChannelsResult,
+    notesResult,
   ] =
     await Promise.all([
       supabase
@@ -159,6 +161,11 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
         .select("channel_name,channel_url,created_at")
         .order("created_at", { ascending: false })
         .limit(500),
+      supabase
+        .from("course_notes")
+        .select("id,content,created_by,author_email,created_at,updated_at")
+        .eq("course_id", courseId)
+        .order("created_at", { ascending: false }),
     ]);
 
   const loadError =
@@ -168,6 +175,12 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
     projectsResult.error?.message ||
     addressBooksResult.error?.message ||
     youtubeChannelsResult.error?.message;
+  const notes: CourseNote[] = (notesResult.data ?? []).map(toCourseNote);
+  const notesLoadError = notesResult.error
+    ? notesResult.error.code === "PGRST205" || notesResult.error.code === "42P01"
+      ? "강의 메모 DB 마이그레이션을 먼저 적용해 주세요."
+      : notesResult.error.message
+    : undefined;
   const linkedJobs = (jobsResult.data ?? []).filter(
     (job) => job.course_id === courseId,
   );
@@ -284,6 +297,10 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
           paidStudentPreview={paidStudentPreview}
           paidRosterAnalysis={paidRosterAnalysisResult.data}
           freeStudentPreview={freeStudentPreview}
+          currentUserId={user.id}
+          currentUserEmail={user.email ?? "이메일 정보 없음"}
+          initialNotes={notes}
+          notesLoadError={notesLoadError}
           loadError={loadError || previewError}
         />
       </div>

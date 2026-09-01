@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { CourseRosterSections } from "@/components/course-operations/course-roster-sections";
+import { CourseNotesCard } from "@/components/course-operations/course-notes-card";
 import { CourseScheduleCalendar } from "@/components/course-operations/course-schedule-calendar";
 import { CourseShareDialog } from "@/components/course-operations/course-share-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -55,6 +56,7 @@ import type {
   LinkableRosterJob,
   YoutubeChannelSuggestion,
 } from "@/lib/course-operations/types";
+import type { CourseNote } from "@/lib/course-operations/notes";
 import { decodeReadableUrl } from "@/lib/course-operations/youtube-channels";
 import { calculateDiscountRate } from "@/lib/course-operations/pricing";
 import {
@@ -180,6 +182,10 @@ export function CourseOperationsEditor({
   paidStudentPreview = [],
   paidRosterAnalysis,
   freeStudentPreview = [],
+  currentUserId = "",
+  currentUserEmail = "",
+  initialNotes = [],
+  notesLoadError,
   loadError,
 }: {
   courseId?: string;
@@ -191,6 +197,10 @@ export function CourseOperationsEditor({
   paidStudentPreview?: CourseStudentPreview[];
   paidRosterAnalysis?: CourseRosterAnalysis;
   freeStudentPreview?: FreeStudentPreview[];
+  currentUserId?: string;
+  currentUserEmail?: string;
+  initialNotes?: CourseNote[];
+  notesLoadError?: string;
   loadError?: string;
 }) {
   const router = useRouter();
@@ -657,6 +667,16 @@ export function CourseOperationsEditor({
             </CardContent>
           </Card>
         </div>
+
+        {courseId ? (
+          <CourseNotesCard
+            courseId={courseId}
+            currentUserId={currentUserId}
+            currentUserEmail={currentUserEmail}
+            initialNotes={initialNotes}
+            loadError={notesLoadError}
+          />
+        ) : null}
 
         <Card>
           <CardHeader>
