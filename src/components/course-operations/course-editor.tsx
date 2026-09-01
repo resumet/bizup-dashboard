@@ -434,104 +434,6 @@ export function CourseOperationsEditor({
         </Alert>
       ) : null}
 
-      <Card className="border-primary/30">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
-              <MessageSquareText className="size-5" />
-            </span>
-            <div>
-              <CardTitle>웨비나 문자 목록 서비스 연결</CardTitle>
-              <CardDescription className="mt-1">
-                이 강의에서 사용할 문자 30개 프로젝트를 선택하거나 연결을
-                해제합니다.
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {messageProjects.length === 0 ? (
-            <div className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
-              연결 가능한 문자 제작 프로젝트가 없습니다.
-              <Button variant="link" asChild className="ml-1">
-                <Link href="/services/message-studio">
-                  문자 프로젝트 만들기
-                </Link>
-              </Button>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-              <div className="grid min-w-0 flex-1 gap-2">
-                <Label htmlFor="message-project-select">문자 목록</Label>
-                <Select
-                  value={draft.messageProjectIds[0] ?? ""}
-                  onValueChange={(messageProjectId) =>
-                    setDraft((current) => ({
-                      ...current,
-                      messageProjectIds: [messageProjectId],
-                    }))
-                  }
-                >
-                  <SelectTrigger id="message-project-select" className="w-full">
-                    <SelectValue placeholder="연결할 문자 목록을 선택하세요" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {messageProjects.map((project) => {
-                      const generatedCount =
-                        project.message_studio_resources.filter((resource) =>
-                          resource.generated_text.trim(),
-                        ).length;
-                      return (
-                        <SelectItem key={project.id} value={project.id}>
-                          {project.course_name} ·{" "}
-                          {project.instructor_name || "강사 미입력"} ·{" "}
-                          {generatedCount}/30 생성
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={!selectedMessageProject}
-                  onClick={() =>
-                    setDraft((current) => ({
-                      ...current,
-                      messageProjectIds: [],
-                    }))
-                  }
-                >
-                  선택 해제
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={!selectedMessageProject}
-                  asChild={Boolean(selectedMessageProject)}
-                >
-                  {selectedMessageProject ? (
-                    <Link
-                      href={`/services/message-studio/${selectedMessageProject.id}`}
-                    >
-                      <ExternalLink />
-                      목록 열기 ({selectedMessageGeneratedCount}/30)
-                    </Link>
-                  ) : (
-                    <span>
-                      <ExternalLink />
-                      목록 열기
-                    </span>
-                  )}
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       <div className="space-y-6">
         <div className="grid items-stretch gap-6 xl:grid-cols-2">
           <div className="space-y-6">
@@ -1124,6 +1026,104 @@ export function CourseOperationsEditor({
           </CardContent>
         </Card>
       </div>
+
+      <Card className="border-primary/30">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
+              <MessageSquareText className="size-5" />
+            </span>
+            <div>
+              <CardTitle>웨비나 문자 목록 서비스 연결</CardTitle>
+              <CardDescription className="mt-1">
+                이 강의에서 사용할 문자 30개 프로젝트를 선택하거나 연결을
+                해제합니다.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {messageProjects.length === 0 ? (
+            <div className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
+              연결 가능한 문자 제작 프로젝트가 없습니다.
+              <Button variant="link" asChild className="ml-1">
+                <Link href="/services/message-studio">
+                  문자 프로젝트 만들기
+                </Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+              <div className="grid min-w-0 flex-1 gap-2">
+                <Label htmlFor="message-project-select">문자 목록</Label>
+                <Select
+                  value={draft.messageProjectIds[0] ?? ""}
+                  onValueChange={(messageProjectId) =>
+                    setDraft((current) => ({
+                      ...current,
+                      messageProjectIds: [messageProjectId],
+                    }))
+                  }
+                >
+                  <SelectTrigger id="message-project-select" className="w-full">
+                    <SelectValue placeholder="연결할 문자 목록을 선택하세요" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {messageProjects.map((project) => {
+                      const generatedCount =
+                        project.message_studio_resources.filter((resource) =>
+                          resource.generated_text.trim(),
+                        ).length;
+                      return (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.course_name} ·{" "}
+                          {project.instructor_name || "강사 미입력"} ·{" "}
+                          {generatedCount}/30 생성
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!selectedMessageProject}
+                  onClick={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      messageProjectIds: [],
+                    }))
+                  }
+                >
+                  선택 해제
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!selectedMessageProject}
+                  asChild={Boolean(selectedMessageProject)}
+                >
+                  {selectedMessageProject ? (
+                    <Link
+                      href={`/services/message-studio/${selectedMessageProject.id}`}
+                    >
+                      <ExternalLink />
+                      목록 열기 ({selectedMessageGeneratedCount}/30)
+                    </Link>
+                  ) : (
+                    <span>
+                      <ExternalLink />
+                      목록 열기
+                    </span>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {courseId ? (
         <CourseRosterSections
