@@ -6,6 +6,7 @@ export type RosterRow = {
   normalizedPhone: string;
   isDuplicate: boolean;
   groupChatJoined: boolean;
+  memo: string;
   values: Record<StandardField, string>;
 };
 

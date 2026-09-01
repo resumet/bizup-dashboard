@@ -83,7 +83,14 @@ export function buildUpdatedRosterRecords(
     const normalizedValues = {
       ...record.normalizedValues,
       groupChatJoined: matched.normalizedValues.groupChatJoined === true,
-    } as Record<StandardField, string> & { groupChatJoined?: boolean };
+      memo:
+        typeof matched.normalizedValues.memo === "string"
+          ? matched.normalizedValues.memo
+          : "",
+    } as Record<StandardField, string> & {
+      groupChatJoined?: boolean;
+      memo?: string;
+    };
     return [{ ...record, normalizedValues }];
   });
 

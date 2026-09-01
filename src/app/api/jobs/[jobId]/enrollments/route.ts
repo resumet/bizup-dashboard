@@ -119,6 +119,7 @@ export async function POST(request: Request, { params }: Context) {
       source: input.source,
       adMedia: input.adMedia,
       groupChatJoined: false,
+      memo: "",
     };
 
     const { data: student, error: studentError } = await admin
@@ -211,6 +212,7 @@ export async function POST(request: Request, { params }: Context) {
           normalizedPhone: input.normalizedPhone,
           isDuplicate: false,
           groupChatJoined: false,
+          memo: "",
           values: normalizedValues,
         },
       },

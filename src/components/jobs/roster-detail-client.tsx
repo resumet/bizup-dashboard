@@ -17,7 +17,9 @@ import {
 import { RosterUpdateDialog } from "@/components/jobs/roster-update-dialog";
 import { RosterAnalysisCards } from "@/components/jobs/roster-analysis-cards";
 import { DeleteSelectedEnrollmentsButton } from "@/components/jobs/delete-selected-enrollments-button";
+import { EnrollmentMemoInput } from "@/components/jobs/enrollment-memo-input";
 import { ManualEnrollmentDialog } from "@/components/jobs/manual-enrollment-dialog";
+import { RosterNotesCard } from "@/components/jobs/roster-notes-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -69,6 +71,7 @@ import {
   type RosterRow,
   type RosterSort,
 } from "@/lib/jobs/types";
+import type { CourseJobNote } from "@/lib/jobs/notes";
 import {
   buildCourseOptionInviteMap,
   optionKey,
@@ -97,6 +100,10 @@ type Props = {
   messageHistory: MessageHistoryItem[];
   linkedCourseOptionInvites: LinkedCourseOptionInvite[];
   hasLinkedCourse: boolean;
+  currentUserId: string;
+  currentUserEmail: string;
+  notes: CourseJobNote[];
+  notesError?: string;
   loadError?: string;
   historyError?: string;
 };
@@ -113,6 +120,10 @@ export function RosterDetailClient({
   messageHistory,
   linkedCourseOptionInvites,
   hasLinkedCourse,
+  currentUserId,
+  currentUserEmail,
+  notes,
+  notesError,
   loadError,
   historyError,
 }: Props) {
@@ -335,7 +346,7 @@ export function RosterDetailClient({
               <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="pl-9"
-                placeholder="이름·전화·이메일·추천인"
+                placeholder="이름·전화·이메일·추천인·비고"
                 aria-label="수강생 검색"
                 value={filters.keyword}
                 onChange={(event) => setFilter("keyword", event.target.value)}
@@ -428,11 +439,6 @@ export function RosterDetailClient({
           </div>
         </CardContent>
       </Card>
-      <RosterAnalysisCards
-        sourceItems={sourceAnalysis}
-        optionItems={optionAnalysis}
-        totalCount={rows.length}
-      />
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
@@ -455,6 +461,7 @@ export function RosterDetailClient({
                 <TableHead>추천인</TableHead>
                 <TableHead>유입 경로</TableHead>
                 <TableHead>광고 매체</TableHead>
+                <TableHead>비고</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -500,6 +507,21 @@ export function RosterDetailClient({
                   <TableCell>{row.values.referrer || "-"}</TableCell>
                   <TableCell>{row.values.source || "-"}</TableCell>
                   <TableCell>{row.values.adMedia || "-"}</TableCell>
+                  <TableCell>
+                    <EnrollmentMemoInput
+                      jobId={jobId}
+                      enrollmentId={row.id}
+                      initialValue={row.memo}
+                      studentName={row.values.customerName}
+                      onSaved={(memo) =>
+                        setRows((current) =>
+                          current.map((item) =>
+                            item.id === row.id ? { ...item, memo } : item,
+                          ),
+                        )
+                      }
+                    />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -511,6 +533,18 @@ export function RosterDetailClient({
           </div>
         )}
       </Card>
+      <RosterAnalysisCards
+        sourceItems={sourceAnalysis}
+        optionItems={optionAnalysis}
+        totalCount={rows.length}
+      />
+      <RosterNotesCard
+        jobId={jobId}
+        currentUserId={currentUserId}
+        currentUserEmail={currentUserEmail}
+        initialNotes={notes}
+        loadError={notesError}
+      />
       <MessageHistoryCard
         jobId={jobId}
         items={messageHistory}

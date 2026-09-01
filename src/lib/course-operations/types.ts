@@ -94,6 +94,7 @@ export type CourseStudentPreview = {
   name: string;
   phone: string;
   email: string;
+  memo: string;
   sourceJobId: string;
 };
 

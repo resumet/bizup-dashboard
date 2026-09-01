@@ -10,6 +10,7 @@ export type StoredRosterRecord = {
   normalizedPhone: string;
   normalizedValues: Record<StandardField, string> & {
     groupChatJoined?: boolean;
+    memo?: string;
   };
   originalValues: Record<string, string>;
   isDuplicate: boolean;

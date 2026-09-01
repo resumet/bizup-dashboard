@@ -18,6 +18,7 @@ const rows = [
     normalizedPhone: "01011112222",
     isDuplicate: false,
     groupChatJoined: true,
+    memo: "재결제 확인",
     values: {
       courseName: "AI 실전",
       optionName: "A",
@@ -35,6 +36,7 @@ const rows = [
     normalizedPhone: "01033334444",
     isDuplicate: false,
     groupChatJoined: false,
+    memo: "",
     values: {
       courseName: "AI 실전",
       optionName: "B",
@@ -69,6 +71,13 @@ test("화면과 서버에서 공유하는 명단 필터가 검색어와 선택 �
     filterRosterRows(rows, { ...EMPTY_ROSTER_FILTERS, keyword: "없는 사람" })
       .length,
     0,
+  );
+  assert.deepEqual(
+    filterRosterRows(rows, {
+      ...EMPTY_ROSTER_FILTERS,
+      keyword: "재결제",
+    }).map((row) => row.id),
+    ["1"],
   );
 });
 

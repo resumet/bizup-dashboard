@@ -207,6 +207,7 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
             typeof values.customerName === "string" ? values.customerName : "",
           phone: row.normalized_phone ?? "",
           email: typeof values.email === "string" ? values.email : "",
+          memo: typeof values.memo === "string" ? values.memo : "",
           sourceJobId: linkedJob.id,
         };
       })

@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
+import { parseEnrollmentMemo } from "@/lib/jobs/enrollment-memo";
 
 type Context = {
   params: Promise<{ jobId: string; enrollmentId: string }>;
@@ -8,6 +9,7 @@ type Context = {
 
 type RequestBody = {
   groupChatJoined?: boolean;
+  memo?: unknown;
 };
 
 export async function PATCH(request: Request, { params }: Context) {
@@ -20,11 +22,33 @@ export async function PATCH(request: Request, { params }: Context) {
   }
 
   const body = (await request.json()) as RequestBody;
-  if (typeof body.groupChatJoined !== "boolean") {
+  const hasGroupChatJoined = Object.prototype.hasOwnProperty.call(
+    body,
+    "groupChatJoined",
+  );
+  const hasMemo = Object.prototype.hasOwnProperty.call(body, "memo");
+  if (
+    (!hasGroupChatJoined && !hasMemo) ||
+    (hasGroupChatJoined && typeof body.groupChatJoined !== "boolean")
+  ) {
     return Response.json(
-      { message: "단톡방 참여 여부를 확인해 주세요." },
+      { message: "저장할 수강생 정보를 확인해 주세요." },
       { status: 400 },
     );
+  }
+  let memo: string | undefined;
+  if (hasMemo) {
+    try {
+      memo = parseEnrollmentMemo(body.memo);
+    } catch (error) {
+      return Response.json(
+        {
+          message:
+            error instanceof Error ? error.message : "비고를 확인해 주세요.",
+        },
+        { status: 400 },
+      );
+    }
   }
 
   const { data: job } = await supabase
@@ -66,7 +90,10 @@ export async function PATCH(request: Request, { params }: Context) {
     .update({
       normalized_values: {
         ...normalizedValues,
-        groupChatJoined: body.groupChatJoined,
+        ...(hasGroupChatJoined
+          ? { groupChatJoined: body.groupChatJoined }
+          : {}),
+        ...(hasMemo ? { memo } : {}),
       },
     })
     .eq("id", enrollmentId)
@@ -75,10 +102,13 @@ export async function PATCH(request: Request, { params }: Context) {
 
   if (updateError) {
     return Response.json(
-      { message: `단톡방 참여 여부 저장 실패: ${updateError.code}` },
+      { message: `수강생 정보 저장 실패: ${updateError.code}` },
       { status: 400 },
     );
   }
 
-  return Response.json({ groupChatJoined: body.groupChatJoined });
+  return Response.json({
+    ...(hasGroupChatJoined ? { groupChatJoined: body.groupChatJoined } : {}),
+    ...(hasMemo ? { memo } : {}),
+  });
 }

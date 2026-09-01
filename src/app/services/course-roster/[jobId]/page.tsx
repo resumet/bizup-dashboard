@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { RosterDetailClient } from "@/components/jobs/roster-detail-client";
 import { Button } from "@/components/ui/button";
 import { loadJobEnrollmentRows } from "@/lib/jobs/server";
+import { toCourseJobNote, type CourseJobNote } from "@/lib/jobs/notes";
 import type { LinkedCourseOptionInvite } from "@/lib/jobs/types";
 import type { MessageHistoryItem } from "@/lib/messages/types";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
@@ -25,7 +26,7 @@ export default async function CourseRosterDetailPage({ params }: PageProps) {
     .maybeSingle();
   if (!job) notFound();
 
-  const [enrollmentResult, messageResult, testResult, courseOptionsResult, linkedCourseResult] = await Promise.all([
+  const [enrollmentResult, messageResult, testResult, courseOptionsResult, linkedCourseResult, notesResult] = await Promise.all([
     loadJobEnrollmentRows(supabase, jobId, job.latest_version)
       .then((data) => ({ data, error: null }))
       .catch((error: Error) => ({ data: [], error })),
@@ -45,6 +46,11 @@ export default async function CourseRosterDetailPage({ params }: PageProps) {
           .eq("id", job.course_id)
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    supabase
+      .from("course_job_notes")
+      .select("id,content,created_by,author_email,created_at,updated_at")
+      .eq("course_job_id", jobId)
+      .order("created_at", { ascending: false }),
   ]);
   const rows = enrollmentResult.data;
   const courseName =
@@ -74,6 +80,12 @@ export default async function CourseRosterDetailPage({ params }: PageProps) {
     }),
   ].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   const historyError = messageResult.error?.message ?? testResult.error?.message;
+  const notes: CourseJobNote[] = (notesResult.data ?? []).map(toCourseJobNote);
+  const notesError = notesResult.error
+    ? notesResult.error.code === "PGRST205" || notesResult.error.code === "42P01"
+      ? "명단 메모 DB 마이그레이션을 먼저 적용해 주세요."
+      : notesResult.error.message
+    : undefined;
   const linkedCourseOptionInvites: LinkedCourseOptionInvite[] = (
     courseOptionsResult.data ?? []
   ).map((option) => ({
@@ -91,7 +103,7 @@ export default async function CourseRosterDetailPage({ params }: PageProps) {
       </div>
     </header>
     <div className="mx-auto max-w-[1600px] px-5 py-8 lg:px-8">
-      <RosterDetailClient key={job.latest_version} jobId={job.id} jobName={job.name} jobVersion={job.latest_version} jobStatus={job.status} defaultCourseName={courseName} rows={rows} messageHistory={messageHistory} linkedCourseOptionInvites={linkedCourseOptionInvites} hasLinkedCourse={Boolean(job.course_id)} loadError={enrollmentResult.error?.message ?? courseOptionsResult.error?.message ?? linkedCourseResult.error?.message} historyError={historyError} />
+      <RosterDetailClient key={job.latest_version} jobId={job.id} jobName={job.name} jobVersion={job.latest_version} jobStatus={job.status} defaultCourseName={courseName} rows={rows} messageHistory={messageHistory} linkedCourseOptionInvites={linkedCourseOptionInvites} hasLinkedCourse={Boolean(job.course_id)} currentUserId={user.id} currentUserEmail={user.email ?? "이메일 정보 없음"} notes={notes} notesError={notesError} loadError={enrollmentResult.error?.message ?? courseOptionsResult.error?.message ?? linkedCourseResult.error?.message} historyError={historyError} />
     </div>
   </main>;
 }

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { RosterAnalysisCards } from "@/components/jobs/roster-analysis-cards";
+import { EnrollmentMemoInput } from "@/components/jobs/enrollment-memo-input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -190,6 +191,7 @@ export function CourseRosterSections({
                         <TableHead>이름</TableHead>
                         <TableHead>전화번호</TableHead>
                         <TableHead>이메일</TableHead>
+                        <TableHead>비고</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -198,6 +200,14 @@ export function CourseRosterSections({
                           <TableCell className="font-medium">{student.name || "-"}</TableCell>
                           <TableCell className="font-mono">{formatPhone(student.phone)}</TableCell>
                           <TableCell className="text-muted-foreground">{student.email || "-"}</TableCell>
+                          <TableCell>
+                            <EnrollmentMemoInput
+                              jobId={student.sourceJobId}
+                              enrollmentId={student.id}
+                              initialValue={student.memo}
+                              studentName={student.name}
+                            />
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

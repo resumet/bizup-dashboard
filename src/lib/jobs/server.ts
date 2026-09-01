@@ -23,16 +23,24 @@ export async function loadJobEnrollmentRows(
       .range(start, start + 999);
     if (error) throw new Error(`상세 명단 조회 실패: ${error.code}`);
     rows.push(
-      ...(data ?? []).map((row) => ({
-        id: row.id,
-        sourceRowNumber: row.source_row_number,
-        normalizedPhone: row.normalized_phone ?? "",
-        isDuplicate: row.is_duplicate,
-        groupChatJoined:
-          (row.normalized_values as Record<string, unknown> | null)
-            ?.groupChatJoined === true,
-        values: row.normalized_values as Record<StandardField, string>,
-      })),
+      ...(data ?? []).map((row) => {
+        const normalizedValues = row.normalized_values as Record<
+          string,
+          unknown
+        > | null;
+        return {
+          id: row.id,
+          sourceRowNumber: row.source_row_number,
+          normalizedPhone: row.normalized_phone ?? "",
+          isDuplicate: row.is_duplicate,
+          groupChatJoined: normalizedValues?.groupChatJoined === true,
+          memo:
+            typeof normalizedValues?.memo === "string"
+              ? normalizedValues.memo
+              : "",
+          values: row.normalized_values as Record<StandardField, string>,
+        };
+      }),
     );
     if ((data?.length ?? 0) < 1000) break;
   }
