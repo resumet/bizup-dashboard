@@ -44,6 +44,7 @@ export type CourseOperationsDraft = {
   curriculumLink: string;
   freeGiftLink: string;
   courseViewingLink: string;
+  courseMaterialsLink: string;
   options: CourseOptionDraft[];
   youtubeAppearances: YoutubeAppearanceDraft[];
   rosterJobIds: string[];

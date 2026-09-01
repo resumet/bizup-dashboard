@@ -54,6 +54,7 @@ export async function PATCH(
         curriculum_link: input.curriculumLink,
         free_gift_link: input.freeGiftLink,
         course_viewing_link: input.courseViewingLink,
+        course_materials_link: input.courseMaterialsLink,
         free_address_book_id: input.freeAddressBookId || null,
         required_tasks: input.requiredTasks,
         updated_at: new Date().toISOString(),

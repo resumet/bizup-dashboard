@@ -29,6 +29,7 @@ const EMPTY_DRAFT: CourseOperationsDraft = {
   curriculumLink: "",
   freeGiftLink: "",
   courseViewingLink: "",
+  courseMaterialsLink: "",
   options: [{
     name: "",
     listPrice: "",

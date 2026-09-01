@@ -147,6 +147,7 @@ export function parseCourseOperationsInput(value: unknown): CourseOperationsInpu
       false,
     ),
     courseViewingLink: url(input.courseViewingLink, "강의 시청하기 링크", false),
+    courseMaterialsLink: url(input.courseMaterialsLink, "강의자료 링크", false),
     options,
     youtubeAppearances: appearances.map((item, index) => {
       const appearance =

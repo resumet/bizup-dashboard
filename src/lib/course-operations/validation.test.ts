@@ -18,6 +18,7 @@ const validInput = {
   curriculumLink: "https://example.com/curriculum",
   freeGiftLink: "https://example.com/gift",
   courseViewingLink: "https://example.com/course",
+  courseMaterialsLink: "https://example.com/materials",
   options: [{
     name: "일반",
     listPrice: "500000",
@@ -46,7 +47,24 @@ test("강의 운영 입력값을 DB 저장 형식으로 변환한다", () => {
   assert.equal(parsed.freeWebinarAt, "2026-09-01T10:30:00.000Z");
   assert.equal(parsed.startsAt, "2026-09-09T15:00:00.000Z");
   assert.equal(parsed.freeKakaoRoom1Link, "https://open.kakao.com/o/free1");
+  assert.equal(parsed.courseMaterialsLink, "https://example.com/materials");
   assert.equal(parsed.rosterJobIds.length, 1);
+});
+
+test("강의자료 링크는 비어 있거나 HTTP·HTTPS 주소여야 한다", () => {
+  assert.equal(
+    parseCourseOperationsInput({ ...validInput, courseMaterialsLink: "" })
+      .courseMaterialsLink,
+    "",
+  );
+  assert.throws(
+    () =>
+      parseCourseOperationsInput({
+        ...validInput,
+        courseMaterialsLink: "javascript:alert(1)",
+      }),
+    /강의자료 링크.*http 또는 https/u,
+  );
 });
 
 test("강의 링크는 비어 있거나 HTTP·HTTPS 주소여야 한다", () => {

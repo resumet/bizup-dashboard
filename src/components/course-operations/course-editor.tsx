@@ -360,6 +360,9 @@ export function CourseOperationsEditor({
         resource.generated_text.trim(),
       ).length
     : 0;
+  const courseMaterialsOpenableLink = getOpenableLink(
+    draft.courseMaterialsLink,
+  );
 
   return (
     <div className="space-y-6">
@@ -517,6 +520,46 @@ export function CourseOperationsEditor({
                     updateField("startsAt", event.target.value)
                   }
                 />
+              </div>
+              <div className="grid gap-2 md:col-span-2">
+                <Label htmlFor="course-materials-link">강의자료 링크</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="course-materials-link"
+                    className="h-10 min-w-0 flex-1"
+                    type="url"
+                    inputMode="url"
+                    placeholder="https://"
+                    maxLength={2_000}
+                    value={draft.courseMaterialsLink}
+                    onChange={(event) =>
+                      updateField("courseMaterialsLink", event.target.value)
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10"
+                    disabled={!courseMaterialsOpenableLink}
+                    asChild={Boolean(courseMaterialsOpenableLink)}
+                  >
+                    {courseMaterialsOpenableLink ? (
+                      <a
+                        href={courseMaterialsOpenableLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink />
+                        바로 열기
+                      </a>
+                    ) : (
+                      <span>
+                        <ExternalLink />
+                        바로 열기
+                      </span>
+                    )}
+                  </Button>
+                </div>
               </div>
               </CardContent>
             </Card>
