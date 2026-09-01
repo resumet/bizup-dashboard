@@ -15,6 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { CourseListCalendar } from "@/components/course-operations/course-list-calendar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -39,7 +40,7 @@ import {
 } from "@/components/ui/table";
 import type { CourseSummary } from "@/lib/course-operations/types";
 
-type ViewMode = "cards" | "list";
+type ViewMode = "cards" | "list" | "calendar";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -108,6 +109,16 @@ export function CourseOperationsList({ courses }: { courses: CourseSummary[] }) 
           >
             <List />
             리스트
+          </Button>
+          <Button
+            type="button"
+            variant={viewMode === "calendar" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("calendar")}
+            aria-pressed={viewMode === "calendar"}
+          >
+            <CalendarDays />
+            캘린더
           </Button>
         </div>
       </div>
@@ -180,7 +191,7 @@ export function CourseOperationsList({ courses }: { courses: CourseSummary[] }) 
             </Card>
           ))}
         </section>
-      ) : (
+      ) : viewMode === "list" ? (
         <Card className="overflow-hidden">
           <Table>
             <TableHeader>
@@ -242,6 +253,8 @@ export function CourseOperationsList({ courses }: { courses: CourseSummary[] }) 
             </TableBody>
           </Table>
         </Card>
+      ) : (
+        <CourseListCalendar courses={courses} />
       )}
 
       <AlertDialog

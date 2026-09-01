@@ -44,6 +44,7 @@ export async function POST(request: Request) {
         free_gift_link: input.freeGiftLink,
         course_viewing_link: input.courseViewingLink,
         free_address_book_id: input.freeAddressBookId || null,
+        required_tasks: input.requiredTasks,
         created_by: user.id,
       })
       .select("id")

@@ -12,6 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { CourseSummary } from "@/lib/course-operations/types";
+import { normalizeRequiredTasks } from "@/lib/course-operations/required-tasks";
+import { toKoreaDate } from "@/lib/course-operations/schedule";
+import { applyTaskDeadlines } from "@/lib/course-operations/task-deadlines";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -23,10 +26,16 @@ export default async function CourseOperationsPage() {
   const { data, error } = await supabase
     .from("courses")
     .select(
-      "id,name,instructor_name,free_webinar_at,starts_at,updated_at,course_options(id),course_jobs(id),message_studio_projects(id)",
+      "id,name,instructor_name,free_webinar_at,starts_at,updated_at,required_tasks,course_options(id),course_jobs(id),message_studio_projects(id)",
     )
     .order("updated_at", { ascending: false });
-  const courses = (data ?? []) as CourseSummary[];
+  const courses = (data ?? []).map((course) => ({
+    ...course,
+    required_tasks: applyTaskDeadlines(
+      normalizeRequiredTasks(course.required_tasks),
+      toKoreaDate(course.free_webinar_at),
+    ),
+  })) as CourseSummary[];
 
   return (
     <main className="min-h-screen">

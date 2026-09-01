@@ -17,6 +17,18 @@ export type YoutubeChannelSuggestion = {
   channelUrl: string;
 };
 
+export type CourseRequiredTaskKey =
+  | "free-webinar-assets"
+  | "paid-course-assets"
+  | "course-materials";
+
+export type CourseRequiredTask = {
+  key: CourseRequiredTaskKey;
+  title: string;
+  dueDate: string;
+  completed: boolean;
+};
+
 export type CourseOperationsDraft = {
   name: string;
   instructorName: string;
@@ -37,6 +49,7 @@ export type CourseOperationsDraft = {
   rosterJobIds: string[];
   messageProjectIds: string[];
   freeAddressBookId: string;
+  requiredTasks: CourseRequiredTask[];
 };
 
 export type CourseOperationsInput = Omit<
@@ -59,6 +72,7 @@ export type CourseSummary = {
   free_webinar_at: string;
   starts_at: string;
   updated_at: string;
+  required_tasks: CourseRequiredTask[];
   course_options: Array<{ id: string }>;
   course_jobs: Array<{ id: string }>;
   message_studio_projects: Array<{ id: string }>;

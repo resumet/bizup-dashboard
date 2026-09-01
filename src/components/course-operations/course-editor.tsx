@@ -14,10 +14,12 @@ import {
 } from "lucide-react";
 
 import { CourseRosterSections } from "@/components/course-operations/course-roster-sections";
+import { CourseScheduleCalendar } from "@/components/course-operations/course-schedule-calendar";
 import { CourseShareDialog } from "@/components/course-operations/course-share-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -62,6 +64,12 @@ import {
   toWebinarTime,
   WEBINAR_TIME_OPTIONS,
 } from "@/lib/course-operations/schedule";
+import {
+  applyTaskDeadlines,
+  formatDeadlineDate,
+  getDeadlineProgress,
+  TASK_DEADLINE_WEEKS,
+} from "@/lib/course-operations/task-deadlines";
 
 function formatPrice(value: string) {
   const digits = value.replace(/\D/gu, "");
@@ -186,13 +194,20 @@ export function CourseOperationsEditor({
   loadError?: string;
 }) {
   const router = useRouter();
-  const [draft, setDraft] = useState(() => ({
-    ...initialDraft,
-    messageProjectIds: initialDraft.messageProjectIds.slice(0, 1),
-    freeWebinarAt: toKoreaDate(initialDraft.freeWebinarAt),
-    freeWebinarTime: toWebinarTime(initialDraft.freeWebinarAt),
-    startsAt: toKoreaDate(initialDraft.startsAt),
-  }));
+  const [draft, setDraft] = useState(() => {
+    const freeWebinarAt = toKoreaDate(initialDraft.freeWebinarAt);
+    return {
+      ...initialDraft,
+      messageProjectIds: initialDraft.messageProjectIds.slice(0, 1),
+      freeWebinarAt,
+      freeWebinarTime: toWebinarTime(initialDraft.freeWebinarAt),
+      startsAt: toKoreaDate(initialDraft.startsAt),
+      requiredTasks: applyTaskDeadlines(
+        initialDraft.requiredTasks,
+        freeWebinarAt,
+      ),
+    };
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -222,11 +237,38 @@ export function CourseOperationsEditor({
   function updateField(
     field: Exclude<
       keyof CourseOperationsDraft,
-      "options" | "youtubeAppearances" | "rosterJobIds" | "messageProjectIds"
+      | "options"
+      | "youtubeAppearances"
+      | "rosterJobIds"
+      | "messageProjectIds"
+      | "requiredTasks"
     >,
     value: string,
   ) {
-    setDraft((current) => ({ ...current, [field]: value }));
+    setDraft((current) => ({
+      ...current,
+      [field]: value,
+      ...(field === "freeWebinarAt"
+        ? { requiredTasks: applyTaskDeadlines(current.requiredTasks, value) }
+        : {}),
+    }));
+  }
+
+  function updateRequiredTask(
+    key: CourseOperationsDraft["requiredTasks"][number]["key"],
+    patch: Partial<
+      Pick<
+        CourseOperationsDraft["requiredTasks"][number],
+        "dueDate" | "completed"
+      >
+    >,
+  ) {
+    setDraft((current) => ({
+      ...current,
+      requiredTasks: current.requiredTasks.map((task) =>
+        task.key === key ? { ...task, ...patch } : task,
+      ),
+    }));
   }
 
   function updateYoutubeAppearance(
@@ -491,86 +533,185 @@ export function CourseOperationsEditor({
       </Card>
 
       <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>기본 정보와 일정</CardTitle>
-            <CardDescription>
-              강의를 식별하고 운영할 기본 정보입니다.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5 md:grid-cols-3">
-            <div className="grid gap-2 md:col-span-2">
-              <Label htmlFor="course-name">강의명</Label>
-              <Input
-                id="course-name"
-                className="h-10"
-                placeholder="예: AI 수익화 퍼널 실전 클래스"
-                maxLength={200}
-                value={draft.name}
-                onChange={(event) => updateField("name", event.target.value)}
+        <div className="grid items-stretch gap-6 xl:grid-cols-2">
+          <div className="space-y-6">
+            <Card>
+            <CardHeader>
+              <CardTitle>기본 정보와 일정</CardTitle>
+              <CardDescription>
+                강의를 식별하고 운영할 기본 정보입니다.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-5 md:grid-cols-2">
+              <div className="grid gap-2 md:col-span-2">
+                <Label htmlFor="course-name">강의명</Label>
+                <Input
+                  id="course-name"
+                  className="h-10"
+                  placeholder="예: AI 수익화 퍼널 실전 클래스"
+                  maxLength={200}
+                  value={draft.name}
+                  onChange={(event) => updateField("name", event.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="instructor-name">강사명</Label>
+                <Input
+                  id="instructor-name"
+                  className="h-10"
+                  maxLength={120}
+                  value={draft.instructorName}
+                  onChange={(event) =>
+                    updateField("instructorName", event.target.value)
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="free-webinar-date">무료 웨비나 날짜</Label>
+                <Input
+                  id="free-webinar-date"
+                  className="h-10"
+                  type="date"
+                  required
+                  value={draft.freeWebinarAt}
+                  onChange={(event) =>
+                    updateField("freeWebinarAt", event.target.value)
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="free-webinar-time">무료 웨비나 시간</Label>
+                <Select
+                  value={draft.freeWebinarTime}
+                  onValueChange={(freeWebinarTime) =>
+                    setDraft((current) => ({ ...current, freeWebinarTime }))
+                  }
+                  required
+                >
+                  <SelectTrigger
+                    id="free-webinar-time"
+                    className="h-10 w-full"
+                  >
+                    <SelectValue placeholder="시간 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {WEBINAR_TIME_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="starts-at">개강일</Label>
+                <Input
+                  id="starts-at"
+                  className="h-10"
+                  type="date"
+                  required
+                  value={draft.startsAt}
+                  onChange={(event) =>
+                    updateField("startsAt", event.target.value)
+                  }
+                />
+              </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>필수 작업 목록</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>제목</TableHead>
+                      <TableHead className="w-[130px]">완료 여부</TableHead>
+                      <TableHead className="w-[190px]">데드라인</TableHead>
+                      <TableHead className="w-[170px]">남은 기간</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {draft.requiredTasks.map((task) => {
+                      const progress = getDeadlineProgress(
+                        task.dueDate,
+                        task.completed,
+                      );
+                      return (
+                      <TableRow key={task.key}>
+                        <TableCell
+                          className={
+                            task.completed
+                              ? "text-muted-foreground line-through"
+                              : "font-medium"
+                          }
+                        >
+                          {task.title}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id={`required-task-${task.key}`}
+                              className="size-5"
+                              checked={task.completed}
+                              onCheckedChange={(checked) =>
+                                updateRequiredTask(task.key, {
+                                  completed: checked === true,
+                                })
+                              }
+                            />
+                            <Label htmlFor={`required-task-${task.key}`}>
+                              {task.completed ? "작업 완료" : "진행 중"}
+                            </Label>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <p className="font-medium tabular-nums">
+                            {formatDeadlineDate(task.dueDate)}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            무료 웨비나 {TASK_DEADLINE_WEEKS[task.key]}주 전
+                          </p>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              progress.state === "overdue"
+                                ? "destructive"
+                                : progress.state === "complete"
+                                  ? "secondary"
+                                  : "outline"
+                            }
+                          >
+                            {progress.label}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle>강의 일정 달력</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CourseScheduleCalendar
+                courseName={draft.name || "강의명 미입력"}
+                freeWebinarDate={draft.freeWebinarAt}
+                freeWebinarTime={draft.freeWebinarTime}
+                startsDate={draft.startsAt}
+                requiredTasks={draft.requiredTasks}
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="instructor-name">강사명</Label>
-              <Input
-                id="instructor-name"
-                className="h-10"
-                maxLength={120}
-                value={draft.instructorName}
-                onChange={(event) =>
-                  updateField("instructorName", event.target.value)
-                }
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="free-webinar-date">무료 웨비나 날짜</Label>
-              <Input
-                id="free-webinar-date"
-                className="h-10"
-                type="date"
-                required
-                value={draft.freeWebinarAt}
-                onChange={(event) =>
-                  updateField("freeWebinarAt", event.target.value)
-                }
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="free-webinar-time">무료 웨비나 시간</Label>
-              <Select
-                value={draft.freeWebinarTime}
-                onValueChange={(freeWebinarTime) =>
-                  setDraft((current) => ({ ...current, freeWebinarTime }))
-                }
-                required
-              >
-                <SelectTrigger id="free-webinar-time" className="h-10 w-full">
-                  <SelectValue placeholder="시간 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  {WEBINAR_TIME_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="starts-at">개강일</Label>
-              <Input
-                id="starts-at"
-                className="h-10"
-                type="date"
-                required
-                value={draft.startsAt}
-                onChange={(event) =>
-                  updateField("startsAt", event.target.value)
-                }
-              />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
 
         <Card>
           <CardHeader>

@@ -17,6 +17,7 @@ import {
   buildYoutubeChannelSuggestions,
   decodeReadableUrl,
 } from "@/lib/course-operations/youtube-channels";
+import { normalizeRequiredTasks } from "@/lib/course-operations/required-tasks";
 import {
   analyzeRosterOptions,
   analyzeRosterSources,
@@ -105,7 +106,7 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
   const { data: course, error: courseError } = await supabase
     .from("courses")
     .select(
-      "id,name,instructor_name,free_webinar_at,starts_at,early_bird_event,first_50_event,free_kakao_room_1_link,free_kakao_room_2_link,communication_room_link,payment_link,inquiry_link,curriculum_link,free_gift_link,course_viewing_link,free_address_book_id",
+      "id,name,instructor_name,free_webinar_at,starts_at,early_bird_event,first_50_event,free_kakao_room_1_link,free_kakao_room_2_link,communication_room_link,payment_link,inquiry_link,curriculum_link,free_gift_link,course_viewing_link,free_address_book_id,required_tasks",
     )
     .eq("id", courseId)
     .maybeSingle();
@@ -253,6 +254,7 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
       .filter((project) => project.course_id === courseId)
       .map((project) => project.id),
     freeAddressBookId: course.free_address_book_id ?? "",
+    requiredTasks: normalizeRequiredTasks(course.required_tasks),
   };
 
   return (

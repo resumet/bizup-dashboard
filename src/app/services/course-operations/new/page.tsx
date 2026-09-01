@@ -10,6 +10,7 @@ import type {
   LinkableRosterJob,
 } from "@/lib/course-operations/types";
 import { buildYoutubeChannelSuggestions } from "@/lib/course-operations/youtube-channels";
+import { createDefaultRequiredTasks } from "@/lib/course-operations/required-tasks";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -39,6 +40,7 @@ const EMPTY_DRAFT: CourseOperationsDraft = {
   rosterJobIds: [],
   messageProjectIds: [],
   freeAddressBookId: "",
+  requiredTasks: createDefaultRequiredTasks(),
 };
 
 export default async function NewCourseOperationsPage() {

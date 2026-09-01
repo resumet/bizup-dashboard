@@ -205,3 +205,53 @@ test("수강생 명단은 하나만 연결할 수 있다", () => {
     /하나만 연결/,
   );
 });
+
+test("필수 작업의 예정일과 완료 여부를 고정된 작업 순서로 저장한다", () => {
+  const parsed = parseCourseOperationsInput({
+    ...validInput,
+    requiredTasks: [
+      {
+        key: "course-materials",
+        title: "클라이언트가 바꾼 제목",
+        dueDate: "2026-09-08",
+        completed: true,
+      },
+      {
+        key: "free-webinar-assets",
+        dueDate: "2026-09-03",
+        completed: false,
+      },
+    ],
+  });
+
+  assert.deepEqual(
+    parsed.requiredTasks.map((task) => [
+      task.key,
+      task.title,
+      task.dueDate,
+      task.completed,
+    ]),
+    [
+      ["free-webinar-assets", "무료특강 배너 + 상페", "2026-09-03", false],
+      ["paid-course-assets", "유료특강 배너 + 상페 + 동영상", "", false],
+      ["course-materials", "교안", "2026-09-08", true],
+    ],
+  );
+});
+
+test("필수 작업 예정일은 날짜 형식이어야 한다", () => {
+  assert.throws(
+    () =>
+      parseCourseOperationsInput({
+        ...validInput,
+        requiredTasks: [
+          {
+            key: "course-materials",
+            dueDate: "9월 중",
+            completed: false,
+          },
+        ],
+      }),
+    /교안 예정일 형식/u,
+  );
+});

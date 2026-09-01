@@ -4,6 +4,7 @@ import {
   isKoreaDateOnly,
 } from "./schedule";
 import { decodeReadableUrl } from "./youtube-channels";
+import { normalizeRequiredTasks } from "./required-tasks";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -169,5 +170,6 @@ export function parseCourseOperationsInput(value: unknown): CourseOperationsInpu
       input.freeAddressBookId,
       "무료강의 수강생 주소록",
     ),
+    requiredTasks: normalizeRequiredTasks(input.requiredTasks),
   };
 }
