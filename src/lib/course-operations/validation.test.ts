@@ -20,6 +20,9 @@ const validInput = {
   freeGiftLink: "https://example.com/gift",
   courseViewingLink: "https://example.com/course",
   courseMaterialsLink: "https://example.com/materials",
+  customLinks: [
+    { name: "강사 자료실", url: "https://example.com/instructor-files" },
+  ],
   options: [{
     name: "일반",
     listPrice: "500000",
@@ -57,6 +60,9 @@ test("강의 운영 입력값을 DB 저장 형식으로 변환한다", () => {
   assert.equal(parsed.landingPageLink, "https://example.com/landing");
   assert.equal(parsed.freeKakaoRoom1Link, "https://open.kakao.com/o/free1");
   assert.equal(parsed.courseMaterialsLink, "https://example.com/materials");
+  assert.deepEqual(parsed.customLinks, [
+    { name: "강사 자료실", url: "https://example.com/instructor-files" },
+  ]);
   assert.deepEqual(parsed.liveVideos[0], {
     name: "무료 특강 라이브",
     videoUrl: "https://www.youtube.com/watch?v=live123",
@@ -132,6 +138,25 @@ test("강의 링크는 비어 있거나 HTTP·HTTPS 주소여야 한다", () => 
         courseViewingLink: "javascript:alert(1)",
       }),
     /강의 시청하기 링크.*http 또는 https/u,
+  );
+});
+
+test("커스텀 링크는 이름과 HTTP·HTTPS 주소가 필요하다", () => {
+  assert.throws(
+    () =>
+      parseCourseOperationsInput({
+        ...validInput,
+        customLinks: [{ name: "", url: "https://example.com" }],
+      }),
+    /커스텀 링크 이름/u,
+  );
+  assert.throws(
+    () =>
+      parseCourseOperationsInput({
+        ...validInput,
+        customLinks: [{ name: "자료", url: "javascript:alert(1)" }],
+      }),
+    /커스텀 링크 주소.*http 또는 https/u,
   );
 });
 

@@ -45,6 +45,7 @@ export async function POST(request: Request) {
         free_gift_link: input.freeGiftLink,
         course_viewing_link: input.courseViewingLink,
         course_materials_link: input.courseMaterialsLink,
+        custom_links: input.customLinks,
         free_address_book_id: input.freeAddressBookId || null,
         required_tasks: input.requiredTasks,
         created_by: user.id,

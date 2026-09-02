@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { AddressBookDetail } from "@/components/address-books/address-book-detail";
+import { PendingLinkLabel } from "@/components/navigation/pending-link-label";
 import { Button } from "@/components/ui/button";
 import { loadAddressBookContactsPage } from "@/lib/address-books/load";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
@@ -53,8 +54,15 @@ export default async function AddressBookDetailPage({
         <div className="mx-auto flex h-18 max-w-[1600px] items-center px-5 lg:px-8">
           <Button variant="ghost" size="sm" asChild>
             <Link href="/services/address-books">
-              <ArrowLeft />
-              주소록 목록
+              <PendingLinkLabel
+                idle={
+                  <>
+                    <ArrowLeft />
+                    주소록 목록
+                  </>
+                }
+                pending="이동 중"
+              />
             </Link>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />

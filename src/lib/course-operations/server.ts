@@ -11,15 +11,52 @@ import {
 
 export async function requireCourseOperationsMembership(userId: string) {
   const admin = createAdminClient();
+  const configuredWorkspaceId =
+    process.env.PRIMARY_WORKSPACE_ID?.trim() ||
+    process.env.COURSE_INTAKE_WORKSPACE_ID?.trim();
+
+  if (configuredWorkspaceId) {
+    const { data: membership, error: membershipError } = await admin
+      .from("workspace_members")
+      .select("workspace_id,role")
+      .eq("workspace_id", configuredWorkspaceId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (membershipError) {
+      throw new Error(`공용 워크스페이스 조회 실패: ${membershipError.code}`);
+    }
+    if (membership) return membership;
+
+    const { data: createdMembership, error: createError } = await admin
+      .from("workspace_members")
+      .insert({
+        workspace_id: configuredWorkspaceId,
+        user_id: userId,
+        role: "operator",
+      })
+      .select("workspace_id,role")
+      .single();
+    if (createError) {
+      throw new Error(`공용 워크스페이스 연결 실패: ${createError.code}`);
+    }
+    return createdMembership;
+  }
+
   const { data, error } = await admin
     .from("workspace_members")
-    .select("workspace_id,role")
+    .select("workspace_id,role,workspaces!inner(is_primary)")
     .eq("user_id", userId)
-    .limit(1)
+    .eq("workspaces.is_primary", true)
     .maybeSingle();
-  if (error) throw new Error(`워크스페이스 조회 실패: ${error.code}`);
-  if (!data) throw new Error("워크스페이스 권한이 없습니다.");
-  return data;
+  if (error) {
+    throw new Error(
+      /PGRST20[04]|42703/u.test(error.code)
+        ? "공용 워크스페이스 DB 마이그레이션을 먼저 적용해 주세요."
+        : `워크스페이스 조회 실패: ${error.code}`,
+    );
+  }
+  if (!data) throw new Error("공용 워크스페이스 권한이 없습니다.");
+  return { workspace_id: data.workspace_id, role: data.role };
 }
 
 export async function requireCourseOperationsUser(

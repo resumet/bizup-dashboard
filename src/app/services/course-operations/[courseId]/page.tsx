@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { toCourseNote, type CourseNote } from "@/lib/course-operations/notes";
 import type { CourseOperationsDraft } from "@/lib/course-operations/types";
 import { normalizeRequiredTasks } from "@/lib/course-operations/required-tasks";
+import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -19,18 +20,19 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
   const supabase = await createClient();
   const user = await getAuthenticatedUser(supabase);
   if (!user) redirect("/login");
+  await requireCourseOperationsMembership(user.id);
 
   const { data: course, error: courseError } = await supabase
     .from("courses")
     .select(
-      "id,name,instructor_name,free_webinar_at,starts_at,landing_page_link,free_kakao_room_1_link,free_kakao_room_2_link,communication_room_link,payment_link,inquiry_link,curriculum_link,free_gift_link,course_viewing_link,course_materials_link,free_address_book_id,required_tasks",
+      "id,name,instructor_name,free_webinar_at,starts_at,landing_page_link,free_kakao_room_1_link,free_kakao_room_2_link,communication_room_link,payment_link,inquiry_link,curriculum_link,free_gift_link,course_viewing_link,course_materials_link,custom_links,free_address_book_id,required_tasks",
     )
     .eq("id", courseId)
     .maybeSingle();
   if (courseError) {
     throw new Error(
       courseError.code === "PGRST204"
-        ? "무료강의 주소록 연결 DB 마이그레이션을 먼저 적용해 주세요."
+        ? "강의 운영 DB 마이그레이션을 먼저 적용해 주세요."
         : `강의 조회 실패: ${courseError.code}`,
     );
   }
@@ -85,6 +87,15 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
     freeGiftLink: course.free_gift_link,
     courseViewingLink: course.course_viewing_link,
     courseMaterialsLink: course.course_materials_link,
+    customLinks: Array.isArray(course.custom_links)
+      ? course.custom_links.flatMap((item) => {
+          if (typeof item !== "object" || item === null) return [];
+          const link = item as Record<string, unknown>;
+          return typeof link.name === "string" && typeof link.url === "string"
+            ? [{ name: link.name, url: link.url }]
+            : [];
+        })
+      : [],
     options: [],
     youtubeAppearances: [],
     liveVideos: [],

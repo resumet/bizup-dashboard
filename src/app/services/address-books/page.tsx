@@ -9,13 +9,14 @@ import { createClient } from "@/lib/supabase/server";
 
 export default async function AddressBooksPage() {
   const supabase = await createClient();
-  const user = await getAuthenticatedUser(supabase);
+  const [user, booksResult] = await Promise.all([
+    getAuthenticatedUser(supabase),
+    supabase
+      .from("address_books")
+      .select("id,name,contact_count,updated_at")
+      .order("updated_at", { ascending: false }),
+  ]);
   if (!user) redirect("/login");
-
-  const { data, error } = await supabase
-    .from("address_books")
-    .select("id,name,contact_count,updated_at")
-    .order("updated_at", { ascending: false });
 
   return (
     <main className="min-h-screen">
@@ -33,8 +34,8 @@ export default async function AddressBooksPage() {
       </header>
       <div className="mx-auto max-w-[1600px] px-5 py-10 lg:px-8">
         <AddressBookManager
-          initialBooks={data ?? []}
-          loadError={error?.message}
+          initialBooks={booksResult.data ?? []}
+          loadError={booksResult.error?.message}
         />
       </div>
     </main>

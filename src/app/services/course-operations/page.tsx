@@ -15,6 +15,7 @@ import type { CourseSummary } from "@/lib/course-operations/types";
 import { normalizeRequiredTasks } from "@/lib/course-operations/required-tasks";
 import { toKoreaDate } from "@/lib/course-operations/schedule";
 import { applyTaskDeadlines } from "@/lib/course-operations/task-deadlines";
+import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -22,6 +23,7 @@ export default async function CourseOperationsPage() {
   const supabase = await createClient();
   const user = await getAuthenticatedUser(supabase);
   if (!user) redirect("/login");
+  await requireCourseOperationsMembership(user.id);
 
   const { data, error } = await supabase
     .from("courses")

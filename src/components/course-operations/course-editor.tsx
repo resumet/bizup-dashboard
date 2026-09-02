@@ -233,6 +233,81 @@ function DeferredSectionState({
   );
 }
 
+function CourseCustomLinkInput({
+  index,
+  name,
+  url,
+  onChange,
+  onDelete,
+}: {
+  index: number;
+  name: string;
+  url: string;
+  onChange: (index: number, patch: { name?: string; url?: string }) => void;
+  onDelete: (index: number) => void;
+}) {
+  const openableLink = getOpenableLink(url);
+  return (
+    <TableRow>
+      <TableCell className="w-[180px]">
+        <Input
+          className="h-10"
+          aria-label={`${index + 1}번 커스텀 링크 이름`}
+          placeholder="링크 이름"
+          maxLength={100}
+          value={name}
+          onChange={(event) => onChange(index, { name: event.target.value })}
+        />
+      </TableCell>
+      <TableCell>
+        <Input
+          className="h-10 min-w-[320px]"
+          type="url"
+          inputMode="url"
+          aria-label={`${index + 1}번 커스텀 링크 주소`}
+          placeholder="https://"
+          maxLength={2_000}
+          value={url}
+          onChange={(event) => onChange(index, { url: event.target.value })}
+        />
+      </TableCell>
+      <TableCell className="w-[150px]">
+        <div className="flex justify-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-10 w-10"
+            aria-label={`${name || `${index + 1}번 커스텀 링크`} 열기`}
+            disabled={!openableLink}
+            asChild={Boolean(openableLink)}
+          >
+            {openableLink ? (
+              <a href={openableLink} target="_blank" rel="noopener noreferrer">
+                <ExternalLink />
+              </a>
+            ) : (
+              <span>
+                <ExternalLink />
+              </span>
+            )}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-10 w-10 text-destructive hover:text-destructive"
+            aria-label={`${name || `${index + 1}번 커스텀 링크`} 삭제`}
+            onClick={() => onDelete(index)}
+          >
+            <Trash2 />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 export function CourseOperationsEditor({
   courseId,
   initialDraft,
@@ -493,6 +568,7 @@ export function CourseOperationsEditor({
       | "liveVideos"
       | "rosterJobIds"
       | "messageProjectIds"
+      | "customLinks"
       | "requiredTasks"
     >,
     value: string,
@@ -503,6 +579,34 @@ export function CourseOperationsEditor({
       ...(field === "freeWebinarAt"
         ? { requiredTasks: applyTaskDeadlines(current.requiredTasks, value) }
         : {}),
+    }));
+  }
+
+  function addCustomLink() {
+    setDraft((current) => ({
+      ...current,
+      customLinks: [...current.customLinks, { name: "", url: "" }],
+    }));
+  }
+
+  function updateCustomLink(
+    index: number,
+    patch: { name?: string; url?: string },
+  ) {
+    setDraft((current) => ({
+      ...current,
+      customLinks: current.customLinks.map((link, linkIndex) =>
+        linkIndex === index ? { ...link, ...patch } : link,
+      ),
+    }));
+  }
+
+  function deleteCustomLink(index: number) {
+    setDraft((current) => ({
+      ...current,
+      customLinks: current.customLinks.filter(
+        (_, linkIndex) => linkIndex !== index,
+      ),
     }));
   }
 
@@ -981,19 +1085,31 @@ export function CourseOperationsEditor({
         ) : null}
 
         <Card>
-          <CardHeader>
-            <CardTitle>링크 관리</CardTitle>
-            <CardDescription>
-              카톡방·웨비나·강의 링크를 한 목록에서 관리합니다.
-            </CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between gap-4">
+            <div>
+              <CardTitle>링크 관리</CardTitle>
+              <CardDescription className="mt-1">
+                카톡방·웨비나·강의 링크와 직접 만든 링크를 한 목록에서 관리합니다.
+              </CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 shrink-0"
+              disabled={draft.customLinks.length >= 30}
+              onClick={addCustomLink}
+            >
+              <Plus />
+              커스텀 링크 추가
+            </Button>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             <Table className="min-w-[720px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>이름</TableHead>
                   <TableHead>링크</TableHead>
-                  <TableHead className="text-center">바로가기</TableHead>
+                  <TableHead className="text-center">관리</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1004,6 +1120,16 @@ export function CourseOperationsEditor({
                     label={item.label}
                     value={draft[item.field]}
                     onChange={updateField}
+                  />
+                ))}
+                {draft.customLinks.map((link, index) => (
+                  <CourseCustomLinkInput
+                    key={index}
+                    index={index}
+                    name={link.name}
+                    url={link.url}
+                    onChange={updateCustomLink}
+                    onDelete={deleteCustomLink}
                   />
                 ))}
               </TableBody>

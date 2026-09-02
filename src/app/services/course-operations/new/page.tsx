@@ -10,6 +10,7 @@ import type {
   LinkableRosterJob,
 } from "@/lib/course-operations/types";
 import { buildYoutubeChannelSuggestions } from "@/lib/course-operations/youtube-channels";
+import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { createDefaultRequiredTasks } from "@/lib/course-operations/required-tasks";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -31,6 +32,7 @@ const EMPTY_DRAFT: CourseOperationsDraft = {
   freeGiftLink: "",
   courseViewingLink: "",
   courseMaterialsLink: "",
+  customLinks: [],
   options: [],
   youtubeAppearances: [],
   liveVideos: [],
@@ -44,6 +46,7 @@ export default async function NewCourseOperationsPage() {
   const supabase = await createClient();
   const user = await getAuthenticatedUser(supabase);
   if (!user) redirect("/login");
+  await requireCourseOperationsMembership(user.id);
 
   const [jobsResult, projectsResult, youtubeChannelsResult] = await Promise.all([
     supabase

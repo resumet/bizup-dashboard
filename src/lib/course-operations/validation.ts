@@ -116,6 +116,10 @@ export function parseCourseOperationsInput(value: unknown): CourseOperationsInpu
   if (liveVideos.length > 50) {
     throw new Error("기존 라이브 영상 링크는 최대 50개입니다.");
   }
+  const customLinks = Array.isArray(input.customLinks) ? input.customLinks : [];
+  if (customLinks.length > 30) {
+    throw new Error("커스텀 링크는 최대 30개입니다.");
+  }
   const rosterJobIds = ids(input.rosterJobIds);
   if (rosterJobIds.length > 1) {
     throw new Error("수강생 명단은 하나만 연결할 수 있습니다.");
@@ -151,6 +155,16 @@ export function parseCourseOperationsInput(value: unknown): CourseOperationsInpu
     ),
     courseViewingLink: url(input.courseViewingLink, "강의 시청하기 링크", false),
     courseMaterialsLink: url(input.courseMaterialsLink, "강의자료 링크", false),
+    customLinks: customLinks.map((item, index) => {
+      const customLink =
+        typeof item === "object" && item !== null
+          ? (item as Record<string, unknown>)
+          : {};
+      return {
+        name: text(customLink.name, `${index + 1}번 커스텀 링크 이름`, 100),
+        url: url(customLink.url, `${index + 1}번 커스텀 링크 주소`, true),
+      };
+    }),
     options,
     youtubeAppearances: appearances.map((item, index) => {
       const appearance =

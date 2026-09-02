@@ -18,6 +18,11 @@ export type LiveVideoDraft = {
   note: string;
 };
 
+export type CourseCustomLinkDraft = {
+  name: string;
+  url: string;
+};
+
 export type YoutubeChannelSuggestion = {
   channelName: string;
   channelUrl: string;
@@ -52,6 +57,7 @@ export type CourseOperationsDraft = {
   freeGiftLink: string;
   courseViewingLink: string;
   courseMaterialsLink: string;
+  customLinks: CourseCustomLinkDraft[];
   options: CourseOptionDraft[];
   youtubeAppearances: YoutubeAppearanceDraft[];
   liveVideos: LiveVideoDraft[];
