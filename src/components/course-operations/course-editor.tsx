@@ -829,26 +829,26 @@ export function CourseOperationsEditor({
         onValueChange={changeTab}
         className="gap-6"
       >
-        <TabsList className="grid h-auto w-full grid-cols-3 sm:w-fit sm:grid-cols-6">
-          <TabsTrigger value="information" className="min-h-10 px-2 sm:min-w-28 sm:px-5">
+        <TabsList className="grid w-full grid-cols-3 grid-rows-2 group-data-horizontal/tabs:h-[5.5rem] md:w-fit md:grid-cols-6 md:grid-rows-1 md:group-data-horizontal/tabs:h-12">
+          <TabsTrigger value="information" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             정보
           </TabsTrigger>
-          <TabsTrigger value="sales" className="min-h-10 px-2 sm:min-w-28 sm:px-5">
+          <TabsTrigger value="sales" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             판매 조건
           </TabsTrigger>
-          <TabsTrigger value="students" className="min-h-10 px-2 sm:min-w-32 sm:px-5">
+          <TabsTrigger value="students" className="h-10 min-w-0 px-2 md:min-w-32 md:px-5">
             수강생명단
           </TabsTrigger>
-          <TabsTrigger value="messages" className="min-h-10 px-2 sm:min-w-32 sm:px-5">
+          <TabsTrigger value="messages" className="h-10 min-w-0 px-2 md:min-w-32 md:px-5">
             단톡방문자
           </TabsTrigger>
-          <TabsTrigger value="videos" className="min-h-10 px-2 sm:min-w-28 sm:px-5">
+          <TabsTrigger value="videos" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             영상
           </TabsTrigger>
           <TabsTrigger
             value="settlement"
             disabled={!courseId}
-            className="min-h-10 px-2 sm:min-w-28 sm:px-5"
+            className="h-10 min-w-0 px-2 md:min-w-28 md:px-5"
           >
             정산
           </TabsTrigger>
