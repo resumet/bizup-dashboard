@@ -3,7 +3,9 @@ import test from "node:test";
 
 import {
   chunkMessageRecipients,
+  dedupeMessageRecipientsByPhone,
   hasProcessingMessageJob,
+  messageDispatchBatchSize,
   resolveMessageJobStatus,
 } from "./dispatch";
 
@@ -15,6 +17,24 @@ test("20,195명 발송 대상을 20명씩 빠짐없이 1,010개 묶음으로 나
   assert.equal(batches[0].length, 20);
   assert.equal(batches.at(-1)?.length, 15);
   assert.deepEqual(batches.flat(), recipients);
+});
+
+test("DirecTalk는 500명, Shoong은 20명 단위로 발송한다", () => {
+  assert.equal(messageDispatchBatchSize("directalk"), 500);
+  assert.equal(messageDispatchBatchSize("shoong"), 20);
+});
+
+test("단체 발송 전에 같은 전화번호를 한 번만 남긴다", () => {
+  const recipients = [
+    { id: "first", phone: "010-1234-5678" },
+    { id: "duplicate", phone: "01012345678" },
+    { id: "second", phone: "010-9999-8888" },
+  ];
+
+  assert.deepEqual(
+    dedupeMessageRecipientsByPhone(recipients, (recipient) => recipient.phone),
+    [recipients[0], recipients[2]],
+  );
 });
 
 test("발송 성공·실패 수에 맞춰 최종 작업 상태를 계산한다", () => {

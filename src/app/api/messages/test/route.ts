@@ -1,10 +1,12 @@
+import { randomUUID } from "node:crypto";
+
 import {
   buildRecipientTemplateVariables,
   getTemplateVariables,
   parseTemplateVariableValues,
 } from "@/lib/messages/custom-template";
 import { canMapVariableToRecipientName } from "@/lib/messages/automation-config";
-import { sendShoongCustomMessage } from "@/lib/shoong/client";
+import { getMessageProvider } from "@/lib/messages/provider";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -81,16 +83,18 @@ export async function POST(request: Request) {
         (variable) => !recipientNameVariables.includes(variable),
       ),
     );
-    const result = await sendShoongCustomMessage(
-      TEST_RECIPIENT.phone,
-      template.template_code,
-      template.send_type,
-      buildRecipientTemplateVariables(
+    const provider = getMessageProvider();
+    const result = await provider.sendCustomMessage({
+      phone: TEST_RECIPIENT.phone,
+      templateCode: template.template_code,
+      sendType: template.send_type,
+      variables: buildRecipientTemplateVariables(
         inputVariables,
         recipientNameVariables,
         TEST_RECIPIENT.name,
       ),
-    );
+      idempotencyKey: `message-automation-test:${template.id}:${randomUUID()}`,
+    });
 
     await createAdminClient()
       .from("audit_logs")
@@ -105,6 +109,8 @@ export async function POST(request: Request) {
           recipient_phone: TEST_RECIPIENT.phone,
           template_code: template.template_code,
           send_type: template.send_type,
+          provider: result.provider,
+          provider_correlation_id: result.correlationId ?? null,
           success: result.ok,
           http_status: result.status,
           shoong_code: result.code ?? null,
@@ -118,12 +124,16 @@ export async function POST(request: Request) {
           message: result.reason ?? "테스트 발송에 실패했습니다.",
           httpStatus: result.status,
           shoongCode: result.code,
+          provider: result.provider,
+          correlationId: result.correlationId ?? null,
         },
         { status: 400 },
       );
     }
     return Response.json({
       message: `${TEST_RECIPIENT.name}(010-2378-7490)에게 테스트 발송했습니다.`,
+      provider: result.provider,
+      correlationId: result.correlationId ?? null,
     });
   } catch (error) {
     return Response.json(

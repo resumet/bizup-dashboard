@@ -14,9 +14,9 @@ import {
 } from "@/lib/messages/invite";
 import { getPhoneSendError } from "@/lib/messages/phone";
 import {
-  getShoongTemplateCode,
-  type ShoongTemplate,
-} from "@/lib/shoong/client";
+  getMessageProvider,
+  type FixedMessageTemplate,
+} from "@/lib/messages/provider";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -26,7 +26,7 @@ import { start } from "workflow/api";
 type Context = { params: Promise<{ jobId: string }> };
 type RequestBody = {
   scope?: "all" | "filtered" | "selected";
-  template?: ShoongTemplate;
+  template?: FixedMessageTemplate;
   filters?: Partial<RosterFilters>;
   selectedIds?: string[];
   onlyGroupChatNonParticipants?: boolean;
@@ -141,7 +141,8 @@ export async function POST(request: Request, { params }: Context) {
       );
     }
 
-    const templateCode = getShoongTemplateCode(body.template);
+    const provider = getMessageProvider();
+    const templateCode = provider.getFixedTemplateCode(body.template);
     const admin = createAdminClient();
     messageJobId = randomUUID();
     const idempotencyKey = `manual:${messageJobId}`;
@@ -152,6 +153,7 @@ export async function POST(request: Request, { params }: Context) {
       job_version: job.latest_version,
       template_key: body.template,
       template_code: templateCode,
+      provider: provider.name,
       target_scope: body.scope,
       idempotency_key: idempotencyKey,
       status: "processing",
@@ -164,6 +166,7 @@ export async function POST(request: Request, { params }: Context) {
       {
         messageJobId,
         jobId,
+        provider: provider.name,
         scope: body.scope,
         template: body.template,
         filters,

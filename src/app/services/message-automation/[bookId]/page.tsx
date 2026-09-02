@@ -46,7 +46,7 @@ export default async function AddressBookPage({ params, searchParams }: Props) {
     supabase
       .from("address_book_message_jobs")
       .select(
-        "id,template_code,target_scope,requested_count,success_count,failed_count,status,created_at,message_templates(name)",
+        "id,template_code,target_scope,requested_count,success_count,failed_count,status,provider,delivery_checked_at,created_at,message_templates(name)",
       )
       .eq("address_book_id", bookId)
       .order("created_at", { ascending: false }),

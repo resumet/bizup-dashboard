@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test src/**/*.test.ts",
+    "test": "tsx --conditions=react-server --test src/**/*.test.ts",
     "backfill:rosters": "tsx scripts/backfill-roster-records.ts",
     "verify:rosters": "tsx scripts/verify-roster-flow.ts"
   },

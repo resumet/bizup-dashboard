@@ -1,18 +1,41 @@
 import { createHash } from "node:crypto";
 
 import { loadAllAddressBookContacts } from "@/lib/address-books/load";
+import { dispatchDirectalkMessageBatch } from "@/lib/messages/directalk-batch-dispatch";
 import {
   chunkMessageRecipients,
+  dedupeMessageRecipientsByPhone,
+  messageDispatchBatchSize,
   resolveMessageJobStatus,
 } from "@/lib/messages/dispatch";
+import { syncMessageDeliveryResults } from "@/lib/messages/delivery-sync";
 import { buildRecipientTemplateVariables } from "@/lib/messages/custom-template";
 import { getPhoneSendError } from "@/lib/messages/phone";
-import { sendShoongCustomMessage } from "@/lib/shoong/client";
+import {
+  getMessageProvider,
+  type MessageProviderName,
+  type MessageSendResult,
+} from "@/lib/messages/provider";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sleep } from "workflow";
+
+const DELIVERY_POLL_DELAYS_MS = [
+  5_000,
+  10_000,
+  15_000,
+  30_000,
+  30_000,
+  30_000,
+  30_000,
+  30_000,
+  30_000,
+  30_000,
+];
 
 export type AddressBookMessageWorkflowInput = {
   messageJobId: string;
   bookId: string;
+  provider: MessageProviderName;
   templateCode: string;
   sendType: string;
   recipientNameVariables: string[];
@@ -66,12 +89,15 @@ async function prepareAddressBookRecipients(
 
   if (contacts.length === 0) throw new Error("발송 대상이 없습니다.");
 
-  const recipients: PreparedRecipient[] = contacts.map((contact) => ({
-    id: deterministicRecipientId(input.messageJobId, contact.id),
-    contactId: contact.id,
-    name: contact.name ?? "",
-    phone: contact.normalized_phone,
-  }));
+  const recipients: PreparedRecipient[] = dedupeMessageRecipientsByPhone(
+    contacts.map((contact) => ({
+      id: deterministicRecipientId(input.messageJobId, contact.id),
+      contactId: contact.id,
+      name: contact.name ?? "",
+      phone: contact.normalized_phone,
+    })),
+    (recipient) => recipient.phone,
+  );
 
   for (let start = 0; start < recipients.length; start += 500) {
     const batch = recipients.slice(start, start + 500);
@@ -84,6 +110,7 @@ async function prepareAddressBookRecipients(
           contact_id: recipient.contactId,
           recipient_name: recipient.name || null,
           normalized_phone: recipient.phone,
+          provider: input.provider,
         })),
         { onConflict: "id" },
       );
@@ -106,6 +133,7 @@ async function prepareAddressBookRecipients(
 async function dispatchAddressBookBatch(
   input: AddressBookMessageWorkflowInput,
   recipients: PreparedRecipient[],
+  chunkIndex: number,
   successBefore: number,
   failedBefore: number,
 ) {
@@ -116,6 +144,40 @@ async function dispatchAddressBookBatch(
   });
 
   const admin = createAdminClient();
+  const provider = getMessageProvider(input.provider);
+  if (provider.name === "directalk") {
+    if (!provider.sendCustomMessages) {
+      throw new Error("DirecTalk 배치 발송 기능이 설정되지 않았습니다.");
+    }
+    const batchResult = await dispatchDirectalkMessageBatch({
+      kind: "address-book",
+      messageJobId: input.messageJobId,
+      chunkIndex,
+      recipients: recipients.map((recipient) => ({
+        id: recipient.id,
+        phone: recipient.phone,
+        variables: buildRecipientTemplateVariables(
+          input.inputVariables,
+          input.recipientNameVariables,
+          recipient.name,
+        ),
+      })),
+      send: (targets, idempotencyKey) =>
+        provider.sendCustomMessages!({
+          recipients: targets,
+          templateCode: input.templateCode,
+          sendType: input.sendType,
+          idempotencyKey,
+        }),
+    });
+    const failedCount = failedBefore + batchResult.failedCount;
+    await admin
+      .from("address_book_message_jobs")
+      .update({ success_count: successBefore, failed_count: failedCount })
+      .eq("id", input.messageJobId);
+    return { successCount: successBefore, failedCount };
+  }
+
   const recipientIds = recipients.map((recipient) => recipient.id);
   const { data: pending, error: pendingError } = await admin
     .from("address_book_message_recipients")
@@ -144,10 +206,11 @@ async function dispatchAddressBookBatch(
 
   const results = await Promise.all(
     targets.map(async (recipient) => {
-      let result;
+      let result: MessageSendResult;
       const phoneError = getPhoneSendError(recipient.phone);
       if (phoneError) {
         result = {
+          provider: provider.name,
           ok: false,
           status: null,
           unknown: false,
@@ -155,35 +218,54 @@ async function dispatchAddressBookBatch(
         };
       } else {
         try {
-          result = await sendShoongCustomMessage(
-            recipient.phone,
-            input.templateCode,
-            input.sendType,
-            buildRecipientTemplateVariables(
+          result = await provider.sendCustomMessage({
+            phone: recipient.phone,
+            templateCode: input.templateCode,
+            sendType: input.sendType,
+            variables: buildRecipientTemplateVariables(
               input.inputVariables,
               input.recipientNameVariables,
               recipient.name,
             ),
-          );
+            idempotencyKey: `address-book:${input.messageJobId}:${recipient.id}`,
+          });
         } catch (error) {
           result = {
+            provider: provider.name,
             ok: false,
             status: null,
-            reason: error instanceof Error ? error.message : "Shoong 발송 오류",
+            reason: error instanceof Error ? error.message : "메시지 발송 오류",
           };
         }
       }
 
+      const deliveryPending = result.ok && result.deliveryPending;
+      const completedAt = new Date().toISOString();
       const { error: resultError } = await admin
         .from("address_book_message_recipients")
         .update({
-          status: result.ok ? "success" : result.unknown ? "unknown" : "failed",
+          status:
+            deliveryPending
+              ? "unknown"
+              : result.ok
+                ? "success"
+                : result.unknown
+                  ? "unknown"
+                  : "failed",
           http_status: result.status,
           shoong_code: result.code ?? null,
+          provider: result.provider,
+          provider_correlation_id: result.correlationId ?? null,
+          provider_status: result.providerStatus ?? null,
+          delivery_checked_at:
+            result.provider === "directalk" && !deliveryPending
+              ? completedAt
+              : null,
           group_id: result.groupId ?? null,
           message_id: result.messageId ?? null,
-          failure_reason: result.reason ?? null,
-          completed_at: new Date().toISOString(),
+          failure_reason:
+            deliveryPending ? null : result.reason ?? null,
+          completed_at: deliveryPending ? null : completedAt,
         })
         .eq("id", recipient.id);
       if (resultError) {
@@ -197,7 +279,8 @@ async function dispatchAddressBookBatch(
   );
 
   const successCount =
-    successBefore + results.filter((result) => result.ok).length;
+    successBefore +
+    results.filter((result) => result.ok && !result.deliveryPending).length;
   const failedCount =
     failedBefore + results.filter((result) => !result.ok).length;
   await admin
@@ -208,20 +291,29 @@ async function dispatchAddressBookBatch(
 }
 dispatchAddressBookBatch.maxRetries = 0;
 
+async function syncAddressBookDeliveryResults(messageJobId: string) {
+  "use step";
+  return syncMessageDeliveryResults("address-book", messageJobId);
+}
+
 async function finishAddressBookJob(
   messageJobId: string,
   successCount: number,
   failedCount: number,
+  pendingCount = 0,
 ) {
   "use step";
   const admin = createAdminClient();
   const { error } = await admin
     .from("address_book_message_jobs")
     .update({
-      status: resolveMessageJobStatus(successCount, failedCount),
+      status:
+        pendingCount > 0
+          ? "processing"
+          : resolveMessageJobStatus(successCount, failedCount),
       success_count: successCount,
       failed_count: failedCount,
-      completed_at: new Date().toISOString(),
+      completed_at: pendingCount > 0 ? null : new Date().toISOString(),
     })
     .eq("id", messageJobId);
   if (error) throw new Error(`발송 작업 완료 저장 실패: ${error.code}`);
@@ -249,23 +341,48 @@ export async function sendAddressBookMessagesWorkflow(
     const recipients = await prepareAddressBookRecipients(input);
     let successCount = 0;
     let failedCount = 0;
-    for (const batch of chunkMessageRecipients(recipients)) {
+    let pendingCount = 0;
+    const batches = chunkMessageRecipients(
+      recipients,
+      messageDispatchBatchSize(input.provider),
+    );
+    for (const [chunkIndex, batch] of batches.entries()) {
       const progress = await dispatchAddressBookBatch(
         input,
         batch,
+        chunkIndex,
         successCount,
         failedCount,
       );
       successCount = progress.successCount;
       failedCount = progress.failedCount;
     }
-    await finishAddressBookJob(input.messageJobId, successCount, failedCount);
+    if (input.provider === "directalk") {
+      pendingCount = recipients.length - successCount - failedCount;
+      for (const delayMs of DELIVERY_POLL_DELAYS_MS) {
+        if (pendingCount === 0) break;
+        await sleep(delayMs);
+        const progress = await syncAddressBookDeliveryResults(
+          input.messageJobId,
+        );
+        successCount = progress.successCount;
+        failedCount = progress.failedCount;
+        pendingCount = progress.pendingCount;
+      }
+    }
+    await finishAddressBookJob(
+      input.messageJobId,
+      successCount,
+      failedCount,
+      pendingCount,
+    );
     console.info("[address-message] workflow completed", {
       messageJobId: input.messageJobId,
       successCount,
       failedCount,
+      pendingCount,
     });
-    return { successCount, failedCount };
+    return { successCount, failedCount, pendingCount };
   } catch (error) {
     const reason =
       error instanceof Error ? error.message : "발송 워크플로 오류";

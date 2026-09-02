@@ -5,6 +5,7 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DeliveryStatusRefresher } from "@/components/messages/delivery-status-refresher";
 import {
   Table,
   TableBody,
@@ -18,7 +19,7 @@ import { createClient } from "@/lib/supabase/server";
 
 function statusLabel(status: string) {
   if (status === "completed") return "완료";
-  if (status === "partial") return "일부 실패";
+  if (status === "partial_failed") return "일부 실패";
   if (status === "failed") return "실패";
   return "진행 중";
 }
@@ -30,13 +31,25 @@ export default async function MessageAutomationHistoryPage() {
   const { data, error } = await supabase
     .from("address_book_message_jobs")
     .select(
-      "id,address_book_id,template_code,target_scope,requested_count,success_count,failed_count,status,created_at,address_books(name),message_templates(name)",
+      "id,address_book_id,template_code,target_scope,requested_count,success_count,failed_count,status,provider,delivery_checked_at,created_at,address_books(name),message_templates(name)",
     )
     .order("created_at", { ascending: false })
     .limit(200);
   if (error) throw new Error(`발송 이력 조회 실패: ${error.code}`);
+  const syncEndpoints = (data ?? [])
+    .filter(
+      (job) =>
+        job.provider === "directalk" &&
+        (job.status === "processing" || !job.delivery_checked_at),
+    )
+    .map(
+      (job) =>
+        `/api/address-books/${job.address_book_id}/messages/${job.id}/sync`,
+    )
+    .slice(0, 5);
   return (
     <main className="min-h-screen">
+      <DeliveryStatusRefresher endpoints={syncEndpoints} />
       <header className="border-b">
         <div className="mx-auto flex h-18 max-w-[1600px] items-center px-5 lg:px-8">
           <Button variant="ghost" size="sm" asChild>
@@ -67,8 +80,8 @@ export default async function MessageAutomationHistoryPage() {
                   <TableHead>템플릿</TableHead>
                   <TableHead>범위</TableHead>
                   <TableHead className="text-right">요청</TableHead>
-                  <TableHead className="text-right">성공</TableHead>
-                  <TableHead className="text-right">실패</TableHead>
+                  <TableHead className="text-right">실제 성공</TableHead>
+                  <TableHead className="text-right">실제 실패</TableHead>
                   <TableHead>상태</TableHead>
                   <TableHead className="text-right">상세</TableHead>
                 </TableRow>
@@ -129,7 +142,7 @@ export default async function MessageAutomationHistoryPage() {
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" asChild>
                           <Link
-                            href={`/services/address-books/${job.address_book_id}`}
+                            href={`/services/message-automation/${job.address_book_id}/messages/${job.id}`}
                           >
                             <ExternalLink />
                             보기

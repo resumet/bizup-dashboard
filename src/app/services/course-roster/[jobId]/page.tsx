@@ -30,7 +30,7 @@ export default async function CourseRosterDetailPage({ params }: PageProps) {
     loadJobEnrollmentRows(supabase, jobId, job.latest_version)
       .then((data) => ({ data, error: null }))
       .catch((error: Error) => ({ data: [], error })),
-    supabase.from("message_jobs").select("id,template_key,target_scope,requested_count,success_count,failed_count,status,created_at").eq("course_job_id", jobId).order("created_at", { ascending: false }),
+    supabase.from("message_jobs").select("id,template_key,target_scope,requested_count,success_count,failed_count,status,provider,delivery_checked_at,created_at").eq("course_job_id", jobId).order("created_at", { ascending: false }),
     supabase.from("audit_logs").select("id,metadata,created_at").eq("entity_id", jobId).eq("event_type", "course_job.test_message_sent").order("created_at", { ascending: false }),
     job.course_id
       ? supabase
@@ -69,6 +69,8 @@ export default async function CourseRosterDetailPage({ params }: PageProps) {
       successCount: message.success_count,
       failedCount: message.failed_count,
       status: message.status,
+      provider: message.provider,
+      deliveryCheckedAt: message.delivery_checked_at,
       createdAt: message.created_at,
     })),
     ...(testResult.data ?? []).flatMap((audit): MessageHistoryItem[] => {

@@ -1,4 +1,24 @@
 export const MESSAGE_DISPATCH_BATCH_SIZE = 20;
+export const DIRECTALK_MESSAGE_BATCH_SIZE = 500;
+
+export function messageDispatchBatchSize(provider: string) {
+  return provider === "directalk"
+    ? DIRECTALK_MESSAGE_BATCH_SIZE
+    : MESSAGE_DISPATCH_BATCH_SIZE;
+}
+
+export function dedupeMessageRecipientsByPhone<T>(
+  recipients: T[],
+  phoneOf: (recipient: T) => string,
+) {
+  const seen = new Set<string>();
+  return recipients.filter((recipient) => {
+    const phone = phoneOf(recipient).replace(/\D/gu, "");
+    if (seen.has(phone)) return false;
+    seen.add(phone);
+    return true;
+  });
+}
 
 export function chunkMessageRecipients<T>(
   recipients: T[],

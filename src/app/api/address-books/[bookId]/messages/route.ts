@@ -6,6 +6,7 @@ import {
 } from "@/lib/messages/custom-template";
 import { canMapVariableToRecipientName } from "@/lib/messages/automation-config";
 import { getPhoneSendError } from "@/lib/messages/phone";
+import { getMessageProvider } from "@/lib/messages/provider";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -67,6 +68,9 @@ export async function POST(request: Request, { params }: Context) {
       );
     }
 
+    const provider = getMessageProvider();
+    provider.validateCustomSendType(template.send_type);
+
     const allVariables = getTemplateVariables(
       template.applicant_variable,
       Array.isArray(template.variable_names) && template.variable_names.length
@@ -124,6 +128,7 @@ export async function POST(request: Request, { params }: Context) {
         address_book_id: bookId,
         template_id: template.id,
         template_code: template.template_code,
+        provider: provider.name,
         course_name: inputVariables[template.course_variable] ?? "",
         target_scope: body.scope,
         requested_by: user.id,
@@ -136,6 +141,7 @@ export async function POST(request: Request, { params }: Context) {
       {
         messageJobId,
         bookId,
+        provider: provider.name,
         templateCode: template.template_code,
         sendType: template.send_type,
         recipientNameVariables,

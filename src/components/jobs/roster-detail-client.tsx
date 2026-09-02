@@ -88,7 +88,6 @@ import {
   MESSAGE_TEMPLATE_LABELS,
   type MessageHistoryItem,
 } from "@/lib/messages/types";
-import { hasProcessingMessageJob } from "@/lib/messages/dispatch";
 
 type Props = {
   jobId: string;
@@ -154,7 +153,15 @@ export function RosterDetailClient({
   const allFilteredSelected =
     filteredRows.length > 0 &&
     filteredRows.every((row) => selected.has(row.id));
-  const hasProcessingJob = hasProcessingMessageJob(messageHistory);
+  const messageIdsToSync = messageHistory
+    .filter(
+      (message) =>
+        !message.isTest &&
+        message.provider === "directalk" &&
+        (message.status === "processing" || !message.deliveryCheckedAt),
+    )
+    .map((message) => message.id);
+  const messageIdsToSyncKey = messageIdsToSync.join(",");
   const linkedOptionInvites = useMemo(
     () =>
       buildCourseOptionInviteMap(
@@ -168,10 +175,28 @@ export function RosterDetailClient({
     .join("|");
 
   useEffect(() => {
-    if (!hasProcessingJob) return;
-    const timer = window.setInterval(() => router.refresh(), 3_000);
+    if (!messageIdsToSyncKey) return;
+    const messageIds = messageIdsToSyncKey.split(",").filter(Boolean);
+    let syncing = false;
+    const sync = async () => {
+      if (syncing) return;
+      syncing = true;
+      try {
+        await Promise.allSettled(
+          messageIds.map((messageId) =>
+            fetch(`/api/jobs/${jobId}/messages/${messageId}/sync`, {
+              method: "POST",
+            }),
+          ),
+        );
+        router.refresh();
+      } finally {
+        syncing = false;
+      }
+    };
+    const timer = window.setInterval(sync, 5_000);
     return () => window.clearInterval(timer);
-  }, [hasProcessingJob, router]);
+  }, [jobId, messageIdsToSyncKey, router]);
 
   function setFilter<K extends keyof RosterFilters>(
     key: K,
@@ -688,8 +713,8 @@ function MessageHistoryCard({
                   <TableHead>구분</TableHead>
                   <TableHead>템플릿</TableHead>
                   <TableHead className="text-right">대상</TableHead>
-                  <TableHead className="text-right">성공</TableHead>
-                  <TableHead className="text-right">실패</TableHead>
+                  <TableHead className="text-right">실제 성공</TableHead>
+                  <TableHead className="text-right">실제 실패</TableHead>
                   <TableHead>상태</TableHead>
                   <TableHead>
                     <span className="sr-only">상세보기</span>
@@ -1056,9 +1081,9 @@ function MessageDialog({
       </DialogTrigger>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Shoong 알림톡 발송</DialogTitle>
+          <DialogTitle>알림톡 발송</DialogTitle>
           <DialogDescription>
-            대상과 변수를 확인한 뒤 서버에서만 Shoong API를 호출합니다.
+            대상과 변수를 확인한 뒤 서버에서 메시지 발송 API를 호출합니다.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-2">

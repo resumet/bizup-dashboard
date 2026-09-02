@@ -1,10 +1,11 @@
+import { randomUUID } from "node:crypto";
+
 import { loadJobRoster } from "@/lib/jobs/server";
 import { validateInviteValues } from "@/lib/messages/invite";
 import {
-  getShoongTemplateCode,
-  sendShoongMessage,
-  type ShoongTemplate,
-} from "@/lib/shoong/client";
+  getMessageProvider,
+  type FixedMessageTemplate,
+} from "@/lib/messages/provider";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -19,7 +20,7 @@ const TEST_RECIPIENT = {
 
 type Context = { params: Promise<{ jobId: string }> };
 type RequestBody = {
-  template?: ShoongTemplate;
+  template?: FixedMessageTemplate;
   courseName?: string;
   entryCode?: string;
   linkName?: string;
@@ -61,16 +62,18 @@ export async function POST(request: Request, { params }: Context) {
         { status: 400 },
       );
 
-    const result = await sendShoongMessage(
-      TEST_RECIPIENT.phone,
-      body.template,
-      {
+    const provider = getMessageProvider();
+    const result = await provider.sendFixedMessage({
+      phone: TEST_RECIPIENT.phone,
+      template: body.template,
+      variables: {
         customerName: TEST_RECIPIENT.name,
         courseName,
         entryCode: body.entryCode?.trim(),
         linkName: body.linkName?.trim(),
       },
-    );
+      idempotencyKey: `course-roster-test:${jobId}:${randomUUID()}`,
+    });
 
     await createAdminClient()
       .from("audit_logs")
@@ -82,7 +85,9 @@ export async function POST(request: Request, { params }: Context) {
         entity_id: job.id,
         metadata: {
           template: body.template,
-          template_code: getShoongTemplateCode(body.template),
+          template_code: provider.getFixedTemplateCode(body.template),
+          provider: result.provider,
+          provider_correlation_id: result.correlationId ?? null,
           recipient_name: TEST_RECIPIENT.name,
           recipient: TEST_RECIPIENT.maskedPhone,
           success: result.ok,
@@ -98,10 +103,12 @@ export async function POST(request: Request, { params }: Context) {
       return Response.json(
         {
           ok: false,
-          message: result.reason ?? "Shoong 테스트 발송에 실패했습니다.",
+          message: result.reason ?? "테스트 발송에 실패했습니다.",
           recipient: `${TEST_RECIPIENT.name} (${TEST_RECIPIENT.maskedPhone})`,
           httpStatus: result.status,
           shoongCode: result.code ?? null,
+          provider: result.provider,
+          correlationId: result.correlationId ?? null,
           reason: result.reason ?? null,
         },
         { status: 502 },
@@ -113,6 +120,8 @@ export async function POST(request: Request, { params }: Context) {
       recipient: `${TEST_RECIPIENT.name} (${TEST_RECIPIENT.maskedPhone})`,
       httpStatus: result.status,
       shoongCode: result.code ?? null,
+      provider: result.provider,
+      correlationId: result.correlationId ?? null,
       messageId: result.messageId ?? null,
       groupId: result.groupId ?? null,
       reason: result.reason ?? null,

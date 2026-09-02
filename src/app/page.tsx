@@ -79,11 +79,11 @@ const services = [
     key: "message-automation",
     title: "알림톡·문자 자동화",
     description:
-      "기존 주소록을 선택하고 Shoong 템플릿으로 알림톡과 문자를 발송합니다.",
+      "기존 주소록을 선택하고 템플릿으로 알림톡과 문자를 발송합니다.",
     active: true,
     route: "/services/message-automation",
     icon: MessageSquareText,
-    meta: "Shoong 메시지 발송",
+    meta: "알림톡·문자 발송",
   },
   {
     key: "message-studio",

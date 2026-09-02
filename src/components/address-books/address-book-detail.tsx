@@ -52,7 +52,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatPhone } from "@/lib/jobs/filter";
-import { hasProcessingMessageJob } from "@/lib/messages/dispatch";
 import { getTemplateInputVariables } from "@/lib/messages/custom-template";
 import { formatTemplateSelectionLabel } from "@/lib/messages/shoong-guide";
 type Contact = {
@@ -79,6 +78,8 @@ type History = {
   success_count: number;
   failed_count: number;
   status: string;
+  provider: string;
+  delivery_checked_at: string | null;
   created_at: string;
   message_templates: { name: string } | null;
 };
@@ -133,14 +134,40 @@ export function AddressBookDetail({
   const variablesReady = templateInputVariables.every((variable) =>
     variableValues[variable]?.trim(),
   );
-  const hasProcessingJob = hasProcessingMessageJob(history);
+  const messageIdsToSync = history
+    .filter(
+      (message) =>
+        message.provider === "directalk" &&
+        (message.status === "processing" || !message.delivery_checked_at),
+    )
+    .map((message) => message.id);
+  const messageIdsToSyncKey = messageIdsToSync.join(",");
   const pageCount = Math.max(1, Math.ceil(totalContacts / contactsPerPage));
 
   useEffect(() => {
-    if (mode !== "automation" || !hasProcessingJob) return;
-    const timer = window.setInterval(() => router.refresh(), 3_000);
+    if (mode !== "automation" || !messageIdsToSyncKey) return;
+    const messageIds = messageIdsToSyncKey.split(",").filter(Boolean);
+    let syncing = false;
+    const sync = async () => {
+      if (syncing) return;
+      syncing = true;
+      try {
+        await Promise.allSettled(
+          messageIds.map((messageId) =>
+            fetch(
+              `/api/address-books/${book.id}/messages/${messageId}/sync`,
+              { method: "POST" },
+            ),
+          ),
+        );
+        router.refresh();
+      } finally {
+        syncing = false;
+      }
+    };
+    const timer = window.setInterval(sync, 5_000);
     return () => window.clearInterval(timer);
-  }, [hasProcessingJob, mode, router]);
+  }, [book.id, messageIdsToSyncKey, mode, router]);
   function contactsHref(
     nextPage: number,
     nextKeyword = initialKeyword,
@@ -256,7 +283,7 @@ export function AddressBookDetail({
           <p className="mt-2 text-muted-foreground">
             {mode === "manager"
               ? "주소록의 연락처를 검색하고 파일로 업데이트합니다."
-              : "템플릿과 변수를 설정해 주소록 전체에 Shoong 알림톡·문자를 발송합니다."}
+              : "템플릿과 변수를 설정해 주소록 전체에 알림톡·문자를 발송합니다."}
           </p>
         </div>
         {mode === "manager" ? (
@@ -618,9 +645,10 @@ export function AddressBookDetail({
                   <TableHead>시간</TableHead>
                   <TableHead>템플릿</TableHead>
                   <TableHead className="text-right">대상</TableHead>
-                  <TableHead className="text-right">성공</TableHead>
-                  <TableHead className="text-right">실패</TableHead>
+                  <TableHead className="text-right">실제 성공</TableHead>
+                  <TableHead className="text-right">실제 실패</TableHead>
                   <TableHead>상태</TableHead>
+                  <TableHead className="text-right">상세</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -663,6 +691,15 @@ export function AddressBookDetail({
                                 ? "실패"
                                 : h.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link
+                          href={`/services/message-automation/${book.id}/messages/${h.id}`}
+                        >
+                          보기
+                        </Link>
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

@@ -8,6 +8,8 @@ export type MessageHistoryItem = {
   successCount: number;
   failedCount: number;
   status: string;
+  provider?: string;
+  deliveryCheckedAt?: string | null;
   createdAt: string;
 };
 

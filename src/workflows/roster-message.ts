@@ -9,7 +9,14 @@ import {
   EMPTY_ROSTER_FILTERS,
   type RosterFilters,
 } from "@/lib/jobs/types";
-import { chunkMessageRecipients, resolveMessageJobStatus } from "@/lib/messages/dispatch";
+import { dispatchDirectalkMessageBatch } from "@/lib/messages/directalk-batch-dispatch";
+import {
+  chunkMessageRecipients,
+  dedupeMessageRecipientsByPhone,
+  messageDispatchBatchSize,
+  resolveMessageJobStatus,
+} from "@/lib/messages/dispatch";
+import { syncMessageDeliveryResults } from "@/lib/messages/delivery-sync";
 import { getPhoneSendError } from "@/lib/messages/phone";
 import {
   optionKey,
@@ -18,16 +25,33 @@ import {
   type InviteValues,
 } from "@/lib/messages/invite";
 import {
-  sendShoongMessage,
-  type ShoongTemplate,
-} from "@/lib/shoong/client";
+  getMessageProvider,
+  type FixedMessageTemplate,
+  type MessageProviderName,
+  type MessageSendResult,
+} from "@/lib/messages/provider";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sleep } from "workflow";
+
+const DELIVERY_POLL_DELAYS_MS = [
+  5_000,
+  10_000,
+  15_000,
+  30_000,
+  30_000,
+  30_000,
+  30_000,
+  30_000,
+  30_000,
+  30_000,
+];
 
 export type RosterMessageWorkflowInput = {
   messageJobId: string;
   jobId: string;
+  provider: MessageProviderName;
   scope: "all" | "filtered" | "selected";
-  template: ShoongTemplate;
+  template: FixedMessageTemplate;
   filters: Partial<RosterFilters>;
   selectedIds: string[];
   onlyGroupChatNonParticipants: boolean;
@@ -70,9 +94,12 @@ async function prepareRosterRecipients(input: RosterMessageWorkflowInput) {
       : input.scope === "filtered"
         ? filterRosterRows(rows, filters)
         : rows.filter((row) => selectedIds.has(row.id));
-  const targets = filterGroupChatNonParticipants(
-    scopeTargets,
-    input.onlyGroupChatNonParticipants,
+  const targets = dedupeMessageRecipientsByPhone(
+    filterGroupChatNonParticipants(
+      scopeTargets,
+      input.onlyGroupChatNonParticipants,
+    ),
+    (target) => target.normalizedPhone,
   );
 
   if (targets.length === 0) throw new Error("발송 대상이 없습니다.");
@@ -121,6 +148,7 @@ async function prepareRosterRecipients(input: RosterMessageWorkflowInput) {
         message_job_id: input.messageJobId,
         enrollment_id: recipient.enrollmentId,
         normalized_phone: recipient.phone,
+        provider: input.provider,
       })),
       { onConflict: "id" },
     );
@@ -138,6 +166,7 @@ async function prepareRosterRecipients(input: RosterMessageWorkflowInput) {
 async function dispatchRosterBatch(
   input: RosterMessageWorkflowInput,
   recipients: PreparedRosterRecipient[],
+  chunkIndex: number,
   successBefore: number,
   failedBefore: number,
 ) {
@@ -148,6 +177,44 @@ async function dispatchRosterBatch(
   });
 
   const admin = createAdminClient();
+  const provider = getMessageProvider(input.provider);
+  if (provider.name === "directalk") {
+    if (!provider.sendFixedMessages) {
+      throw new Error("DirecTalk 배치 발송 기능이 설정되지 않았습니다.");
+    }
+    const batchResult = await dispatchDirectalkMessageBatch({
+      kind: "roster",
+      messageJobId: input.messageJobId,
+      chunkIndex,
+      recipients: recipients.map((recipient) => ({
+        id: recipient.id,
+        phone: recipient.phone,
+        variables: {
+          customerName: recipient.customerName,
+          courseName: recipient.courseName,
+          entryCode: recipient.entryCode,
+          linkName: recipient.linkName,
+        },
+      })),
+      send: (targets, idempotencyKey) =>
+        provider.sendFixedMessages!({
+          recipients: targets,
+          template: input.template,
+          idempotencyKey,
+        }),
+    });
+    const failedCount = failedBefore + batchResult.failedCount;
+    await admin
+      .from("message_jobs")
+      .update({ success_count: successBefore, failed_count: failedCount })
+      .eq("id", input.messageJobId);
+    return {
+      successCount: successBefore,
+      failedCount,
+      authFailed: batchResult.authFailed,
+    };
+  }
+
   const { data: pending, error: pendingError } = await admin
     .from("message_recipients")
     .select("id")
@@ -168,10 +235,11 @@ async function dispatchRosterBatch(
 
   const results = await Promise.all(
     targets.map(async (recipient) => {
-      let result;
+      let result: MessageSendResult;
       const phoneError = getPhoneSendError(recipient.phone);
       if (phoneError) {
         result = {
+          provider: provider.name,
           ok: false,
           status: null,
           unknown: false,
@@ -179,31 +247,54 @@ async function dispatchRosterBatch(
         };
       } else {
         try {
-          result = await sendShoongMessage(recipient.phone, input.template, {
-            customerName: recipient.customerName,
-            courseName: recipient.courseName,
-            entryCode: recipient.entryCode,
-            linkName: recipient.linkName,
+          result = await provider.sendFixedMessage({
+            phone: recipient.phone,
+            template: input.template,
+            variables: {
+              customerName: recipient.customerName,
+              courseName: recipient.courseName,
+              entryCode: recipient.entryCode,
+              linkName: recipient.linkName,
+            },
+            idempotencyKey: `roster:${input.messageJobId}:${recipient.id}`,
           });
         } catch (error) {
           result = {
+            provider: provider.name,
             ok: false,
             status: null,
-            reason: error instanceof Error ? error.message : "Shoong 발송 오류",
+            reason: error instanceof Error ? error.message : "메시지 발송 오류",
           };
         }
       }
 
+      const deliveryPending = result.ok && result.deliveryPending;
+      const completedAt = new Date().toISOString();
       const { error: resultError } = await admin
         .from("message_recipients")
         .update({
-          status: result.ok ? "success" : result.unknown ? "unknown" : "failed",
+          status:
+            deliveryPending
+              ? "unknown"
+              : result.ok
+                ? "success"
+                : result.unknown
+                  ? "unknown"
+                  : "failed",
           http_status: result.status,
           shoong_code: result.code ?? null,
+          provider: result.provider,
+          provider_correlation_id: result.correlationId ?? null,
+          provider_status: result.providerStatus ?? null,
+          delivery_checked_at:
+            result.provider === "directalk" && !deliveryPending
+              ? completedAt
+              : null,
           group_id: result.groupId ?? null,
           message_id: result.messageId ?? null,
-          failure_reason: result.reason ?? null,
-          completed_at: new Date().toISOString(),
+          failure_reason:
+            deliveryPending ? null : result.reason ?? null,
+          completed_at: deliveryPending ? null : completedAt,
         })
         .eq("id", recipient.id);
       if (resultError) {
@@ -216,7 +307,9 @@ async function dispatchRosterBatch(
     }),
   );
 
-  const successCount = successBefore + results.filter((result) => result.ok).length;
+  const successCount =
+    successBefore +
+    results.filter((result) => result.ok && !result.deliveryPending).length;
   const failedCount = failedBefore + results.filter((result) => !result.ok).length;
   await admin
     .from("message_jobs")
@@ -230,6 +323,11 @@ async function dispatchRosterBatch(
 }
 dispatchRosterBatch.maxRetries = 0;
 
+async function syncRosterDeliveryResults(messageJobId: string) {
+  "use step";
+  return syncMessageDeliveryResults("roster", messageJobId);
+}
+
 async function failPendingRosterRecipients(messageJobId: string) {
   "use step";
   const admin = createAdminClient();
@@ -237,7 +335,7 @@ async function failPendingRosterRecipients(messageJobId: string) {
     .from("message_recipients")
     .update({
       status: "failed",
-      failure_reason: "Shoong 인증 오류로 발송 작업이 중단되었습니다.",
+      failure_reason: "메시지 공급자 인증 오류로 발송 작업이 중단되었습니다.",
       completed_at: new Date().toISOString(),
     })
     .eq("message_job_id", messageJobId)
@@ -251,16 +349,20 @@ async function finishRosterJob(
   messageJobId: string,
   successCount: number,
   failedCount: number,
+  pendingCount = 0,
 ) {
   "use step";
   const admin = createAdminClient();
   const { error } = await admin
     .from("message_jobs")
     .update({
-      status: resolveMessageJobStatus(successCount, failedCount),
+      status:
+        pendingCount > 0
+          ? "processing"
+          : resolveMessageJobStatus(successCount, failedCount),
       success_count: successCount,
       failed_count: failedCount,
-      completed_at: new Date().toISOString(),
+      completed_at: pendingCount > 0 ? null : new Date().toISOString(),
     })
     .eq("id", messageJobId);
   if (error) throw new Error(`발송 작업 완료 저장 실패: ${error.code}`);
@@ -286,10 +388,16 @@ export async function sendRosterMessagesWorkflow(input: RosterMessageWorkflowInp
     const recipients = await prepareRosterRecipients(input);
     let successCount = 0;
     let failedCount = 0;
-    for (const batch of chunkMessageRecipients(recipients)) {
+    let pendingCount = 0;
+    const batches = chunkMessageRecipients(
+      recipients,
+      messageDispatchBatchSize(input.provider),
+    );
+    for (const [chunkIndex, batch] of batches.entries()) {
       const progress = await dispatchRosterBatch(
         input,
         batch,
+        chunkIndex,
         successCount,
         failedCount,
       );
@@ -300,13 +408,30 @@ export async function sendRosterMessagesWorkflow(input: RosterMessageWorkflowInp
         break;
       }
     }
-    await finishRosterJob(input.messageJobId, successCount, failedCount);
+    if (input.provider === "directalk") {
+      pendingCount = recipients.length - successCount - failedCount;
+      for (const delayMs of DELIVERY_POLL_DELAYS_MS) {
+        if (pendingCount === 0) break;
+        await sleep(delayMs);
+        const progress = await syncRosterDeliveryResults(input.messageJobId);
+        successCount = progress.successCount;
+        failedCount = progress.failedCount;
+        pendingCount = progress.pendingCount;
+      }
+    }
+    await finishRosterJob(
+      input.messageJobId,
+      successCount,
+      failedCount,
+      pendingCount,
+    );
     console.info("[roster-message] workflow completed", {
       messageJobId: input.messageJobId,
       successCount,
       failedCount,
+      pendingCount,
     });
-    return { successCount, failedCount };
+    return { successCount, failedCount, pendingCount };
   } catch (error) {
     const reason = error instanceof Error ? error.message : "발송 워크플로 오류";
     await failRosterJob(input.messageJobId, reason);

@@ -5,7 +5,7 @@ import {
   getTemplateInputVariables,
   parseTemplateVariableValues,
 } from "@/lib/messages/custom-template";
-import { sendShoongCustomMessage } from "@/lib/shoong/client";
+import { getMessageProvider } from "@/lib/messages/provider";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -77,6 +77,8 @@ export async function POST(request: Request, { params }: Context) {
       ),
     );
     const admin = createAdminClient();
+    const provider = getMessageProvider();
+    provider.validateCustomSendType(template.send_type);
     const messageJobId = randomUUID();
     const { error: jobError } = await admin
       .from("address_book_message_jobs")
@@ -86,6 +88,7 @@ export async function POST(request: Request, { params }: Context) {
         address_book_id: bookId,
         template_id: template.id,
         template_code: template.template_code,
+        provider: provider.name,
         course_name: inputVariables[template.course_variable] ?? "",
         target_scope: "test",
         requested_by: user.id,
@@ -100,6 +103,7 @@ export async function POST(request: Request, { params }: Context) {
         message_job_id: messageJobId,
         recipient_name: TEST_RECIPIENT.name,
         normalized_phone: TEST_RECIPIENT.phone,
+        provider: provider.name,
       })
       .select("id")
       .single();
@@ -110,38 +114,57 @@ export async function POST(request: Request, { params }: Context) {
     }
 
     const requestedAt = new Date().toISOString();
-    const result = await sendShoongCustomMessage(
-      TEST_RECIPIENT.phone,
-      template.template_code,
-      template.send_type,
-      buildRecipientTemplateVariables(
+    const result = await provider.sendCustomMessage({
+      phone: TEST_RECIPIENT.phone,
+      templateCode: template.template_code,
+      sendType: template.send_type,
+      variables: buildRecipientTemplateVariables(
         inputVariables,
         template.applicant_variable,
         TEST_RECIPIENT.name,
       ),
-    );
-    const status = result.ok ? "completed" : "failed";
+      idempotencyKey: `address-book-test:${messageJobId}:${recipient.id}`,
+    });
+    const deliveryPending = result.ok && result.deliveryPending;
+    const status = deliveryPending
+      ? "processing"
+      : result.ok
+        ? "completed"
+        : "failed";
     await Promise.all([
       admin
         .from("address_book_message_recipients")
         .update({
-          status: result.ok ? "success" : result.unknown ? "unknown" : "failed",
+          status: deliveryPending
+            ? "unknown"
+            : result.ok
+              ? "success"
+              : result.unknown
+                ? "unknown"
+                : "failed",
           http_status: result.status,
           shoong_code: result.code ?? null,
+          provider: result.provider,
+          provider_correlation_id: result.correlationId ?? null,
+          provider_status: result.providerStatus ?? null,
+          delivery_checked_at:
+            result.provider === "directalk" && !deliveryPending
+              ? requestedAt
+              : null,
           group_id: result.groupId ?? null,
           message_id: result.messageId ?? null,
-          failure_reason: result.reason ?? null,
+          failure_reason: deliveryPending ? null : result.reason ?? null,
           requested_at: requestedAt,
-          completed_at: new Date().toISOString(),
+          completed_at: deliveryPending ? null : new Date().toISOString(),
         })
         .eq("id", recipient.id),
       admin
         .from("address_book_message_jobs")
         .update({
           status,
-          success_count: result.ok ? 1 : 0,
+          success_count: result.ok && !deliveryPending ? 1 : 0,
           failed_count: result.ok ? 0 : 1,
-          completed_at: new Date().toISOString(),
+          completed_at: deliveryPending ? null : new Date().toISOString(),
         })
         .eq("id", messageJobId),
     ]);
@@ -152,6 +175,8 @@ export async function POST(request: Request, { params }: Context) {
           message: result.reason ?? "테스트 발송에 실패했습니다.",
           httpStatus: result.status,
           shoongCode: result.code,
+          provider: result.provider,
+          correlationId: result.correlationId ?? null,
         },
         { status: 400 },
       );
@@ -160,6 +185,8 @@ export async function POST(request: Request, { params }: Context) {
     return Response.json({
       message: `${TEST_RECIPIENT.name}(${TEST_RECIPIENT.phone})에게 테스트 발송했습니다.`,
       messageJobId,
+      provider: result.provider,
+      correlationId: result.correlationId ?? null,
     });
   } catch (error) {
     return Response.json(
