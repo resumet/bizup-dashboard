@@ -63,12 +63,10 @@ export function parseCourseOperationsInput(value: unknown): CourseOperationsInpu
       ? (value as Record<string, unknown>)
       : {};
 
-  if (!Array.isArray(input.options) || input.options.length === 0) {
-    throw new Error("강의 옵션을 하나 이상 입력해 주세요.");
-  }
-  if (input.options.length > 50) throw new Error("강의 옵션은 최대 50개입니다.");
+  const rawOptions = Array.isArray(input.options) ? input.options : [];
+  if (rawOptions.length > 50) throw new Error("강의 옵션은 최대 50개입니다.");
 
-  const options = input.options.map((item, index) => {
+  const options = rawOptions.map((item, index) => {
     const option =
       typeof item === "object" && item !== null
         ? (item as Record<string, unknown>)

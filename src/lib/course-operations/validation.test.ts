@@ -65,6 +65,11 @@ test("강의 운영 입력값을 DB 저장 형식으로 변환한다", () => {
   assert.equal(parsed.rosterJobIds.length, 1);
 });
 
+test("강의 옵션이 없어도 입력값을 저장 형식으로 변환한다", () => {
+  const parsed = parseCourseOperationsInput({ ...validInput, options: [] });
+  assert.deepEqual(parsed.options, []);
+});
+
 test("기존 라이브 영상은 이름과 웹 주소가 필요하고 비고는 선택값이다", () => {
   const parsed = parseCourseOperationsInput({
     ...validInput,
@@ -157,11 +162,7 @@ test("무료 웨비나는 지정 시간만, 개강일은 날짜만 허용한다"
   );
 });
 
-test("옵션은 하나 이상이며 할인가가 정가보다 높을 수 없다", () => {
-  assert.throws(
-    () => parseCourseOperationsInput({ ...validInput, options: [] }),
-    /하나 이상/,
-  );
+test("등록한 옵션의 할인가가 정가보다 높을 수 없다", () => {
   assert.throws(
     () =>
       parseCourseOperationsInput({

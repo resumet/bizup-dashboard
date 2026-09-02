@@ -106,6 +106,8 @@ export type LinkableMessageProject = {
     position: number;
     generated_text: string;
   }>;
+  generated_count?: number;
+  resources_loaded?: boolean;
 };
 
 export type AddressBookSummary = {
@@ -146,4 +148,33 @@ export type FreeStudentPreview = {
   phone: string;
   email: string;
   sourceAddressBookId: string;
+};
+
+export type CourseStudentsSectionData = {
+  rosterJobs: LinkableRosterJob[];
+  addressBooks: AddressBookSummary[];
+  paidStudentPreview: CourseStudentPreview[];
+  paidRosterAnalysis?: CourseRosterAnalysis;
+  freeStudentPreview: FreeStudentPreview[];
+};
+
+export type CourseSalesSectionData = {
+  earlyBirdEvent: string;
+  first50Event: string;
+  options: CourseOptionDraft[];
+};
+
+export type CourseMessagesSectionData = {
+  messageProjects: LinkableMessageProject[];
+};
+
+export type CourseMessageContentData = {
+  projectId: string;
+  resources: LinkableMessageProject["message_studio_resources"];
+};
+
+export type CourseVideosSectionData = {
+  youtubeChannelSuggestions: YoutubeChannelSuggestion[];
+  youtubeAppearances: YoutubeAppearanceDraft[];
+  liveVideos: LiveVideoDraft[];
 };

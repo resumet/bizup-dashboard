@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Check,
   Copy,
@@ -58,8 +58,13 @@ import {
 import type {
   AddressBookSummary,
   CourseRosterAnalysis,
+  CourseMessageContentData,
+  CourseSalesSectionData,
+  CourseMessagesSectionData,
+  CourseStudentsSectionData,
   CourseStudentPreview,
   CourseOperationsDraft,
+  CourseVideosSectionData,
   FreeStudentPreview,
   LinkableMessageProject,
   LinkableRosterJob,
@@ -183,12 +188,57 @@ function CourseLinkInput({
   );
 }
 
+type CourseEditorTab =
+  | "information"
+  | "sales"
+  | "students"
+  | "messages"
+  | "videos";
+type DeferredCourseEditorTab = Exclude<CourseEditorTab, "information">;
+type SectionLoadStatus = "idle" | "loading" | "loaded" | "error";
+
+function DeferredSectionState({
+  status,
+  error,
+  onRetry,
+}: {
+  status: SectionLoadStatus;
+  error?: string;
+  onRetry: () => void;
+}) {
+  if (status === "error") {
+    return (
+      <div className="flex min-h-52 flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center">
+        <p className="font-medium text-destructive">상세 정보를 불러오지 못했습니다</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {error || "잠시 후 다시 시도해 주세요."}
+        </p>
+        <Button type="button" variant="outline" className="mt-4" onClick={onRetry}>
+          다시 불러오기
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex min-h-52 items-center justify-center rounded-xl border border-dashed"
+      aria-busy="true"
+    >
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="animate-spin" />
+        상세 정보를 불러오는 중입니다.
+      </div>
+    </div>
+  );
+}
+
 export function CourseOperationsEditor({
   courseId,
   initialDraft,
-  rosterJobs,
-  messageProjects,
-  addressBooks,
+  rosterJobs = [],
+  messageProjects = [],
+  addressBooks = [],
   youtubeChannelSuggestions = [],
   paidStudentPreview = [],
   paidRosterAnalysis,
@@ -198,12 +248,13 @@ export function CourseOperationsEditor({
   initialNotes = [],
   notesLoadError,
   loadError,
+  deferDetailSections = false,
 }: {
   courseId?: string;
   initialDraft: CourseOperationsDraft;
-  rosterJobs: LinkableRosterJob[];
-  messageProjects: LinkableMessageProject[];
-  addressBooks: AddressBookSummary[];
+  rosterJobs?: LinkableRosterJob[];
+  messageProjects?: LinkableMessageProject[];
+  addressBooks?: AddressBookSummary[];
   youtubeChannelSuggestions?: YoutubeChannelSuggestion[];
   paidStudentPreview?: CourseStudentPreview[];
   paidRosterAnalysis?: CourseRosterAnalysis;
@@ -213,6 +264,7 @@ export function CourseOperationsEditor({
   initialNotes?: CourseNote[];
   notesLoadError?: string;
   loadError?: string;
+  deferDetailSections?: boolean;
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState(() => {
@@ -235,27 +287,202 @@ export function CourseOperationsEditor({
     number | null
   >(null);
   const [notice, setNotice] = useState("");
+  const [activeTab, setActiveTab] = useState<CourseEditorTab>("information");
+  const [loadedRosterJobs, setLoadedRosterJobs] = useState(rosterJobs);
+  const [loadedMessageProjects, setLoadedMessageProjects] =
+    useState(messageProjects);
+  const [messageContentLoadingId, setMessageContentLoadingId] = useState("");
+  const [loadedAddressBooks, setLoadedAddressBooks] = useState(addressBooks);
+  const [loadedYoutubeChannelSuggestions, setLoadedYoutubeChannelSuggestions] =
+    useState(youtubeChannelSuggestions);
+  const [loadedPaidStudentPreview, setLoadedPaidStudentPreview] =
+    useState(paidStudentPreview);
+  const [loadedPaidRosterAnalysis, setLoadedPaidRosterAnalysis] =
+    useState(paidRosterAnalysis);
+  const [loadedFreeStudentPreview, setLoadedFreeStudentPreview] =
+    useState(freeStudentPreview);
+  const [sectionStatuses, setSectionStatuses] = useState<
+    Record<DeferredCourseEditorTab, SectionLoadStatus>
+  >(() => ({
+    sales: deferDetailSections ? "idle" : "loaded",
+    students: deferDetailSections ? "idle" : "loaded",
+    messages: deferDetailSections ? "idle" : "loaded",
+    videos: deferDetailSections ? "idle" : "loaded",
+  }));
+  const [sectionErrors, setSectionErrors] = useState<
+    Partial<Record<DeferredCourseEditorTab, string>>
+  >({});
+  const loadingSectionsRef = useRef(new Set<DeferredCourseEditorTab>());
+
+  async function loadDetailSection(section: DeferredCourseEditorTab) {
+    if (
+      !courseId ||
+      !deferDetailSections ||
+      sectionStatuses[section] === "loaded" ||
+      loadingSectionsRef.current.has(section)
+    ) return;
+
+    loadingSectionsRef.current.add(section);
+    setSectionStatuses((current) => ({ ...current, [section]: "loading" }));
+    setSectionErrors((current) => ({ ...current, [section]: undefined }));
+
+    try {
+      const selectedMessageProjectId = draft.messageProjectIds[0] ?? "";
+      const query = new URLSearchParams({ section });
+      if (section === "messages" && selectedMessageProjectId) {
+        query.set("messageProjectId", selectedMessageProjectId);
+      }
+      const response = await fetch(
+        `/api/course-operations/${courseId}?${query.toString()}`,
+        { cache: "no-store" },
+      );
+      const body = (await response.json()) as
+        | CourseSalesSectionData
+        | CourseStudentsSectionData
+        | CourseMessagesSectionData
+        | CourseVideosSectionData
+        | { message?: string };
+      if (!response.ok) {
+        throw new Error(
+          "message" in body && body.message
+            ? body.message
+            : "상세 정보를 불러오지 못했습니다.",
+        );
+      }
+
+      if (section === "sales") {
+        const sales = body as CourseSalesSectionData;
+        setDraft((current) => ({
+          ...current,
+          earlyBirdEvent: sales.earlyBirdEvent,
+          first50Event: sales.first50Event,
+          options: sales.options,
+        }));
+      } else if (section === "students") {
+        const students = body as CourseStudentsSectionData;
+        setLoadedRosterJobs(students.rosterJobs);
+        setLoadedAddressBooks(students.addressBooks);
+        setLoadedPaidStudentPreview(students.paidStudentPreview);
+        setLoadedPaidRosterAnalysis(students.paidRosterAnalysis);
+        setLoadedFreeStudentPreview(students.freeStudentPreview);
+      } else if (section === "messages") {
+        setLoadedMessageProjects(
+          (body as CourseMessagesSectionData).messageProjects,
+        );
+      } else {
+        const videos = body as CourseVideosSectionData;
+        setLoadedYoutubeChannelSuggestions(videos.youtubeChannelSuggestions);
+        setDraft((current) => ({
+          ...current,
+          youtubeAppearances: videos.youtubeAppearances,
+          liveVideos: videos.liveVideos,
+        }));
+      }
+      setSectionStatuses((current) => ({
+        ...current,
+        [section]: "loaded",
+      }));
+    } catch (reason: unknown) {
+      setSectionErrors((current) => ({
+        ...current,
+        [section]:
+          reason instanceof Error
+            ? reason.message
+            : "상세 정보를 불러오지 못했습니다.",
+      }));
+      setSectionStatuses((current) => ({
+        ...current,
+        [section]: "error",
+      }));
+    } finally {
+      loadingSectionsRef.current.delete(section);
+    }
+  }
+
+  function changeTab(value: string) {
+    const nextTab = value as CourseEditorTab;
+    setActiveTab(nextTab);
+    if (nextTab !== "information") void loadDetailSection(nextTab);
+  }
+
+  async function selectMessageProject(messageProjectId: string) {
+    setDraft((current) => ({
+      ...current,
+      messageProjectIds: [messageProjectId],
+    }));
+    const project = loadedMessageProjects.find(
+      (item) => item.id === messageProjectId,
+    );
+    if (!courseId || project?.resources_loaded) return;
+
+    setMessageContentLoadingId(messageProjectId);
+    try {
+      const query = new URLSearchParams({
+        section: "message-content",
+        messageProjectId,
+      });
+      const response = await fetch(
+        `/api/course-operations/${courseId}?${query.toString()}`,
+        { cache: "no-store" },
+      );
+      const body = (await response.json()) as
+        | CourseMessageContentData
+        | { message?: string };
+      if (!response.ok) {
+        throw new Error(
+          "message" in body && body.message
+            ? body.message
+            : "문자 내용을 불러오지 못했습니다.",
+        );
+      }
+      const content = body as CourseMessageContentData;
+      setLoadedMessageProjects((current) =>
+        current.map((item) =>
+          item.id === content.projectId
+            ? {
+                ...item,
+                resources_loaded: true,
+                message_studio_resources: content.resources,
+              }
+            : item,
+        ),
+      );
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "문자 내용을 불러오지 못했습니다.",
+      );
+    } finally {
+      setMessageContentLoadingId("");
+    }
+  }
+
+  function retrySection(section: DeferredCourseEditorTab) {
+    void loadDetailSection(section);
+  }
+
   const uniqueChannelNames = useMemo(
     () =>
-      youtubeChannelSuggestions.filter(
+      loadedYoutubeChannelSuggestions.filter(
         (suggestion, index, suggestions) =>
           suggestion.channelName &&
           suggestions.findIndex(
             (item) => item.channelName === suggestion.channelName,
           ) === index,
       ),
-    [youtubeChannelSuggestions],
+    [loadedYoutubeChannelSuggestions],
   );
   const uniqueChannelUrls = useMemo(
     () =>
-      youtubeChannelSuggestions.filter(
+      loadedYoutubeChannelSuggestions.filter(
         (suggestion, index, suggestions) =>
           suggestion.channelUrl &&
           suggestions.findIndex(
             (item) => item.channelUrl === suggestion.channelUrl,
           ) === index,
       ),
-    [youtubeChannelSuggestions],
+    [loadedYoutubeChannelSuggestions],
   );
 
   function updateField(
@@ -321,7 +548,7 @@ export function CourseOperationsEditor({
   }
 
   function updateYoutubeChannelName(index: number, channelName: string) {
-    const selected = youtubeChannelSuggestions.find(
+    const selected = loadedYoutubeChannelSuggestions.find(
       (suggestion) => suggestion.channelName === channelName,
     );
     updateYoutubeAppearance(index, {
@@ -332,7 +559,7 @@ export function CourseOperationsEditor({
 
   function updateYoutubeChannelUrl(index: number, channelUrl: string) {
     const readableUrl = decodeReadableUrl(channelUrl);
-    const selected = youtubeChannelSuggestions.find(
+    const selected = loadedYoutubeChannelSuggestions.find(
       (suggestion) => suggestion.channelUrl === readableUrl,
     );
     updateYoutubeAppearance(index, {
@@ -365,6 +592,10 @@ export function CourseOperationsEditor({
               listPrice: option.listPrice.replace(/\D/gu, ""),
               salePrice: option.salePrice.replace(/\D/gu, ""),
             })),
+            loadedDetailSections: {
+              sales: sectionStatuses.sales === "loaded",
+              videos: sectionStatuses.videos === "loaded",
+            },
           }),
         },
       );
@@ -403,13 +634,14 @@ export function CourseOperationsEditor({
     }
   }
 
-  const selectedMessageProject = messageProjects.find(
+  const selectedMessageProject = loadedMessageProjects.find(
     (project) => project.id === draft.messageProjectIds[0],
   );
   const selectedMessageGeneratedCount = selectedMessageProject
-    ? selectedMessageProject.message_studio_resources.filter((resource) =>
+    ? (selectedMessageProject.generated_count ??
+      selectedMessageProject.message_studio_resources.filter((resource) =>
         resource.generated_text.trim(),
-      ).length
+      ).length)
     : 0;
   const selectedMessageResources = selectedMessageProject
     ? selectedMessageProject.message_studio_resources
@@ -494,10 +726,17 @@ export function CourseOperationsEditor({
         </Alert>
       ) : null}
 
-      <Tabs defaultValue="information" className="gap-6">
-        <TabsList className="grid w-full grid-cols-4 group-data-horizontal/tabs:h-12 sm:w-fit">
+      <Tabs
+        value={activeTab}
+        onValueChange={changeTab}
+        className="gap-6"
+      >
+        <TabsList className="grid w-full grid-cols-5 group-data-horizontal/tabs:h-12 sm:w-fit">
           <TabsTrigger value="information" className="min-h-10 px-2 sm:min-w-28 sm:px-5">
             정보
+          </TabsTrigger>
+          <TabsTrigger value="sales" className="min-h-10 px-2 sm:min-w-28 sm:px-5">
+            판매 조건
           </TabsTrigger>
           <TabsTrigger value="students" className="min-h-10 px-2 sm:min-w-32 sm:px-5">
             수강생명단
@@ -772,6 +1011,18 @@ export function CourseOperationsEditor({
           </CardContent>
         </Card>
 
+        </TabsContent>
+
+        <TabsContent value="sales" className="mt-0 space-y-6">
+          {sectionStatuses.sales !== "loaded" ? (
+            <DeferredSectionState
+              status={sectionStatuses.sales}
+              error={sectionErrors.sales}
+              onRetry={() => retrySection("sales")}
+            />
+          ) : (
+            <div className="space-y-6">
+
         <Card>
           <CardHeader>
             <CardTitle>판매 이벤트</CardTitle>
@@ -838,21 +1089,27 @@ export function CourseOperationsEditor({
               </Button>
             </div>
             <CardDescription>
-              옵션별 정가와 실제 판매 할인가를 입력합니다.
+              필요한 경우에만 옵션별 정가와 실제 판매 할인가를 입력합니다.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="pb-1">
               <div className="space-y-2">
-                <div className="hidden grid-cols-[minmax(120px,0.8fr)_110px_110px_64px_minmax(180px,1fr)_90px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground lg:grid">
-                  <span>옵션명</span>
-                  <span>정가</span>
-                  <span>할인가</span>
-                  <span>할인율</span>
-                  <span>단톡방 주소</span>
-                  <span>입장코드</span>
-                  <span className="sr-only">삭제</span>
-                </div>
+                {draft.options.length > 0 ? (
+                  <div className="hidden grid-cols-[minmax(120px,0.8fr)_110px_110px_64px_minmax(180px,1fr)_90px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground lg:grid">
+                    <span>옵션명</span>
+                    <span>정가</span>
+                    <span>할인가</span>
+                    <span>할인율</span>
+                    <span>단톡방 주소</span>
+                    <span>입장코드</span>
+                    <span className="sr-only">삭제</span>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                    등록된 옵션이 없습니다. 옵션 없이도 강의를 만들 수 있습니다.
+                  </div>
+                )}
                 {draft.options.map((option, index) => (
                   <div
                     key={`option-${index}`}
@@ -971,7 +1228,6 @@ export function CourseOperationsEditor({
                       size="icon"
                       className="text-destructive hover:text-destructive"
                       aria-label={`${index + 1}번 옵션 삭제`}
-                      disabled={draft.options.length === 1}
                       onClick={() =>
                         setDraft((current) => ({
                           ...current,
@@ -990,9 +1246,18 @@ export function CourseOperationsEditor({
           </CardContent>
         </Card>
 
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="videos" className="mt-0">
+          {sectionStatuses.videos !== "loaded" ? (
+            <DeferredSectionState
+              status={sectionStatuses.videos}
+              error={sectionErrors.videos}
+              onRetry={() => retrySection("videos")}
+            />
+          ) : (
           <div className="space-y-6">
         <Card>
           <CardHeader>
@@ -1285,27 +1550,44 @@ export function CourseOperationsEditor({
           </CardContent>
         </Card>
           </div>
+          )}
         </TabsContent>
 
         <TabsContent value="students" className="mt-0">
+          {sectionStatuses.students !== "loaded" ? (
+            <DeferredSectionState
+              status={sectionStatuses.students}
+              error={sectionErrors.students}
+              onRetry={() => retrySection("students")}
+            />
+          ) : (
           <CourseRosterSections
-            rosterJobs={rosterJobs}
+            rosterJobs={loadedRosterJobs}
             selectedRosterIds={draft.rosterJobIds}
             onRosterIdsChange={(rosterJobIds) =>
               setDraft((current) => ({ ...current, rosterJobIds }))
             }
-            addressBooks={addressBooks}
-            paidStudentPreview={paidStudentPreview}
-            paidRosterAnalysis={paidRosterAnalysis}
-            freeStudentPreview={freeStudentPreview}
+            addressBooks={loadedAddressBooks}
+            paidStudentPreview={loadedPaidStudentPreview}
+            paidRosterAnalysis={loadedPaidRosterAnalysis}
+            freeStudentPreview={loadedFreeStudentPreview}
             freeAddressBookId={draft.freeAddressBookId}
             onFreeAddressBookChange={(freeAddressBookId) =>
               setDraft((current) => ({ ...current, freeAddressBookId }))
             }
           />
+          )}
         </TabsContent>
 
         <TabsContent value="messages" className="mt-0 space-y-6">
+          {sectionStatuses.messages !== "loaded" ? (
+            <DeferredSectionState
+              status={sectionStatuses.messages}
+              error={sectionErrors.messages}
+              onRetry={() => retrySection("messages")}
+            />
+          ) : (
+            <>
             <Card className="border-primary/30">
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -1322,7 +1604,7 @@ export function CourseOperationsEditor({
                 </div>
               </CardHeader>
               <CardContent>
-                {messageProjects.length === 0 ? (
+                {loadedMessageProjects.length === 0 ? (
                   <div className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
                     연결 가능한 문자 제작 프로젝트가 없습니다.
                     <Button variant="link" asChild className="ml-1">
@@ -1338,18 +1620,16 @@ export function CourseOperationsEditor({
                       <Select
                         value={draft.messageProjectIds[0] ?? ""}
                         onValueChange={(messageProjectId) =>
-                          setDraft((current) => ({
-                            ...current,
-                            messageProjectIds: [messageProjectId],
-                          }))
+                          void selectMessageProject(messageProjectId)
                         }
                       >
                         <SelectTrigger id="message-project-select" className="w-full">
                           <SelectValue placeholder="연결할 문자 목록을 선택하세요" />
                         </SelectTrigger>
                         <SelectContent>
-                          {messageProjects.map((project) => {
+                          {loadedMessageProjects.map((project) => {
                             const generatedCount =
+                              project.generated_count ??
                               project.message_studio_resources.filter((resource) =>
                                 resource.generated_text.trim(),
                               ).length;
@@ -1439,7 +1719,12 @@ export function CourseOperationsEditor({
                 </div>
               </CardHeader>
               <CardContent>
-                {!selectedMessageProject ? (
+                {messageContentLoadingId === selectedMessageProject?.id ? (
+                  <div className="flex min-h-36 items-center justify-center gap-2 rounded-xl border border-dashed text-sm text-muted-foreground">
+                    <Loader2 className="animate-spin" />
+                    문자 내용을 불러오는 중입니다.
+                  </div>
+                ) : !selectedMessageProject ? (
                   <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
                     먼저 상단에서 문자 목록을 연결해 주세요.
                   </div>
@@ -1489,6 +1774,8 @@ export function CourseOperationsEditor({
                 )}
               </CardContent>
             </Card>
+            </>
+          )}
         </TabsContent>
       </Tabs>
 

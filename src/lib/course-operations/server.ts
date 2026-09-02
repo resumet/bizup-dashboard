@@ -91,15 +91,25 @@ export async function assertLinkableItems(
 export async function replaceCourseChildren(
   courseId: string,
   input: CourseOperationsInput,
+  {
+    replaceOptions = true,
+    replaceVideos = true,
+  }: { replaceOptions?: boolean; replaceVideos?: boolean } = {},
 ) {
   const admin = createAdminClient();
   const [oldOptions, oldAppearances, oldLiveVideos] = await Promise.all([
-    admin.from("course_options").select("id").eq("course_id", courseId),
-    admin
-      .from("course_youtube_appearances")
-      .select("id")
-      .eq("course_id", courseId),
-    admin.from("course_live_videos").select("id").eq("course_id", courseId),
+    replaceOptions
+      ? admin.from("course_options").select("id").eq("course_id", courseId)
+      : Promise.resolve({ data: [], error: null }),
+    replaceVideos
+      ? admin
+          .from("course_youtube_appearances")
+          .select("id")
+          .eq("course_id", courseId)
+      : Promise.resolve({ data: [], error: null }),
+    replaceVideos
+      ? admin.from("course_live_videos").select("id").eq("course_id", courseId)
+      : Promise.resolve({ data: [], error: null }),
   ]);
   if (oldOptions.error || oldAppearances.error || oldLiveVideos.error) {
     const migrationMissing =
@@ -112,26 +122,28 @@ export async function replaceCourseChildren(
     );
   }
 
-  const { error: optionError } = await admin.from("course_options").insert(
-    input.options.map((option, index) => ({
-      course_id: courseId,
-      name: option.name,
-      list_price: option.listPrice,
-      sale_price: option.salePrice,
-      group_chat_link: option.groupChatLink,
-      entry_code: option.entryCode,
-      sort_order: index,
-    })),
-  );
-  if (optionError) {
-    throw new Error(
-      optionError.code === "PGRST204"
-        ? "옵션별 단톡방·입장코드 DB 마이그레이션을 먼저 적용해 주세요."
-        : `강의 옵션 저장 실패: ${optionError.code}`,
+  if (replaceOptions && input.options.length) {
+    const { error: optionError } = await admin.from("course_options").insert(
+      input.options.map((option, index) => ({
+        course_id: courseId,
+        name: option.name,
+        list_price: option.listPrice,
+        sale_price: option.salePrice,
+        group_chat_link: option.groupChatLink,
+        entry_code: option.entryCode,
+        sort_order: index,
+      })),
     );
+    if (optionError) {
+      throw new Error(
+        optionError.code === "PGRST204"
+          ? "옵션별 단톡방·입장코드 DB 마이그레이션을 먼저 적용해 주세요."
+          : `강의 옵션 저장 실패: ${optionError.code}`,
+      );
+    }
   }
 
-  if (input.youtubeAppearances.length) {
+  if (replaceVideos && input.youtubeAppearances.length) {
     const { error } = await admin.from("course_youtube_appearances").insert(
       input.youtubeAppearances.map((appearance, index) => ({
         course_id: courseId,
@@ -144,7 +156,7 @@ export async function replaceCourseChildren(
     if (error) throw new Error(`유튜브 출연 정보 저장 실패: ${error.code}`);
   }
 
-  if (input.liveVideos.length) {
+  if (replaceVideos && input.liveVideos.length) {
     const { error } = await admin.from("course_live_videos").insert(
       input.liveVideos.map((liveVideo, index) => ({
         course_id: courseId,
@@ -161,16 +173,16 @@ export async function replaceCourseChildren(
   const oldAppearanceIds = (oldAppearances.data ?? []).map((item) => item.id);
   const oldLiveVideoIds = (oldLiveVideos.data ?? []).map((item) => item.id);
   await Promise.all([
-    oldOptionIds.length
+    replaceOptions && oldOptionIds.length
       ? admin.from("course_options").delete().in("id", oldOptionIds)
       : Promise.resolve(),
-    oldAppearanceIds.length
+    replaceVideos && oldAppearanceIds.length
       ? admin
           .from("course_youtube_appearances")
           .delete()
           .in("id", oldAppearanceIds)
       : Promise.resolve(),
-    oldLiveVideoIds.length
+    replaceVideos && oldLiveVideoIds.length
       ? admin.from("course_live_videos").delete().in("id", oldLiveVideoIds)
       : Promise.resolve(),
   ]);
