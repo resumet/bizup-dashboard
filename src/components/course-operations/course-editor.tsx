@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
+  Check,
+  Copy,
+  Download,
   ExternalLink,
   Calculator,
   Loader2,
@@ -226,6 +229,9 @@ export function CourseOperationsEditor({
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [copiedMessagePosition, setCopiedMessagePosition] = useState<
+    number | null
+  >(null);
   const [notice, setNotice] = useState("");
   const uniqueChannelNames = useMemo(
     () =>
@@ -381,6 +387,20 @@ export function CourseOperationsEditor({
     }
   }
 
+  async function copyMessage(position: number, message: string) {
+    try {
+      await navigator.clipboard.writeText(message);
+      setCopiedMessagePosition(position);
+      window.setTimeout(() => {
+        setCopiedMessagePosition((current) =>
+          current === position ? null : current,
+        );
+      }, 1200);
+    } catch {
+      setError("문자 내용을 복사하지 못했습니다. 다시 시도해 주세요.");
+    }
+  }
+
   const selectedMessageProject = messageProjects.find(
     (project) => project.id === draft.messageProjectIds[0],
   );
@@ -389,6 +409,11 @@ export function CourseOperationsEditor({
         resource.generated_text.trim(),
       ).length
     : 0;
+  const selectedMessageResources = selectedMessageProject
+    ? selectedMessageProject.message_studio_resources
+        .filter((resource) => resource.generated_text.trim())
+        .toSorted((left, right) => left.position - right.position)
+    : [];
   const courseMaterialsOpenableLink = getOpenableLink(
     draft.courseMaterialsLink,
   );
@@ -1290,7 +1315,7 @@ export function CourseOperationsEditor({
       ) : null}
 
         {courseId ? (
-          <TabsContent value="messages" className="mt-0">
+          <TabsContent value="messages" className="mt-0 space-y-6">
             <Card className="border-primary/30">
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -1384,6 +1409,92 @@ export function CourseOperationsEditor({
                         )}
                       </Button>
                     </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <CardTitle>연결된 문자 내용</CardTitle>
+                    <CardDescription className="mt-1">
+                      선택한 웨비나 문자 목록에 생성된 문구를 번호 순서대로 보여줍니다.
+                    </CardDescription>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {selectedMessageProject ? (
+                      <Badge variant="secondary">
+                        {selectedMessageResources.length}/30개
+                      </Badge>
+                    ) : null}
+                    {selectedMessageProject &&
+                    selectedMessageResources.length > 0 ? (
+                      <Button variant="outline" size="sm" asChild>
+                        <a
+                          href={`/api/message-studio/projects/${selectedMessageProject.id}/export`}
+                        >
+                          <Download />
+                          전체 엑셀 다운로드
+                        </a>
+                      </Button>
+                    ) : (
+                      <Button variant="outline" size="sm" disabled>
+                        <Download />
+                        전체 엑셀 다운로드
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {!selectedMessageProject ? (
+                  <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                    먼저 상단에서 문자 목록을 연결해 주세요.
+                  </div>
+                ) : selectedMessageResources.length === 0 ? (
+                  <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                    연결된 목록에 생성된 문자가 없습니다.
+                  </div>
+                ) : (
+                  <div className="grid gap-3 xl:grid-cols-2">
+                    {selectedMessageResources.map((resource) => (
+                      <article
+                        key={`${selectedMessageProject.id}-${resource.position}`}
+                        className="rounded-xl border bg-muted/20 p-4"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <Badge variant="outline">
+                            {resource.position}번
+                          </Badge>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`${resource.position}번 문자 복사`}
+                            onClick={() =>
+                              void copyMessage(
+                                resource.position,
+                                resource.generated_text,
+                              )
+                            }
+                          >
+                            {copiedMessagePosition === resource.position ? (
+                              <Check />
+                            ) : (
+                              <Copy />
+                            )}
+                            {copiedMessagePosition === resource.position
+                              ? "복사됨"
+                              : "복사"}
+                          </Button>
+                        </div>
+                        <p className="mt-3 whitespace-pre-wrap break-words leading-6">
+                          {resource.generated_text}
+                        </p>
+                      </article>
+                    ))}
                   </div>
                 )}
               </CardContent>

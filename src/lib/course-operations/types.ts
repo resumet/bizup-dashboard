@@ -101,7 +101,10 @@ export type LinkableMessageProject = {
   instructor_name: string;
   updated_at: string;
   course_id: string | null;
-  message_studio_resources: Array<{ generated_text: string }>;
+  message_studio_resources: Array<{
+    position: number;
+    generated_text: string;
+  }>;
 };
 
 export type AddressBookSummary = {

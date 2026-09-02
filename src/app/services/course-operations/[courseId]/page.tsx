@@ -154,7 +154,7 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
       supabase
         .from("message_studio_projects")
         .select(
-          "id,course_name,instructor_name,updated_at,course_id,message_studio_resources(generated_text)",
+          "id,course_name,instructor_name,updated_at,course_id,message_studio_resources(position,generated_text)",
         )
         .or(`course_id.is.null,course_id.eq.${courseId}`)
         .order("updated_at", { ascending: false }),

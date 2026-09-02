@@ -59,7 +59,7 @@ export default async function NewCourseOperationsPage() {
     supabase
       .from("message_studio_projects")
       .select(
-        "id,course_name,instructor_name,updated_at,course_id,message_studio_resources(generated_text)",
+        "id,course_name,instructor_name,updated_at,course_id,message_studio_resources(position,generated_text)",
       )
       .is("course_id", null)
       .order("updated_at", { ascending: false }),
