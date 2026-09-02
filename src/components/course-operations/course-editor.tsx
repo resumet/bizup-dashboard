@@ -93,6 +93,7 @@ function formatDiscountRate(listPrice: string, salePrice: string) {
 }
 
 type CourseLinkFieldKey =
+  | "landingPageLink"
   | "freeKakaoRoom1Link"
   | "freeKakaoRoom2Link"
   | "communicationRoomLink"
@@ -103,6 +104,7 @@ type CourseLinkFieldKey =
   | "courseViewingLink";
 
 const COURSE_LINKS: Array<{ field: CourseLinkFieldKey; label: string }> = [
+  { field: "landingPageLink", label: "기본 랜딩페이지" },
   { field: "freeKakaoRoom1Link", label: "무료카톡방 1번" },
   { field: "freeKakaoRoom2Link", label: "무료카톡방 2번" },
   { field: "communicationRoomLink", label: "소통방" },
@@ -453,6 +455,7 @@ export function CourseOperationsEditor({
               startsDate: draft.startsAt,
               earlyBirdEvent: draft.earlyBirdEvent,
               first50Event: draft.first50Event,
+              landingPageLink: draft.landingPageLink,
               freeKakaoRoom1Link: draft.freeKakaoRoom1Link,
               freeKakaoRoom2Link: draft.freeKakaoRoom2Link,
               communicationRoomLink: draft.communicationRoomLink,
@@ -492,26 +495,16 @@ export function CourseOperationsEditor({
       ) : null}
 
       <Tabs defaultValue="information" className="gap-6">
-        <TabsList
-          className={
-            courseId
-              ? "grid w-full grid-cols-4 group-data-horizontal/tabs:h-12 sm:w-fit"
-              : "grid w-full grid-cols-2 group-data-horizontal/tabs:h-12 sm:w-fit"
-          }
-        >
+        <TabsList className="grid w-full grid-cols-4 group-data-horizontal/tabs:h-12 sm:w-fit">
           <TabsTrigger value="information" className="min-h-10 px-2 sm:min-w-28 sm:px-5">
             정보
           </TabsTrigger>
-          {courseId ? (
-            <>
-            <TabsTrigger value="students" className="min-h-10 px-2 sm:min-w-32 sm:px-5">
-              수강생명단
-            </TabsTrigger>
-            <TabsTrigger value="messages" className="min-h-10 px-2 sm:min-w-32 sm:px-5">
-              단톡방문자
-            </TabsTrigger>
-            </>
-          ) : null}
+          <TabsTrigger value="students" className="min-h-10 px-2 sm:min-w-32 sm:px-5">
+            수강생명단
+          </TabsTrigger>
+          <TabsTrigger value="messages" className="min-h-10 px-2 sm:min-w-32 sm:px-5">
+            단톡방문자
+          </TabsTrigger>
           <TabsTrigger value="videos" className="min-h-10 px-2 sm:min-w-28 sm:px-5">
             영상
           </TabsTrigger>
@@ -1294,7 +1287,6 @@ export function CourseOperationsEditor({
           </div>
         </TabsContent>
 
-      {courseId ? (
         <TabsContent value="students" className="mt-0">
           <CourseRosterSections
             rosterJobs={rosterJobs}
@@ -1312,10 +1304,8 @@ export function CourseOperationsEditor({
             }
           />
         </TabsContent>
-      ) : null}
 
-        {courseId ? (
-          <TabsContent value="messages" className="mt-0 space-y-6">
+        <TabsContent value="messages" className="mt-0 space-y-6">
             <Card className="border-primary/30">
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -1499,8 +1489,7 @@ export function CourseOperationsEditor({
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-        ) : null}
+        </TabsContent>
       </Tabs>
 
       <div className="flex justify-end border-t pt-6">

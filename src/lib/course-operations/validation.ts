@@ -139,6 +139,7 @@ export function parseCourseOperationsInput(value: unknown): CourseOperationsInpu
     startsAt,
     earlyBirdEvent: text(input.earlyBirdEvent, "얼리버드 이벤트", 2_000, false),
     first50Event: text(input.first50Event, "선착순 50명 이벤트", 2_000, false),
+    landingPageLink: url(input.landingPageLink, "기본 랜딩페이지 링크", false),
     freeKakaoRoom1Link: url(input.freeKakaoRoom1Link, "무료카톡방 1번 링크", false),
     freeKakaoRoom2Link: url(input.freeKakaoRoom2Link, "무료카톡방 2번 링크", false),
     communicationRoomLink: url(input.communicationRoomLink, "소통방 링크", false),

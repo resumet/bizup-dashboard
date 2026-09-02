@@ -10,6 +10,7 @@ const validInput = {
   startsAt: "2026-09-10T00:00:00+09:00",
   earlyBirdEvent: "8월 31일까지 10만원 할인",
   first50Event: "교재 증정",
+  landingPageLink: "https://example.com/landing",
   freeKakaoRoom1Link: "https://open.kakao.com/o/free1",
   freeKakaoRoom2Link: "https://open.kakao.com/o/free2",
   communicationRoomLink: "https://open.kakao.com/o/community",
@@ -53,6 +54,7 @@ test("강의 운영 입력값을 DB 저장 형식으로 변환한다", () => {
   assert.equal(parsed.options[0].entryCode, "1234");
   assert.equal(parsed.freeWebinarAt, "2026-09-01T10:30:00.000Z");
   assert.equal(parsed.startsAt, "2026-09-09T15:00:00.000Z");
+  assert.equal(parsed.landingPageLink, "https://example.com/landing");
   assert.equal(parsed.freeKakaoRoom1Link, "https://open.kakao.com/o/free1");
   assert.equal(parsed.courseMaterialsLink, "https://example.com/materials");
   assert.deepEqual(parsed.liveVideos[0], {

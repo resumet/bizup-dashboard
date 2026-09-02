@@ -27,6 +27,7 @@ export type CourseShareData = {
   startsDate: string;
   earlyBirdEvent: string;
   first50Event: string;
+  landingPageLink: string;
   freeKakaoRoom1Link: string;
   freeKakaoRoom2Link: string;
   communicationRoomLink: string;
@@ -75,6 +76,7 @@ function present(value: string, fallback = "미정") {
 
 function linkSection(data: CourseShareData) {
   const links = [
+    ["기본 랜딩페이지", data.landingPageLink],
     ["무료카톡방 1번", data.freeKakaoRoom1Link],
     ["무료카톡방 2번", data.freeKakaoRoom2Link],
     ["소통방", data.communicationRoomLink],

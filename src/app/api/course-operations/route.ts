@@ -35,6 +35,7 @@ export async function POST(request: Request) {
         starts_at: input.startsAt,
         early_bird_event: input.earlyBirdEvent,
         first_50_event: input.first50Event,
+        landing_page_link: input.landingPageLink,
         free_kakao_room_1_link: input.freeKakaoRoom1Link,
         free_kakao_room_2_link: input.freeKakaoRoom2Link,
         communication_room_link: input.communicationRoomLink,

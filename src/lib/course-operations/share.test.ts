@@ -15,6 +15,7 @@ const data: CourseShareData = {
   startsDate: "2026-09-10",
   earlyBirdEvent: "10만원 할인",
   first50Event: "워크북 증정",
+  landingPageLink: "https://example.com/landing",
   freeKakaoRoom1Link: "https://open.kakao.com/free1",
   freeKakaoRoom2Link: "",
   communicationRoomLink: "https://open.kakao.com/community",
@@ -31,6 +32,8 @@ test("선택한 강의 섹션만 카톡 공유용 요약문에 포함한다", ()
   const summary = buildCourseShareSummary(data, ["schedule", "links"]);
   assert.match(summary, /AI 수익화 클래스/u);
   assert.match(summary, /2026년 9월 1일 오후 7시 30분/u);
+  assert.match(summary, /기본 랜딩페이지/u);
+  assert.match(summary, /https:\/\/example.com\/landing/u);
   assert.match(summary, /무료카톡방 1번/u);
   assert.doesNotMatch(summary, /10만원 할인/u);
   assert.doesNotMatch(summary, /워크북 증정/u);

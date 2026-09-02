@@ -42,6 +42,7 @@ export type CourseOperationsDraft = {
   startsAt: string;
   earlyBirdEvent: string;
   first50Event: string;
+  landingPageLink: string;
   freeKakaoRoom1Link: string;
   freeKakaoRoom2Link: string;
   communicationRoomLink: string;
