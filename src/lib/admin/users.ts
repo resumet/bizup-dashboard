@@ -2,6 +2,7 @@ import "server-only";
 
 import type { User } from "@supabase/supabase-js";
 
+import { getAccountRole, type AccountRole } from "@/lib/admin/access";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type MembershipRow = {
@@ -17,6 +18,7 @@ type WorkspaceRow = {
 };
 
 export type AdminUserRow = {
+  accessRole: AccountRole;
   createdAt: string;
   email: string;
   emailConfirmedAt: string | null;
@@ -98,18 +100,26 @@ export async function loadAdminUsers(): Promise<AdminUserRow[]> {
     membershipsByUser.set(membership.user_id, memberships);
   }
 
-  return users.map((user) => ({
-    createdAt: user.created_at,
-    email: user.email ?? "이메일 없음",
-    emailConfirmedAt: user.email_confirmed_at ?? null,
-    id: user.id,
-    lastSignInAt: user.last_sign_in_at ?? null,
-    providers: getProviders(user),
-    workspaces: (membershipsByUser.get(user.id) ?? []).map((membership) => ({
-      joinedAt: membership.created_at,
-      name:
-        workspaceNames.get(membership.workspace_id) ?? "삭제된 워크스페이스",
-      role: membership.role,
-    })),
-  }));
+  return users.map((user) => {
+    const memberships = membershipsByUser.get(user.id) ?? [];
+
+    return {
+      accessRole: getAccountRole(
+        user.email,
+        memberships.map((membership) => membership.role),
+      ),
+      createdAt: user.created_at,
+      email: user.email ?? "이메일 없음",
+      emailConfirmedAt: user.email_confirmed_at ?? null,
+      id: user.id,
+      lastSignInAt: user.last_sign_in_at ?? null,
+      providers: getProviders(user),
+      workspaces: memberships.map((membership) => ({
+        joinedAt: membership.created_at,
+        name:
+          workspaceNames.get(membership.workspace_id) ?? "삭제된 워크스페이스",
+        role: membership.role,
+      })),
+    };
+  });
 }

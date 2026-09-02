@@ -56,9 +56,11 @@ type Book = {
 export function AddressBookManager({
   initialBooks,
   loadError,
+  canDelete,
 }: {
   initialBooks: Book[];
   loadError?: string;
+  canDelete: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -167,7 +169,7 @@ export function AddressBookManager({
   }
 
   async function deleteBook() {
-    if (!deleteTarget) return;
+    if (!canDelete || !deleteTarget) return;
     setDeleting(true);
     setDeleteError("");
     try {
@@ -441,6 +443,7 @@ export function AddressBookManager({
                           variant="outline"
                           size="sm"
                           className="text-destructive hover:text-destructive"
+                          disabled={!canDelete}
                           onClick={() => {
                             setDeleteError("");
                             setDeleteTarget(book);
@@ -489,7 +492,7 @@ export function AddressBookManager({
                 event.preventDefault();
                 void deleteBook();
               }}
-              disabled={deleting}
+              disabled={deleting || !canDelete}
             >
               {deleting ? <Loader2 className="animate-spin" /> : <Trash2 />}
               {deleting ? "삭제 중..." : "삭제"}

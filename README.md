@@ -15,8 +15,8 @@ Supabase 없이도 현재 대시보드와 가져오기 진입 UI를 확인할 �
 ## Supabase 초기 설정
 
 1. Supabase Dashboard에서 프로젝트의 **SQL Editor → New query**를 엽니다.
-2. `supabase/migrations/202608260001_foundation.sql` 전체를 붙여 넣고 **Run**을 실행합니다.
-3. `/login`에서 첫 계정을 생성합니다. 마이그레이션의 Auth 트리거가 이 계정의 워크스페이스와 관리자 멤버십을 자동 생성합니다.
+2. `supabase/migrations`의 SQL을 파일명 순서대로 적용합니다.
+3. `/login`에서 계정을 생성합니다. `resumet@gmail.com`은 최고관리자, 나머지 신규 계정은 사용자 권한으로 공용 워크스페이스에 연결됩니다.
 4. `/services/course-roster/new`에서 CSV를 검증한 뒤 **명단 저장**을 누릅니다.
 
 `course-files` 버킷은 private이며 20MB CSV만 허용합니다. 저장 API는 로그인 세션과 워크스페이스 멤버십을 검증한 뒤 원본 파일, 작업, 파일 버전 및 감사 로그를 기록합니다.

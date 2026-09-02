@@ -1,3 +1,4 @@
+import { hasAdminAccess } from "@/lib/admin/access";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -16,7 +17,7 @@ export async function DELETE(_: Request, { params }: Context) {
   const { data: job } = await admin.from("course_jobs").select("id,workspace_id,name").eq("id", jobId).maybeSingle();
   if (!job) return Response.json({ message: "삭제할 작업을 찾을 수 없습니다." }, { status: 404 });
   const { data: membership } = await admin.from("workspace_members").select("role").eq("workspace_id", job.workspace_id).eq("user_id", user.id).maybeSingle();
-  if (membership?.role !== "admin") return Response.json({ message: "관리자만 작업을 삭제할 수 있습니다." }, { status: 403 });
+  if (!hasAdminAccess(user.email, membership?.role)) return Response.json({ message: "관리자만 작업을 삭제할 수 있습니다." }, { status: 403 });
 
   const { data: versions } = await admin.from("job_file_versions").select("storage_path").eq("job_id", job.id);
   const { error: deleteError } = await admin.from("course_jobs").delete().eq("id", job.id);

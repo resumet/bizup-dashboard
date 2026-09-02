@@ -2,10 +2,10 @@ import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { isMainAdminEmail } from "@/lib/admin/access";
+import { isSuperAdminEmail } from "@/lib/admin/access";
 
 export function AdminManagementButton({ email }: { email: string }) {
-  if (!isMainAdminEmail(email)) return null;
+  if (!isSuperAdminEmail(email)) return null;
 
   return (
     <Button
@@ -18,10 +18,10 @@ export function AdminManagementButton({ email }: { email: string }) {
         href="/admin/users"
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="Admin 관리 새 창에서 열기"
+        aria-label="사용자 권한 관리 새 창에서 열기"
       >
         <ShieldCheck />
-        Admin 관리
+        권한 관리
       </Link>
     </Button>
   );

@@ -3,13 +3,14 @@ import { notFound, redirect } from "next/navigation";
 import {
   AlertCircle,
   CheckCircle2,
-  Clock3,
   Search,
+  ShieldCheck,
   UserRoundCheck,
   UsersRound,
 } from "lucide-react";
 
 import { AdminManagementButton } from "@/components/admin/admin-management-button";
+import { UserRoleSelect } from "@/components/admin/user-role-select";
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -26,8 +27,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  isMainAdminEmail,
-  MAIN_ADMIN_EMAIL,
+  isSuperAdminEmail,
+  SUPER_ADMIN_EMAIL,
 } from "@/lib/admin/access";
 import { loadAdminUsers } from "@/lib/admin/users";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
@@ -48,10 +49,16 @@ function formatDate(value: string | null) {
 }
 
 function roleLabel(role: string) {
+  if (role === "super_admin") return "최고관리자";
   if (role === "admin") return "관리자";
-  if (role === "operator") return "운영자";
-  if (role === "viewer") return "조회자";
+  if (role === "user" || role === "operator" || role === "viewer") return "사용자";
   return role;
+}
+
+function accountRoleLabel(role: "super_admin" | "admin" | "user") {
+  if (role === "super_admin") return "최고관리자";
+  if (role === "admin") return "관리자";
+  return "사용자";
 }
 
 export default async function AdminUsersPage({
@@ -61,7 +68,7 @@ export default async function AdminUsersPage({
   const currentUser = await getAuthenticatedUser(supabase);
 
   if (!currentUser) redirect("/login");
-  if (!isMainAdminEmail(currentUser.email)) notFound();
+  if (!isSuperAdminEmail(currentUser.email)) notFound();
 
   const params = await searchParams;
   const queryValue = Array.isArray(params.q) ? params.q[0] : params.q;
@@ -79,9 +86,11 @@ export default async function AdminUsersPage({
   );
 
   const sortedUsers = result.users.toSorted((left, right) => {
-    const leftIsMain = isMainAdminEmail(left.email);
-    const rightIsMain = isMainAdminEmail(right.email);
-    if (leftIsMain !== rightIsMain) return leftIsMain ? -1 : 1;
+    const leftIsSuperAdmin = isSuperAdminEmail(left.email);
+    const rightIsSuperAdmin = isSuperAdminEmail(right.email);
+    if (leftIsSuperAdmin !== rightIsSuperAdmin) {
+      return leftIsSuperAdmin ? -1 : 1;
+    }
     return right.createdAt.localeCompare(left.createdAt);
   });
   const filteredUsers = normalizedQuery
@@ -90,6 +99,7 @@ export default async function AdminUsersPage({
           user.email,
           user.id,
           ...user.providers,
+          accountRoleLabel(user.accessRole),
           ...user.workspaces.flatMap((workspace) => [
             workspace.name,
             roleLabel(workspace.role),
@@ -97,13 +107,15 @@ export default async function AdminUsersPage({
         ].some((value) => value.toLowerCase().includes(normalizedQuery)),
       )
     : sortedUsers;
-  const subAccountCount = sortedUsers.filter(
-    (user) => !isMainAdminEmail(user.email),
+  const adminCount = sortedUsers.filter(
+    (user) => user.accessRole === "admin",
   ).length;
-  const confirmedCount = sortedUsers.filter(
-    (user) => user.emailConfirmedAt,
+  const superAdminCount = sortedUsers.filter(
+    (user) => user.accessRole === "super_admin",
   ).length;
-  const signedInCount = sortedUsers.filter((user) => user.lastSignInAt).length;
+  const userCount = sortedUsers.filter(
+    (user) => user.accessRole === "user",
+  ).length;
 
   return (
     <main className="min-h-screen bg-muted/30">
@@ -112,28 +124,27 @@ export default async function AdminUsersPage({
           <div className="flex items-center gap-3">
             <BrandHomeLink showName={false} />
             <div>
-              <p className="font-semibold">사용자 계정 관리</p>
-              <p className="text-xs text-muted-foreground">Supabase Auth 조회 전용</p>
+              <p className="font-semibold">사용자 권한 관리</p>
+              <p className="text-xs text-muted-foreground">최고관리자 전용</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <AdminManagementButton
-              email={currentUser.email ?? MAIN_ADMIN_EMAIL}
+              email={currentUser.email ?? SUPER_ADMIN_EMAIL}
             />
-            <UserAccountMenu email={currentUser.email ?? MAIN_ADMIN_EMAIL} />
+            <UserAccountMenu email={currentUser.email ?? SUPER_ADMIN_EMAIL} />
           </div>
         </div>
       </header>
 
       <div className="mx-auto max-w-[1600px] space-y-6 px-5 py-8 lg:px-8">
         <section>
-          <Badge variant="secondary" className="mb-3">관리자 전용</Badge>
+          <Badge variant="secondary" className="mb-3">최고관리자 전용</Badge>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Supabase 사용자 계정
+            사용자 계정과 권한
           </h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            메인 계정과 등록된 부계정의 인증 상태, 로그인 기록 및 워크스페이스
-            권한을 확인합니다. 이 화면에서는 계정 정보가 변경되지 않습니다.
+            등록된 계정의 권한과 인증 상태, 최근 로그인 기록을 관리합니다.
           </p>
         </section>
 
@@ -148,9 +159,9 @@ export default async function AdminUsersPage({
             <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="계정 요약">
               {[
                 { label: "전체 계정", value: sortedUsers.length, icon: UsersRound },
-                { label: "부계정", value: subAccountCount, icon: UserRoundCheck },
-                { label: "이메일 인증", value: confirmedCount, icon: CheckCircle2 },
-                { label: "로그인 기록 있음", value: signedInCount, icon: Clock3 },
+                { label: "최고관리자", value: superAdminCount, icon: ShieldCheck },
+                { label: "관리자", value: adminCount, icon: UserRoundCheck },
+                { label: "사용자", value: userCount, icon: CheckCircle2 },
               ].map((item) => {
                 const Icon = item.icon;
                 return (
@@ -174,7 +185,7 @@ export default async function AdminUsersPage({
                 <div>
                   <CardTitle>계정 목록</CardTitle>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    메인 계정: {MAIN_ADMIN_EMAIL}
+                    최고관리자 계정: {SUPER_ADMIN_EMAIL}
                   </p>
                 </div>
                 <form method="get" className="flex w-full gap-2 sm:w-auto">
@@ -201,8 +212,9 @@ export default async function AdminUsersPage({
                   <TableHeader>
                     <TableRow>
                       <TableHead className="px-5">계정</TableHead>
+                      <TableHead>권한</TableHead>
                       <TableHead>인증</TableHead>
-                      <TableHead>워크스페이스 / 역할</TableHead>
+                      <TableHead>워크스페이스</TableHead>
                       <TableHead>가입일</TableHead>
                       <TableHead className="pr-5">최근 로그인</TableHead>
                     </TableRow>
@@ -210,14 +222,14 @@ export default async function AdminUsersPage({
                   <TableBody>
                     {filteredUsers.length ? (
                       filteredUsers.map((user) => {
-                        const isMain = isMainAdminEmail(user.email);
+                        const isSuperAdmin = isSuperAdminEmail(user.email);
                         return (
                           <TableRow key={user.id}>
                             <TableCell className="px-5 py-4">
                               <div className="flex items-center gap-2">
                                 <span className="font-medium">{user.email}</span>
-                                <Badge variant={isMain ? "default" : "secondary"}>
-                                  {isMain ? "메인" : "부계정"}
+                                <Badge variant={isSuperAdmin ? "default" : "secondary"}>
+                                  {isSuperAdmin ? "최고관리자" : "일반 계정"}
                                 </Badge>
                               </div>
                               <p className="mt-1 font-mono text-xs text-muted-foreground">
@@ -228,6 +240,22 @@ export default async function AdminUsersPage({
                                   로그인 방식: {user.providers.join(", ")}
                                 </p>
                               ) : null}
+                            </TableCell>
+                            <TableCell>
+                              {isSuperAdmin ? (
+                                <Badge className="gap-1.5">
+                                  <ShieldCheck className="size-3.5" />
+                                  최고관리자
+                                </Badge>
+                              ) : (
+                                <UserRoleSelect
+                                  userId={user.id}
+                                  email={user.email}
+                                  initialRole={
+                                    user.accessRole === "admin" ? "admin" : "user"
+                                  }
+                                />
+                              )}
                             </TableCell>
                             <TableCell>
                               <Badge variant={user.emailConfirmedAt ? "outline" : "destructive"}>
@@ -257,7 +285,7 @@ export default async function AdminUsersPage({
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+                        <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                           {query ? "검색 조건에 맞는 계정이 없습니다." : "등록된 계정이 없습니다."}
                         </TableCell>
                       </TableRow>

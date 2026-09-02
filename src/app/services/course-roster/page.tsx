@@ -4,10 +4,12 @@ import { ArrowLeft, CalendarDays, FileSpreadsheet, Plus, Users } from "lucide-re
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DeleteJobButton } from "@/components/jobs/delete-job-button";
+import { hasAdminAccess } from "@/lib/admin/access";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -45,6 +47,7 @@ export default async function CourseRosterPage() {
   const supabase = await createClient();
   const user = await getAuthenticatedUser(supabase);
   if (!user) redirect("/login");
+  const membership = await requireCourseOperationsMembership(user.id);
 
   const { data, error } = await supabase
     .from("course_jobs")
@@ -67,7 +70,7 @@ export default async function CourseRosterPage() {
 
       {error ? <Alert variant="destructive" className="mt-6"><AlertTitle>작업을 불러오지 못했습니다</AlertTitle><AlertDescription>{error.message}</AlertDescription></Alert> :
         jobs.length === 0 ? <Card className="mt-6"><CardContent className="flex min-h-64 flex-col items-center justify-center text-center"><span className="mb-4 grid size-12 place-items-center rounded-full bg-muted"><FileSpreadsheet className="size-5 text-muted-foreground" /></span><h2 className="font-semibold">저장된 작업이 없습니다</h2><p className="mt-2 text-sm text-muted-foreground">CSV를 가져와 첫 번째 작업을 만들어 보세요.</p><Button asChild className="mt-5"><Link href="/services/course-roster/new"><Plus />새 작업</Link></Button></CardContent></Card> :
-        <Card className="mt-6 overflow-hidden"><Table><TableHeader><TableRow><TableHead>작업명</TableHead><TableHead>기본 강의명</TableHead><TableHead className="text-right">유효 인원</TableHead><TableHead className="text-right">오류</TableHead><TableHead>버전</TableHead><TableHead>상태</TableHead><TableHead>업데이트</TableHead><TableHead><span className="sr-only">작업</span></TableHead></TableRow></TableHeader><TableBody>{jobs.map((job) => <TableRow key={job.id}><TableCell className="font-medium"><Link className="hover:underline" href={`/services/course-roster/${job.id}`}>{job.name}</Link></TableCell><TableCell className="text-muted-foreground">{job.default_course_name || "CSV 내 강의명"}</TableCell><TableCell className="text-right font-mono">{job.valid_count}</TableCell><TableCell className="text-right font-mono">{job.error_count}</TableCell><TableCell className="font-mono">v{job.latest_version}</TableCell><TableCell><Badge variant={job.status === "ready" ? "default" : "secondary"}>{STATUS_LABELS[job.status] ?? job.status}</Badge></TableCell><TableCell className="text-muted-foreground">{formatDate(job.updated_at)}</TableCell><TableCell><div className="flex items-center gap-1"><Button variant="outline" size="sm" asChild><Link href={`/services/course-roster/${job.id}`}>상세보기</Link></Button><DeleteJobButton jobId={job.id} jobName={job.name} /></div></TableCell></TableRow>)}</TableBody></Table></Card>}
+        <Card className="mt-6 overflow-hidden"><Table><TableHeader><TableRow><TableHead>작업명</TableHead><TableHead>기본 강의명</TableHead><TableHead className="text-right">유효 인원</TableHead><TableHead className="text-right">오류</TableHead><TableHead>버전</TableHead><TableHead>상태</TableHead><TableHead>업데이트</TableHead><TableHead><span className="sr-only">작업</span></TableHead></TableRow></TableHeader><TableBody>{jobs.map((job) => <TableRow key={job.id}><TableCell className="font-medium"><Link className="hover:underline" href={`/services/course-roster/${job.id}`}>{job.name}</Link></TableCell><TableCell className="text-muted-foreground">{job.default_course_name || "CSV 내 강의명"}</TableCell><TableCell className="text-right font-mono">{job.valid_count}</TableCell><TableCell className="text-right font-mono">{job.error_count}</TableCell><TableCell className="font-mono">v{job.latest_version}</TableCell><TableCell><Badge variant={job.status === "ready" ? "default" : "secondary"}>{STATUS_LABELS[job.status] ?? job.status}</Badge></TableCell><TableCell className="text-muted-foreground">{formatDate(job.updated_at)}</TableCell><TableCell><div className="flex items-center gap-1"><Button variant="outline" size="sm" asChild><Link href={`/services/course-roster/${job.id}`}>상세보기</Link></Button><DeleteJobButton jobId={job.id} jobName={job.name} canDelete={hasAdminAccess(user.email, membership.role)} /></div></TableCell></TableRow>)}</TableBody></Table></Card>}
     </div>
   </main>;
 }

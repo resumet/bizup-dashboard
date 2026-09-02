@@ -32,9 +32,9 @@ export async function POST(request: Request) {
     const { data: workspace, error: workspaceError } = await admin
       .from("workspaces").insert({ name: workspaceName }).select("id").single();
     if (!workspaceError && workspace) {
-      const { error: memberError } = await admin.from("workspace_members").insert({ workspace_id: workspace.id, user_id: user.id, role: "admin" });
+      const { error: memberError } = await admin.from("workspace_members").insert({ workspace_id: workspace.id, user_id: user.id, role: "user" });
       if (memberError) await admin.from("workspaces").delete().eq("id", workspace.id);
-      else membership = { workspace_id: workspace.id, role: "admin" };
+      else membership = { workspace_id: workspace.id, role: "user" };
     }
   }
   if (membershipError || !membership) return Response.json({ message: "워크스페이스를 준비하지 못했습니다. Supabase 스키마를 확인해 주세요." }, { status: 403 });

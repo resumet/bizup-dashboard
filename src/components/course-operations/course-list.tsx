@@ -50,7 +50,13 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-export function CourseOperationsList({ courses }: { courses: CourseSummary[] }) {
+export function CourseOperationsList({
+  courses,
+  canDelete,
+}: {
+  courses: CourseSummary[];
+  canDelete: boolean;
+}) {
   const router = useRouter();
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [deleteTarget, setDeleteTarget] = useState<CourseSummary | null>(null);
@@ -58,7 +64,7 @@ export function CourseOperationsList({ courses }: { courses: CourseSummary[] }) 
   const [deleteError, setDeleteError] = useState("");
 
   async function deleteCourse() {
-    if (!deleteTarget) return;
+    if (!canDelete || !deleteTarget) return;
     setDeleting(true);
     setDeleteError("");
     try {
@@ -181,6 +187,7 @@ export function CourseOperationsList({ courses }: { courses: CourseSummary[] }) 
                   <Button
                     variant="outline"
                     className="text-destructive hover:text-destructive"
+                    disabled={!canDelete}
                     onClick={() => openDeleteDialog(course)}
                     aria-label={`${course.name} 삭제`}
                   >
@@ -242,6 +249,7 @@ export function CourseOperationsList({ courses }: { courses: CourseSummary[] }) 
                         variant="outline"
                         size="sm"
                         className="text-destructive hover:text-destructive"
+                        disabled={!canDelete}
                         onClick={() => openDeleteDialog(course)}
                       >
                         <Trash2 />삭제
@@ -282,7 +290,7 @@ export function CourseOperationsList({ courses }: { courses: CourseSummary[] }) 
             <AlertDialogCancel disabled={deleting}>취소</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              disabled={deleting}
+              disabled={deleting || !canDelete}
               onClick={(event) => {
                 event.preventDefault();
                 void deleteCourse();

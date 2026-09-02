@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 
 import { CourseOperationsList } from "@/components/course-operations/course-list";
+import { hasAdminAccess } from "@/lib/admin/access";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ export default async function CourseOperationsPage() {
   const supabase = await createClient();
   const user = await getAuthenticatedUser(supabase);
   if (!user) redirect("/login");
-  await requireCourseOperationsMembership(user.id);
+  const membership = await requireCourseOperationsMembership(user.id);
 
   const { data, error } = await supabase
     .from("courses")
@@ -102,7 +103,10 @@ export default async function CourseOperationsPage() {
 
         {!error && courses.length > 0 ? (
           <div className="mt-6">
-            <CourseOperationsList courses={courses} />
+            <CourseOperationsList
+              courses={courses}
+              canDelete={hasAdminAccess(user.email, membership.role)}
+            />
           </div>
         ) : null}
       </div>

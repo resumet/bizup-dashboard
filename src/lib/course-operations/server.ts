@@ -32,7 +32,7 @@ export async function requireCourseOperationsMembership(userId: string) {
       .insert({
         workspace_id: configuredWorkspaceId,
         user_id: userId,
-        role: "operator",
+        role: "user",
       })
       .select("workspace_id,role")
       .single();

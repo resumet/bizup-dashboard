@@ -1,3 +1,4 @@
+import { hasAdminAccess } from "@/lib/admin/access";
 import {
   assertLinkableItems,
   courseOperationsApiError,
@@ -222,6 +223,12 @@ export async function DELETE(
       params,
       requireCourseOperationsMembership(user.id),
     ]);
+    if (!hasAdminAccess(user.email, membership.role)) {
+      return Response.json(
+        { message: "관리자만 강의를 삭제할 수 있습니다." },
+        { status: 403 },
+      );
+    }
     const admin = createAdminClient();
     const { data: course, error: courseError } = await admin
       .from("courses")

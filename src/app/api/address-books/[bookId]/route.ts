@@ -1,3 +1,4 @@
+import { hasAdminAccess } from "@/lib/admin/access";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -35,24 +36,10 @@ export async function DELETE(_: Request, { params }: Context) {
     return Response.json({ message: "로그인이 필요합니다." }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: membership, error: membershipError } = await admin
-    .from("workspace_members")
-    .select("workspace_id")
-    .eq("user_id", user.id)
-    .limit(1)
-    .maybeSingle();
-  if (membershipError || !membership) {
-    return Response.json(
-      { message: "워크스페이스 권한이 없습니다." },
-      { status: 403 },
-    );
-  }
-
   const { data: book, error: bookError } = await admin
     .from("address_books")
-    .select("id,name")
+    .select("id,name,workspace_id")
     .eq("id", bookId)
-    .eq("workspace_id", membership.workspace_id)
     .maybeSingle();
   if (bookError) {
     return Response.json({ message: bookError.message }, { status: 400 });
@@ -64,10 +51,30 @@ export async function DELETE(_: Request, { params }: Context) {
     );
   }
 
+  const { data: membership, error: membershipError } = await admin
+    .from("workspace_members")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("workspace_id", book.workspace_id)
+    .limit(1)
+    .maybeSingle();
+  if (membershipError || !membership) {
+    return Response.json(
+      { message: "워크스페이스 권한이 없습니다." },
+      { status: 403 },
+    );
+  }
+  if (!hasAdminAccess(user.email, membership.role)) {
+    return Response.json(
+      { message: "관리자만 주소록을 삭제할 수 있습니다." },
+      { status: 403 },
+    );
+  }
+
   const { data: linkedCourses, error: linkedCoursesError } = await admin
     .from("courses")
     .select("id")
-    .eq("workspace_id", membership.workspace_id)
+    .eq("workspace_id", book.workspace_id)
     .eq("free_address_book_id", bookId);
   if (
     linkedCoursesError &&
@@ -84,7 +91,7 @@ export async function DELETE(_: Request, { params }: Context) {
     const { error: unlinkError } = await admin
       .from("courses")
       .update({ free_address_book_id: null })
-      .eq("workspace_id", membership.workspace_id)
+      .eq("workspace_id", book.workspace_id)
       .in("id", linkedCourseIds);
     if (unlinkError) {
       return Response.json(
@@ -98,20 +105,20 @@ export async function DELETE(_: Request, { params }: Context) {
     .from("address_books")
     .delete()
     .eq("id", bookId)
-    .eq("workspace_id", membership.workspace_id);
+    .eq("workspace_id", book.workspace_id);
   if (deleteError) {
     if (linkedCourseIds.length) {
       await admin
         .from("courses")
         .update({ free_address_book_id: bookId })
-        .eq("workspace_id", membership.workspace_id)
+        .eq("workspace_id", book.workspace_id)
         .in("id", linkedCourseIds);
     }
     return Response.json({ message: deleteError.message }, { status: 400 });
   }
 
   await admin.from("audit_logs").insert({
-    workspace_id: membership.workspace_id,
+    workspace_id: book.workspace_id,
     actor_id: user.id,
     event_type: "address_book.deleted",
     entity_type: "address_book",
