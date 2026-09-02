@@ -96,7 +96,14 @@ export type SettlementCost = {
   evidenceRequired: boolean;
   evidenceType: "세금계산서" | "종이영수증" | "카드영수증" | "계좌이체 내역" | "계약서" | "기타";
   evidenceNeedsReview: boolean;
-  attachments: Array<{ id: string; name: string; type: string; size: number; file?: File }>;
+  attachments: Array<{
+    id: string;
+    name: string;
+    type: string;
+    size: number;
+    file?: File;
+    url?: string | null;
+  }>;
 };
 
 export const DEFAULT_SETTLEMENT_COSTS: Array<Pick<SettlementCost, "name" | "burden">> = [
@@ -413,9 +420,11 @@ export function analyzeWorkbook(input: WorkbookInput): MonthlyAnalysis {
   };
 }
 
-export function analyzeWorkbooks(inputs: WorkbookInput[]): SettlementAnalysis {
-  if (!inputs.length) throw new Error("분석할 월별 엑셀 파일을 추가해 주세요.");
-  const monthlyAnalyses = inputs.map(analyzeWorkbook).sort((left, right) => {
+export function aggregateMonthlyAnalyses(
+  analyses: MonthlyAnalysis[],
+): SettlementAnalysis {
+  if (!analyses.length) throw new Error("분석할 월별 엑셀 파일을 추가해 주세요.");
+  const monthlyAnalyses = [...analyses].sort((left, right) => {
     const leftKey = left.periodMonth == null ? Number.MAX_SAFE_INTEGER : (left.periodYear ?? 0) * 100 + left.periodMonth;
     const rightKey = right.periodMonth == null ? Number.MAX_SAFE_INTEGER : (right.periodYear ?? 0) * 100 + right.periodMonth;
     return leftKey - rightKey || left.inputOrder - right.inputOrder;
@@ -443,6 +452,10 @@ export function analyzeWorkbooks(inputs: WorkbookInput[]): SettlementAnalysis {
     comparisonCount,
     allMatched: comparisonCount > 0 && matchedCount === comparisonCount,
   };
+}
+
+export function analyzeWorkbooks(inputs: WorkbookInput[]): SettlementAnalysis {
+  return aggregateMonthlyAnalyses(inputs.map(analyzeWorkbook));
 }
 
 export function calculateStatement(input: {

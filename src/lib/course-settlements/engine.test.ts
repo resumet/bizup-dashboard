@@ -3,6 +3,7 @@ import test from "node:test";
 import readXlsxFile from "read-excel-file/node";
 
 import {
+  aggregateMonthlyAnalyses,
   analyzeWorkbook,
   analyzeWorkbooks,
   calculateCostSettlement,
@@ -71,6 +72,25 @@ test("월별 계산 후 합산하고 없는 월에는 0 결과를 삽입한다",
   assert.deepEqual(result.monthlyAnalyses.map((item) => item.periodLabel), ["2026년 5월", "2026년 6월"]);
   const park = result.instructorResults.find((item) => item.instructor === "박강사")!;
   assert.equal(park.monthlySettlements[0].result.finalSettlement, 0);
+});
+
+test("DB에 저장한 월별 분석 스냅샷을 다시 합산해도 결과가 같다", () => {
+  const may = analyzeWorkbook(workbook());
+  const juneWorkbook = workbook({
+    fileName: "비즈업클래스_26.06.xlsx",
+    inputOrder: 1,
+  });
+  juneWorkbook.sheets.find(
+    (item) => item.sheet === "비즈업_요약",
+  )!.data[0][0] = "2026년 6월 비즈업클래스 매출 요약";
+  const june = analyzeWorkbook(juneWorkbook);
+
+  const fromWorkbooks = analyzeWorkbooks([juneWorkbook, workbook()]);
+  const fromSnapshots = aggregateMonthlyAnalyses([june, may]);
+
+  assert.deepEqual(fromSnapshots.totals, fromWorkbooks.totals);
+  assert.deepEqual(fromSnapshots.instructorResults, fromWorkbooks.instructorResults);
+  assert.equal(fromSnapshots.allMatched, fromWorkbooks.allMatched);
 });
 
 test("2차 정산서 골든 값을 정확히 계산한다", () => {

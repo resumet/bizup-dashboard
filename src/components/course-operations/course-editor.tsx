@@ -8,7 +8,6 @@ import {
   Copy,
   Download,
   ExternalLink,
-  Calculator,
   Loader2,
   MessageSquareText,
   Plus,
@@ -20,6 +19,7 @@ import { CourseRosterSections } from "@/components/course-operations/course-rost
 import { CourseNotesCard } from "@/components/course-operations/course-notes-card";
 import { CourseScheduleCalendar } from "@/components/course-operations/course-schedule-calendar";
 import { CourseShareDialog } from "@/components/course-operations/course-share-dialog";
+import { CourseSettlementManager } from "@/components/course-settlements/course-settlement-manager";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -193,8 +193,9 @@ type CourseEditorTab =
   | "sales"
   | "students"
   | "messages"
-  | "videos";
-type DeferredCourseEditorTab = Exclude<CourseEditorTab, "information">;
+  | "videos"
+  | "settlement";
+type DeferredCourseEditorTab = Exclude<CourseEditorTab, "information" | "settlement">;
 type SectionLoadStatus = "idle" | "loading" | "loaded" | "error";
 
 function DeferredSectionState({
@@ -324,6 +325,7 @@ export function CourseOperationsEditor({
   notesLoadError,
   loadError,
   deferDetailSections = false,
+  initialTab = "information",
 }: {
   courseId?: string;
   initialDraft: CourseOperationsDraft;
@@ -340,6 +342,7 @@ export function CourseOperationsEditor({
   notesLoadError?: string;
   loadError?: string;
   deferDetailSections?: boolean;
+  initialTab?: "information" | "settlement";
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState(() => {
@@ -362,7 +365,7 @@ export function CourseOperationsEditor({
     number | null
   >(null);
   const [notice, setNotice] = useState("");
-  const [activeTab, setActiveTab] = useState<CourseEditorTab>("information");
+  const [activeTab, setActiveTab] = useState<CourseEditorTab>(initialTab);
   const [loadedRosterJobs, setLoadedRosterJobs] = useState(rosterJobs);
   const [loadedMessageProjects, setLoadedMessageProjects] =
     useState(messageProjects);
@@ -477,7 +480,9 @@ export function CourseOperationsEditor({
   function changeTab(value: string) {
     const nextTab = value as CourseEditorTab;
     setActiveTab(nextTab);
-    if (nextTab !== "information") void loadDetailSection(nextTab);
+    if (nextTab !== "information" && nextTab !== "settlement") {
+      void loadDetailSection(nextTab);
+    }
   }
 
   async function selectMessageProject(messageProjectId: string) {
@@ -771,17 +776,6 @@ export function CourseOperationsEditor({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {courseId ? (
-            <Button
-              className="min-h-10 bg-violet-600 text-white hover:bg-violet-700 focus-visible:border-violet-700 focus-visible:ring-violet-500/40"
-              asChild
-            >
-              <Link href={`/services/course-operations/${courseId}/settlements`}>
-                <Calculator />
-                강의별 정산
-              </Link>
-            </Button>
-          ) : null}
           <CourseShareDialog
             data={{
               name: draft.name,
@@ -835,7 +829,7 @@ export function CourseOperationsEditor({
         onValueChange={changeTab}
         className="gap-6"
       >
-        <TabsList className="grid w-full grid-cols-5 group-data-horizontal/tabs:h-12 sm:w-fit">
+        <TabsList className="grid h-auto w-full grid-cols-3 sm:w-fit sm:grid-cols-6">
           <TabsTrigger value="information" className="min-h-10 px-2 sm:min-w-28 sm:px-5">
             정보
           </TabsTrigger>
@@ -850,6 +844,13 @@ export function CourseOperationsEditor({
           </TabsTrigger>
           <TabsTrigger value="videos" className="min-h-10 px-2 sm:min-w-28 sm:px-5">
             영상
+          </TabsTrigger>
+          <TabsTrigger
+            value="settlement"
+            disabled={!courseId}
+            className="min-h-10 px-2 sm:min-w-28 sm:px-5"
+          >
+            정산
           </TabsTrigger>
         </TabsList>
 
@@ -1901,6 +1902,20 @@ export function CourseOperationsEditor({
               </CardContent>
             </Card>
             </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="settlement" className="mt-0">
+          {courseId ? (
+            <CourseSettlementManager
+              courseId={courseId}
+              courseName={initialDraft.name}
+              instructorName={initialDraft.instructorName}
+            />
+          ) : (
+            <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+              강의를 먼저 만든 뒤 정산 자료를 등록할 수 있습니다.
+            </div>
           )}
         </TabsContent>
       </Tabs>

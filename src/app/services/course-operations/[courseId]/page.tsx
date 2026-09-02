@@ -12,11 +12,15 @@ import { requireCourseOperationsMembership } from "@/lib/course-operations/serve
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 
-type Props = { params: Promise<{ courseId: string }> };
+type Props = {
+  params: Promise<{ courseId: string }>;
+  searchParams: Promise<{ tab?: string }>;
+};
 
-export default async function CourseOperationsDetailPage({ params }: Props) {
+export default async function CourseOperationsDetailPage({ params, searchParams }: Props) {
   const renderStartedAt = performance.now();
   const { courseId } = await params;
+  const { tab } = await searchParams;
   const supabase = await createClient();
   const user = await getAuthenticatedUser(supabase);
   if (!user) redirect("/login");
@@ -146,6 +150,7 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
           initialNotes={notes}
           notesLoadError={notesLoadError}
           loadError={loadError}
+          initialTab={tab === "settlement" ? "settlement" : "information"}
         />
       </div>
     </main>
