@@ -1,5 +1,7 @@
 import writeXlsxFile, { type Row } from "write-excel-file/node";
 
+import { formatPhone } from "@/lib/jobs/filter";
+
 export type AddressBookExportContact = {
   name: string | null;
   normalized_phone: string;
@@ -12,15 +14,15 @@ export async function buildAddressBookXlsx(
   const header = ["이름", "전화번호", "이메일"].map((value) => ({
     value,
     fontWeight: "bold" as const,
-    color: "#ffffff",
-    backgroundColor: "#111827",
+    color: "#111827",
+    backgroundColor: "#FFFFFF",
   }));
   const sheetData: Row[] = [
     header,
     ...contacts.map(
       (contact): Row => [
         contact.name ?? "",
-        { value: contact.normalized_phone, type: String },
+        { value: formatPhone(contact.normalized_phone), type: String },
         contact.email ?? "",
       ],
     ),

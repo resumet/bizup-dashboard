@@ -114,6 +114,10 @@ export function parseCourseOperationsInput(value: unknown): CourseOperationsInpu
     ? input.youtubeAppearances
     : [];
   if (appearances.length > 50) throw new Error("유튜브 출연 정보는 최대 50개입니다.");
+  const liveVideos = Array.isArray(input.liveVideos) ? input.liveVideos : [];
+  if (liveVideos.length > 50) {
+    throw new Error("기존 라이브 영상 링크는 최대 50개입니다.");
+  }
   const rosterJobIds = ids(input.rosterJobIds);
   if (rosterJobIds.length > 1) {
     throw new Error("수강생 명단은 하나만 연결할 수 있습니다.");
@@ -163,6 +167,26 @@ export function parseCourseOperationsInput(value: unknown): CourseOperationsInpu
           true,
         ),
         videoUrl: url(appearance.videoUrl, `${index + 1}번 영상 주소`, false),
+      };
+    }),
+    liveVideos: liveVideos.map((item, index) => {
+      const liveVideo =
+        typeof item === "object" && item !== null
+          ? (item as Record<string, unknown>)
+          : {};
+      return {
+        name: text(liveVideo.name, `${index + 1}번 라이브 영상 이름`, 200),
+        videoUrl: url(
+          liveVideo.videoUrl,
+          `${index + 1}번 라이브 영상 주소`,
+          true,
+        ),
+        note: text(
+          liveVideo.note,
+          `${index + 1}번 라이브 영상 비고`,
+          500,
+          false,
+        ),
       };
     }),
     rosterJobIds,

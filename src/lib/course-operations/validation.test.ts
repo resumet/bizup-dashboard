@@ -33,6 +33,13 @@ const validInput = {
       videoUrl: "",
     },
   ],
+  liveVideos: [
+    {
+      name: "무료 특강 라이브",
+      videoUrl: "https://www.youtube.com/watch?v=live123",
+      note: "다시보기 공개",
+    },
+  ],
   rosterJobIds: ["f47ac10b-58cc-4372-a567-0e02b2c3d479"],
   messageProjectIds: [],
   freeAddressBookId: "",
@@ -48,7 +55,46 @@ test("강의 운영 입력값을 DB 저장 형식으로 변환한다", () => {
   assert.equal(parsed.startsAt, "2026-09-09T15:00:00.000Z");
   assert.equal(parsed.freeKakaoRoom1Link, "https://open.kakao.com/o/free1");
   assert.equal(parsed.courseMaterialsLink, "https://example.com/materials");
+  assert.deepEqual(parsed.liveVideos[0], {
+    name: "무료 특강 라이브",
+    videoUrl: "https://www.youtube.com/watch?v=live123",
+    note: "다시보기 공개",
+  });
   assert.equal(parsed.rosterJobIds.length, 1);
+});
+
+test("기존 라이브 영상은 이름과 웹 주소가 필요하고 비고는 선택값이다", () => {
+  const parsed = parseCourseOperationsInput({
+    ...validInput,
+    liveVideos: [
+      {
+        name: "  6월 무료 웨비나  ",
+        videoUrl: "https://example.com/live",
+        note: "  편집본  ",
+      },
+    ],
+  });
+  assert.deepEqual(parsed.liveVideos[0], {
+    name: "6월 무료 웨비나",
+    videoUrl: "https://example.com/live",
+    note: "편집본",
+  });
+  assert.throws(
+    () =>
+      parseCourseOperationsInput({
+        ...validInput,
+        liveVideos: [{ name: "", videoUrl: "https://example.com", note: "" }],
+      }),
+    /라이브 영상 이름/u,
+  );
+  assert.throws(
+    () =>
+      parseCourseOperationsInput({
+        ...validInput,
+        liveVideos: [{ name: "라이브", videoUrl: "javascript:alert(1)", note: "" }],
+      }),
+    /라이브 영상 주소.*http 또는 https/u,
+  );
 });
 
 test("강의자료 링크는 비어 있거나 HTTP·HTTPS 주소여야 한다", () => {

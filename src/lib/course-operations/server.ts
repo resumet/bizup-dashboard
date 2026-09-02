@@ -93,15 +93,23 @@ export async function replaceCourseChildren(
   input: CourseOperationsInput,
 ) {
   const admin = createAdminClient();
-  const [oldOptions, oldAppearances] = await Promise.all([
+  const [oldOptions, oldAppearances, oldLiveVideos] = await Promise.all([
     admin.from("course_options").select("id").eq("course_id", courseId),
     admin
       .from("course_youtube_appearances")
       .select("id")
       .eq("course_id", courseId),
+    admin.from("course_live_videos").select("id").eq("course_id", courseId),
   ]);
-  if (oldOptions.error || oldAppearances.error) {
-    throw new Error("기존 강의 세부 정보를 불러오지 못했습니다.");
+  if (oldOptions.error || oldAppearances.error || oldLiveVideos.error) {
+    const migrationMissing =
+      oldLiveVideos.error?.code === "PGRST205" ||
+      oldLiveVideos.error?.code === "42P01";
+    throw new Error(
+      migrationMissing
+        ? "라이브 영상 링크 DB 마이그레이션을 먼저 적용해 주세요."
+        : "기존 강의 세부 정보를 불러오지 못했습니다.",
+    );
   }
 
   const { error: optionError } = await admin.from("course_options").insert(
@@ -136,8 +144,22 @@ export async function replaceCourseChildren(
     if (error) throw new Error(`유튜브 출연 정보 저장 실패: ${error.code}`);
   }
 
+  if (input.liveVideos.length) {
+    const { error } = await admin.from("course_live_videos").insert(
+      input.liveVideos.map((liveVideo, index) => ({
+        course_id: courseId,
+        name: liveVideo.name,
+        video_url: liveVideo.videoUrl,
+        note: liveVideo.note,
+        sort_order: index,
+      })),
+    );
+    if (error) throw new Error(`라이브 영상 링크 저장 실패: ${error.code}`);
+  }
+
   const oldOptionIds = (oldOptions.data ?? []).map((item) => item.id);
   const oldAppearanceIds = (oldAppearances.data ?? []).map((item) => item.id);
+  const oldLiveVideoIds = (oldLiveVideos.data ?? []).map((item) => item.id);
   await Promise.all([
     oldOptionIds.length
       ? admin.from("course_options").delete().in("id", oldOptionIds)
@@ -147,6 +169,9 @@ export async function replaceCourseChildren(
           .from("course_youtube_appearances")
           .delete()
           .in("id", oldAppearanceIds)
+      : Promise.resolve(),
+    oldLiveVideoIds.length
+      ? admin.from("course_live_videos").delete().in("id", oldLiveVideoIds)
       : Promise.resolve(),
   ]);
 }

@@ -38,6 +38,7 @@ const EMPTY_DRAFT: CourseOperationsDraft = {
     entryCode: "",
   }],
   youtubeAppearances: [],
+  liveVideos: [],
   rosterJobIds: [],
   messageProjectIds: [],
   freeAddressBookId: "",

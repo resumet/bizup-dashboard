@@ -1,5 +1,6 @@
 import writeXlsxFile, { type Row } from "write-excel-file/node";
 
+import { formatPhone } from "./filter";
 import type { RosterRow } from "./types";
 
 export async function buildRosterXlsx(rows: RosterRow[], defaultCourseName = "") {
@@ -16,8 +17,8 @@ export async function buildRosterXlsx(rows: RosterRow[], defaultCourseName = "")
   ].map((value) => ({
     value,
     fontWeight: "bold" as const,
-    color: "#ffffff",
-    backgroundColor: "#111827",
+    color: "#111827",
+    backgroundColor: "#FFFFFF",
   }));
   const sheetData: Row[] = [
     header,
@@ -27,7 +28,7 @@ export async function buildRosterXlsx(rows: RosterRow[], defaultCourseName = "")
         row.values.optionName,
         row.values.customerName,
         row.values.email,
-        { value: row.normalizedPhone, type: String },
+        { value: formatPhone(row.normalizedPhone), type: String },
         row.values.referrer,
         row.values.source,
         row.values.adMedia,

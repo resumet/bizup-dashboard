@@ -46,6 +46,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import type {
   AddressBookSummary,
   CourseRosterAnalysis,
@@ -249,6 +255,7 @@ export function CourseOperationsEditor({
       keyof CourseOperationsDraft,
       | "options"
       | "youtubeAppearances"
+      | "liveVideos"
       | "rosterJobIds"
       | "messageProjectIds"
       | "requiredTasks"
@@ -288,6 +295,18 @@ export function CourseOperationsEditor({
     setDraft((current) => ({
       ...current,
       youtubeAppearances: current.youtubeAppearances.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...patch } : item,
+      ),
+    }));
+  }
+
+  function updateLiveVideo(
+    index: number,
+    patch: Partial<CourseOperationsDraft["liveVideos"][number]>,
+  ) {
+    setDraft((current) => ({
+      ...current,
+      liveVideos: current.liveVideos.map((item, itemIndex) =>
         itemIndex === index ? { ...item, ...patch } : item,
       ),
     }));
@@ -447,8 +466,34 @@ export function CourseOperationsEditor({
         </Alert>
       ) : null}
 
-      <div className="space-y-6">
-        <div className="grid items-stretch gap-6 xl:grid-cols-2">
+      <Tabs defaultValue="information" className="gap-6">
+        <TabsList
+          className={
+            courseId
+              ? "grid w-full grid-cols-4 group-data-horizontal/tabs:h-12 sm:w-fit"
+              : "grid w-full grid-cols-2 group-data-horizontal/tabs:h-12 sm:w-fit"
+          }
+        >
+          <TabsTrigger value="information" className="min-h-10 px-2 sm:min-w-28 sm:px-5">
+            정보
+          </TabsTrigger>
+          {courseId ? (
+            <>
+            <TabsTrigger value="students" className="min-h-10 px-2 sm:min-w-32 sm:px-5">
+              수강생명단
+            </TabsTrigger>
+            <TabsTrigger value="messages" className="min-h-10 px-2 sm:min-w-32 sm:px-5">
+              단톡방문자
+            </TabsTrigger>
+            </>
+          ) : null}
+          <TabsTrigger value="videos" className="min-h-10 px-2 sm:min-w-28 sm:px-5">
+            영상
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="information" className="mt-0 space-y-6">
+          <div className="grid items-stretch gap-6 xl:grid-cols-2">
           <div className="space-y-6">
             <Card>
             <CardHeader>
@@ -927,6 +972,10 @@ export function CourseOperationsEditor({
           </CardContent>
         </Card>
 
+        </TabsContent>
+
+        <TabsContent value="videos" className="mt-0">
+          <div className="space-y-6">
         <Card>
           <CardHeader>
             <div className="flex flex-wrap items-center gap-2">
@@ -1088,123 +1137,260 @@ export function CourseOperationsEditor({
             )}
           </CardContent>
         </Card>
-      </div>
 
-      <Card className="border-primary/30">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
-              <MessageSquareText className="size-5" />
-            </span>
-            <div>
-              <CardTitle>웨비나 문자 목록 서비스 연결</CardTitle>
-              <CardDescription className="mt-1">
-                이 강의에서 사용할 문자 30개 프로젝트를 선택하거나 연결을
-                해제합니다.
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {messageProjects.length === 0 ? (
-            <div className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
-              연결 가능한 문자 제작 프로젝트가 없습니다.
-              <Button variant="link" asChild className="ml-1">
-                <Link href="/services/message-studio">
-                  문자 프로젝트 만들기
-                </Link>
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-center gap-2">
+              <CardTitle>기존 라이브 영상 링크</CardTitle>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setDraft((current) => ({
+                    ...current,
+                    liveVideos: [
+                      ...current.liveVideos,
+                      { name: "", videoUrl: "", note: "" },
+                    ],
+                  }))
+                }
+              >
+                <Plus />
+                영상 추가
               </Button>
             </div>
-          ) : (
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-              <div className="grid min-w-0 flex-1 gap-2">
-                <Label htmlFor="message-project-select">문자 목록</Label>
-                <Select
-                  value={draft.messageProjectIds[0] ?? ""}
-                  onValueChange={(messageProjectId) =>
-                    setDraft((current) => ({
-                      ...current,
-                      messageProjectIds: [messageProjectId],
-                    }))
-                  }
-                >
-                  <SelectTrigger id="message-project-select" className="w-full">
-                    <SelectValue placeholder="연결할 문자 목록을 선택하세요" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {messageProjects.map((project) => {
-                      const generatedCount =
-                        project.message_studio_resources.filter((resource) =>
-                          resource.generated_text.trim(),
-                        ).length;
-                      return (
-                        <SelectItem key={project.id} value={project.id}>
-                          {project.course_name} ·{" "}
-                          {project.instructor_name || "강사 미입력"} ·{" "}
-                          {generatedCount}/30 생성
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
+            <CardDescription>
+              이전 라이브 영상의 이름, 주소와 비고를 기록합니다.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {draft.liveVideos.length === 0 ? (
+              <div className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
+                아직 등록된 라이브 영상 링크가 없습니다.
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={!selectedMessageProject}
-                  onClick={() =>
-                    setDraft((current) => ({
-                      ...current,
-                      messageProjectIds: [],
-                    }))
-                  }
-                >
-                  선택 해제
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={!selectedMessageProject}
-                  asChild={Boolean(selectedMessageProject)}
-                >
-                  {selectedMessageProject ? (
-                    <Link
-                      href={`/services/message-studio/${selectedMessageProject.id}`}
-                    >
-                      <ExternalLink />
-                      목록 열기 ({selectedMessageGeneratedCount}/30)
-                    </Link>
-                  ) : (
-                    <span>
-                      <ExternalLink />
-                      목록 열기
-                    </span>
-                  )}
-                </Button>
+            ) : (
+              <div className="overflow-x-auto pb-1">
+                <div className="min-w-[900px] space-y-2">
+                  <div className="grid grid-cols-[220px_minmax(280px,1fr)_minmax(220px,1fr)_72px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
+                    <span>이름</span>
+                    <span>주소</span>
+                    <span>비고</span>
+                    <span className="sr-only">링크 열기</span>
+                    <span className="sr-only">삭제</span>
+                  </div>
+                  {draft.liveVideos.map((liveVideo, index) => {
+                    const openableUrl = getOpenableLink(liveVideo.videoUrl);
+                    return (
+                      <div
+                        key={`live-video-${index}`}
+                        className="grid grid-cols-[220px_minmax(280px,1fr)_minmax(220px,1fr)_72px_44px] items-center gap-2"
+                      >
+                        <Input
+                          id={`live-video-name-${index}`}
+                          className="h-10"
+                          aria-label={`${index + 1}번 라이브 영상 이름`}
+                          placeholder="영상 이름"
+                          maxLength={200}
+                          value={liveVideo.name}
+                          onChange={(event) =>
+                            updateLiveVideo(index, { name: event.target.value })
+                          }
+                        />
+                        <Input
+                          id={`live-video-url-${index}`}
+                          className="h-10"
+                          aria-label={`${index + 1}번 라이브 영상 주소`}
+                          type="url"
+                          inputMode="url"
+                          placeholder="https://"
+                          maxLength={2_000}
+                          value={liveVideo.videoUrl}
+                          onChange={(event) =>
+                            updateLiveVideo(index, { videoUrl: event.target.value })
+                          }
+                        />
+                        <Input
+                          id={`live-video-note-${index}`}
+                          className="h-10"
+                          aria-label={`${index + 1}번 라이브 영상 비고`}
+                          placeholder="비고"
+                          maxLength={500}
+                          value={liveVideo.note}
+                          onChange={(event) =>
+                            updateLiveVideo(index, { note: event.target.value })
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={!openableUrl}
+                          asChild={Boolean(openableUrl)}
+                        >
+                          {openableUrl ? (
+                            <a
+                              href={openableUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink />
+                              열기
+                            </a>
+                          ) : (
+                            <span>열기</span>
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive"
+                          aria-label={`${index + 1}번 라이브 영상 삭제`}
+                          onClick={() =>
+                            setDraft((current) => ({
+                              ...current,
+                              liveVideos: current.liveVideos.filter(
+                                (_, itemIndex) => itemIndex !== index,
+                              ),
+                            }))
+                          }
+                        >
+                          <Trash2 />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+          </div>
+        </TabsContent>
 
       {courseId ? (
-        <CourseRosterSections
-          rosterJobs={rosterJobs}
-          selectedRosterIds={draft.rosterJobIds}
-          onRosterIdsChange={(rosterJobIds) =>
-            setDraft((current) => ({ ...current, rosterJobIds }))
-          }
-          addressBooks={addressBooks}
-          paidStudentPreview={paidStudentPreview}
-          paidRosterAnalysis={paidRosterAnalysis}
-          freeStudentPreview={freeStudentPreview}
-          freeAddressBookId={draft.freeAddressBookId}
-          onFreeAddressBookChange={(freeAddressBookId) =>
-            setDraft((current) => ({ ...current, freeAddressBookId }))
-          }
-        />
+        <TabsContent value="students" className="mt-0">
+          <CourseRosterSections
+            rosterJobs={rosterJobs}
+            selectedRosterIds={draft.rosterJobIds}
+            onRosterIdsChange={(rosterJobIds) =>
+              setDraft((current) => ({ ...current, rosterJobIds }))
+            }
+            addressBooks={addressBooks}
+            paidStudentPreview={paidStudentPreview}
+            paidRosterAnalysis={paidRosterAnalysis}
+            freeStudentPreview={freeStudentPreview}
+            freeAddressBookId={draft.freeAddressBookId}
+            onFreeAddressBookChange={(freeAddressBookId) =>
+              setDraft((current) => ({ ...current, freeAddressBookId }))
+            }
+          />
+        </TabsContent>
       ) : null}
+
+        {courseId ? (
+          <TabsContent value="messages" className="mt-0">
+            <Card className="border-primary/30">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                    <MessageSquareText className="size-5" />
+                  </span>
+                  <div>
+                    <CardTitle>웨비나 문자 목록 서비스 연결</CardTitle>
+                    <CardDescription className="mt-1">
+                      이 강의에서 사용할 문자 30개 프로젝트를 선택하거나 연결을
+                      해제합니다.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {messageProjects.length === 0 ? (
+                  <div className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
+                    연결 가능한 문자 제작 프로젝트가 없습니다.
+                    <Button variant="link" asChild className="ml-1">
+                      <Link href="/services/message-studio">
+                        문자 프로젝트 만들기
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+                    <div className="grid min-w-0 flex-1 gap-2">
+                      <Label htmlFor="message-project-select">문자 목록</Label>
+                      <Select
+                        value={draft.messageProjectIds[0] ?? ""}
+                        onValueChange={(messageProjectId) =>
+                          setDraft((current) => ({
+                            ...current,
+                            messageProjectIds: [messageProjectId],
+                          }))
+                        }
+                      >
+                        <SelectTrigger id="message-project-select" className="w-full">
+                          <SelectValue placeholder="연결할 문자 목록을 선택하세요" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {messageProjects.map((project) => {
+                            const generatedCount =
+                              project.message_studio_resources.filter((resource) =>
+                                resource.generated_text.trim(),
+                              ).length;
+                            return (
+                              <SelectItem key={project.id} value={project.id}>
+                                {project.course_name} ·{" "}
+                                {project.instructor_name || "강사 미입력"} ·{" "}
+                                {generatedCount}/30 생성
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!selectedMessageProject}
+                        onClick={() =>
+                          setDraft((current) => ({
+                            ...current,
+                            messageProjectIds: [],
+                          }))
+                        }
+                      >
+                        선택 해제
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!selectedMessageProject}
+                        asChild={Boolean(selectedMessageProject)}
+                      >
+                        {selectedMessageProject ? (
+                          <Link
+                            href={`/services/message-studio/${selectedMessageProject.id}`}
+                          >
+                            <ExternalLink />
+                            목록 열기 ({selectedMessageGeneratedCount}/30)
+                          </Link>
+                        ) : (
+                          <span>
+                            <ExternalLink />
+                            목록 열기
+                          </span>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        ) : null}
+      </Tabs>
 
       <div className="flex justify-end border-t pt-6">
         <Button className="min-h-10" onClick={saveCourse} disabled={saving}>

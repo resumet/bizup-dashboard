@@ -123,6 +123,7 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
   const [
     optionsResult,
     appearancesResult,
+    liveVideosResult,
     jobsResult,
     projectsResult,
     addressBooksResult,
@@ -138,6 +139,11 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
       supabase
         .from("course_youtube_appearances")
         .select("id,channel_name,channel_url,video_url")
+        .eq("course_id", courseId)
+        .order("sort_order"),
+      supabase
+        .from("course_live_videos")
+        .select("id,name,video_url,note")
         .eq("course_id", courseId)
         .order("sort_order"),
       supabase
@@ -171,6 +177,12 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
   const loadError =
     optionsResult.error?.message ||
     appearancesResult.error?.message ||
+    (liveVideosResult.error
+      ? liveVideosResult.error.code === "PGRST205" ||
+        liveVideosResult.error.code === "42P01"
+        ? "라이브 영상 링크 DB 마이그레이션을 먼저 적용해 주세요."
+        : liveVideosResult.error.message
+      : undefined) ||
     jobsResult.error?.message ||
     projectsResult.error?.message ||
     addressBooksResult.error?.message ||
@@ -262,6 +274,11 @@ export default async function CourseOperationsDetailPage({ params }: Props) {
       channelName: appearance.channel_name,
       channelUrl: decodeReadableUrl(appearance.channel_url),
       videoUrl: appearance.video_url,
+    })),
+    liveVideos: (liveVideosResult.data ?? []).map((liveVideo) => ({
+      name: liveVideo.name,
+      videoUrl: liveVideo.video_url,
+      note: liveVideo.note,
     })),
     rosterJobIds: linkedJobs.slice(0, 1).map((job) => job.id),
     messageProjectIds: (projectsResult.data ?? [])

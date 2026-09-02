@@ -12,6 +12,12 @@ export type YoutubeAppearanceDraft = {
   videoUrl: string;
 };
 
+export type LiveVideoDraft = {
+  name: string;
+  videoUrl: string;
+  note: string;
+};
+
 export type YoutubeChannelSuggestion = {
   channelName: string;
   channelUrl: string;
@@ -47,6 +53,7 @@ export type CourseOperationsDraft = {
   courseMaterialsLink: string;
   options: CourseOptionDraft[];
   youtubeAppearances: YoutubeAppearanceDraft[];
+  liveVideos: LiveVideoDraft[];
   rosterJobIds: string[];
   messageProjectIds: string[];
   freeAddressBookId: string;
