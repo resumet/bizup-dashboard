@@ -91,7 +91,13 @@ export function buildUpdatedRosterRecords(
       groupChatJoined?: boolean;
       memo?: string;
     };
-    return [{ ...record, normalizedValues }];
+    return [
+      {
+        ...record,
+        normalizedValues,
+        isExtraParticipant: matched.isExtraParticipant === true,
+      },
+    ];
   });
 
   if (!options.approveRemovals) nextRecords.push(...diff.removals);

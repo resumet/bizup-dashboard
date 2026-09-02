@@ -66,6 +66,7 @@ export async function persistRosterRecords(
           original_values: record.originalValues,
           source_row_number: record.sourceRowNumber,
           is_duplicate: record.isDuplicate,
+          is_extra_participant: record.isExtraParticipant === true,
         })),
       );
     if (enrollmentError)

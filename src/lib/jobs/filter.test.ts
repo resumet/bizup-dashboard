@@ -18,6 +18,7 @@ const rows = [
     normalizedPhone: "01011112222",
     isDuplicate: false,
     groupChatJoined: true,
+    isExtraParticipant: false,
     memo: "재결제 확인",
     values: {
       courseName: "AI 실전",
@@ -36,6 +37,7 @@ const rows = [
     normalizedPhone: "01033334444",
     isDuplicate: false,
     groupChatJoined: false,
+    isExtraParticipant: false,
     memo: "",
     values: {
       courseName: "AI 실전",
@@ -98,6 +100,16 @@ test("단톡방 미참여자만 발송 대상으로 남긴다", () => {
     ["2"],
   );
   assert.equal(filterGroupChatNonParticipants(rows, false).length, 2);
+});
+
+test("카톡방 미참여자 발송 대상에서 별도 추가 인원은 제외한다", () => {
+  assert.deepEqual(
+    filterGroupChatNonParticipants(
+      [{ ...rows[1], id: "extra", isExtraParticipant: true }, ...rows],
+      true,
+    ).map((row) => row.id),
+    ["2"],
+  );
 });
 
 test("단톡방 참여 인원만 정확하게 집계한다", () => {

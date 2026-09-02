@@ -31,7 +31,7 @@ async function loadAllCurrentRecords(
     const { data, error } = await admin
       .from("job_enrollments")
       .select(
-        "source_row_number,normalized_phone,normalized_values,original_values,is_duplicate",
+        "source_row_number,normalized_phone,normalized_values,original_values,is_duplicate,is_extra_participant",
       )
       .eq("job_id", jobId)
       .eq("version", version)
@@ -45,6 +45,7 @@ async function loadAllCurrentRecords(
         normalizedValues: row.normalized_values as StoredRosterRecord["normalizedValues"],
         originalValues: row.original_values as Record<string, string>,
         isDuplicate: row.is_duplicate,
+        isExtraParticipant: row.is_extra_participant === true,
       })),
     );
     if ((data?.length ?? 0) < 1000) break;

@@ -136,6 +136,9 @@ export function RosterDetailClient({
   const [savingParticipation, setSavingParticipation] = useState<Set<string>>(
     new Set(),
   );
+  const [savingExtraParticipant, setSavingExtraParticipant] = useState<
+    Set<string>
+  >(new Set());
   const courseName =
     defaultCourseName ||
     rows.find((row) => row.values.courseName)?.values.courseName ||
@@ -229,6 +232,47 @@ export function RosterDetailClient({
       );
     } finally {
       setSavingParticipation((current) => {
+        const next = new Set(current);
+        next.delete(row.id);
+        return next;
+      });
+    }
+  }
+  async function toggleExtraParticipant(row: RosterRow, checked: boolean) {
+    setRows((current) =>
+      current.map((item) =>
+        item.id === row.id ? { ...item, isExtraParticipant: checked } : item,
+      ),
+    );
+    setSavingExtraParticipant((current) => new Set(current).add(row.id));
+
+    try {
+      const response = await fetch(`/api/jobs/${jobId}/enrollments/${row.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isExtraParticipant: checked }),
+      });
+      if (!response.ok) {
+        const body = await response.json();
+        throw new Error(
+          body.message ?? "별도 추가 인원 여부를 저장하지 못했습니다.",
+        );
+      }
+    } catch (error) {
+      setRows((current) =>
+        current.map((item) =>
+          item.id === row.id
+            ? { ...item, isExtraParticipant: row.isExtraParticipant }
+            : item,
+        ),
+      );
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "별도 추가 인원 여부를 저장하지 못했습니다.",
+      );
+    } finally {
+      setSavingExtraParticipant((current) => {
         const next = new Set(current);
         next.delete(row.id);
         return next;
@@ -455,6 +499,9 @@ export function RosterDetailClient({
                 <TableHead className="whitespace-nowrap text-center">
                   단톡방 참여
                 </TableHead>
+                <TableHead className="whitespace-nowrap text-center">
+                  별도 추가 인원
+                </TableHead>
                 <TableHead>연락처</TableHead>
                 <TableHead>이메일</TableHead>
                 <TableHead>옵션명</TableHead>
@@ -495,6 +542,18 @@ export function RosterDetailClient({
                         disabled={savingParticipation.has(row.id)}
                         onCheckedChange={(value) =>
                           toggleGroupChatJoined(row, value === true)
+                        }
+                      />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-center">
+                      <Checkbox
+                        aria-label={`${row.values.customerName || "수강생"} 별도 추가 인원`}
+                        checked={row.isExtraParticipant}
+                        disabled={savingExtraParticipant.has(row.id)}
+                        onCheckedChange={(value) =>
+                          toggleExtraParticipant(row, value === true)
                         }
                       />
                     </div>
@@ -1042,6 +1101,7 @@ function MessageDialog({
               <span className="mt-0.5 block text-muted-foreground">
                 선택한 발송 범위 {scopeTargets.length.toLocaleString("ko-KR")}명
                 중 미참여자 {targets.length.toLocaleString("ko-KR")}명
+                {onlyGroupChatNonParticipants ? " · 별도 추가 인원 제외" : ""}
               </span>
             </span>
           </label>

@@ -14,6 +14,7 @@ export type StoredRosterRecord = {
   };
   originalValues: Record<string, string>;
   isDuplicate: boolean;
+  isExtraParticipant?: boolean;
 };
 
 export type RosterAnalysis = {

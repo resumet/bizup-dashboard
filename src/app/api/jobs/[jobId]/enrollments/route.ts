@@ -164,6 +164,7 @@ export async function POST(request: Request, { params }: Context) {
         },
         source_row_number: sourceRowNumber,
         is_duplicate: false,
+        is_extra_participant: false,
       })
       .select("id")
       .single();
@@ -212,6 +213,7 @@ export async function POST(request: Request, { params }: Context) {
           normalizedPhone: input.normalizedPhone,
           isDuplicate: false,
           groupChatJoined: false,
+          isExtraParticipant: false,
           memo: "",
           values: normalizedValues,
         },

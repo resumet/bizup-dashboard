@@ -9,6 +9,7 @@ type Context = {
 
 type RequestBody = {
   groupChatJoined?: boolean;
+  isExtraParticipant?: boolean;
   memo?: unknown;
 };
 
@@ -26,10 +27,15 @@ export async function PATCH(request: Request, { params }: Context) {
     body,
     "groupChatJoined",
   );
+  const hasExtraParticipant = Object.prototype.hasOwnProperty.call(
+    body,
+    "isExtraParticipant",
+  );
   const hasMemo = Object.prototype.hasOwnProperty.call(body, "memo");
   if (
-    (!hasGroupChatJoined && !hasMemo) ||
-    (hasGroupChatJoined && typeof body.groupChatJoined !== "boolean")
+    (!hasGroupChatJoined && !hasExtraParticipant && !hasMemo) ||
+    (hasGroupChatJoined && typeof body.groupChatJoined !== "boolean") ||
+    (hasExtraParticipant && typeof body.isExtraParticipant !== "boolean")
   ) {
     return Response.json(
       { message: "저장할 수강생 정보를 확인해 주세요." },
@@ -95,6 +101,9 @@ export async function PATCH(request: Request, { params }: Context) {
           : {}),
         ...(hasMemo ? { memo } : {}),
       },
+      ...(hasExtraParticipant
+        ? { is_extra_participant: body.isExtraParticipant }
+        : {}),
     })
     .eq("id", enrollmentId)
     .eq("job_id", jobId)
@@ -109,6 +118,9 @@ export async function PATCH(request: Request, { params }: Context) {
 
   return Response.json({
     ...(hasGroupChatJoined ? { groupChatJoined: body.groupChatJoined } : {}),
+    ...(hasExtraParticipant
+      ? { isExtraParticipant: body.isExtraParticipant }
+      : {}),
     ...(hasMemo ? { memo } : {}),
   });
 }

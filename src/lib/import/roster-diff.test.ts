@@ -27,6 +27,7 @@ function record(
     },
     originalValues: {},
     isDuplicate: false,
+    isExtraParticipant: false,
   };
 }
 
@@ -47,7 +48,7 @@ test("기존 명단과 새 파일에서 추가·삭제·유지 항목을 전화�
 
 test("승인된 추가·삭제만 적용하고 기존 단톡방 참여 상태와 비고는 보존한다", () => {
   const current = [
-    record("01011112222", "기존 이름", true, "재결제 확인"),
+    { ...record("01011112222", "기존 이름", true, "재결제 확인"), isExtraParticipant: true },
     record("01033334444", "삭제 보류"),
   ];
   const incoming = [
@@ -65,4 +66,5 @@ test("승인된 추가·삭제만 적용하고 기존 단톡방 참여 상태와
   assert.equal(updated[0].normalizedValues.customerName, "새 이름");
   assert.equal(updated[0].normalizedValues.groupChatJoined, true);
   assert.equal(updated[0].normalizedValues.memo, "재결제 확인");
+  assert.equal(updated[0].isExtraParticipant, true);
 });

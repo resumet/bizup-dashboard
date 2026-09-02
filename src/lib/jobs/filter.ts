@@ -95,7 +95,7 @@ export function filterGroupChatNonParticipants(
   onlyNonParticipants: boolean,
 ) {
   return onlyNonParticipants
-    ? rows.filter((row) => !row.groupChatJoined)
+    ? rows.filter((row) => !row.groupChatJoined && !row.isExtraParticipant)
     : rows;
 }
 
