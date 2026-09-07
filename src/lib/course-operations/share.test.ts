@@ -26,6 +26,13 @@ const data: CourseShareData = {
   courseViewingLink: "",
   options: [{ name: "기본반", listPrice: "500000", salePrice: "390000" }],
   youtubeAppearances: [],
+  liveVideos: [
+    {
+      name: "6월 무료 웨비나 다시보기",
+      videoUrl: "https://example.com/live-video",
+      note: "9월까지 공개",
+    },
+  ],
 };
 
 test("선택한 강의 섹션만 카톡 공유용 요약문에 포함한다", () => {
@@ -45,6 +52,15 @@ test("옵션 요약에 가격과 할인율을 표시한다", () => {
   assert.match(summary, /500,000원/u);
   assert.match(summary, /390,000원/u);
   assert.match(summary, /22% 할인/u);
+});
+
+test("기존 라이브 영상의 이름, 주소와 비고를 공유문에 포함한다", () => {
+  const summary = buildCourseShareSummary(data, ["live-videos"]);
+  assert.match(summary, /\[기존 라이브 영상\]/u);
+  assert.match(summary, /6월 무료 웨비나 다시보기/u);
+  assert.match(summary, /주소: https:\/\/example.com\/live-video/u);
+  assert.match(summary, /비고: 9월까지 공개/u);
+  assert.doesNotMatch(summary, /\[유튜브 출연\]/u);
 });
 
 test("카카오 텍스트 템플릿 제한에 맞춰 이모지를 깨뜨리지 않고 200자로 줄인다", () => {

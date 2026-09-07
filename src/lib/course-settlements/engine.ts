@@ -104,19 +104,21 @@ export type SettlementCost = {
     file?: File;
     url?: string | null;
   }>;
+  companyShareAmount?: number;
+  instructorShareAmount?: number;
 };
 
 export const DEFAULT_SETTLEMENT_COSTS: Array<Pick<SettlementCost, "name" | "burden">> = [
   { name: "유튜브 출연료(고정비)", burden: "company" },
   { name: "교안 제작비", burden: "company" },
   { name: "상세페이지 제작비", burden: "company" },
-  { name: "스튜디오 대여비", burden: "company" },
-  { name: "진행 PD 인건비", burden: "company" },
+  { name: "스튜디오 (PD인건비) 비용", burden: "company" },
   { name: "광고 집행비", burden: "company" },
   { name: "오프라인 행사장 대여비", burden: "company" },
   { name: "인스타그램 대행비", burden: "instructor" },
   { name: "유튜브 출연 RS 비용", burden: "shared" },
-  { name: "광고비", burden: "shared" },
+  { name: "구글광고비", burden: "shared" },
+  { name: "메타광고비", burden: "shared" },
 ];
 
 export function createDefaultSettlementCosts(): SettlementCost[] {
@@ -135,8 +137,12 @@ export function calculateCostSettlement(input: {
 }) {
   const costs = input.costs.reduce((totals, cost) => {
     totals[cost.burden] += roundWon(parseAmount(cost.amount));
+    if (cost.burden === "shared") {
+      totals.sharedCompany += roundWon(cost.companyShareAmount ?? cost.amount / 2);
+      totals.sharedInstructor += roundWon(cost.instructorShareAmount ?? cost.amount / 2);
+    }
     return totals;
-  }, { company: 0, instructor: 0, shared: 0 });
+  }, { company: 0, instructor: 0, shared: 0, sharedCompany: 0, sharedInstructor: 0 });
   const instructorRatioPercent = Number.isFinite(input.instructorRatioPercent)
     ? Math.min(100, Math.max(0, input.instructorRatioPercent))
     : 50;
@@ -145,10 +151,12 @@ export function calculateCostSettlement(input: {
   const distributionBase = roundWon(settlementTargetRevenue - costs.shared);
   const instructorBase = roundWon(distributionBase * instructorRatioPercent / 100);
   const companyBase = roundWon(distributionBase * companyRatioPercent / 100);
-  const instructorSupply = roundWon(instructorBase - costs.instructor);
+  const defaultInstructorShared = roundWon(costs.shared * instructorRatioPercent / 100);
+  const defaultCompanyShared = costs.shared - defaultInstructorShared;
+  const instructorSupply = roundWon(instructorBase - costs.instructor - (costs.sharedInstructor - defaultInstructorShared));
   const vat = roundWon(instructorSupply * 0.1);
   const instructorFinal = roundWon(instructorSupply + vat);
-  const companyFinal = roundWon(companyBase - costs.company);
+  const companyFinal = roundWon(companyBase - costs.company - (costs.sharedCompany - defaultCompanyShared));
   return {
     totalSales: roundWon(input.totalSales),
     pgFee: roundWon(input.pgFee),
@@ -175,9 +183,9 @@ const SHEETS = {
   summary: "비즈업_요약",
 } as const;
 
-const SUMMARY_FIELDS: Array<{ label: string; key: SummaryComparison["key"] }> = [
+const SUMMARY_FIELDS: Array<{ label: string; aliases?: string[]; key: SummaryComparison["key"] }> = [
   { label: "총매출", key: "totalSales" },
-  { label: "토스매출액", key: "tossSales" },
+  { label: "토스매출액", aliases: ["Toss매출액"], key: "tossSales" },
   { label: "PG수수료", key: "pgFee" },
   { label: "현금매출액", key: "cashSales" },
   { label: "정산기준액", key: "settlementBase" },
@@ -272,6 +280,16 @@ function rowHasValue(row: Cell[]) {
   return row.some((value) => value != null && normalizedText(value) !== "");
 }
 
+function instructorKey(value: unknown) {
+  return normalizeName(value)
+    .toLocaleLowerCase("ko-KR")
+    .replace(/\s*(?:,|，|×|x)\s*/gu, "x");
+}
+
+function matchesInstructor(value: unknown, instructor: string) {
+  return instructorKey(value) === instructorKey(instructor);
+}
+
 function validateServiceRows(rows: Cell[][], fileName: string) {
   const headerIndex = rows.findIndex((row) => normalizeName(row[1]) === "강사명");
   const start = headerIndex >= 0 ? headerIndex + 1 : 0;
@@ -283,15 +301,15 @@ function validateServiceRows(rows: Cell[][], fileName: string) {
 }
 
 function sumCells(rows: Cell[][], instructor: string, instructorColumn: number, amountColumn: number) {
-  return rows.reduce((sum, row) => normalizeName(row[instructorColumn]) === instructor
+  return rows.reduce((sum, row) => matchesInstructor(row[instructorColumn], instructor)
     ? sum + roundWon(parseAmount(row[amountColumn]))
     : sum, 0);
 }
 
 function analyzeInstructor(instructor: string, tossRows: Cell[][], cashRows: Cell[][], serviceRows: Cell[][]) {
-  const tossMatches = tossRows.filter((row) => normalizeName(row[19]) === instructor);
-  const cashMatches = cashRows.filter((row) => normalizeName(row[8]) === instructor);
-  const serviceMatches = serviceRows.filter((row) => normalizeName(row[1]) === instructor);
+  const tossMatches = tossRows.filter((row) => matchesInstructor(row[19], instructor));
+  const cashMatches = cashRows.filter((row) => matchesInstructor(row[8], instructor));
+  const serviceMatches = serviceRows.filter((row) => matchesInstructor(row[1], instructor));
   const tossSales = sumCells(tossMatches, instructor, 19, 10);
   const pgFee = sumCells(tossMatches, instructor, 19, 11);
   const cashPayments = sumCells(cashMatches, instructor, 8, 5);
@@ -347,6 +365,25 @@ function findSummaryValue(rows: Cell[][], label: string) {
   return null;
 }
 
+function findSummaryInstructorNames(rows: Cell[][]) {
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+    const columnIndex = rows[rowIndex].findIndex(
+      (cell) => normalizeName(cell) === "강사명",
+    );
+    if (columnIndex < 0) continue;
+
+    const instructors: string[] = [];
+    for (let index = rowIndex + 1; index < rows.length; index += 1) {
+      const instructor = normalizeName(rows[index][columnIndex]);
+      if (!instructor || /^합\s*계$/u.test(instructor)) break;
+      if (/(?:테스트|test|촬영)/iu.test(instructor)) continue;
+      instructors.push(instructor);
+    }
+    return [...new Set(instructors)];
+  }
+  return [];
+}
+
 function periodParts(title: string, fileName: string) {
   const titleYearMonth = title.match(/(?:(\d{2}|\d{4})\s*년\s*)?(1[0-2]|0?[1-9])\s*월/u);
   const fileYearMonth = fileName.replace(/\.xlsx$/iu, "").match(/(?:^|\D)(\d{2}|\d{4})[._-](1[0-2]|0[1-9])(?:\D|$)/u);
@@ -371,35 +408,48 @@ export function analyzeWorkbook(input: WorkbookInput): MonthlyAnalysis {
   const summaryRows = sheetMap.get(SHEETS.summary) ?? [];
   validateServiceRows(serviceRows, input.fileName);
 
-  const instructors = new Set<string>();
-  for (const [rows, column] of [[tossRows, 19], [cashRows, 8], [serviceRows, 1]] as const) {
-    for (const row of rows) {
-      const instructor = normalizeName(row[column]);
-      if (instructor && instructor !== "강사명") instructors.add(instructor);
-    }
+  const instructors = findSummaryInstructorNames(summaryRows);
+  if (!instructors.length) {
+    throw new Error(`${input.fileName}: 비즈업_요약 시트에서 강사명을 찾을 수 없습니다.`);
   }
-  const instructorResults = [...instructors]
+  const instructorResults = instructors
     .sort((left, right) => left.localeCompare(right, "ko"))
     .map((instructor) => analyzeInstructor(instructor, tossRows, cashRows, serviceRows));
   const totals = instructorResults.reduce((sum, result) => addResult(sum, result), emptyResult("전체"));
+  totals.additionalServiceFee = roundWon(
+    serviceRows.reduce(
+      (sum, row) => sum + roundWon(parseAmount(row[5])),
+      0,
+    ),
+  );
+  totals.settlementAmount = roundWon(
+    totals.settlementBase
+      - totals.cashSales
+      - totals.systemNovaFee
+      - totals.additionalServiceFee,
+  );
+  totals.finalSettlement = roundWon(totals.settlementAmount + totals.cashSales);
   const summaryTitle = findSummaryTitle(summaryRows);
   const period = periodParts(summaryTitle, input.fileName);
-  const comparisons = SUMMARY_FIELDS.map(({ label, key }) => {
-    const summaryValue = findSummaryValue(summaryRows, label);
+  const comparisons = SUMMARY_FIELDS.map(({ label, aliases = [], key }) => {
+    const summaryValue = [label, ...aliases].reduce<number | null>(
+      (value, candidate) => value ?? findSummaryValue(summaryRows, candidate),
+      null,
+    );
     const calculatedValue = totals[key];
     const difference = summaryValue == null ? null : calculatedValue - summaryValue;
     return { key, label, calculatedValue, summaryValue, difference, matches: summaryValue != null && Math.abs(difference ?? 0) < 0.01 };
   });
   const detailsByInstructor = Object.fromEntries(instructorResults.map(({ instructor }) => [instructor, {
-    toss: tossRows.filter((row) => normalizeName(row[19]) === instructor).map((row) => ({
+    toss: tossRows.filter((row) => matchesInstructor(row[19], instructor)).map((row) => ({
       date: displayValue(row[1]), paymentMethod: displayValue(row[5]), status: displayValue(row[6]), agency: displayValue(row[7]), buyer: displayValue(row[8]),
       amount: roundWon(parseAmount(row[10])), pgFee: roundWon(parseAmount(row[11])), supplyAmount: roundWon(parseAmount(row[12])), vat: roundWon(parseAmount(row[13])), acquiringStatus: displayValue(row[15]),
     })),
-    cash: cashRows.filter((row) => normalizeName(row[8]) === instructor).map((row) => ({
+    cash: cashRows.filter((row) => matchesInstructor(row[8], instructor)).map((row) => ({
       date: displayValue(row[1]), buyer: displayValue(row[2]), email: displayValue(row[3]), phone: displayValue(row[4]),
       paymentAmount: roundWon(parseAmount(row[5])), cancellationAmount: roundWon(parseAmount(row[6])), lectureName: displayValue(row[7]),
     })),
-    service: serviceRows.filter((row) => normalizeName(row[1]) === instructor).map((row) => ({
+    service: serviceRows.filter((row) => matchesInstructor(row[1], instructor)).map((row) => ({
       serviceName: displayValue(row[2]), date: displayValue(row[3]), otherCost: roundWon(parseAmount(row[4])), total: roundWon(parseAmount(row[5])), note: displayValue(row[6]),
     })),
   } satisfies InstructorSourceDetails]));
@@ -440,7 +490,10 @@ export function aggregateMonthlyAnalyses(
     });
     return aggregate;
   });
-  const totals = instructorResults.reduce((sum, result) => addResult(sum, result), emptyResult("전체"));
+  const totals = monthlyAnalyses.reduce(
+    (sum, month) => addResult(sum, month.totals),
+    emptyResult("전체"),
+  );
   const matchedCount = monthlyAnalyses.flatMap((item) => item.comparisons).filter((item) => item.matches).length;
   const comparisonCount = monthlyAnalyses.length * SUMMARY_FIELDS.length;
   return {

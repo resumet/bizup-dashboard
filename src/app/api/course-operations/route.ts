@@ -7,6 +7,11 @@ import {
   requireCourseOperationsUser,
 } from "@/lib/course-operations/server";
 import { parseCourseOperationsInput } from "@/lib/course-operations/validation";
+import {
+  readCourseOperationsRequest,
+  removeCourseBanner,
+  uploadCourseBanner,
+} from "@/lib/course-operations/banner-server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -15,12 +20,14 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   const supabase = await createClient();
   let courseId: string | null = null;
+  let uploadedBannerPath = "";
   try {
     const user = await requireCourseOperationsUser(supabase);
-    const [membership, body] = await Promise.all([
+    const [membership, requestData] = await Promise.all([
       requireCourseOperationsMembership(user.id),
-      request.json(),
+      readCourseOperationsRequest(request),
     ]);
+    const { body, banner } = requestData;
     const input = parseCourseOperationsInput(body);
     await assertLinkableItems(membership.workspace_id, input, null);
 
@@ -35,6 +42,7 @@ export async function POST(request: Request) {
         starts_at: input.startsAt,
         early_bird_event: input.earlyBirdEvent,
         first_50_event: input.first50Event,
+        course_differentiation: input.courseDifferentiation,
         landing_page_link: input.landingPageLink,
         free_kakao_room_1_link: input.freeKakaoRoom1Link,
         free_kakao_room_2_link: input.freeKakaoRoom2Link,
@@ -55,6 +63,22 @@ export async function POST(request: Request) {
     if (error) throw new Error(`강의 생성 실패: ${error.code}`);
     courseId = course.id;
 
+    if (banner.file) {
+      uploadedBannerPath = await uploadCourseBanner(
+        admin,
+        membership.workspace_id,
+        course.id,
+        banner.file,
+      );
+      const { error: bannerUpdateError } = await admin
+        .from("courses")
+        .update({ banner_image_path: uploadedBannerPath })
+        .eq("id", course.id);
+      if (bannerUpdateError) {
+        throw new Error(`배너 이미지 연결 실패: ${bannerUpdateError.code}`);
+      }
+    }
+
     await replaceCourseChildren(course.id, input);
     await replaceCourseLinks(membership.workspace_id, course.id, input);
     await admin.from("audit_logs").insert({
@@ -67,6 +91,9 @@ export async function POST(request: Request) {
     });
     return Response.json({ id: course.id }, { status: 201 });
   } catch (error) {
+    if (uploadedBannerPath) {
+      await removeCourseBanner(createAdminClient(), uploadedBannerPath);
+    }
     if (courseId) {
       await createAdminClient().from("courses").delete().eq("id", courseId);
     }

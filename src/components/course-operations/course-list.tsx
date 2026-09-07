@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   BookOpenCheck,
   CalendarDays,
@@ -39,6 +40,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { CourseSummary } from "@/lib/course-operations/types";
+import { courseBannerUrl } from "@/lib/course-operations/banner";
+import {
+  formatWebinarCountdown,
+  sortByNearestWebinar,
+} from "@/lib/course-operations/webinar-proximity";
 
 type ViewMode = "cards" | "list" | "calendar";
 
@@ -52,9 +58,11 @@ function formatDate(value: string) {
 
 export function CourseOperationsList({
   courses,
+  todayKoreaDate,
   canDelete,
 }: {
   courses: CourseSummary[];
+  todayKoreaDate: string;
   canDelete: boolean;
 }) {
   const router = useRouter();
@@ -62,6 +70,10 @@ export function CourseOperationsList({
   const [deleteTarget, setDeleteTarget] = useState<CourseSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const cardCourses = useMemo(
+    () => sortByNearestWebinar(courses, todayKoreaDate),
+    [courses, todayKoreaDate],
+  );
 
   async function deleteCourse() {
     if (!canDelete || !deleteTarget) return;
@@ -131,11 +143,27 @@ export function CourseOperationsList({
 
       {viewMode === "cards" ? (
         <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {courses.map((course) => (
+          {cardCourses.map((course) => (
             <Card
               key={course.id}
-              className="h-[23rem] overflow-hidden transition-shadow hover:shadow-md"
+              className="min-h-[29rem] overflow-hidden transition-shadow hover:shadow-md"
             >
+              {course.banner_image_path ? (
+                <Link
+                  href={`/services/course-operations/${course.id}`}
+                  className="relative -mt-4 block aspect-video overflow-hidden bg-muted"
+                  aria-label={`${course.name} 강의 배너로 상세보기`}
+                >
+                  <Image
+                    src={courseBannerUrl(course.id, course.updated_at)}
+                    alt={`${course.name} 배너`}
+                    fill
+                    unoptimized
+                    sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
+                    className="object-cover transition-transform duration-300 group-hover/card:scale-[1.02]"
+                  />
+                </Link>
+              ) : null}
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                   <span className="grid size-11 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -162,7 +190,11 @@ export function CourseOperationsList({
                 <div className="grid gap-2 text-sm">
                   <p className="flex items-center gap-2">
                     <CalendarDays className="size-4 text-muted-foreground" />
-                    무료 웨비나 {formatDate(course.free_webinar_at)}
+                    무료 웨비나 {formatDate(course.free_webinar_at)}{" "}
+                    {formatWebinarCountdown(
+                      course.free_webinar_at,
+                      todayKoreaDate,
+                    )}
                   </p>
                   <p className="flex items-center gap-2">
                     <CalendarDays className="size-4 text-muted-foreground" />

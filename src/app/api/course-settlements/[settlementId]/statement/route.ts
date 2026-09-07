@@ -29,10 +29,19 @@ export async function PUT(request: Request, { params }: Context) {
       .eq("workspace_id", workspaceId)
       .maybeSingle();
     if (!course) throw new Error("연결된 강의를 찾을 수 없습니다.");
+    const currentDraft = sanitizeSettlementStatementDraft(
+      settlement.statement_draft,
+      course.name,
+    );
+    if (currentDraft.confirmedAt) {
+      throw new Error("확정된 정산서는 수정할 수 없습니다. 먼저 정산 확정을 취소해 주세요.");
+    }
     const draft = sanitizeSettlementStatementDraft(
       (await request.json() as { draft?: unknown }).draft,
       course.name,
     );
+    // 비용 원장은 비용 탭에서만 변경한다. 기존 JSON은 과거 정산 호환용으로 보존한다.
+    draft.costs = currentDraft.costs;
     if (draft.status === "정산확정") draft.status = "작성중";
     draft.confirmedAt = "";
 

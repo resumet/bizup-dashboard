@@ -57,7 +57,13 @@ async function copyToClipboard(value: string) {
   await navigator.clipboard.writeText(value);
 }
 
-export function CourseShareDialog({ data }: { data: CourseShareData }) {
+export function CourseShareDialog({
+  data,
+  onOpen,
+}: {
+  data: CourseShareData;
+  onOpen?: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [selectedSections, setSelectedSections] =
     useState<CourseShareSection[]>(DEFAULT_SECTIONS);
@@ -170,6 +176,7 @@ export function CourseShareDialog({ data }: { data: CourseShareData }) {
         onOpenChange={(nextOpen) => {
           setOpen(nextOpen);
           if (nextOpen) {
+            onOpen?.();
             setNotice("");
             setError("");
           }

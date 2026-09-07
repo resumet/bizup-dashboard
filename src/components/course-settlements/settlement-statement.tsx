@@ -1,215 +1,73 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Download, ExternalLink, FilePlus2, Loader2, Paperclip, Plus, Printer, Save, Trash2 } from "lucide-react";
-
+import { AlertTriangle, CheckCircle2, Download, Loader2, Printer, Save } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  calculateCostSettlement,
-  parseAmount,
-  roundWon,
-  type AggregatedInstructorSettlement,
-  type CostBurden,
-  type MonthlyAnalysis,
-  type SettlementCost,
-} from "@/lib/course-settlements/engine";
+import type { CourseCost } from "@/lib/course-costs/types";
+import { calculateCostSettlement, roundWon, type AggregatedInstructorSettlement, type MonthlyAnalysis, type SettlementCost } from "@/lib/course-settlements/engine";
 import { escapePrintHtml, printHtmlDocument } from "@/lib/course-settlements/print";
-import {
-  createSettlementStatementDraft,
-  type SettlementStatementDraft,
-} from "@/lib/course-settlements/statement";
+import { createSettlementStatementDraft, type SettlementStatementDraft } from "@/lib/course-settlements/statement";
 
 const ISSUER = "주식회사 비즈업클래스";
-const EVIDENCE_TYPES = ["세금계산서", "종이영수증", "카드영수증", "계좌이체 내역", "계약서", "기타"] as const;
-const BURDEN_LABELS: Record<CostBurden, string> = { company: "회사 부담", instructor: "강사 부담", shared: "공동 부담" };
-const ALLOWED_EVIDENCE_TYPES = new Set(["application/pdf", "image/jpeg", "image/png"]);
+const burdenLabel = { COMPANY: "회사 부담", INSTRUCTOR: "강사 부담", SHARED: "공동 부담", UNCLASSIFIED: "미분류" } as const;
+const costStatusLabel = { PLANNED: "예정", PAID: "지급완료", CANCELED: "취소" } as const;
+const currency = (value: number) => `${roundWon(value).toLocaleString("ko-KR")}원`;
 
-function currency(value: number) {
-  return `${roundWon(value).toLocaleString("ko-KR")}원`;
+function Metric({ label, value, unit = "원", emphasized = false }: { label: string; value: number; unit?: "원" | "건"; emphasized?: boolean }) {
+  return <Card className={emphasized ? "border-primary/40 bg-primary/5" : ""}><CardContent className="p-5"><p className="text-sm text-muted-foreground">{label}</p><p className="mt-2 text-2xl font-semibold tabular-nums">{roundWon(value).toLocaleString("ko-KR")}{unit}</p></CardContent></Card>;
 }
 
-function evidenceStatus(cost: SettlementCost) {
-  if (!cost.evidenceRequired) return "증빙 불필요";
-  if (!cost.attachments.length) return "미등록";
-  return cost.evidenceNeedsReview ? "확인필요" : "등록완료";
+function toSettlementCost(cost: CourseCost): SettlementCost {
+  return {
+    id: cost.id, name: cost.name,
+    burden: cost.burdenType === "INSTRUCTOR" ? "instructor" : cost.burdenType === "SHARED" ? "shared" : "company",
+    manager: cost.managerName, amount: cost.grossAmount, occurredOn: cost.paidDate, note: cost.note,
+    evidenceRequired: cost.evidenceRequired, evidenceType: "기타", evidenceNeedsReview: cost.evidenceNeedsReview,
+    attachments: cost.attachments.map((file) => ({ id: file.id, name: file.originalName, type: file.mimeType, size: file.size, url: file.url })),
+    companyShareAmount: cost.companyShareAmount, instructorShareAmount: cost.instructorShareAmount,
+  };
 }
 
-function Metric({ label, value, unit = "원", emphasized }: { label: string; value: number; unit?: "원" | "건"; emphasized?: boolean }) {
-  const formatted = unit === "건" ? `${roundWon(value).toLocaleString("ko-KR")}건` : currency(value);
-  return <Card className={emphasized ? "border-primary/40 bg-primary/5" : ""}><CardContent className="p-5"><p className="text-sm text-muted-foreground">{label}</p><p className="mt-2 text-2xl font-semibold tabular-nums">{formatted}</p></CardContent></Card>;
-}
-
-export function SettlementStatement({
-  instructor, monthlyAnalyses, courseName, draft: savedDraft, onChange,
-  onSave, onUploadAttachments, onDeleteAttachment, onConfirm, busy,
-}: {
-  instructor: AggregatedInstructorSettlement;
-  monthlyAnalyses: MonthlyAnalysis[];
-  courseName: string;
-  draft?: SettlementStatementDraft;
-  onChange: (draft: SettlementStatementDraft) => void;
-  onSave: (draft: SettlementStatementDraft) => Promise<SettlementStatementDraft>;
-  onUploadAttachments: (costId: string, files: File[]) => Promise<SettlementStatementDraft>;
-  onDeleteAttachment: (attachmentId: string) => Promise<SettlementStatementDraft>;
-  onConfirm: (draft: SettlementStatementDraft) => Promise<SettlementStatementDraft>;
-  busy: boolean;
+export function SettlementStatement({ instructor, monthlyAnalyses, courseId, courseName, courseCosts, appliedCourseCosts, costsAreSnapshot, draft: savedDraft, onChange, onSave, onConfirm, onReopen, busy }: {
+  instructor: AggregatedInstructorSettlement; monthlyAnalyses: MonthlyAnalysis[]; courseId: string; courseName: string;
+  courseCosts: CourseCost[]; appliedCourseCosts: CourseCost[]; costsAreSnapshot: boolean; draft?: SettlementStatementDraft;
+  onChange: (draft: SettlementStatementDraft) => void; onSave: (draft: SettlementStatementDraft) => Promise<SettlementStatementDraft>;
+  onConfirm: (draft: SettlementStatementDraft) => Promise<SettlementStatementDraft>; onReopen: () => Promise<void>; busy: boolean;
 }) {
   const draft = savedDraft ?? createSettlementStatementDraft(courseName);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const calculation = useMemo(() => calculateCostSettlement({
-    totalSales: instructor.totalSales,
-    pgFee: instructor.pgFee,
-    novaFee: instructor.systemNovaFee,
-    costs: draft.costs,
-    instructorRatioPercent: draft.instructorRatioPercent,
-  }), [draft.costs, draft.instructorRatioPercent, instructor.pgFee, instructor.systemNovaFee, instructor.totalSales]);
-
+  const confirmed = Boolean(draft.confirmedAt);
+  const [error, setError] = useState(""); const [notice, setNotice] = useState("");
+  const settlementCosts = useMemo(() => appliedCourseCosts.map(toSettlementCost), [appliedCourseCosts]);
+  const calculation = useMemo(() => calculateCostSettlement({ totalSales: instructor.totalSales, pgFee: instructor.pgFee, novaFee: instructor.systemNovaFee, costs: settlementCosts, instructorRatioPercent: draft.instructorRatioPercent }), [draft.instructorRatioPercent, instructor.pgFee, instructor.systemNovaFee, instructor.totalSales, settlementCosts]);
   const transactionMetrics = useMemo(() => {
-    const details = monthlyAnalyses.flatMap((month) => {
-      const source = month.detailsByInstructor[instructor.instructor];
-      return source ? [source] : [];
-    });
-    const payers = new Set<string>();
-    let paymentCount = 0;
-    let refundCount = 0;
-    let paymentAmount = 0;
-    let refundAmount = 0;
-    for (const source of details) {
-      for (const row of source.toss) {
-        if (row.buyer) payers.add(`name:${row.buyer}`);
-        paymentCount += 1;
-        if (row.amount < 0 || row.status.includes("취소")) refundCount += 1;
-        if (row.amount >= 0) paymentAmount += row.amount;
-        else refundAmount += row.amount;
-      }
-      for (const row of source.cash) {
-        const payer = row.email || row.phone || row.buyer;
-        if (payer) payers.add(`cash:${payer}`);
-        paymentCount += 1;
-        paymentAmount += row.paymentAmount;
-        refundAmount += row.cancellationAmount;
-        if (row.cancellationAmount !== 0) refundCount += 1;
-      }
-    }
-    return { payerCount: payers.size, paymentCount, refundCount, paymentAmount, refundAmount };
+    const payers = new Set<string>(); let paymentCount = 0, refundCount = 0, paymentAmount = 0, refundAmount = 0;
+    for (const month of monthlyAnalyses) { const source = month.detailsByInstructor[instructor.instructor]; if (!source) continue;
+      for (const row of source.toss) { if (row.buyer) payers.add(`name:${row.buyer}`); paymentCount += 1; if (row.amount < 0 || row.status.includes("취소")) refundCount += 1; if (row.amount >= 0) paymentAmount += row.amount; else refundAmount += row.amount; }
+      for (const row of source.cash) { const payer = row.email || row.phone || row.buyer; if (payer) payers.add(`cash:${payer}`); paymentCount += 1; paymentAmount += row.paymentAmount; refundAmount += row.cancellationAmount; if (row.cancellationAmount !== 0) refundCount += 1; }
+    } return { payerCount: payers.size, paymentCount, refundCount, paymentAmount, refundAmount };
   }, [instructor.instructor, monthlyAnalyses]);
-
-  const missingEvidence = draft.costs.filter((cost) => cost.evidenceRequired && !cost.attachments.length);
-
-  function patchDraft(patch: Partial<SettlementStatementDraft>) {
-    onChange({ ...draft, ...patch, status: draft.status === "정산확정" ? "작성중" : (patch.status ?? draft.status) });
-  }
-
-  function patchCost(costId: string, patch: Partial<SettlementCost>) {
-    patchDraft({ costs: draft.costs.map((cost) => cost.id === costId ? { ...cost, ...patch } : cost) });
-  }
-
-  function addCost(burden: CostBurden) {
-    patchDraft({ costs: [...draft.costs, {
-      id: crypto.randomUUID(), name: "", burden, manager: "", amount: 0, occurredOn: "", note: "",
-      evidenceRequired: false, evidenceType: "세금계산서", evidenceNeedsReview: false, attachments: [],
-    }] });
-  }
-
-  async function saveDraft() {
-    setError("");
-    setNotice("");
-    try {
-      const saved = await onSave(draft);
-      onChange(saved);
-      setNotice("비용 내역과 정산서 정보를 저장했습니다.");
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "정산서를 저장하지 못했습니다.");
-    }
-  }
-
-  async function addAttachments(cost: SettlementCost, files: FileList | null) {
-    if (!files) return;
-    setError("");
-    setNotice("");
-    const accepted = Array.from(files).filter((file) => {
-      if (ALLOWED_EVIDENCE_TYPES.has(file.type)) return true;
-      setError(`${file.name}: PDF/JPG/JPEG/PNG 증빙만 첨부할 수 있습니다.`);
-      return false;
-    });
-    if (!accepted.length) return;
-    try {
-      const saved = await onUploadAttachments(cost.id, accepted);
-      onChange(saved);
-      setNotice(`${accepted.length}개 증빙 파일을 저장했습니다.`);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "증빙 파일을 저장하지 못했습니다.");
-    }
-  }
-
-  async function removeAttachment(attachmentId: string) {
-    setError("");
-    setNotice("");
-    try {
-      const saved = await onDeleteAttachment(attachmentId);
-      onChange(saved);
-      setNotice("증빙 파일을 삭제했습니다.");
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "증빙 파일을 삭제하지 못했습니다.");
-    }
-  }
-
-  async function confirmSettlement() {
-    setError(""); setNotice("");
-    if (missingEvidence.length && !draft.exceptionReason.trim()) {
-      setError(`필수 증빙이 없는 비용이 ${missingEvidence.length}개입니다. 증빙을 등록하거나 예외 확정 사유를 입력해 주세요.`);
-      return;
-    }
-    try {
-      const saved = await onConfirm(draft);
-      onChange(saved);
-      setNotice(missingEvidence.length ? "예외 사유를 기록하고 정산을 확정했습니다." : "필수 증빙을 확인하고 정산을 확정했습니다.");
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "정산을 확정하지 못했습니다.");
-    }
-  }
-
-  function downloadDraft() {
-    const serializable = { ...draft, costs: draft.costs.map((cost) => ({ ...cost, attachments: cost.attachments.map((attachment) => ({ id: attachment.id, name: attachment.name, type: attachment.type, size: attachment.size })) })) };
-    const url = URL.createObjectURL(new Blob([JSON.stringify({ kind: "bizup-course-settlement", version: 1, savedAt: new Date().toISOString(), issuer: ISSUER, instructor, draft: serializable, calculation }, null, 2)], { type: "application/json;charset=utf-8" }));
-    const anchor = document.createElement("a"); anchor.href = url; anchor.download = `${instructor.instructor}_정산정보.json`; anchor.click(); URL.revokeObjectURL(url);
-  }
-
+  const missingEvidence = appliedCourseCosts.filter((cost) => cost.evidenceRequired && cost.attachments.length === 0);
+  const patchDraft = (patch: Partial<SettlementStatementDraft>) => onChange({ ...draft, ...patch });
+  async function run(action: () => Promise<SettlementStatementDraft>, success: string) { setError(""); setNotice(""); try { onChange(await action()); setNotice(success); } catch (caught) { setError(caught instanceof Error ? caught.message : "요청을 처리하지 못했습니다."); } }
+  function downloadDraft() { const payload = { kind: "bizup-course-settlement", version: 2, savedAt: new Date().toISOString(), issuer: ISSUER, instructor, draft, costs: appliedCourseCosts, ledgerCosts: courseCosts, calculation }; const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" })); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `${instructor.instructor}_정산정보.json`; anchor.click(); URL.revokeObjectURL(url); }
   function printStatement() {
-    setError("");
-    if (!draft.lectureName.trim() || !draft.coursePeriod.trim() || !draft.settlementPeriod.trim() || !draft.manager.trim()) {
-      setError("PDF 출력 전에 강의명, 강의기간, 정산기간, 담당자를 모두 입력해 주세요.");
-      return;
-    }
-    const costRows = draft.costs.map((cost) => `<tr><td>${escapePrintHtml(cost.name)}</td><td>${BURDEN_LABELS[cost.burden]}</td><td>${escapePrintHtml(cost.manager)}</td><td class="number">${currency(cost.amount)}</td><td>${escapePrintHtml(cost.occurredOn)}</td><td>${escapePrintHtml(evidenceStatus(cost))}${cost.attachments.length ? `<br>${cost.attachments.map((item) => escapePrintHtml(item.name)).join("<br>")}` : ""}</td><td>${escapePrintHtml(cost.note)}</td></tr>`).join("");
-    const flowRows = [
-      ["전체 매출", calculation.totalSales], ["PG 수수료", -calculation.pgFee], ["노바 수수료", -calculation.novaFee],
-      ["정산대상 매출", calculation.settlementTargetRevenue], ["공동 부담 비용", -calculation.costs.shared], ["분배 기준액", calculation.distributionBase],
-      [`강사 기본분 (${calculation.instructorRatioPercent}%)`, calculation.instructorBase], ["강사 부담 비용", -calculation.costs.instructor],
-      ["강사 공급가액", calculation.instructorSupply], ["VAT 10%", calculation.vat], ["최종 강사 지급액", calculation.instructorFinal],
-      [`회사 기본분 (${calculation.companyRatioPercent}%)`, calculation.companyBase], ["회사 부담 비용", -calculation.costs.company], ["회사 지급분", calculation.companyFinal],
-    ].map(([label, value]) => `<tr${label === "최종 강사 지급액" || label === "회사 지급분" ? " class=\"total\"" : ""}><th>${label}</th><td class="number">${currency(Number(value))}</td></tr>`).join("");
-    const safeLecture = draft.lectureName.replace(/[\\/:*?"<>|]/gu, "_");
-    printHtmlDocument(`${safeLecture}_최종_정산서`, `<h1>${escapePrintHtml(draft.lectureName)} 최종 정산서</h1><p class="meta">발행자 ${ISSUER} · 발행일 ${escapePrintHtml(draft.issueDate)} · 상태 ${draft.status}</p><div class="grid"><div class="card"><div class="label">강사명</div><div class="value">${escapePrintHtml(instructor.instructor)}</div></div><div class="card"><div class="label">강의기간</div><div class="value">${escapePrintHtml(draft.coursePeriod)}</div></div><div class="card"><div class="label">정산기간</div><div class="value">${escapePrintHtml(draft.settlementPeriod)}</div></div><div class="card"><div class="label">담당자</div><div class="value">${escapePrintHtml(draft.manager)}</div></div><div class="card"><div class="label">결제자/결제/환불</div><div class="value">${transactionMetrics.payerCount}명 / ${transactionMetrics.paymentCount}건 / ${transactionMetrics.refundCount}건</div></div><div class="card"><div class="label">정산 비율</div><div class="value">강사 ${calculation.instructorRatioPercent}% · 회사 ${calculation.companyRatioPercent}%</div></div></div><h2>매출·수수료</h2><table><tbody><tr><th>총 결제액</th><td class="number">${currency(transactionMetrics.paymentAmount)}</td><th>총 환불액</th><td class="number">${currency(transactionMetrics.refundAmount)}</td><th>전체 매출</th><td class="number">${currency(calculation.totalSales)}</td></tr><tr><th>PG 수수료</th><td class="number">${currency(calculation.pgFee)}</td><th>노바 수수료</th><td class="number">${currency(calculation.novaFee)}</td><th>정산대상 매출</th><td class="number">${currency(calculation.settlementTargetRevenue)}</td></tr></tbody></table><h2>비용 상세</h2><table><thead><tr><th>비용명</th><th>부담</th><th>담당자</th><th>금액</th><th>발생일</th><th>증빙</th><th>비고</th></tr></thead><tbody>${costRows}</tbody></table><h2>최종 정산 계산</h2><table><tbody>${flowRows}</tbody></table>${missingEvidence.length ? `<p class="warning">미등록 필수 증빙: ${missingEvidence.map((cost) => escapePrintHtml(cost.name)).join(", ")}${draft.exceptionReason ? ` · 예외 사유: ${escapePrintHtml(draft.exceptionReason)}` : ""}</p>` : ""}`);
+    if (!draft.lectureName.trim() || !draft.coursePeriod.trim() || !draft.settlementPeriod.trim() || !draft.manager.trim()) { setError("PDF 출력 전에 강의명, 강의기간, 정산기간, 담당자를 모두 입력해 주세요."); return; }
+    const rows = appliedCourseCosts.map((cost) => `<tr><td>${escapePrintHtml(cost.name)}</td><td>${burdenLabel[cost.burdenType]}</td><td>${escapePrintHtml(cost.managerName)}</td><td class="number">${currency(cost.grossAmount)}</td><td>${escapePrintHtml(cost.paidDate)}</td><td>${cost.evidenceNeedsReview ? "확인필요" : cost.attachments.length ? "등록완료" : cost.evidenceRequired ? "미등록" : "증빙 불필요"}</td><td>${escapePrintHtml(cost.note)}</td></tr>`).join("") || '<tr><td colspan="7">정산기간에 포함된 지급완료 비용이 없습니다.</td></tr>';
+    const flow = [["전체 매출",calculation.totalSales],["PG 수수료",-calculation.pgFee],["노바 수수료",-calculation.novaFee],["정산대상 매출",calculation.settlementTargetRevenue],["공동 부담 비용",-calculation.costs.shared],["분배 기준액",calculation.distributionBase],[`강사 기본분 (${calculation.instructorRatioPercent}%)`,calculation.instructorBase],["강사 부담 비용",-calculation.costs.instructor],["공동비용 강사 부담분",-calculation.costs.sharedInstructor],["강사 공급가액",calculation.instructorSupply],["VAT 10%",calculation.vat],["최종 강사 지급액",calculation.instructorFinal],[`회사 기본분 (${calculation.companyRatioPercent}%)`,calculation.companyBase],["회사 부담 비용",-calculation.costs.company],["공동비용 회사 부담분",-calculation.costs.sharedCompany],["회사 지급분",calculation.companyFinal]].map(([label,value]) => `<tr><th>${label}</th><td class="number">${currency(Number(value))}</td></tr>`).join("");
+    printHtmlDocument(`${draft.lectureName.replace(/[\\/:*?"<>|]/gu,"_")}_최종_정산서`, `<h1>${escapePrintHtml(draft.lectureName)} 최종 정산서</h1><p class="meta">발행처 ${ISSUER} · 발행일 ${escapePrintHtml(draft.issueDate)} · 상태 ${draft.status}</p><p>강사 ${escapePrintHtml(instructor.instructor)} · 강의기간 ${escapePrintHtml(draft.coursePeriod)} · 정산기간 ${escapePrintHtml(draft.settlementPeriod)} · 담당자 ${escapePrintHtml(draft.manager)}</p><h2>매출</h2><table><tbody><tr><th>결제자 수</th><td>${transactionMetrics.payerCount}건</td><th>결제 건수</th><td>${transactionMetrics.paymentCount}건</td><th>환불 건수</th><td>${transactionMetrics.refundCount}건</td></tr></tbody></table><h2>비용 상세</h2><table><thead><tr><th>비용명</th><th>부담</th><th>담당자</th><th>금액</th><th>지급일</th><th>증빙</th><th>비고</th></tr></thead><tbody>${rows}</tbody></table><h2>최종 정산 계산</h2><table><tbody>${flow}</tbody></table>`);
   }
-
   return <div className="space-y-5">
-    {error ? <Alert variant="destructive"><AlertTitle>처리할 수 없습니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
-    {notice ? <Alert><CheckCircle2/><AlertTitle>처리 완료</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert> : null}
-    <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><div><CardTitle>{instructor.instructor} 최종 정산서</CardTitle><CardDescription>회사·강사·공동 부담 비용과 증빙을 반영합니다.</CardDescription></div><div className="flex flex-wrap gap-2"><Badge variant={draft.status === "정산확정" ? "default" : "outline"}>{draft.status}</Badge><Button variant="outline" onClick={saveDraft} disabled={busy}>{busy ? <Loader2 className="animate-spin"/> : <Save/>}정산 정보 저장</Button><Button variant="outline" onClick={downloadDraft}><Download/>JSON 저장</Button><Button onClick={printStatement}><Printer/>정산서 인쇄/PDF</Button></div></div></CardHeader><CardContent className="grid gap-x-4 gap-y-5 md:grid-cols-3"><div className="space-y-2"><Label>강의명 *</Label><Input value={draft.lectureName} onChange={(event) => patchDraft({ lectureName: event.target.value })}/></div><div className="space-y-2"><Label>강의기간 *</Label><Input placeholder="2026-06-01 ~ 2026-07-31" value={draft.coursePeriod} onChange={(event) => patchDraft({ coursePeriod: event.target.value })}/></div><div className="space-y-2"><Label>정산기간 *</Label><Input placeholder="2026년 6월 ~ 7월" value={draft.settlementPeriod} onChange={(event) => patchDraft({ settlementPeriod: event.target.value })}/></div><div className="space-y-2"><Label>담당자 *</Label><Input value={draft.manager} onChange={(event) => patchDraft({ manager: event.target.value })}/></div><div className="space-y-2"><Label>발행일</Label><Input type="date" value={draft.issueDate} onChange={(event) => patchDraft({ issueDate: event.target.value })}/></div><div className="space-y-2"><Label>강사 배분율 (%)</Label><Input type="number" min="0" max="100" step="0.1" value={draft.instructorRatioPercent} onChange={(event) => patchDraft({ instructorRatioPercent: Number(event.target.value) })}/><p className="text-xs text-muted-foreground">회사 {calculation.companyRatioPercent}% · 공동비용 차감 후 적용</p></div></CardContent></Card>
-    <div className="grid gap-4 md:grid-cols-3"><Metric label="결제자 건수" value={transactionMetrics.payerCount} unit="건"/><Metric label="결제건수" value={transactionMetrics.paymentCount} unit="건"/><Metric label="환불건수" value={transactionMetrics.refundCount} unit="건"/></div>
-    <div className="grid gap-4 md:grid-cols-3"><Metric label="총 결제액" value={transactionMetrics.paymentAmount}/><Metric label="총 환불액" value={transactionMetrics.refundAmount}/><Metric label="전체 매출" value={calculation.totalSales} emphasized/></div>
-    <div className="grid gap-4 md:grid-cols-4"><Metric label="PG 수수료" value={calculation.pgFee}/><Metric label="노바 수수료" value={calculation.novaFee}/><Metric label="총 수수료" value={calculation.totalFee}/><Metric label="정산대상 매출" value={calculation.settlementTargetRevenue} emphasized/></div>
-    <Card><CardHeader><CardTitle>비용 관리</CardTitle><CardDescription>광고 운영·대행비는 회사 부담, 실제 광고 매체비는 공동 부담이 기본입니다. 비용은 추가한 카드의 부담 주체로 자동 분류됩니다.</CardDescription></CardHeader><CardContent className="space-y-6">{(["company", "shared", "instructor"] as const).map((burden) => { const items = draft.costs.filter((cost) => cost.burden === burden); return <section key={burden}><div className="mb-2 flex items-center justify-between gap-2"><h3 className="font-semibold">{BURDEN_LABELS[burden]}</h3><div className="flex items-center gap-2"><Badge variant="secondary">합계 {currency(calculation.costs[burden])}</Badge><Button size="sm" variant="outline" onClick={() => addCost(burden)} disabled={busy}><Plus/>비용 추가</Button></div></div><div className="space-y-3">{items.map((cost) => <div key={cost.id} className="rounded-lg border p-3"><div className="grid gap-2 md:grid-cols-[1.5fr_1fr_150px_150px_auto]"><Input aria-label="비용명" placeholder="비용명" value={cost.name} onChange={(event) => patchCost(cost.id, { name: event.target.value })}/><Input aria-label="담당자" placeholder="담당자" value={cost.manager} onChange={(event) => patchCost(cost.id, { manager: event.target.value })}/><Input aria-label="금액" placeholder="금액" inputMode="numeric" value={cost.amount ? roundWon(cost.amount).toLocaleString("ko-KR") : ""} onChange={(event) => patchCost(cost.id, { amount: roundWon(parseAmount(event.target.value)) })}/><Input aria-label="발생일" type="date" value={cost.occurredOn} onChange={(event) => patchCost(cost.id, { occurredOn: event.target.value })}/><Button size="icon" variant="ghost" aria-label={`${cost.name || "비용"} 삭제`} disabled={busy} onClick={() => patchDraft({ costs: draft.costs.filter((item) => item.id !== cost.id) })}><Trash2 className="text-destructive"/></Button></div><div className="mt-2 grid gap-2 md:grid-cols-[1fr_180px_160px_1.5fr]"><div className="flex h-10 items-center gap-2 rounded-lg border px-3"><Checkbox id={`evidence-${cost.id}`} checked={cost.evidenceRequired} onCheckedChange={(checked) => patchCost(cost.id, { evidenceRequired: checked === true })}/><Label htmlFor={`evidence-${cost.id}`}>증빙 필요</Label></div><Select value={cost.evidenceType} onValueChange={(value: SettlementCost["evidenceType"]) => patchCost(cost.id, { evidenceType: value })}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{EVIDENCE_TYPES.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent></Select><Label className="flex h-10 cursor-pointer items-center justify-center rounded-lg border px-3 text-sm"><Paperclip className="mr-2 size-4"/>증빙 첨부<Input className="sr-only" type="file" multiple disabled={busy} accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" onChange={(event) => { void addAttachments(cost, event.target.files); event.currentTarget.value = ""; }}/></Label><Input aria-label="비고" placeholder="비고" value={cost.note} onChange={(event) => patchCost(cost.id, { note: event.target.value })}/></div><div className="mt-2 flex flex-wrap items-center gap-2"><Badge variant={evidenceStatus(cost) === "미등록" || evidenceStatus(cost) === "확인필요" ? "destructive" : "outline"}>{evidenceStatus(cost)}</Badge>{cost.attachments.map((attachment) => <span key={attachment.id} className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs"><FilePlus2 className="size-3"/>{attachment.url ? <a className="inline-flex items-center gap-1 hover:underline" href={attachment.url} target="_blank" rel="noreferrer">{attachment.name}<ExternalLink className="size-3"/></a> : attachment.name}<button type="button" disabled={busy} aria-label={`${attachment.name} 제거`} onClick={() => void removeAttachment(attachment.id)}>×</button></span>)}{cost.attachments.length ? <label className="ml-auto flex items-center gap-2 text-xs"><Checkbox checked={cost.evidenceNeedsReview} onCheckedChange={(checked) => patchCost(cost.id, { evidenceNeedsReview: checked === true })}/>확인필요 표시</label> : null}</div></div>)}</div></section>; })}</CardContent></Card>
-    <Card><CardHeader><CardTitle>최종 정산 계산</CardTitle><CardDescription>정산대상 매출 → 공동비용 → 분배 → 개별 부담비용 순서입니다.</CardDescription></CardHeader><CardContent className="space-y-5"><div className="grid gap-4 md:grid-cols-4"><Metric label="정산대상 매출" value={calculation.settlementTargetRevenue}/><Metric label="공동 부담 비용" value={calculation.costs.shared}/><Metric label="분배 기준액" value={calculation.distributionBase}/><Metric label="강사 기본분" value={calculation.instructorBase}/><Metric label="강사 부담 비용" value={calculation.costs.instructor}/><Metric label="강사 공급가액" value={calculation.instructorSupply}/><Metric label="VAT 10%" value={calculation.vat}/><Metric label="최종 강사 지급액" value={calculation.instructorFinal} emphasized/><Metric label="회사 기본분" value={calculation.companyBase}/><Metric label="회사 부담 비용" value={calculation.costs.company}/><Metric label="회사 지급분" value={calculation.companyFinal} emphasized/></div>{missingEvidence.length ? <Alert variant="destructive"><AlertTriangle/><AlertTitle>필수 증빙 미등록 {missingEvidence.length}개</AlertTitle><AlertDescription>{missingEvidence.map((cost) => cost.name || "이름 없는 비용").join(", ")}</AlertDescription></Alert> : null}<div><Label>예외 확정 사유</Label><Textarea placeholder="필수 증빙 없이 확정해야 할 때 사유를 기록하세요." value={draft.exceptionReason} onChange={(event) => patchDraft({ exceptionReason: event.target.value })}/></div><div className="flex justify-end"><Button onClick={() => void confirmSettlement()} disabled={busy}>{busy ? <Loader2 className="animate-spin"/> : <CheckCircle2/>}정산 확정</Button></div></CardContent></Card>
+    {error ? <Alert variant="destructive"><AlertTitle>처리할 수 없습니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}{notice ? <Alert><CheckCircle2/><AlertTitle>처리 완료</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert> : null}
+    <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><div><CardTitle>{instructor.instructor} 최종 정산서</CardTitle><CardDescription>비용 탭에 저장된 지급완료 비용을 자동 반영합니다.</CardDescription></div><div className="flex flex-wrap gap-2"><Badge variant={confirmed ? "default" : "outline"}>{draft.status}</Badge>{costsAreSnapshot ? <Badge variant="secondary">확정 스냅샷</Badge> : null}{!confirmed ? <Button variant="outline" onClick={() => void run(() => onSave(draft), "정산 정보를 저장했습니다.")} disabled={busy}>{busy?<Loader2 className="animate-spin"/>:<Save/>}정산 정보 저장</Button> : null}<Button variant="outline" onClick={downloadDraft}><Download/>JSON 저장</Button><Button onClick={printStatement}><Printer/>정산서 인쇄/PDF</Button></div></div></CardHeader><CardContent className="grid gap-x-4 gap-y-5 md:grid-cols-3">{[["강의명","lectureName"],["강의기간","coursePeriod"],["정산기간","settlementPeriod"],["담당자","manager"]].map(([label,key])=><div className="space-y-2" key={key}><Label>{label} *</Label><Input disabled={confirmed} value={String(draft[key as keyof SettlementStatementDraft])} onChange={(event)=>patchDraft({[key]:event.target.value})}/></div>)}<div className="space-y-2"><Label>발행일</Label><Input disabled={confirmed} type="date" value={draft.issueDate} onChange={(event)=>patchDraft({issueDate:event.target.value})}/></div><div className="space-y-2"><Label>강사 배분율 (%)</Label><Input disabled={confirmed} type="number" min="0" max="100" step="0.1" value={draft.instructorRatioPercent} onChange={(event)=>patchDraft({instructorRatioPercent:Number(event.target.value)})}/></div></CardContent></Card>
+    <div className="grid gap-4 md:grid-cols-3"><Metric label="결제자 수" value={transactionMetrics.payerCount} unit="건"/><Metric label="결제 건수" value={transactionMetrics.paymentCount} unit="건"/><Metric label="환불 건수" value={transactionMetrics.refundCount} unit="건"/></div><div className="grid gap-4 md:grid-cols-3"><Metric label="총 결제액" value={transactionMetrics.paymentAmount}/><Metric label="총 환불액" value={transactionMetrics.refundAmount}/><Metric label="전체 매출" value={calculation.totalSales} emphasized/></div><div className="grid gap-4 md:grid-cols-4"><Metric label="PG 수수료" value={calculation.pgFee}/><Metric label="노바 수수료" value={calculation.novaFee}/><Metric label="총 수수료" value={calculation.totalFee}/><Metric label="정산대상 매출" value={calculation.settlementTargetRevenue} emphasized/></div>
+    <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><div><CardTitle>비용</CardTitle><CardDescription>비용 탭에 저장된 전체 내역입니다. 지급완료 상태의 비용이 최종 계산에 반영됩니다.</CardDescription></div><Button asChild variant="outline"><Link href={`/services/course-operations/${courseId}?tab=costs`}>비용 관리로 이동</Link></Button></div></CardHeader><CardContent className="space-y-5">{(["COMPANY","SHARED","INSTRUCTOR"] as const).map((burden)=><section key={burden}><div className="mb-2 flex items-center justify-between"><h3 className="font-semibold">{burdenLabel[burden]}</h3><Badge variant="secondary">합계 {currency(courseCosts.filter((cost)=>cost.burdenType===burden).reduce((sum,cost)=>sum+cost.grossAmount,0))}</Badge></div><div className="space-y-2">{courseCosts.filter((cost)=>cost.burdenType===burden).map((cost)=><div key={cost.id} className="grid gap-2 rounded-lg border p-3 text-sm md:grid-cols-[1.5fr_1fr_1fr_1fr_1fr]"><strong>{cost.name}</strong><span>{cost.managerName}</span><Badge variant={cost.status === "PAID" ? "default" : "outline"}>{costStatusLabel[cost.status]}</Badge><span>{cost.paidDate || "-"}</span><span className="text-right tabular-nums">{currency(cost.grossAmount)}</span></div>)}{!courseCosts.some((cost)=>cost.burdenType===burden)?<p className="rounded-lg border border-dashed py-5 text-center text-sm text-muted-foreground">저장된 비용이 없습니다.</p>:null}</div></section>)}</CardContent></Card>
+    <Card><CardHeader><CardTitle>최종 정산 계산</CardTitle><CardDescription>공동비용은 비용 탭에 저장된 회사·강사 부담 비율로 차감합니다.</CardDescription></CardHeader><CardContent className="space-y-5"><div className="grid gap-4 md:grid-cols-4"><Metric label="정산대상 매출" value={calculation.settlementTargetRevenue}/><Metric label="공동 부담 비용" value={calculation.costs.shared}/><Metric label="분배 기준액" value={calculation.distributionBase}/><Metric label="강사 기본분" value={calculation.instructorBase}/><Metric label="강사 부담 비용" value={calculation.costs.instructor}/><Metric label="공동비용 강사 부담분" value={calculation.costs.sharedInstructor}/><Metric label="강사 공급가액" value={calculation.instructorSupply}/><Metric label="VAT 10%" value={calculation.vat}/><Metric label="최종 강사 지급액" value={calculation.instructorFinal} emphasized/><Metric label="회사 기본분" value={calculation.companyBase}/><Metric label="회사 부담 비용" value={calculation.costs.company}/><Metric label="공동비용 회사 부담분" value={calculation.costs.sharedCompany}/><Metric label="회사 지급분" value={calculation.companyFinal} emphasized/></div>{missingEvidence.length?<Alert variant="destructive"><AlertTriangle/><AlertTitle>필수 증빙 미등록 {missingEvidence.length}건</AlertTitle><AlertDescription>{missingEvidence.map((cost)=>cost.name).join(", ")}</AlertDescription></Alert>:null}{!confirmed?<div><Label>예외 확정 사유</Label><Textarea placeholder="필수 증빙 없이 확정해야 하는 사유를 기록하세요." value={draft.exceptionReason} onChange={(event)=>patchDraft({exceptionReason:event.target.value})}/></div>:draft.exceptionReason?<Alert><AlertTitle>예외 확정 사유</AlertTitle><AlertDescription>{draft.exceptionReason}</AlertDescription></Alert>:null}<div className="flex justify-end">{confirmed?<Button variant="outline" disabled={busy} onClick={()=>void onReopen()}>{busy?<Loader2 className="animate-spin"/>:null}정산 확정 취소</Button>:<Button disabled={busy} onClick={()=>void run(()=>onConfirm(draft),"정산을 확정했습니다.")}>{busy?<Loader2 className="animate-spin"/>:<CheckCircle2/>}정산 확정</Button>}</div></CardContent></Card>
   </div>;
 }

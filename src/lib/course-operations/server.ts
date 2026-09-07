@@ -187,10 +187,17 @@ export async function replaceCourseChildren(
         channel_name: appearance.channelName,
         channel_url: appearance.channelUrl,
         video_url: appearance.videoUrl,
+        landing_utm: appearance.landingUtm,
         sort_order: index,
       })),
     );
-    if (error) throw new Error(`유튜브 출연 정보 저장 실패: ${error.code}`);
+    if (error) {
+      throw new Error(
+        error.code === "PGRST204"
+          ? "유튜브 랜딩 UTM DB 마이그레이션을 먼저 적용해 주세요."
+          : `유튜브 출연 정보 저장 실패: ${error.code}`,
+      );
+    }
   }
 
   if (replaceVideos && input.liveVideos.length) {

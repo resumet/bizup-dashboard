@@ -10,6 +10,7 @@ export type YoutubeAppearanceDraft = {
   channelName: string;
   channelUrl: string;
   videoUrl: string;
+  landingUtm: string;
 };
 
 export type LiveVideoDraft = {
@@ -47,6 +48,7 @@ export type CourseOperationsDraft = {
   startsAt: string;
   earlyBirdEvent: string;
   first50Event: string;
+  courseDifferentiation: string;
   landingPageLink: string;
   freeKakaoRoom1Link: string;
   freeKakaoRoom2Link: string;
@@ -84,6 +86,7 @@ export type CourseSummary = {
   id: string;
   name: string;
   instructor_name: string;
+  banner_image_path: string;
   free_webinar_at: string;
   starts_at: string;
   updated_at: string;
@@ -167,6 +170,7 @@ export type CourseStudentsSectionData = {
 export type CourseSalesSectionData = {
   earlyBirdEvent: string;
   first50Event: string;
+  courseDifferentiation: string;
   options: CourseOptionDraft[];
 };
 

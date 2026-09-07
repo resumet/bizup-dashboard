@@ -46,6 +46,7 @@ import {
   sanitizeSettlementStatementDraft,
   type SettlementStatementDraft,
 } from "@/lib/course-settlements/statement";
+import type { CourseCost } from "@/lib/course-costs/types";
 
 type SettlementUpload = {
   id: string;
@@ -73,6 +74,9 @@ type SettlementState = {
   draft: unknown;
   uploads: SettlementUpload[];
   attachments: SettlementAttachment[];
+  courseCosts: CourseCost[];
+  appliedCourseCosts: CourseCost[];
+  costsAreSnapshot: boolean;
 };
 
 type StateResponse = { state?: SettlementState | null; message?: string };
@@ -165,6 +169,9 @@ export function CourseSettlementManager({
   const [uploads, setUploads] = useState<SettlementUpload[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [analysis, setAnalysis] = useState<SettlementAnalysis | null>(null);
+  const [courseCosts, setCourseCosts] = useState<CourseCost[]>([]);
+  const [appliedCourseCosts, setAppliedCourseCosts] = useState<CourseCost[]>([]);
+  const [costsAreSnapshot, setCostsAreSnapshot] = useState(false);
   const [draft, setDraft] = useState<SettlementStatementDraft>(() =>
     sanitizeSettlementStatementDraft(null, courseName),
   );
@@ -179,6 +186,9 @@ export function CourseSettlementManager({
     setSettlementId(state.settlementId);
     setUploads(state.uploads);
     setAnalysis(state.analysis);
+    setCourseCosts(state.courseCosts ?? []);
+    setAppliedCourseCosts(state.appliedCourseCosts ?? state.courseCosts ?? []);
+    setCostsAreSnapshot(state.costsAreSnapshot === true);
     if (!preserveDraft) {
       const nextDraft = mergeDraftAttachments(
         state.draft,
@@ -331,46 +341,6 @@ export function CourseSettlementManager({
     }
   }
 
-  async function uploadAttachments(costId: string, files: File[]) {
-    const savedDraft = await saveStatement(draft, false);
-    setStatementBusy(true);
-    try {
-      const form = new FormData();
-      form.set("costId", costId);
-      files.forEach((file) => form.append("files", file));
-      const state = await stateRequest(
-        `/api/course-settlements/${settlementId}/attachments`,
-        { method: "POST", body: form },
-      );
-      if (!state) throw new Error("저장된 증빙을 확인하지 못했습니다.");
-      applyState(state);
-      setNotice(`${files.length}개 증빙 파일을 저장했습니다.`);
-      return mergeDraftAttachments(
-        state.draft ?? savedDraft,
-        courseName,
-        state.attachments,
-      );
-    } finally {
-      setStatementBusy(false);
-    }
-  }
-
-  async function deleteAttachment(attachmentId: string) {
-    setStatementBusy(true);
-    try {
-      const state = await stateRequest(
-        `/api/course-settlements/${settlementId}/attachments/${attachmentId}`,
-        { method: "DELETE" },
-      );
-      if (!state) throw new Error("증빙 삭제 결과를 확인하지 못했습니다.");
-      applyState(state);
-      setNotice("증빙 파일을 삭제했습니다.");
-      return mergeDraftAttachments(state.draft, courseName, state.attachments);
-    } finally {
-      setStatementBusy(false);
-    }
-  }
-
   async function confirmStatement(nextDraft: SettlementStatementDraft) {
     await saveStatement(nextDraft, false);
     setStatementBusy(true);
@@ -383,6 +353,22 @@ export function CourseSettlementManager({
       applyState(state);
       setNotice("최종 정산서를 확정하고 강의에 저장했습니다.");
       return mergeDraftAttachments(state.draft, courseName, state.attachments);
+    } finally {
+      setStatementBusy(false);
+    }
+  }
+
+  async function reopenStatement() {
+    if (!settlementId) return;
+    setStatementBusy(true);
+    setError("");
+    try {
+      const state = await stateRequest(`/api/course-settlements/${settlementId}/confirm`, { method: "DELETE" });
+      if (!state) throw new Error("정산 확정 취소 결과를 확인하지 못했습니다.");
+      applyState(state);
+      setNotice("정산 확정을 취소했습니다. 비용 원장을 다시 수정할 수 있습니다.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "정산 확정을 취소하지 못했습니다.");
     } finally {
       setStatementBusy(false);
     }
@@ -632,13 +618,16 @@ export function CourseSettlementManager({
             <SettlementStatement
               instructor={instructor}
               monthlyAnalyses={analysis.monthlyAnalyses}
+              courseId={courseId}
               courseName={courseName}
+              courseCosts={courseCosts}
+              appliedCourseCosts={appliedCourseCosts}
+              costsAreSnapshot={costsAreSnapshot}
               draft={draft}
               onChange={setDraft}
               onSave={saveStatement}
-              onUploadAttachments={uploadAttachments}
-              onDeleteAttachment={deleteAttachment}
               onConfirm={confirmStatement}
+              onReopen={reopenStatement}
               busy={statementBusy}
             />
           ) : null}

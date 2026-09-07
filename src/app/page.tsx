@@ -6,6 +6,7 @@ import {
   BookOpenCheck,
   CirclePlay,
   ContactRound,
+  FileCheck2,
   FileDown,
   FileSpreadsheet,
   HandCoins,
@@ -16,6 +17,7 @@ import {
   Search,
   ShoppingCart,
   Users,
+  WalletCards,
   WandSparkles,
 } from "lucide-react";
 import { AdminManagementButton } from "@/components/admin/admin-management-button";
@@ -104,6 +106,16 @@ const services = [
     route: "/services/settlement-analysis",
     icon: HandCoins,
     meta: "월별 분석·강사 정산서",
+  },
+  {
+    key: "cash-flow",
+    title: "자금 흐름",
+    description:
+      "현재 통장 잔액과 강의별 입출금, 월 고정지출을 반영해 향후 12개월 회사 자금을 예측합니다.",
+    active: true,
+    route: "/services/cash-flow",
+    icon: WalletCards,
+    meta: "월말·3·6·12개월 잔액 전망",
   },
   {
     key: "purchase-analysis",
@@ -250,7 +262,7 @@ export default async function DashboardPage() {
               별도 프로젝트를 만들지 않고 바로 사용할 수 있습니다.
             </p>
           </div>
-          <div className="grid max-w-5xl gap-4 md:grid-cols-2"><Card className="border-teal-500/30 bg-teal-500/5 transition-colors hover:bg-teal-500/10">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"><Card className="border-teal-500/30 bg-teal-500/5 transition-colors hover:bg-teal-500/10">
             <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
               <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-teal-600 text-white shadow-sm">
                 <FileDown className="size-5" />
@@ -271,7 +283,7 @@ export default async function DashboardPage() {
                 </Link>
               </Button>
             </CardContent>
-          </Card><Card className="border-red-500/30 bg-red-500/5 transition-colors hover:bg-red-500/10"><CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center"><span className="grid size-10 shrink-0 place-items-center rounded-lg bg-red-600 text-white shadow-sm"><CirclePlay className="size-5" /></span><div className="min-w-0 flex-1"><p className="font-semibold">유튜브 영상 다운로드</p><p className="mt-1 text-sm text-muted-foreground">공개 영상 URL을 확인하고 영상 파일로 저장합니다.</p></div><Button asChild size="sm" className="bg-red-600 text-white hover:bg-red-700"><Link href="/services/youtube-download">실행하기 <ArrowRight /></Link></Button></CardContent></Card></div>
+          </Card><Card className="border-red-500/30 bg-red-500/5 transition-colors hover:bg-red-500/10"><CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center"><span className="grid size-10 shrink-0 place-items-center rounded-lg bg-red-600 text-white shadow-sm"><CirclePlay className="size-5" /></span><div className="min-w-0 flex-1"><p className="font-semibold">유튜브 영상 다운로드</p><p className="mt-1 text-sm text-muted-foreground">공개 영상 URL을 확인하고 영상 파일로 저장합니다.</p></div><Button asChild size="sm" className="bg-red-600 text-white hover:bg-red-700"><Link href="/services/youtube-download">실행하기 <ArrowRight /></Link></Button></CardContent></Card><Card className="border-blue-500/30 bg-blue-500/5 transition-colors hover:bg-blue-500/10"><CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center"><span className="grid size-10 shrink-0 place-items-center rounded-lg bg-blue-600 text-white shadow-sm"><FileCheck2 className="size-5" /></span><div className="min-w-0 flex-1"><p className="font-semibold">노바 정산서 검증하기</p><p className="mt-1 text-sm text-muted-foreground">강사별 매출·비용을 계산하고 전체 정산 숫자를 대조합니다.</p></div><Button asChild size="sm" className="bg-blue-600 text-white hover:bg-blue-700"><Link href="/services/nova-settlement-validator">실행하기 <ArrowRight /></Link></Button></CardContent></Card></div>
         </section>
         <section className="mt-10 rounded-2xl border bg-card/75 p-6">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">

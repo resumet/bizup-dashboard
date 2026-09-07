@@ -1,6 +1,9 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { filterSettlementCosts, loadCourseCosts } from "@/lib/course-costs/server";
+import type { CourseCost } from "@/lib/course-costs/types";
+import { sanitizeSettlementStatementDraft } from "@/lib/course-settlements/statement";
 
 type SettlementRecord = {
   id: string;
@@ -39,6 +42,7 @@ export async function authorizeSettlement(settlementId: string, userId: string) 
   return {
     admin,
     workspaceId: data.workspace_id as string,
+    role: membership.role as string,
     settlement: data as SettlementRecord,
   };
 }
@@ -129,6 +133,59 @@ export async function loadSettlementState(
     })),
   );
 
+  const { data: snapshotRows, error: snapshotError } = await admin
+    .from("settlement_cost_snapshots")
+    .select("cost_snapshot")
+    .eq("settlement_id", settlement.id)
+    .order("created_at");
+  if (snapshotError) throw new Error(`정산 비용 스냅샷 조회 실패: ${snapshotError.code}`);
+  const rawSnapshots = (snapshotRows ?? []).flatMap((row) => {
+    const snapshot = row.cost_snapshot;
+    return typeof snapshot === "object" && snapshot !== null ? [snapshot as CourseCost] : [];
+  });
+  const snapshots = await Promise.all(rawSnapshots.map(async (cost) => ({
+    ...cost,
+    attachments: await Promise.all((cost.attachments ?? []).map(async (file) => ({
+      ...file,
+      url: file.storagePath
+        ? await signedUrl(admin, "course-cost-evidence", file.storagePath)
+        : file.url ?? null,
+    }))),
+  })));
+  const legacyDraft = sanitizeSettlementStatementDraft(settlement.statement_draft, "");
+  const legacyConfirmed = Boolean(legacyDraft.confirmedAt);
+  const legacyCosts = legacyDraft.costs.map((cost): CourseCost => {
+    const companyShareAmount = cost.burden === "company" ? cost.amount : cost.burden === "shared" ? Math.round(cost.amount / 2) : 0;
+    const instructorShareAmount = cost.amount - companyShareAmount;
+    return {
+      id: cost.id, courseId: settlement.course_id, categoryCode: "LEGACY", name: cost.name,
+      burdenType: cost.burden === "company" ? "COMPANY" : cost.burden === "instructor" ? "INSTRUCTOR" : "SHARED",
+      managerUserId: null, managerName: cost.manager, grossAmount: cost.amount, supplyAmount: cost.amount, vatAmount: 0,
+      taxType: "REVIEW_REQUIRED", paidDate: cost.occurredOn, status: "PAID", evidenceRequired: cost.evidenceRequired, evidenceNeedsReview: cost.evidenceNeedsReview,
+      evidenceTypes: [], otherEvidenceType: "", companyShareRate: cost.burden === "company" ? 100 : cost.burden === "shared" ? 50 : 0,
+      instructorShareRate: cost.burden === "instructor" ? 100 : cost.burden === "shared" ? 50 : 0,
+      companyShareAmount, instructorShareAmount, includeInSettlement: true, note: cost.note,
+      migratedFrom: `legacy:${settlement.id}:${cost.id}`, version: 1, createdBy: "", createdAt: settlement.updated_at,
+      updatedBy: "", updatedAt: settlement.updated_at,
+      attachments: attachments.filter((file) => file.costId === cost.id).map((file) => ({
+        id: file.id, originalName: file.name, mimeType: file.type, size: file.size, uploadedAt: settlement.updated_at, uploadedBy: "", storagePath: "", url: file.url,
+      })),
+    };
+  });
+  const currentCourseCosts = snapshots.length || legacyConfirmed
+    ? []
+    : await loadCourseCosts(admin, settlement.course_id);
+  const courseCosts = snapshots.length
+    ? snapshots
+    : legacyConfirmed
+      ? legacyCosts
+      : currentCourseCosts;
+  const appliedCourseCosts = snapshots.length
+    ? snapshots
+    : legacyConfirmed
+      ? legacyCosts
+      : filterSettlementCosts(currentCourseCosts, settlement.analysis_snapshot);
+
   return {
     settlementId: settlement.id,
     status: settlement.status,
@@ -138,6 +195,9 @@ export async function loadSettlementState(
     draft: settlement.statement_draft,
     uploads,
     attachments,
+    courseCosts,
+    appliedCourseCosts,
+    costsAreSnapshot: snapshots.length > 0 || legacyConfirmed,
   };
 }
 

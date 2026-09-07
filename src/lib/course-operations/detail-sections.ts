@@ -35,7 +35,7 @@ export async function loadSalesSection(
   const [courseResult, optionsResult] = await Promise.all([
     supabase
       .from("courses")
-      .select("early_bird_event,first_50_event")
+      .select("early_bird_event,first_50_event,course_differentiation")
       .eq("id", courseId)
       .maybeSingle(),
     supabase
@@ -51,6 +51,7 @@ export async function loadSalesSection(
   return {
     earlyBirdEvent: courseResult.data.early_bird_event ?? "",
     first50Event: courseResult.data.first_50_event ?? "",
+    courseDifferentiation: courseResult.data.course_differentiation ?? "",
     options: (optionsResult.data ?? []).map((option) => ({
       name: option.name,
       listPrice: String(option.list_price),
@@ -300,7 +301,7 @@ export async function loadVideosSection(
         .limit(500),
       supabase
         .from("course_youtube_appearances")
-        .select("channel_name,channel_url,video_url")
+        .select("channel_name,channel_url,video_url,landing_utm")
         .eq("course_id", courseId)
         .order("sort_order"),
       supabase
@@ -321,6 +322,7 @@ export async function loadVideosSection(
       channelName: appearance.channel_name,
       channelUrl: decodeReadableUrl(appearance.channel_url),
       videoUrl: appearance.video_url,
+      landingUtm: appearance.landing_utm ?? "",
     })),
     liveVideos: (liveVideosResult.data ?? []).map((liveVideo) => ({
       name: liveVideo.name,

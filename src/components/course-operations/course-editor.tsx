@@ -1,13 +1,15 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   Copy,
   Download,
   ExternalLink,
+  ImagePlus,
   Loader2,
   MessageSquareText,
   Plus,
@@ -20,6 +22,7 @@ import { CourseNotesCard } from "@/components/course-operations/course-notes-car
 import { CourseScheduleCalendar } from "@/components/course-operations/course-schedule-calendar";
 import { CourseShareDialog } from "@/components/course-operations/course-share-dialog";
 import { CourseSettlementManager } from "@/components/course-settlements/course-settlement-manager";
+import { CourseCostManager } from "@/components/course-costs/course-cost-manager";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -71,6 +74,10 @@ import type {
   YoutubeChannelSuggestion,
 } from "@/lib/course-operations/types";
 import type { CourseNote } from "@/lib/course-operations/notes";
+import {
+  courseBannerUrl,
+  validateCourseBannerFile,
+} from "@/lib/course-operations/banner";
 import { decodeReadableUrl } from "@/lib/course-operations/youtube-channels";
 import { calculateDiscountRate } from "@/lib/course-operations/pricing";
 import {
@@ -194,8 +201,9 @@ type CourseEditorTab =
   | "students"
   | "messages"
   | "videos"
+  | "costs"
   | "settlement";
-type DeferredCourseEditorTab = Exclude<CourseEditorTab, "information" | "settlement">;
+type DeferredCourseEditorTab = Exclude<CourseEditorTab, "information" | "costs" | "settlement">;
 type SectionLoadStatus = "idle" | "loading" | "loaded" | "error";
 
 function DeferredSectionState({
@@ -312,6 +320,7 @@ function CourseCustomLinkInput({
 export function CourseOperationsEditor({
   courseId,
   initialDraft,
+  initialBannerUrl = "",
   rosterJobs = [],
   messageProjects = [],
   addressBooks = [],
@@ -329,6 +338,7 @@ export function CourseOperationsEditor({
 }: {
   courseId?: string;
   initialDraft: CourseOperationsDraft;
+  initialBannerUrl?: string;
   rosterJobs?: LinkableRosterJob[];
   messageProjects?: LinkableMessageProject[];
   addressBooks?: AddressBookSummary[];
@@ -342,7 +352,7 @@ export function CourseOperationsEditor({
   notesLoadError?: string;
   loadError?: string;
   deferDetailSections?: boolean;
-  initialTab?: "information" | "settlement";
+  initialTab?: "information" | "costs" | "settlement";
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState(() => {
@@ -360,6 +370,12 @@ export function CourseOperationsEditor({
     };
   });
   const [saving, setSaving] = useState(false);
+  const [savedBannerUrl, setSavedBannerUrl] = useState(initialBannerUrl);
+  const [bannerSelection, setBannerSelection] = useState<{
+    file: File;
+    previewUrl: string;
+  } | null>(null);
+  const [bannerRemoved, setBannerRemoved] = useState(false);
   const [error, setError] = useState("");
   const [copiedMessagePosition, setCopiedMessagePosition] = useState<
     number | null
@@ -391,6 +407,14 @@ export function CourseOperationsEditor({
     Partial<Record<DeferredCourseEditorTab, string>>
   >({});
   const loadingSectionsRef = useRef(new Set<DeferredCourseEditorTab>());
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const previewUrl = bannerSelection?.previewUrl;
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [bannerSelection]);
 
   async function loadDetailSection(section: DeferredCourseEditorTab) {
     if (
@@ -434,6 +458,7 @@ export function CourseOperationsEditor({
           ...current,
           earlyBirdEvent: sales.earlyBirdEvent,
           first50Event: sales.first50Event,
+          courseDifferentiation: sales.courseDifferentiation,
           options: sales.options,
         }));
       } else if (section === "students") {
@@ -480,7 +505,7 @@ export function CourseOperationsEditor({
   function changeTab(value: string) {
     const nextTab = value as CourseEditorTab;
     setActiveTab(nextTab);
-    if (nextTab !== "information" && nextTab !== "settlement") {
+    if (nextTab !== "information" && nextTab !== "costs" && nextTab !== "settlement") {
       void loadDetailSection(nextTab);
     }
   }
@@ -587,6 +612,29 @@ export function CourseOperationsEditor({
     }));
   }
 
+  function selectBanner(file: File | undefined) {
+    if (!file) return;
+    try {
+      validateCourseBannerFile(file);
+      setError("");
+      setBannerSelection({ file, previewUrl: URL.createObjectURL(file) });
+      setBannerRemoved(false);
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "배너 이미지를 선택하지 못했습니다.",
+      );
+    } finally {
+      if (bannerInputRef.current) bannerInputRef.current.value = "";
+    }
+  }
+
+  function removeBanner() {
+    setBannerSelection(null);
+    setBannerRemoved(true);
+  }
+
   function addCustomLink() {
     setDraft((current) => ({
       ...current,
@@ -682,30 +730,38 @@ export function CourseOperationsEditor({
     setError("");
     setNotice("");
     try {
+      const payload = {
+        ...draft,
+        freeWebinarAt: koreaDateTimeToIso(
+          draft.freeWebinarAt,
+          draft.freeWebinarTime,
+        ),
+        startsAt: koreaDateToIso(draft.startsAt),
+        options: draft.options.map((option) => ({
+          ...option,
+          listPrice: option.listPrice.replace(/\D/gu, ""),
+          salePrice: option.salePrice.replace(/\D/gu, ""),
+        })),
+        loadedDetailSections: {
+          sales: sectionStatuses.sales === "loaded",
+          videos: sectionStatuses.videos === "loaded",
+        },
+      };
+      const hasBannerMutation = Boolean(bannerSelection || bannerRemoved);
+      const form = hasBannerMutation ? new FormData() : null;
+      if (form) {
+        form.set("course", JSON.stringify(payload));
+        if (bannerSelection) form.set("banner", bannerSelection.file);
+        if (bannerRemoved) form.set("removeBanner", "true");
+      }
       const response = await fetch(
         courseId
           ? `/api/course-operations/${courseId}`
           : "/api/course-operations",
         {
           method: courseId ? "PATCH" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...draft,
-            freeWebinarAt: koreaDateTimeToIso(
-              draft.freeWebinarAt,
-              draft.freeWebinarTime,
-            ),
-            startsAt: koreaDateToIso(draft.startsAt),
-            options: draft.options.map((option) => ({
-              ...option,
-              listPrice: option.listPrice.replace(/\D/gu, ""),
-              salePrice: option.salePrice.replace(/\D/gu, ""),
-            })),
-            loadedDetailSections: {
-              sales: sectionStatuses.sales === "loaded",
-              videos: sectionStatuses.videos === "loaded",
-            },
-          }),
+          headers: form ? undefined : { "Content-Type": "application/json" },
+          body: form ?? JSON.stringify(payload),
         },
       );
       const body = await response.json();
@@ -716,6 +772,13 @@ export function CourseOperationsEditor({
         router.push(`/services/course-operations/${body.id}`);
         return;
       }
+      if (bannerSelection) {
+        setSavedBannerUrl(courseBannerUrl(courseId, new Date().toISOString()));
+      } else if (bannerRemoved) {
+        setSavedBannerUrl("");
+      }
+      setBannerSelection(null);
+      setBannerRemoved(false);
       setNotice("강의 정보와 연결 항목을 저장했습니다.");
       router.refresh();
     } catch (caught) {
@@ -760,6 +823,8 @@ export function CourseOperationsEditor({
   const courseMaterialsOpenableLink = getOpenableLink(
     draft.courseMaterialsLink,
   );
+  const bannerPreviewUrl = bannerSelection?.previewUrl ??
+    (bannerRemoved ? "" : savedBannerUrl);
 
   return (
     <div className="space-y-6">
@@ -777,6 +842,7 @@ export function CourseOperationsEditor({
         </div>
         <div className="flex flex-wrap gap-2">
           <CourseShareDialog
+            onOpen={() => void loadDetailSection("videos")}
             data={{
               name: draft.name,
               instructorName: draft.instructorName,
@@ -796,6 +862,7 @@ export function CourseOperationsEditor({
               courseViewingLink: draft.courseViewingLink,
               options: draft.options,
               youtubeAppearances: draft.youtubeAppearances,
+              liveVideos: draft.liveVideos,
             }}
           />
           <Button className="min-h-10" onClick={saveCourse} disabled={saving}>
@@ -829,7 +896,7 @@ export function CourseOperationsEditor({
         onValueChange={changeTab}
         className="gap-6"
       >
-        <TabsList className="grid w-full grid-cols-3 grid-rows-2 group-data-horizontal/tabs:h-[5.5rem] md:w-fit md:grid-cols-6 md:grid-rows-1 md:group-data-horizontal/tabs:h-12">
+        <TabsList className="grid w-full grid-cols-4 grid-rows-2 group-data-horizontal/tabs:h-[5.5rem] md:w-fit md:grid-cols-7 md:grid-rows-1 md:group-data-horizontal/tabs:h-12">
           <TabsTrigger value="information" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             정보
           </TabsTrigger>
@@ -844,6 +911,9 @@ export function CourseOperationsEditor({
           </TabsTrigger>
           <TabsTrigger value="videos" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             영상
+          </TabsTrigger>
+          <TabsTrigger value="costs" disabled={!courseId} className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
+            비용
           </TabsTrigger>
           <TabsTrigger
             value="settlement"
@@ -865,6 +935,61 @@ export function CourseOperationsEditor({
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-5 md:grid-cols-2">
+              <div className="grid gap-2 md:col-span-2">
+                <Label htmlFor="course-banner">강의 배너 이미지</Label>
+                <div className="grid gap-4 rounded-lg border bg-muted/20 p-4 lg:grid-cols-[minmax(0,32rem)_1fr] lg:items-center">
+                  <div className="relative aspect-video overflow-hidden rounded-md border bg-muted">
+                    {bannerPreviewUrl ? (
+                      <Image
+                        src={bannerPreviewUrl}
+                        alt={`${draft.name || "강의"} 배너 미리보기`}
+                        fill
+                        unoptimized
+                        sizes="(min-width: 1024px) 32rem, 100vw"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="flex size-full flex-col items-center justify-center gap-2 text-muted-foreground">
+                        <ImagePlus className="size-8" />
+                        <span className="text-sm">등록된 배너가 없습니다</span>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">16:9 가로 이미지를 권장합니다</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      JPG, PNG, WebP · 최대 8MB. 등록한 이미지는 강의 목록 카드 상단에 표시됩니다.
+                    </p>
+                    <Input
+                      ref={bannerInputRef}
+                      id="course-banner"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
+                      onChange={(event) => selectBanner(event.currentTarget.files?.[0])}
+                    />
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => bannerInputRef.current?.click()}
+                      >
+                        <ImagePlus />
+                        {bannerPreviewUrl ? "배너 교체" : "배너 선택"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        disabled={!bannerPreviewUrl}
+                        onClick={removeBanner}
+                      >
+                        <Trash2 /> 배너 삭제
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div className="grid gap-2 md:col-span-2">
                 <Label htmlFor="course-name">강의명</Label>
                 <Input
@@ -1184,6 +1309,24 @@ export function CourseOperationsEditor({
                 }
               />
             </div>
+            <div className="grid gap-2 sm:col-span-2">
+              <Label htmlFor="course-differentiation">
+                강의 차별점을 상세하게 기재
+              </Label>
+              <Textarea
+                id="course-differentiation"
+                className="h-48 min-h-48 resize-y field-sizing-fixed"
+                placeholder="다른 강의와 구분되는 특징, 제공 가치와 수강생이 얻게 될 변화를 상세하게 기재해 주세요."
+                maxLength={10_000}
+                value={draft.courseDifferentiation}
+                onChange={(event) =>
+                  updateField("courseDifferentiation", event.target.value)
+                }
+              />
+              <p className="text-right text-xs text-muted-foreground">
+                {draft.courseDifferentiation.length.toLocaleString()} / 10,000자
+              </p>
+            </div>
           </CardContent>
         </Card>
 
@@ -1399,7 +1542,12 @@ export function CourseOperationsEditor({
                     ...current,
                     youtubeAppearances: [
                       ...current.youtubeAppearances,
-                      { channelName: "", channelUrl: "", videoUrl: "" },
+                      {
+                        channelName: "",
+                        channelUrl: "",
+                        videoUrl: "",
+                        landingUtm: "",
+                      },
                     ],
                   }))
                 }
@@ -1409,7 +1557,7 @@ export function CourseOperationsEditor({
               </Button>
             </div>
             <CardDescription>
-              출연 예정 채널과 게시 완료된 영상 주소를 기록합니다.
+              출연 예정 채널, 게시 완료된 영상 주소와 랜딩 UTM을 기록합니다.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -1437,18 +1585,19 @@ export function CourseOperationsEditor({
               </div>
             ) : (
               <div className="overflow-x-auto pb-1">
-                <div className="min-w-[900px] space-y-2">
-                  <div className="grid grid-cols-[180px_minmax(250px,1fr)_minmax(250px,1fr)_72px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
+                <div className="min-w-[1200px] space-y-2">
+                  <div className="grid grid-cols-[180px_minmax(240px,1fr)_minmax(240px,1fr)_minmax(280px,1fr)_72px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
                     <span>채널명</span>
                     <span>채널 주소</span>
                     <span>게시된 영상 주소</span>
+                    <span>랜딩 UTM</span>
                     <span className="sr-only">링크 열기</span>
                     <span className="sr-only">삭제</span>
                   </div>
                   {draft.youtubeAppearances.map((appearance, index) => (
                     <div
                       key={`youtube-${index}`}
-                      className="grid grid-cols-[180px_minmax(250px,1fr)_minmax(250px,1fr)_72px_44px] items-center gap-2"
+                      className="grid grid-cols-[180px_minmax(240px,1fr)_minmax(240px,1fr)_minmax(280px,1fr)_72px_44px] items-center gap-2"
                     >
                       <Input
                         id={`channel-name-${index}`}
@@ -1500,6 +1649,20 @@ export function CourseOperationsEditor({
                                   : item,
                             ),
                           }))
+                        }
+                      />
+                      <Input
+                        id={`landing-utm-${index}`}
+                        className="h-10"
+                        aria-label={`${index + 1}번 랜딩 UTM`}
+                        placeholder="utm_source=youtube&utm_medium=..."
+                        maxLength={2000}
+                        autoComplete="off"
+                        value={appearance.landingUtm}
+                        onChange={(event) =>
+                          updateYoutubeAppearance(index, {
+                            landingUtm: event.target.value,
+                          })
                         }
                       />
                       <Button
@@ -1905,6 +2068,10 @@ export function CourseOperationsEditor({
           )}
         </TabsContent>
 
+        <TabsContent value="costs" className="mt-0">
+          {courseId ? <CourseCostManager courseId={courseId} /> : null}
+        </TabsContent>
+
         <TabsContent value="settlement" className="mt-0">
           {courseId ? (
             <CourseSettlementManager
@@ -1920,12 +2087,14 @@ export function CourseOperationsEditor({
         </TabsContent>
       </Tabs>
 
-      <div className="flex justify-end border-t pt-6">
-        <Button className="min-h-10" onClick={saveCourse} disabled={saving}>
-          {saving ? <Loader2 className="animate-spin" /> : <Save />}
-          {saving ? "저장 중" : courseId ? "변경사항 저장" : "강의 만들기"}
-        </Button>
-      </div>
+      {activeTab !== "costs" && activeTab !== "settlement" ? (
+        <div className="flex justify-end border-t pt-6">
+          <Button className="min-h-10" onClick={saveCourse} disabled={saving}>
+            {saving ? <Loader2 className="animate-spin" /> : <Save />}
+            {saving ? "저장 중" : courseId ? "강의 정보 저장" : "강의 만들기"}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

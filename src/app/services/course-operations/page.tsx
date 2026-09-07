@@ -29,7 +29,7 @@ export default async function CourseOperationsPage() {
   const { data, error } = await supabase
     .from("courses")
     .select(
-      "id,name,instructor_name,free_webinar_at,starts_at,updated_at,required_tasks,course_options(id),course_jobs(id),message_studio_projects(id)",
+      "id,name,instructor_name,banner_image_path,free_webinar_at,starts_at,updated_at,required_tasks,course_options(id),course_jobs(id),message_studio_projects(id)",
     )
     .order("updated_at", { ascending: false });
   const courses = (data ?? []).map((course) => ({
@@ -105,6 +105,7 @@ export default async function CourseOperationsPage() {
           <div className="mt-6">
             <CourseOperationsList
               courses={courses}
+              todayKoreaDate={toKoreaDate(new Date().toISOString())}
               canDelete={hasAdminAccess(user.email, membership.role)}
             />
           </div>

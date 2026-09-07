@@ -10,6 +10,7 @@ const validInput = {
   startsAt: "2026-09-10T00:00:00+09:00",
   earlyBirdEvent: "8월 31일까지 10만원 할인",
   first50Event: "교재 증정",
+  courseDifferentiation: "  실무 사례를 활용한 단계별 실습 중심 강의  ",
   landingPageLink: "https://example.com/landing",
   freeKakaoRoom1Link: "https://open.kakao.com/o/free1",
   freeKakaoRoom2Link: "https://open.kakao.com/o/free2",
@@ -35,6 +36,7 @@ const validInput = {
       channelName: "비즈업 TV",
       channelUrl: "https://youtube.com/@bizup",
       videoUrl: "",
+      landingUtm: "  utm_source=youtube&utm_medium=video  ",
     },
   ],
   liveVideos: [
@@ -60,6 +62,14 @@ test("강의 운영 입력값을 DB 저장 형식으로 변환한다", () => {
   assert.equal(parsed.landingPageLink, "https://example.com/landing");
   assert.equal(parsed.freeKakaoRoom1Link, "https://open.kakao.com/o/free1");
   assert.equal(parsed.courseMaterialsLink, "https://example.com/materials");
+  assert.equal(
+    parsed.courseDifferentiation,
+    "실무 사례를 활용한 단계별 실습 중심 강의",
+  );
+  assert.equal(
+    parsed.youtubeAppearances[0].landingUtm,
+    "utm_source=youtube&utm_medium=video",
+  );
   assert.deepEqual(parsed.customLinks, [
     { name: "강사 자료실", url: "https://example.com/instructor-files" },
   ]);
@@ -74,6 +84,22 @@ test("강의 운영 입력값을 DB 저장 형식으로 변환한다", () => {
 test("강의 옵션이 없어도 입력값을 저장 형식으로 변환한다", () => {
   const parsed = parseCourseOperationsInput({ ...validInput, options: [] });
   assert.deepEqual(parsed.options, []);
+});
+
+test("강의 차별점은 선택값이며 최대 10,000자까지 저장한다", () => {
+  assert.equal(
+    parseCourseOperationsInput({ ...validInput, courseDifferentiation: "" })
+      .courseDifferentiation,
+    "",
+  );
+  assert.throws(
+    () =>
+      parseCourseOperationsInput({
+        ...validInput,
+        courseDifferentiation: "가".repeat(10_001),
+      }),
+    /강의 차별점.*10,000자/u,
+  );
 });
 
 test("기존 라이브 영상은 이름과 웹 주소가 필요하고 비고는 선택값이다", () => {
@@ -246,7 +272,12 @@ test("유튜브 채널 주소는 웹 URL이어야 한다", () => {
       parseCourseOperationsInput({
         ...validInput,
         youtubeAppearances: [
-          { channelName: "채널", channelUrl: "youtube", videoUrl: "" },
+          {
+            channelName: "채널",
+            channelUrl: "youtube",
+            videoUrl: "",
+            landingUtm: "",
+          },
         ],
       }),
     /http 또는 https/,
@@ -262,6 +293,7 @@ test("퍼센트 인코딩된 한글 유튜브 채널 주소를 한글로 저장�
         channelUrl:
           "https://www.youtube.com/@%EB%91%90%EC%8B%9C%EA%B0%84%EB%B6%80%EC%97%85%EB%A7%8C",
         videoUrl: "",
+        landingUtm: "",
       },
     ],
   });

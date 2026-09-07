@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { CourseOperationsEditor } from "@/components/course-operations/course-editor";
 import { PendingLinkLabel } from "@/components/navigation/pending-link-label";
 import { Button } from "@/components/ui/button";
+import { courseBannerUrl } from "@/lib/course-operations/banner";
 import { toCourseNote, type CourseNote } from "@/lib/course-operations/notes";
 import type { CourseOperationsDraft } from "@/lib/course-operations/types";
 import { normalizeRequiredTasks } from "@/lib/course-operations/required-tasks";
@@ -29,7 +30,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
   const { data: course, error: courseError } = await supabase
     .from("courses")
     .select(
-      "id,name,instructor_name,free_webinar_at,starts_at,landing_page_link,free_kakao_room_1_link,free_kakao_room_2_link,communication_room_link,payment_link,inquiry_link,curriculum_link,free_gift_link,course_viewing_link,course_materials_link,custom_links,free_address_book_id,required_tasks",
+      "id,name,instructor_name,banner_image_path,free_webinar_at,starts_at,landing_page_link,free_kakao_room_1_link,free_kakao_room_2_link,communication_room_link,payment_link,inquiry_link,curriculum_link,free_gift_link,course_viewing_link,course_materials_link,custom_links,free_address_book_id,required_tasks,updated_at",
     )
     .eq("id", courseId)
     .maybeSingle();
@@ -81,6 +82,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
     startsAt: course.starts_at,
     earlyBirdEvent: "",
     first50Event: "",
+    courseDifferentiation: "",
     landingPageLink: course.landing_page_link,
     freeKakaoRoom1Link: course.free_kakao_room_1_link,
     freeKakaoRoom2Link: course.free_kakao_room_2_link,
@@ -144,13 +146,18 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
         <CourseOperationsEditor
           courseId={courseId}
           initialDraft={draft}
+          initialBannerUrl={
+            course.banner_image_path
+              ? courseBannerUrl(courseId, course.updated_at)
+              : ""
+          }
           deferDetailSections
           currentUserId={user.id}
           currentUserEmail={user.email ?? "이메일 정보 없음"}
           initialNotes={notes}
           notesLoadError={notesLoadError}
           loadError={loadError}
-          initialTab={tab === "settlement" ? "settlement" : "information"}
+          initialTab={tab === "settlement" ? "settlement" : tab === "costs" ? "costs" : "information"}
         />
       </div>
     </main>

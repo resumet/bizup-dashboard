@@ -15,6 +15,11 @@ import {
   loadVideosSection,
 } from "@/lib/course-operations/detail-sections";
 import { parseCourseOperationsInput } from "@/lib/course-operations/validation";
+import {
+  readCourseOperationsRequest,
+  removeCourseBanner,
+  uploadCourseBanner,
+} from "@/lib/course-operations/banner-server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -128,13 +133,15 @@ export async function PATCH(
   { params }: { params: Promise<{ courseId: string }> },
 ) {
   const supabase = await createClient();
+  let uncommittedBannerPath = "";
   try {
     const user = await requireCourseOperationsUser(supabase);
-    const [{ courseId }, membership, body] = await Promise.all([
+    const [{ courseId }, membership, requestData] = await Promise.all([
       params,
       requireCourseOperationsMembership(user.id),
-      request.json(),
+      readCourseOperationsRequest(request),
     ]);
+    const { body, banner } = requestData;
     const input = parseCourseOperationsInput(body);
     const loadedDetailSections =
       typeof body === "object" && body !== null
@@ -151,13 +158,25 @@ export async function PATCH(
       (loadedDetailSections as Record<string, unknown>).sales === false
     );
     const admin = createAdminClient();
-    const { data: course } = await admin
+    const { data: course, error: courseError } = await admin
       .from("courses")
-      .select("id")
+      .select("id,banner_image_path")
       .eq("id", courseId)
       .eq("workspace_id", membership.workspace_id)
       .maybeSingle();
+    if (courseError) throw new Error(`강의 조회 실패: ${courseError.code}`);
     if (!course) throw new Error("NOT_FOUND");
+
+    if (banner.file) {
+      uncommittedBannerPath = await uploadCourseBanner(
+        admin,
+        membership.workspace_id,
+        courseId,
+        banner.file,
+      );
+    }
+    const nextBannerPath = uncommittedBannerPath ||
+      (banner.remove ? "" : course.banner_image_path ?? "");
 
     await assertLinkableItems(membership.workspace_id, input, courseId);
     await replaceCourseChildren(courseId, input, {
@@ -176,6 +195,7 @@ export async function PATCH(
           ? {
               early_bird_event: input.earlyBirdEvent,
               first_50_event: input.first50Event,
+              course_differentiation: input.courseDifferentiation,
             }
           : {}),
         landing_page_link: input.landingPageLink,
@@ -191,11 +211,18 @@ export async function PATCH(
         custom_links: input.customLinks,
         free_address_book_id: input.freeAddressBookId || null,
         required_tasks: input.requiredTasks,
+        banner_image_path: nextBannerPath,
         updated_at: new Date().toISOString(),
       })
       .eq("id", courseId)
       .eq("workspace_id", membership.workspace_id);
     if (error) throw new Error(`강의 저장 실패: ${error.code}`);
+
+    const previousBannerPath = course.banner_image_path ?? "";
+    if (previousBannerPath && previousBannerPath !== nextBannerPath) {
+      await removeCourseBanner(admin, previousBannerPath);
+    }
+    uncommittedBannerPath = "";
 
     await replaceCourseLinks(membership.workspace_id, courseId, input);
     await admin.from("audit_logs").insert({
@@ -208,6 +235,9 @@ export async function PATCH(
     });
     return Response.json({ id: courseId });
   } catch (error) {
+    if (uncommittedBannerPath) {
+      await removeCourseBanner(createAdminClient(), uncommittedBannerPath);
+    }
     return courseOperationsApiError(error);
   }
 }
@@ -232,7 +262,7 @@ export async function DELETE(
     const admin = createAdminClient();
     const { data: course, error: courseError } = await admin
       .from("courses")
-      .select("id,name")
+      .select("id,name,banner_image_path")
       .eq("id", courseId)
       .eq("workspace_id", membership.workspace_id)
       .maybeSingle();
@@ -245,6 +275,10 @@ export async function DELETE(
       .eq("id", courseId)
       .eq("workspace_id", membership.workspace_id);
     if (deleteError) throw new Error(`강의 삭제 실패: ${deleteError.code}`);
+
+    if (course.banner_image_path) {
+      await removeCourseBanner(admin, course.banner_image_path);
+    }
 
     await admin.from("audit_logs").insert({
       workspace_id: membership.workspace_id,

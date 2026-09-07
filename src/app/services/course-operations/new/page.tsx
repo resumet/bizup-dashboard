@@ -22,6 +22,7 @@ const EMPTY_DRAFT: CourseOperationsDraft = {
   startsAt: "",
   earlyBirdEvent: "",
   first50Event: "",
+  courseDifferentiation: "",
   landingPageLink: "",
   freeKakaoRoom1Link: "",
   freeKakaoRoom2Link: "",

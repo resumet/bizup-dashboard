@@ -6,7 +6,8 @@ export type CourseShareSection =
   | "links"
   | "events"
   | "options"
-  | "youtube";
+  | "youtube"
+  | "live-videos";
 
 export const COURSE_SHARE_SECTION_OPTIONS: Array<{
   value: CourseShareSection;
@@ -17,6 +18,7 @@ export const COURSE_SHARE_SECTION_OPTIONS: Array<{
   { value: "events", label: "판매 이벤트" },
   { value: "options", label: "강의 옵션과 가격" },
   { value: "youtube", label: "유튜브 출연" },
+  { value: "live-videos", label: "기존 라이브 영상" },
 ];
 
 export type CourseShareData = {
@@ -41,6 +43,11 @@ export type CourseShareData = {
     channelName: string;
     channelUrl: string;
     videoUrl: string;
+  }>;
+  liveVideos: Array<{
+    name: string;
+    videoUrl: string;
+    note: string;
   }>;
 };
 
@@ -159,6 +166,27 @@ export function buildCourseShareSummary(
                 .join("\n"),
             )
           : ["등록된 유튜브 출연 정보가 없습니다."]),
+      ].join("\n"),
+    );
+  }
+  if (selected.has("live-videos")) {
+    const liveVideos = data.liveVideos.filter((item) =>
+      [item.name, item.videoUrl, item.note].some((value) => value.trim()),
+    );
+    sections.push(
+      [
+        "[기존 라이브 영상]",
+        ...(liveVideos.length
+          ? liveVideos.map((item) =>
+              [
+                `• ${present(item.name, "영상 이름 미정")}`,
+                item.videoUrl.trim() ? `  주소: ${item.videoUrl}` : "",
+                item.note.trim() ? `  비고: ${item.note}` : "",
+              ]
+                .filter(Boolean)
+                .join("\n"),
+            )
+          : ["등록된 기존 라이브 영상이 없습니다."]),
       ].join("\n"),
     );
   }
