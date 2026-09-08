@@ -12,10 +12,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import type { CourseSummary } from "@/lib/course-operations/types";
-import { normalizeRequiredTasks } from "@/lib/course-operations/required-tasks";
+import { getCachedCourseSummaries } from "@/lib/course-operations/list-cache";
 import { toKoreaDate } from "@/lib/course-operations/schedule";
-import { applyTaskDeadlines } from "@/lib/course-operations/task-deadlines";
+import type { CourseSummary } from "@/lib/course-operations/types";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -26,19 +25,16 @@ export default async function CourseOperationsPage() {
   if (!user) redirect("/login");
   const membership = await requireCourseOperationsMembership(user.id);
 
-  const { data, error } = await supabase
-    .from("courses")
-    .select(
-      "id,name,instructor_name,banner_image_path,free_webinar_at,starts_at,updated_at,required_tasks,course_options(id),course_jobs(id),message_studio_projects(id)",
-    )
-    .order("updated_at", { ascending: false });
-  const courses = (data ?? []).map((course) => ({
-    ...course,
-    required_tasks: applyTaskDeadlines(
-      normalizeRequiredTasks(course.required_tasks),
-      toKoreaDate(course.free_webinar_at),
-    ),
-  })) as CourseSummary[];
+  let courses: CourseSummary[] = [];
+  let loadError = "";
+  try {
+    courses = await getCachedCourseSummaries(membership.workspace_id);
+  } catch (caught) {
+    loadError =
+      caught instanceof Error
+        ? caught.message
+        : "강의 목록을 불러오지 못했습니다.";
+  }
 
   return (
     <main className="min-h-screen">
@@ -71,18 +67,18 @@ export default async function CourseOperationsPage() {
           </Button>
         </div>
 
-        {error ? (
+        {loadError ? (
           <Alert variant="destructive" className="mt-6">
             <AlertTitle>강의 목록을 불러오지 못했습니다</AlertTitle>
             <AlertDescription>
-              {error.code === "PGRST205"
+              {/PGRST205|42P01/u.test(loadError)
                 ? "강의 운영 DB 마이그레이션을 먼저 적용해 주세요."
-                : error.message}
+                : loadError}
             </AlertDescription>
           </Alert>
         ) : null}
 
-        {!error && courses.length === 0 ? (
+        {!loadError && courses.length === 0 ? (
           <Card className="mt-6">
             <CardContent className="flex min-h-72 flex-col items-center justify-center text-center">
               <span className="mb-4 grid size-12 place-items-center rounded-full bg-primary/10 text-primary">
@@ -101,7 +97,7 @@ export default async function CourseOperationsPage() {
           </Card>
         ) : null}
 
-        {!error && courses.length > 0 ? (
+        {!loadError && courses.length > 0 ? (
           <div className="mt-6">
             <CourseOperationsList
               courses={courses}

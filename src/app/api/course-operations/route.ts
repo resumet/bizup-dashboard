@@ -7,6 +7,7 @@ import {
   requireCourseOperationsUser,
 } from "@/lib/course-operations/server";
 import { parseCourseOperationsInput } from "@/lib/course-operations/validation";
+import { invalidateCourseOperationsList } from "@/lib/course-operations/list-cache";
 import {
   readCourseOperationsRequest,
   removeCourseBanner,
@@ -89,6 +90,7 @@ export async function POST(request: Request) {
       entity_id: course.id,
       metadata: { name: input.name },
     });
+    invalidateCourseOperationsList();
     return Response.json({ id: course.id }, { status: 201 });
   } catch (error) {
     if (uploadedBannerPath) {

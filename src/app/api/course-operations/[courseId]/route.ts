@@ -15,6 +15,7 @@ import {
   loadVideosSection,
 } from "@/lib/course-operations/detail-sections";
 import { parseCourseOperationsInput } from "@/lib/course-operations/validation";
+import { invalidateCourseOperationsList } from "@/lib/course-operations/list-cache";
 import {
   readCourseOperationsRequest,
   removeCourseBanner,
@@ -233,6 +234,7 @@ export async function PATCH(
       entity_id: courseId,
       metadata: { name: input.name },
     });
+    invalidateCourseOperationsList();
     return Response.json({ id: courseId });
   } catch (error) {
     if (uncommittedBannerPath) {
@@ -288,6 +290,7 @@ export async function DELETE(
       entity_id: courseId,
       metadata: { name: course.name },
     });
+    invalidateCourseOperationsList();
     return Response.json({ message: "강의가 삭제되었습니다." });
   } catch (error) {
     return courseOperationsApiError(error);

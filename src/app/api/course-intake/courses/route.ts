@@ -7,6 +7,7 @@ import {
 } from "@/lib/course-intake/auth";
 import { getCourseIntakeConfig } from "@/lib/course-intake/config";
 import { parseCourseIntakeInput } from "@/lib/course-intake/validation";
+import { invalidateCourseOperationsList } from "@/lib/course-operations/list-cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -68,6 +69,7 @@ export async function POST(request: NextRequest) {
       entity_id: course.id,
       metadata: { name: input.courseName, source: "password_intake" },
     });
+    invalidateCourseOperationsList();
     return NextResponse.json({ id: course.id }, { status: 201 });
   } catch (error) {
     if (courseId) {

@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import sharp from "sharp";
 
 import {
   COURSE_BANNER_BUCKET,
@@ -11,6 +12,36 @@ type CourseBannerMutation = {
   file: File | null;
   remove: boolean;
 };
+
+export const COURSE_BANNER_MAX_WIDTH = 1_600;
+export const COURSE_BANNER_MAX_HEIGHT = 900;
+export const COURSE_BANNER_WEBP_QUALITY = 80;
+
+export async function optimizeCourseBanner(file: File) {
+  validateCourseBannerFile(file);
+  try {
+    return await sharp(Buffer.from(await file.arrayBuffer()), {
+      failOn: "error",
+      limitInputPixels: 40_000_000,
+    })
+      .rotate()
+      .resize({
+        width: COURSE_BANNER_MAX_WIDTH,
+        height: COURSE_BANNER_MAX_HEIGHT,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({
+        quality: COURSE_BANNER_WEBP_QUALITY,
+        alphaQuality: COURSE_BANNER_WEBP_QUALITY,
+        effort: 4,
+        smartSubsample: true,
+      })
+      .toBuffer();
+  } catch {
+    throw new Error(`${file.name}: 배너 이미지 파일을 처리할 수 없습니다.`);
+  }
+}
 
 export async function readCourseOperationsRequest(request: Request) {
   if (!request.headers.get("content-type")?.includes("multipart/form-data")) {
@@ -52,12 +83,13 @@ export async function uploadCourseBanner(
   courseId: string,
   file: File,
 ) {
-  const extension = validateCourseBannerFile(file);
-  const path = `${workspaceId}/${courseId}/${crypto.randomUUID()}.${extension}`;
+  const optimized = await optimizeCourseBanner(file);
+  const path = `${workspaceId}/${courseId}/${crypto.randomUUID()}.webp`;
   const { error } = await admin.storage
     .from(COURSE_BANNER_BUCKET)
-    .upload(path, Buffer.from(await file.arrayBuffer()), {
-      contentType: file.type,
+    .upload(path, optimized, {
+      contentType: "image/webp",
+      cacheControl: "31536000",
       upsert: false,
     });
   if (error) throw new Error(`배너 이미지 저장 실패: ${error.message}`);

@@ -79,7 +79,11 @@ import {
   validateCourseBannerFile,
 } from "@/lib/course-operations/banner";
 import { decodeReadableUrl } from "@/lib/course-operations/youtube-channels";
-import { calculateDiscountRate } from "@/lib/course-operations/pricing";
+import {
+  calculateDiscountRate,
+  calculateEarlyBirdDiscountAmount,
+  calculateTwelveMonthInstallment,
+} from "@/lib/course-operations/pricing";
 import {
   koreaDateTimeToIso,
   koreaDateToIso,
@@ -102,6 +106,10 @@ function formatPrice(value: string) {
 function formatDiscountRate(listPrice: string, salePrice: string) {
   const rate = calculateDiscountRate(listPrice, salePrice);
   return rate === null ? "-" : `${rate}%`;
+}
+
+function formatCalculatedPrice(value: number | null, suffix = "원") {
+  return value === null ? "-" : `${value.toLocaleString("ko-KR")}${suffix}`;
 }
 
 type CourseLinkFieldKey =
@@ -958,7 +966,8 @@ export function CourseOperationsEditor({
                   <div>
                     <p className="text-sm font-medium">16:9 가로 이미지를 권장합니다</p>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      JPG, PNG, WebP · 최대 8MB. 등록한 이미지는 강의 목록 카드 상단에 표시됩니다.
+                      JPG, PNG, WebP · 최대 8MB. 업로드 시 1600×900 이내
+                      WebP로 자동 최적화되며 강의 목록 카드 상단에 표시됩니다.
                     </p>
                     <Input
                       ref={bannerInputRef}
@@ -1359,18 +1368,21 @@ export function CourseOperationsEditor({
               </Button>
             </div>
             <CardDescription>
-              필요한 경우에만 옵션별 정가와 실제 판매 할인가를 입력합니다.
+              정상가와 판매가를 입력하면 할인금액과 12개월 무이자 월 납부액을
+              자동으로 계산합니다.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="pb-1">
               <div className="space-y-2">
                 {draft.options.length > 0 ? (
-                  <div className="hidden grid-cols-[minmax(120px,0.8fr)_110px_110px_64px_minmax(180px,1fr)_90px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground lg:grid">
+                  <div className="hidden grid-cols-[minmax(120px,0.8fr)_110px_110px_64px_130px_140px_minmax(180px,1fr)_90px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground xl:grid">
                     <span>옵션명</span>
-                    <span>정가</span>
-                    <span>할인가</span>
+                    <span>정상가</span>
+                    <span>판매가</span>
                     <span>할인율</span>
+                    <span>얼리버드 할인금액</span>
+                    <span>12개월 무이자</span>
                     <span>단톡방 주소</span>
                     <span>입장코드</span>
                     <span className="sr-only">삭제</span>
@@ -1383,7 +1395,7 @@ export function CourseOperationsEditor({
                 {draft.options.map((option, index) => (
                   <div
                     key={`option-${index}`}
-                    className="grid grid-cols-1 items-center gap-2 lg:grid-cols-[minmax(120px,0.8fr)_110px_110px_64px_minmax(180px,1fr)_90px_44px]"
+                    className="grid grid-cols-1 items-center gap-2 xl:grid-cols-[minmax(120px,0.8fr)_110px_110px_64px_130px_140px_minmax(180px,1fr)_90px_44px]"
                   >
                     <Input
                       id={`option-name-${index}`}
@@ -1405,7 +1417,7 @@ export function CourseOperationsEditor({
                     <Input
                       id={`list-price-${index}`}
                       className="h-10 text-right"
-                      aria-label={`${index + 1}번 옵션 정가`}
+                      aria-label={`${index + 1}번 옵션 정상가`}
                       inputMode="numeric"
                       placeholder="0"
                       value={formatPrice(option.listPrice)}
@@ -1429,7 +1441,7 @@ export function CourseOperationsEditor({
                     <Input
                       id={`sale-price-${index}`}
                       className="h-10 text-right"
-                      aria-label={`${index + 1}번 옵션 할인가`}
+                      aria-label={`${index + 1}번 옵션 판매가`}
                       inputMode="numeric"
                       placeholder="0"
                       value={formatPrice(option.salePrice)}
@@ -1456,6 +1468,39 @@ export function CourseOperationsEditor({
                     >
                       {formatDiscountRate(option.listPrice, option.salePrice)}
                     </Badge>
+                    <div
+                      className="flex h-10 items-center justify-between rounded-md border bg-muted/30 px-3 font-mono text-xs xl:justify-end"
+                      aria-label={`${index + 1}번 옵션 얼리버드 할인금액`}
+                    >
+                      <span className="text-muted-foreground xl:hidden">
+                        얼리버드 할인
+                      </span>
+                      <span>
+                        {formatCalculatedPrice(
+                          calculateEarlyBirdDiscountAmount(
+                            option.listPrice,
+                            option.salePrice,
+                          ),
+                        )}
+                      </span>
+                    </div>
+                    <div
+                      className="flex h-10 items-center justify-between rounded-md border bg-muted/30 px-3 font-mono text-xs xl:justify-end"
+                      aria-label={`${index + 1}번 옵션 12개월 무이자 월 납부액`}
+                    >
+                      <span className="text-muted-foreground xl:hidden">
+                        12개월 무이자
+                      </span>
+                      <span>
+                        {formatCalculatedPrice(
+                          calculateTwelveMonthInstallment(
+                            option.listPrice,
+                            option.salePrice,
+                          ),
+                          "원/월",
+                        )}
+                      </span>
+                    </div>
                     <Input
                       id={`group-chat-link-${index}`}
                       className="h-10"
