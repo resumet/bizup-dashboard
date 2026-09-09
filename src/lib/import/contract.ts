@@ -5,11 +5,14 @@ export const FIELD_LABELS: Record<StandardField, string> = {
   phone: "전화번호", referrer: "추천인", source: "유입 경로", adMedia: "광고 매체",
 };
 export type ImportErrorCode = "MISSING_PHONE" | "INVALID_PHONE";
+export type ImportNameConflict = { id: string; rowNumber: number; phone: string; name: string; otherNames: string[] };
 export type ImportPreview = {
   file: { name: string; size: number; checksumSha256: string };
   headers: string[];
   mapping: Partial<Record<StandardField, string>>;
-  summary: { totalRows: number; validRows: number; errorRows: number; duplicateGroups: number; duplicateRows: number };
+  summary: { totalRows: number; validRows: number; errorRows: number; duplicateGroups: number; duplicateRows: number; excludedOrderRows?: number };
+  orderStatusHeader?: string;
+  nameConflicts?: ImportNameConflict[];
   errors: Array<{ rowNumber: number; code: ImportErrorCode; reason: string; originalValue: string }>;
   preview: Array<Record<StandardField, string>>;
 };

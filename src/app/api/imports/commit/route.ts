@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import { persistRosterRecords } from "@/lib/import/persist-records";
+import { buildUpdatedRosterRecords, compareRosterRecords, type NameConflictDecisions } from "@/lib/import/roster-diff";
 import {
   analyzeRosterFile,
   MAX_IMPORT_BYTES,
@@ -46,7 +47,17 @@ export async function POST(request: Request) {
     const excludeInvalidPhoneRows =
       formData.get("excludeInvalidPhoneRows") === "true";
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const { preview, records } = await analyzeRosterFile(bytes, file.name);
+    const { preview, records: incomingRecords } = await analyzeRosterFile(bytes, file.name);
+    const conflicts = compareRosterRecords([], incomingRecords).nameConflicts;
+    const nameConflictDecisions = JSON.parse(String(formData.get("nameConflictDecisions") ?? "{}")) as NameConflictDecisions;
+    if (conflicts.length > 0 && (formData.get("expectedChecksum") !== preview.file.checksumSha256 ||
+      !nameConflictDecisions || typeof nameConflictDecisions !== "object" || Array.isArray(nameConflictDecisions) ||
+      conflicts.some(({ id }) => nameConflictDecisions[id] !== "add" && nameConflictDecisions[id] !== "skip"))) {
+      return Response.json({ message: "파일을 다시 분석하고, 전화번호가 같고 이름이 다른 모든 행의 추가 여부를 선택해 주세요." }, { status: 409 });
+    }
+    const records = buildUpdatedRosterRecords([], incomingRecords, {
+      approveAdditions: true, approveRemovals: false, nameConflictDecisions: nameConflictDecisions ?? {}, preserveSourceRowNumbers: true,
+    });
     if (preview.summary.errorRows > 0 && !excludeInvalidPhoneRows) {
       return Response.json(
         {
@@ -74,7 +85,7 @@ export async function POST(request: Request) {
     const { error: jobError } = await admin.from("course_jobs").insert({
       id: jobId, workspace_id: membership.workspace_id, name: jobName,
       default_course_name: defaultCourseName, status: "ready", latest_version: 1,
-      valid_count: preview.summary.validRows, error_count: preview.summary.errorRows, created_by: user.id,
+      valid_count: records.length, error_count: preview.summary.errorRows, created_by: user.id,
     });
     if (jobError) throw new Error(`작업 생성 실패: ${jobError.code}`);
 
@@ -110,7 +121,7 @@ export async function POST(request: Request) {
       throw recordError;
     }
 
-    await admin.from("audit_logs").insert({ workspace_id: membership.workspace_id, actor_id: user.id, event_type: "course_job.created", entity_type: "course_job", entity_id: jobId, metadata: { filename: file.name, row_count: preview.summary.totalRows, excluded_invalid_phone_rows: excludeInvalidPhoneRows ? preview.summary.errorRows : 0 } });
+    await admin.from("audit_logs").insert({ workspace_id: membership.workspace_id, actor_id: user.id, event_type: "course_job.created", entity_type: "course_job", entity_id: jobId, metadata: { filename: file.name, row_count: preview.summary.totalRows, excluded_invalid_phone_rows: excludeInvalidPhoneRows ? preview.summary.errorRows : 0, excluded_order_rows: preview.summary.excludedOrderRows ?? 0, name_conflict_decisions: nameConflictDecisions, final_count: records.length } });
     return Response.json({ jobId, message: "명단 원본과 작업이 저장되었습니다." }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "명단을 저장하지 못했습니다.";

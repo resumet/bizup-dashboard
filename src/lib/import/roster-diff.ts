@@ -16,12 +16,33 @@ export type RosterDiffResult = {
     current: StoredRosterRecord;
     incoming: StoredRosterRecord;
   }>;
+  nameConflicts: Array<{
+    id: string;
+    incoming: StoredRosterRecord;
+    otherNames: string[];
+  }>;
+  protectedCurrent: StoredRosterRecord[];
 };
+
+export type NameConflictDecisions = Record<string, "add" | "skip">;
+
+function comparisonName(record: StoredRosterRecord) {
+  return record.normalizedValues.customerName.normalize("NFKC").trim();
+}
 
 export function compareRosterRecords(
   current: StoredRosterRecord[],
   incoming: StoredRosterRecord[],
 ): RosterDiffResult {
+  const namesByPhone = new Map<string, Set<string>>();
+  for (const record of [...current, ...incoming]) {
+    const names = namesByPhone.get(record.normalizedPhone) ?? new Set<string>();
+    names.add(comparisonName(record));
+    namesByPhone.set(record.normalizedPhone, names);
+  }
+  const conflictPhones = new Set(incoming
+    .filter((record) => (namesByPhone.get(record.normalizedPhone)?.size ?? 0) > 1)
+    .map((record) => record.normalizedPhone));
   const currentBuckets = new Map<
     string,
     Array<{ index: number; record: StoredRosterRecord }>
@@ -35,8 +56,18 @@ export function compareRosterRecords(
   const matchedCurrentIndexes = new Set<number>();
   const matches: RosterDiffResult["matches"] = [];
   const additions: StoredRosterRecord[] = [];
+  const nameConflicts: RosterDiffResult["nameConflicts"] = [];
 
-  incoming.forEach((record) => {
+  incoming.forEach((record, index) => {
+    if (conflictPhones.has(record.normalizedPhone)) {
+      nameConflicts.push({
+        id: String(index),
+        incoming: record,
+        otherNames: [...namesByPhone.get(record.normalizedPhone)!]
+          .filter((name) => name !== comparisonName(record)),
+      });
+      return;
+    }
     const match = currentBuckets.get(record.normalizedPhone)?.shift();
     if (!match) {
       additions.push(record);
@@ -48,8 +79,10 @@ export function compareRosterRecords(
 
   return {
     additions,
-    removals: current.filter((_, index) => !matchedCurrentIndexes.has(index)),
+    removals: current.filter((record, index) => !matchedCurrentIndexes.has(index) && !conflictPhones.has(record.normalizedPhone)),
     matches,
+    nameConflicts,
+    protectedCurrent: current.filter((record) => conflictPhones.has(record.normalizedPhone)),
   };
 }
 
@@ -66,9 +99,14 @@ export function toRosterDiffItem(record: StoredRosterRecord): RosterDiffItem {
 export function buildUpdatedRosterRecords(
   current: StoredRosterRecord[],
   incoming: StoredRosterRecord[],
-  options: { approveAdditions: boolean; approveRemovals: boolean },
+  options: { approveAdditions: boolean; approveRemovals: boolean; nameConflictDecisions?: NameConflictDecisions; preserveSourceRowNumbers?: boolean },
 ) {
   const diff = compareRosterRecords(current, incoming);
+  const decisions = options.nameConflictDecisions ?? {};
+  if (diff.nameConflicts.some(({ id }) => decisions[id] !== "add" && decisions[id] !== "skip")) {
+    throw new Error("전화번호가 같고 이름이 다른 모든 항목의 추가 여부를 선택해 주세요.");
+  }
+  const conflictsByIndex = new Map(diff.nameConflicts.map((conflict) => [conflict.id, conflict]));
   const currentBuckets = new Map<string, StoredRosterRecord[]>();
   current.forEach((record) => {
     const bucket = currentBuckets.get(record.normalizedPhone) ?? [];
@@ -76,12 +114,17 @@ export function buildUpdatedRosterRecords(
     currentBuckets.set(record.normalizedPhone, bucket);
   });
 
-  const nextRecords = incoming.flatMap((record) => {
+  const nextRecords = incoming.flatMap((record, index) => {
+    if (conflictsByIndex.has(String(index))) {
+      return decisions[String(index)] === "add" ? [record] : [];
+    }
     const matched = currentBuckets.get(record.normalizedPhone)?.shift();
     if (!matched) return options.approveAdditions ? [record] : [];
 
     const normalizedValues = {
-      ...record.normalizedValues,
+      ...matched.normalizedValues,
+      ...Object.fromEntries(Object.entries(record.normalizedValues)
+        .filter(([, value]) => typeof value === "string" && value.trim() !== "")),
       groupChatJoined: matched.normalizedValues.groupChatJoined === true,
       memo:
         typeof matched.normalizedValues.memo === "string"
@@ -100,6 +143,7 @@ export function buildUpdatedRosterRecords(
     ];
   });
 
+  nextRecords.push(...diff.protectedCurrent);
   if (!options.approveRemovals) nextRecords.push(...diff.removals);
 
   const phoneCounts = new Map<string, number>();
@@ -112,7 +156,7 @@ export function buildUpdatedRosterRecords(
 
   return nextRecords.map((record, index) => ({
     ...record,
-    sourceRowNumber: index + 2,
+    sourceRowNumber: options.preserveSourceRowNumbers ? record.sourceRowNumber : index + 2,
     isDuplicate: (phoneCounts.get(record.normalizedPhone) ?? 0) > 1,
   }));
 }

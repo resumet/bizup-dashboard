@@ -27,7 +27,7 @@ export const MAX_IMPORT_BYTES = 20 * 1024 * 1024;
 const HEADER_ALIASES: Record<StandardField, string[]> = {
   courseName: ["강의명", "강좌명", "과정명"],
   optionName: ["옵션명", "옵션", "상품옵션"],
-  customerName: ["이름", "고객명", "성명", "신청자명"],
+  customerName: ["이름", "고객명", "성명", "신청자명", "회원명"],
   email: ["이메일", "email", "메일"],
   phone: [
     "연락처",
@@ -113,13 +113,17 @@ export function analyzeRosterCsv(bytes: Uint8Array, fileName: string): RosterAna
   const mapping = mapHeaders(headers);
   if (!mapping.phone) throw new Error("필수 전화번호 컬럼을 찾지 못했습니다. '연락처', '휴대전화번호', '전화번호', '휴대폰번호' 중 하나의 헤더가 필요합니다.");
 
+  const orderStatusHeader = headers.find((header) => normalizeHeader(header) === "주문상태");
+  const eligibleRows = rows.map((row, index) => ({ row, rowNumber: index + 2 }))
+    .filter(({ row }) => !orderStatusHeader || cleanValue(row[orderStatusHeader]).normalize("NFKC") === "결제완료");
+
   const errors: ImportPreview["errors"] = [];
   const normalizedPhones: string[] = [];
-  const normalizedRows = rows.map((row, index) => {
+  const normalizedRows = eligibleRows.map(({ row, rowNumber }) => {
     const originalPhone = cleanValue(row[mapping.phone!]);
     const phone = normalizePhoneForStorage(originalPhone);
-    if (!originalPhone) errors.push({ rowNumber: index + 2, code: "MISSING_PHONE", reason: "전화번호가 없습니다.", originalValue: "" });
-    else if (!phone) errors.push({ rowNumber: index + 2, code: "MISSING_PHONE", reason: "전화번호에서 숫자를 찾을 수 없습니다.", originalValue: originalPhone });
+    if (!originalPhone) errors.push({ rowNumber, code: "MISSING_PHONE", reason: "전화번호가 없습니다.", originalValue: "" });
+    else if (!phone) errors.push({ rowNumber, code: "MISSING_PHONE", reason: "전화번호에서 숫자를 찾을 수 없습니다.", originalValue: originalPhone });
     if (phone) normalizedPhones.push(phone);
 
     return Object.fromEntries(STANDARD_FIELDS.map((field) => [field, field === "phone" ? phone ?? "" : cleanValue(mapping[field] ? row[mapping[field]!] : "")])) as Record<StandardField, string>;
@@ -133,9 +137,11 @@ export function analyzeRosterCsv(bytes: Uint8Array, fileName: string): RosterAna
     file: { name: fileName, size: bytes.byteLength, checksumSha256: createHash("sha256").update(bytes).digest("hex") },
     headers,
     mapping,
+    ...(orderStatusHeader ? { orderStatusHeader } : {}),
     summary: {
       totalRows: rows.length,
-      validRows: rows.length - errors.length,
+      validRows: eligibleRows.length - errors.length,
+      excludedOrderRows: rows.length - eligibleRows.length,
       errorRows: errors.length,
       duplicateGroups: duplicateCounts.length,
       duplicateRows: duplicateCounts.reduce((sum, count) => sum + count, 0),
@@ -147,10 +153,10 @@ export function analyzeRosterCsv(bytes: Uint8Array, fileName: string): RosterAna
   const records = normalizedRows.flatMap((normalizedValues, index) => {
     if (!normalizedValues.phone) return [];
     return [{
-      sourceRowNumber: index + 2,
+      sourceRowNumber: eligibleRows[index].rowNumber,
       normalizedPhone: normalizedValues.phone,
       normalizedValues,
-      originalValues: rows[index],
+      originalValues: eligibleRows[index].row,
       isDuplicate: (phoneCounts.get(normalizedValues.phone) ?? 0) > 1,
     } satisfies StoredRosterRecord];
   });

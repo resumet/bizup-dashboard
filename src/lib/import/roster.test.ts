@@ -103,3 +103,37 @@ test("XLSX 수강생 명단도 CSV와 동일한 규칙으로 분석한다", asyn
   assert.equal(records[0].normalizedPhone, "01011112222");
   assert.equal(records[0].normalizedValues.customerName, "홍길동");
 });
+
+test("주문 엑셀의 회원명과 휴대전화번호를 매핑하고 결제완료만 원본 행 번호와 함께 가져온다", async () => {
+  const buffer = await writeXlsxFile([
+    ["회원명", "휴대전화번호", "주문상태"],
+    ["환불", "", "전액환불"],
+    ["결제 고객", "+82 10 1111 2222", "결제완료"],
+    ["대기", "", "입금대기"],
+    ["부분 환불", "010-3333-4444", "부분환불"],
+    ["다른 고객", "010-5555-6666", " 결제완료 "],
+    ["상태 없음", "010-7777-8888", ""],
+  ].map((row) => row.map((value) => ({ value })))).toBuffer();
+  const { records, preview } = await analyzeRosterFile(buffer, "purchase_order.xlsx");
+  assert.equal(preview.mapping.customerName, "회원명");
+  assert.equal(preview.mapping.phone, "휴대전화번호");
+  assert.equal(preview.orderStatusHeader, "주문상태");
+  assert.equal(preview.summary.totalRows, 6);
+  assert.equal(preview.summary.excludedOrderRows, 4);
+  assert.equal(preview.summary.validRows, 2);
+  assert.equal(preview.summary.errorRows, 0);
+  assert.equal(records[0].normalizedValues.customerName, "결제 고객");
+  assert.equal(records[0].normalizedPhone, "01011112222");
+  assert.deepEqual(records.map((row) => row.sourceRowNumber), [3, 6]);
+  assert.equal(records[1].originalValues["회원명"], "다른 고객");
+});
+
+test("결제완료 행의 전화번호 오류는 필터링 전 엑셀 행 번호로 보고한다", () => {
+  const { preview, records } = analyzeRosterCsv(new TextEncoder().encode(
+    "회원명,휴대전화번호,주문 상태\n환불,,전액환불\n고객,,결제완료",
+  ), "orders.csv");
+  assert.equal(preview.summary.excludedOrderRows, 1);
+  assert.equal(preview.summary.errorRows, 1);
+  assert.equal(preview.errors[0].rowNumber, 3);
+  assert.equal(records.length, 0);
+});

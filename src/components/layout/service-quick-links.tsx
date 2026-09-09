@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { AdminManagementButton } from "@/components/admin/admin-management-button";
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
+import { CourseShortcutsMenu } from "@/components/layout/course-shortcuts-menu";
 import { Button } from "@/components/ui/button";
 
 const SERVICE_LINKS = [
@@ -29,6 +30,7 @@ export function ServiceQuickLinks({ email }: { email: string }) {
           className="flex min-w-0 flex-1 gap-1 overflow-x-auto py-2"
           aria-label="서비스 바로가기"
         >
+          <CourseShortcutsMenu />
           {SERVICE_LINKS.map((service) => {
             const current = pathname.startsWith(service.href);
             return (

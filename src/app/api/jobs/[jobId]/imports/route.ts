@@ -5,6 +5,7 @@ import {
   buildUpdatedRosterRecords,
   compareRosterRecords,
   toRosterDiffItem,
+  type NameConflictDecisions,
 } from "@/lib/import/roster-diff";
 import {
   analyzeRosterFile,
@@ -102,6 +103,9 @@ export async function POST(request: Request, { params }: Context) {
         { status: 400 },
       );
     }
+    if (incomingRecords.length === 0) {
+      return Response.json({ message: "가져올 수강생이 없습니다. 주문상태가 있는 파일은 결제완료 항목만 가져옵니다." }, { status: 400 });
+    }
 
     const admin = createAdminClient();
     const currentRecords = await loadAllCurrentRecords(
@@ -121,7 +125,16 @@ export async function POST(request: Request, { params }: Context) {
           additions: diff.additions.length,
           removals: diff.removals.length,
           unchanged: diff.matches.length,
+          nameConflicts: diff.nameConflicts.length,
+          excludedOrderRows: preview.summary.excludedOrderRows ?? 0,
         },
+        orderStatusFiltered: !!preview.orderStatusHeader,
+        nameConflicts: diff.nameConflicts.map(({ id, incoming, otherNames }) => ({
+          id,
+          incoming: toRosterDiffItem(incoming),
+          rowNumber: incoming.sourceRowNumber,
+          otherNames,
+        })),
         additions: diff.additions.map(toRosterDiffItem),
         removals: diff.removals.map(toRosterDiffItem),
       });
@@ -149,10 +162,15 @@ export async function POST(request: Request, { params }: Context) {
 
     const approveAdditions = formData.get("approveAdditions") === "true";
     const approveRemovals = formData.get("approveRemovals") === "true";
+    const nameConflictDecisions = JSON.parse(String(formData.get("nameConflictDecisions") ?? "{}")) as NameConflictDecisions;
+    if (!nameConflictDecisions || typeof nameConflictDecisions !== "object" || Array.isArray(nameConflictDecisions) ||
+      diff.nameConflicts.some(({ id }) => nameConflictDecisions[id] !== "add" && nameConflictDecisions[id] !== "skip")) {
+      return Response.json({ message: "전화번호가 같고 이름이 다른 모든 항목의 추가 여부를 선택해 주세요." }, { status: 409 });
+    }
     const finalRecords = buildUpdatedRosterRecords(
       currentRecords,
       incomingRecords,
-      { approveAdditions, approveRemovals },
+      { approveAdditions, approveRemovals, nameConflictDecisions },
     );
     if (finalRecords.length === 0)
       throw new Error("적용 후 남는 수강생이 없습니다. 삭제 승인을 확인해 주세요.");
@@ -247,6 +265,9 @@ export async function POST(request: Request, { params }: Context) {
         removals_found: diff.removals.length,
         additions_applied: approveAdditions ? diff.additions.length : 0,
         removals_applied: approveRemovals ? diff.removals.length : 0,
+        name_conflict_decisions: nameConflictDecisions,
+        name_conflicts_added: diff.nameConflicts.filter(({ id }) => nameConflictDecisions[id] === "add").length,
+        excluded_order_rows: preview.summary.excludedOrderRows ?? 0,
         final_count: finalRecords.length,
       },
     });
