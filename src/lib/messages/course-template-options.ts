@@ -2,6 +2,9 @@ export type MessageCourse = {
   id: string;
   name: string;
   instructor_name: string;
+  landing_page_link?: string | null;
+  custom_links?: unknown;
+  free_address_book_id?: string | null;
   free_kakao_room_1_link: string;
   free_kakao_room_2_link: string;
   communication_room_link: string;
@@ -18,9 +21,10 @@ export function formatCourseSelectionLabel(course: MessageCourse) {
 }
 
 const COURSE_NAME_VARIABLES = new Set(["강의명", "강좌명"]);
-const COURSE_LINK_VARIABLES = new Set(["링크", "링크명"]);
+const COURSE_LINK_VARIABLES = new Set(["링크", "링크명", "입장링크"]);
 
 const COURSE_LINK_FIELDS = [
+  ["landing_page_link", "기본 랜딩페이지"],
   ["free_kakao_room_1_link", "무료카톡방 1번"],
   ["free_kakao_room_2_link", "무료카톡방 2번"],
   ["communication_room_link", "소통방"],
@@ -57,9 +61,29 @@ export function getCourseSelectionVariables(variables: string[], course?: Messag
 }
 
 export function getCourseLinkOptions(course: MessageCourse) {
-  return COURSE_LINK_FIELDS.map(([field, label]) => ({
+  const fixed = COURSE_LINK_FIELDS.map(([field, label]) => ({
     field,
     label,
     url: String(course[field] ?? "").trim(),
   }));
+  const custom = (Array.isArray(course.custom_links) ? course.custom_links : []).flatMap((link, index) => {
+    if (!link || typeof link.name !== "string" || typeof link.url !== "string") return [];
+    const label = link.name.trim();
+    const url = link.url.trim();
+    return label && url ? [{ field: `custom:${index}`, label, url }] : [];
+  });
+  return [...fixed, ...custom];
+}
+
+export function getLinkedMessageCourse(courses: MessageCourse[], bookId: string, rosterCourseId?: string | null) {
+  const matches = courses.filter((course) => rosterCourseId
+    ? course.id === rosterCourseId
+    : Boolean(bookId) && course.free_address_book_id === bookId);
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+export function getSelectedCourseLinkField(options: { field: string; url: string }[], value: string, selectedField?: string) {
+  if (selectedField === "__manual__") return selectedField;
+  const selected = options.find((option) => option.field === selectedField && option.url && option.url === value);
+  return selected?.field ?? options.find((option) => option.url && option.url === value)?.field ?? (value ? "__manual__" : "");
 }

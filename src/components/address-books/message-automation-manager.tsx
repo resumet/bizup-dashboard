@@ -34,6 +34,8 @@ import { formatPhone } from "@/lib/jobs/filter";
 import {
   formatCourseSelectionLabel,
   getCourseLinkOptions,
+  getLinkedMessageCourse,
+  getSelectedCourseLinkField,
   getCourseSelectionVariables,
   isInstructorNameVariable,
   isCourseLinkVariable,
@@ -50,6 +52,7 @@ import { getTemplateVariables } from "@/lib/messages/custom-template";
 import { formatTemplateSelectionLabel } from "@/lib/messages/shoong-guide";
 import { MessageRecipientPreview } from "./message-recipient-preview";
 import { SelectedTemplatePreview } from "./selected-template-preview";
+import { openableQuickLink } from "@/lib/course-operations/quick-links";
 import { parseRecipientSource, rosterSourceId } from "@/lib/messages/recipient-source";
 import {
   parseRosterSelection,
@@ -73,7 +76,7 @@ type Template = {
   variable_names: string[];
   is_system: boolean;
 };
-type Roster = { id: string; name: string; valid_count: number; latest_version: number; status: string; updated_at: string };
+type Roster = { id: string; name: string; course_id?: string | null; valid_count: number; latest_version: number; status: string; updated_at: string };
 type SelectedContact = {
   id: string;
   address_book_id: string;
@@ -163,8 +166,9 @@ export function MessageAutomationManager({
   const selectedCourse = courses.find(
     (course) => course.id === selectedCourseId,
   );
-  const courseLinkOptions = selectedCourse
-    ? getCourseLinkOptions(selectedCourse)
+  const linkCourse = selectedCourse ?? getLinkedMessageCourse(courses, bookId, selectedRoster?.course_id);
+  const courseLinkOptions = linkCourse
+    ? getCourseLinkOptions(linkCourse).filter((option) => option.url)
     : [];
   const templateVariables = selectedTemplate
     ? getTemplateVariables(
@@ -209,7 +213,7 @@ export function MessageAutomationManager({
   );
 
   function openCourseLink(variable: string) {
-    const url = variableValues[variable]?.trim();
+    const url = openableQuickLink(variableValues[variable]);
     if (!url) return;
     window.open(url, "_blank", "noopener,noreferrer");
   }
@@ -540,6 +544,7 @@ export function MessageAutomationManager({
                 const usesCourseName = isCourseNameVariable(variable);
                 const usesInstructorName = isInstructorNameVariable(variable);
                 const usesCourseLink = isCourseLinkVariable(variable);
+                const variableCourse = usesCourseLink ? linkCourse : selectedCourse;
                 const canUseRecipientName =
                   canMapVariableToRecipientName(variable);
                 const variableMode = variableModes[variable] ?? "manual";
@@ -550,9 +555,9 @@ export function MessageAutomationManager({
                     <Label htmlFor={`automation-variable-${variable}`}>
                       {variable}
                     </Label>
-                    {usesCourseName || usesInstructorName ? (
+                    {usesCourseName || usesInstructorName || usesCourseLink ? (
                       <Select
-                        value={selectedCourseId}
+                        value={variableCourse?.id ?? ""}
                         onValueChange={(courseId) => {
                           const course = courses.find(
                             (item) => item.id === courseId,
@@ -567,15 +572,15 @@ export function MessageAutomationManager({
                         }}
                       >
                         <SelectTrigger className="w-full" aria-label={`${variable}에 적용할 강의 선택`}>
-                          {selectedCourse ? (
+                          {variableCourse ? (
                             <span className="flex min-w-0 items-center gap-2">
                               <span className="truncate">
-                                {formatCourseSelectionLabel(selectedCourse)}
+                                {formatCourseSelectionLabel(variableCourse)}
                               </span>
                               <Check className="size-4 shrink-0 text-emerald-600" />
                             </span>
                           ) : (
-                            <SelectValue placeholder={usesInstructorName ? "강사명을 가져올 강의를 선택하세요" : "강의를 선택하세요"} />
+                            <SelectValue placeholder={usesCourseLink ? "링크를 가져올 강의 선택 (선택사항)" : usesInstructorName ? "강사명을 가져올 강의를 선택하세요" : "강의를 선택하세요"} />
                           )}
                         </SelectTrigger>
                         <SelectContent>
@@ -585,7 +590,7 @@ export function MessageAutomationManager({
                                 <span className="truncate">
                                   {formatCourseSelectionLabel(course)}
                                 </span>
-                                {selectedCourseId === course.id ? (
+                                {variableCourse?.id === course.id ? (
                                   <Check className="size-4 shrink-0 text-emerald-600" />
                                 ) : null}
                               </span>
@@ -638,23 +643,17 @@ export function MessageAutomationManager({
                     {usesCourseLink ? (
                       <div className="flex flex-wrap gap-2">
                         <Select
-                          value={
-                            selectedLinkFields[variable] ??
-                            courseLinkOptions.find(
-                              (option) =>
-                                option.url &&
-                                option.url === variableValues[variable],
-                            )?.field ??
-                            ""
-                          }
+                          value={getSelectedCourseLinkField(courseLinkOptions, variableValues[variable] ?? "", selectedLinkFields[variable])}
                           onValueChange={(field) => {
                             const option = courseLinkOptions.find(
                               (item) => item.field === field,
                             );
-                            setVariableValues((current) => ({
-                              ...current,
-                              [variable]: option?.url ?? "",
-                            }));
+                            if (field !== "__manual__") {
+                              setVariableValues((current) => ({
+                                ...current,
+                                [variable]: option?.url ?? "",
+                              }));
+                            }
                             setSelectedLinkFields((current) => ({
                               ...current,
                               [variable]: field,
@@ -662,18 +661,18 @@ export function MessageAutomationManager({
                             setCopiedLinkVariable("");
                             setResult("");
                           }}
-                          disabled={!selectedCourse}
                         >
-                          <SelectTrigger className="min-w-56 flex-1">
+                          <SelectTrigger className="min-w-0 flex-1" aria-label={`${variable} 링크 선택`}>
                             <SelectValue
                               placeholder={
-                                selectedCourse
-                                  ? "강의 링크를 선택하세요"
-                                  : "먼저 강의를 선택하세요"
+                                courseLinkOptions.length
+                                  ? "강의 링크 선택 또는 직접 입력"
+                                  : "직접 입력"
                               }
                             />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="__manual__">직접 입력</SelectItem>
                             {courseLinkOptions.map((option) => (
                               <SelectItem
                                 key={option.field}
@@ -689,7 +688,7 @@ export function MessageAutomationManager({
                         <Button
                           type="button"
                           variant="outline"
-                          disabled={!variableValues[variable]?.trim()}
+                          disabled={!openableQuickLink(variableValues[variable])}
                           onClick={() => openCourseLink(variable)}
                         >
                           <ExternalLink />새 창 열기
@@ -708,12 +707,18 @@ export function MessageAutomationManager({
                           {copiedLinkVariable === variable ? "복사됨" : "복사"}
                         </Button>
                       </div>
-                    ) : usesRecipientName ? null : (
+                    ) : null}
+                    {usesCourseLink ? <p className="text-xs text-muted-foreground">{courseLinkOptions.length ? "강의 링크를 선택하거나 아래에 URL을 직접 입력하세요." : "등록된 링크가 없습니다. URL을 직접 입력하거나 다른 강의를 선택하세요."}</p> : null}
+                    {usesRecipientName ? null : (
                       <Input
                         id={`automation-variable-${variable}`}
                         value={variableValues[variable] ?? ""}
-                        placeholder={`${variable} 값을 입력하세요`}
+                        placeholder={usesCourseLink ? "https://example.com · URL 직접 입력" : `${variable} 값을 입력하세요`}
                         onChange={(event) => {
+                          if (usesCourseLink) {
+                            setSelectedLinkFields((current) => ({ ...current, [variable]: "__manual__" }));
+                            setCopiedLinkVariable("");
+                          }
                           setVariableValues((current) => ({
                             ...current,
                             [variable]: event.target.value,

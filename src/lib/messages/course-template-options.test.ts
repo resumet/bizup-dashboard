@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   getCourseLinkOptions,
+  getLinkedMessageCourse,
+  getSelectedCourseLinkField,
   formatCourseSelectionLabel,
   getCourseSelectionVariables,
   isInstructorNameVariable,
@@ -58,15 +60,17 @@ test("강의명·강좌명과 링크·링크명 변수를 강의 선택 변수�
   assert.equal(isCourseNameVariable("강의시간"), false);
   assert.equal(isCourseLinkVariable("링크"), true);
   assert.equal(isCourseLinkVariable("링크명"), true);
+  assert.equal(isCourseLinkVariable("입장링크"), true);
   assert.equal(isCourseLinkVariable("입장코드"), false);
 });
 
-test("선택한 강의에서 이름과 URL을 가진 링크 옵션 8개를 만든다", () => {
+test("선택한 강의의 링크 관리 기본 항목 9개를 모두 포함한다", () => {
   const options = getCourseLinkOptions(course);
-  assert.equal(options.length, 8);
+  assert.equal(options.length, 9);
   assert.deepEqual(
     options.map((option) => option.label),
     [
+      "기본 랜딩페이지",
       "무료카톡방 1번",
       "무료카톡방 2번",
       "소통방",
@@ -77,4 +81,34 @@ test("선택한 강의에서 이름과 URL을 가진 링크 옵션 8개를 만�
       "강의 시청하기 링크",
     ],
   );
+});
+
+test("링크 관리의 커스텀 이름과 URL을 포함하고 비어 있거나 잘못된 항목은 제외한다", () => {
+  const options = getCourseLinkOptions({ ...course, landing_page_link: " https://example.com/landing ", custom_links: [
+    { name: " 강의 자료 ", url: " https://example.com/materials " },
+    { name: "강의 자료", url: "https://example.com/other" },
+    { name: "", url: "https://example.com" }, { name: "준비 중", url: "" }, null, { url: 123 },
+  ] });
+  assert.equal(options[0].url, "https://example.com/landing");
+  assert.deepEqual(options.slice(9), [
+    { field: "custom:0", label: "강의 자료", url: "https://example.com/materials" },
+    { field: "custom:1", label: "강의 자료", url: "https://example.com/other" },
+  ]);
+  assert.equal(getCourseLinkOptions({ ...course, custom_links: {} }).length, 9);
+});
+
+test("명단·주소록에 연결된 강의를 찾고 여러 강의가 연결된 주소록은 자동 선택하지 않는다", () => {
+  const linked = { ...course, free_address_book_id: "book-1" };
+  assert.equal(getLinkedMessageCourse([linked], "book-1")?.id, course.id);
+  assert.equal(getLinkedMessageCourse([linked], "roster:job-1", course.id)?.id, course.id);
+  assert.equal(getLinkedMessageCourse([linked], "other"), undefined);
+  assert.equal(getLinkedMessageCourse([linked, { ...linked, id: "course-2" }], "book-1"), undefined);
+});
+
+test("같은 URL의 다른 후보 이름과 직접 입력 선택을 유지하며 바뀐 후보를 잘못 표시하지 않는다", () => {
+  const options = [{ field: "link", url: "https://example.com" }, { field: "custom:0", url: "https://example.com" }];
+  assert.equal(getSelectedCourseLinkField(options, "https://example.com", "custom:0"), "custom:0");
+  assert.equal(getSelectedCourseLinkField(options, "https://example.com", "__manual__"), "__manual__");
+  assert.equal(getSelectedCourseLinkField(options, "https://other.com", "custom:0"), "__manual__");
+  assert.equal(getSelectedCourseLinkField([], "https://manual.com"), "__manual__");
 });

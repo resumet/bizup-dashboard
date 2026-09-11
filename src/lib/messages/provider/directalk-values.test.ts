@@ -22,11 +22,13 @@ test("DirecTalk의 링크·링크명 변수만 버튼 링크 형식으로 정규
     normalizeDirectalkVariables({
       링크명: "https://open.kakao.com/o/room",
       링크: "https://example.com/path",
+      입장링크: "https://example.com/entry",
       강좌명: "https://로 시작하는 강좌명",
     }),
     {
       링크명: "open.kakao.com/o/room",
       링크: "example.com/path",
+      입장링크: "example.com/entry",
       강좌명: "https://로 시작하는 강좌명",
     },
   );
