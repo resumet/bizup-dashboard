@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   getCourseLinkOptions,
   formatCourseSelectionLabel,
+  getCourseSelectionVariables,
+  isInstructorNameVariable,
   isCourseLinkVariable,
   isCourseNameVariable,
   type MessageCourse,
@@ -22,6 +24,19 @@ const course: MessageCourse = {
   free_gift_link: "https://example.com/gift",
   course_viewing_link: "https://example.com/watch",
 };
+
+test("강사명은 강의 이름과 분리된 강사 값으로 입력하고 다른 변수는 유지한다", () => {
+  assert.equal(isInstructorNameVariable(" 강사명 "), true);
+  assert.equal(isInstructorNameVariable("강좌명"), false);
+  assert.deepEqual(getCourseSelectionVariables(["강사명", "강좌명", "고객명", "링크명"], course), {
+    강사명: "플랫폼트리x맹렬",
+    강좌명: "플랫폼트리x맹렬의 AI 자동화 강의",
+    링크명: "",
+  });
+  assert.deepEqual(getCourseSelectionVariables(["강사명"], { ...course, instructor_name: " 다른 강사 " }), { 강사명: "다른 강사" });
+  assert.deepEqual(getCourseSelectionVariables(["강사명"], { ...course, instructor_name: "" }), { 강사명: "" });
+  assert.deepEqual(getCourseSelectionVariables(["강사명"]), { 강사명: "" });
+});
 
 test("강의 선택 표시와 Shoong 변수 값을 강사명의 강의명 형식으로 만든다", () => {
   assert.equal(

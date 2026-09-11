@@ -8,7 +8,7 @@ import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = {
-  searchParams: Promise<{ bookId?: string; contactId?: string }>;
+  searchParams: Promise<{ bookId?: string; contactId?: string; templateId?: string }>;
 };
 
 export default async function MessageAutomationPage({ searchParams }: Props) {
@@ -67,10 +67,12 @@ export default async function MessageAutomationPage({ searchParams }: Props) {
       </header>
       <div className="mx-auto max-w-[1600px] px-5 py-10 lg:px-8">
         <MessageAutomationManager
+          key={`${query.templateId ?? ""}:${query.bookId ?? ""}:${query.contactId ?? ""}`}
           books={booksResult.data ?? []}
           templates={templatesResult.data ?? []}
           courses={coursesResult.data ?? []}
           initialBookId={query.bookId ?? ""}
+          initialTemplateId={query.templateId ?? ""}
           selectedContact={contactResult.data}
           loadError={
             booksResult.error?.message ||

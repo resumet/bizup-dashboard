@@ -38,6 +38,12 @@ Supabase 없이도 현재 대시보드와 가져오기 진입 UI를 확인할 �
 
 제품 전체 요구사항은 `docs/BizUp_Service_Dashboard_PRD_v1.0.md`를 기준으로 합니다.
 
+## 고객별 문자 미리보기
+
+기존 DB에는 `supabase/migrations/202609100001_message_template_previews.sql`을 적용합니다. 템플릿 관리의 **미리보기 본문 설정**에서 발송 서비스에 등록된 본문을 `#{고객명}` 등 변수 표기까지 그대로 저장합니다. 본문은 워크스페이스별로 저장되며 실제 발송 서비스의 템플릿을 변경하지 않습니다.
+
+문자 보내기에서 주소록·템플릿·변수를 설정한 뒤 **첫 10명 미리보기**를 누르면 실제 발송과 같은 고객 ID 순서 및 전화번호 중복 제거 기준으로 최대 10명을 표시합니다. 한 명을 선택한 발송은 해당 고객만 표시합니다. 저장된 본문이 없으면 치환 변수만 표시하며, 설정을 변경하면 미리보기를 다시 조회해야 합니다. 이 조회는 문자를 발송하지 않습니다.
+
 ## Vercel 유튜브 다운로드 도구 배포
 
 Vercel Function은 영상 파일을 직접 응답하지 않습니다. `youtube-worker` 컨테이너를 별도로 배포한 뒤 Vercel에 `YOUTUBE_DOWNLOAD_WORKER_URL`, `YOUTUBE_DOWNLOAD_WORKER_TOKEN`을 설정하세요. 자세한 설정은 `youtube-worker/README.md`를 확인합니다.

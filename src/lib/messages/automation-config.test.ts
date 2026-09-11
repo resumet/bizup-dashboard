@@ -7,20 +7,23 @@ import {
   getRecipientNameVariables,
 } from "./automation-config";
 
-test("신청자·성함·이름 변수만 주소록 이름에 연결할 수 있다", () => {
+test("신청자·성함·이름·고객명 변수만 주소록 이름에 연결할 수 있다", () => {
   assert.equal(canMapVariableToRecipientName("신청자"), true);
   assert.equal(canMapVariableToRecipientName("성함"), true);
   assert.equal(canMapVariableToRecipientName("이름"), true);
+  assert.equal(canMapVariableToRecipientName("고객명"), true);
+  assert.equal(canMapVariableToRecipientName(" 고객명 "), true);
   assert.equal(canMapVariableToRecipientName("강의시간"), false);
   assert.equal(canMapVariableToRecipientName("링크명"), false);
 
   assert.deepEqual(
     getRecipientNameVariables({
       신청자: "address-book-name",
+      고객명: "address-book-name",
       성함: "manual",
       강의시간: "address-book-name",
     }),
-    ["신청자"],
+    ["고객명", "신청자"],
   );
 });
 

@@ -39,6 +39,23 @@ export function isCourseLinkVariable(variable: string) {
   return COURSE_LINK_VARIABLES.has(variable.trim());
 }
 
+export function isInstructorNameVariable(variable: string) {
+  return variable.trim() === "강사명";
+}
+
+export function getCourseSelectionVariables(variables: string[], course?: MessageCourse) {
+  return Object.fromEntries(variables.flatMap((variable) => {
+    if (isCourseNameVariable(variable)) {
+      return [[variable, course ? formatCourseSelectionLabel(course) : ""]];
+    }
+    if (isInstructorNameVariable(variable)) {
+      return [[variable, course?.instructor_name.trim() ?? ""]];
+    }
+    if (isCourseLinkVariable(variable)) return [[variable, ""]];
+    return [];
+  }));
+}
+
 export function getCourseLinkOptions(course: MessageCourse) {
   return COURSE_LINK_FIELDS.map(([field, label]) => ({
     field,

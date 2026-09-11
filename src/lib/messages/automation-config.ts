@@ -1,6 +1,6 @@
 export type VariableInputMode = "address-book-name" | "manual";
 
-const RECIPIENT_NAME_VARIABLES = new Set(["신청자", "성함", "이름"]);
+const RECIPIENT_NAME_VARIABLES = new Set(["신청자", "성함", "이름", "고객명"]);
 
 export function canMapVariableToRecipientName(variable: string) {
   return RECIPIENT_NAME_VARIABLES.has(variable.trim());

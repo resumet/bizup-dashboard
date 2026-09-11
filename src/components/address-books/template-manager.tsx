@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Braces, EllipsisVertical, Loader2, Plus, Trash2 } from "lucide-react";
+import { Braces, EllipsisVertical, Eye, Loader2, Plus, Send, Trash2 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getTemplateSendTypeLabel } from "@/lib/messages/shoong-guide";
+import { TemplatePreviewEditor } from "./template-preview-editor";
 
 type Template = {
   id: string;
@@ -37,16 +39,21 @@ type Template = {
   variable_names: string[];
   is_system: boolean;
   created_at: string;
+  preview_body?: string;
 };
 
 function TemplateCard({
   template,
   deletingId,
   onDelete,
+  selected,
+  onSelect,
 }: {
   template: Template;
   deletingId: string;
   onDelete: (template: Template) => void;
+  selected: boolean;
+  onSelect: () => void;
 }) {
   const sendTypeLabel = getTemplateSendTypeLabel(template.send_type);
   const variables =
@@ -55,7 +62,7 @@ function TemplateCard({
       : [template.applicant_variable, template.course_variable];
 
   return (
-    <Card className="overflow-hidden">
+    <Card className={`relative overflow-hidden transition-colors hover:border-primary/60 ${selected ? "border-primary bg-primary/5 ring-1 ring-primary" : ""}`}>
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -88,6 +95,7 @@ function TemplateCard({
                     size="icon-sm"
                     aria-label={`${template.name} 옵션 열기`}
                     disabled={Boolean(deletingId)}
+                    className="relative z-10"
                   >
                     {deletingId === template.id ? (
                       <Loader2 className="animate-spin" />
@@ -109,7 +117,17 @@ function TemplateCard({
             ) : null}
           </div>
         </div>
-        <CardTitle className="mt-3 text-lg">{template.name}</CardTitle>
+        <CardTitle className="mt-3 text-lg">
+          <button
+            type="button"
+            className="text-left after:absolute after:inset-0 after:cursor-pointer focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-primary"
+            aria-pressed={selected}
+            aria-controls="selected-template-preview"
+            onClick={onSelect}
+          >
+            {template.name}
+          </button>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 border-t pt-5">
         <div>
@@ -128,6 +146,7 @@ function TemplateCard({
             ))}
           </div>
         </div>
+        <p className="text-xs text-muted-foreground">{selected ? "선택됨 · 오른쪽에서 내용을 확인하세요" : "카드를 선택해 미리보기"}</p>
       </CardContent>
     </Card>
   );
@@ -136,9 +155,11 @@ function TemplateCard({
 export function TemplateManager({
   templates,
   loadError,
+  previewLoadError,
 }: {
   templates: Template[];
   loadError?: string;
+  previewLoadError?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -147,6 +168,12 @@ export function TemplateManager({
   const [error, setError] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [deletingId, setDeletingId] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [savedBodies, setSavedBodies] = useState<Record<string, string>>({});
+  const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
+  const selectedBody = selectedTemplate
+    ? savedBodies[selectedTemplate.id] ?? selectedTemplate.preview_body ?? ""
+    : "";
 
   function handleOpenChange(nextOpen: boolean) {
     if (saving) return;
@@ -321,6 +348,12 @@ export function TemplateManager({
           <AlertDescription>{loadError}</AlertDescription>
         </Alert>
       ) : null}
+      {previewLoadError ? (
+        <Alert variant="destructive">
+          <AlertTitle>미리보기 조회 실패</AlertTitle>
+          <AlertDescription>{previewLoadError}</AlertDescription>
+        </Alert>
+      ) : null}
       {deleteError ? (
         <Alert variant="destructive">
           <AlertTitle>템플릿을 삭제할 수 없습니다</AlertTitle>
@@ -329,7 +362,8 @@ export function TemplateManager({
       ) : null}
 
       {!loadError ? (
-        <div className="space-y-10">
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] xl:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="min-w-0 space-y-10">
           {templateSections.map((section) => (
             <section key={section.key} aria-labelledby={`${section.key}-title`}>
               <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -354,19 +388,58 @@ export function TemplateManager({
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-5 md:grid-cols-2">
                   {section.templates.map((template) => (
                     <TemplateCard
                       key={template.id}
                       template={template}
                       deletingId={deletingId}
                       onDelete={deleteTemplate}
+                      selected={selectedTemplateId === template.id}
+                      onSelect={() => setSelectedTemplateId(template.id)}
                     />
                   ))}
                 </div>
               )}
             </section>
           ))}
+          </div>
+          <aside id="selected-template-preview" className="order-first min-w-0 lg:sticky lg:top-6 lg:order-last" aria-label="선택한 템플릿 미리보기">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Eye className="size-5" />템플릿 미리보기</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {selectedTemplate ? (
+                  <>
+                    <div aria-live="polite">
+                      <Badge variant="outline">{getTemplateSendTypeLabel(selectedTemplate.send_type) || selectedTemplate.send_type}</Badge>
+                      <h2 className="mt-2 break-words text-lg font-semibold">{selectedTemplate.name}</h2>
+                      {selectedBody.trim() ? (
+                        <div className="mt-3 max-h-[50vh] overflow-y-auto whitespace-pre-wrap break-words rounded-xl border bg-muted/30 p-4 text-sm leading-relaxed">{selectedBody}</div>
+                      ) : (
+                        <p className="mt-3 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">저장된 미리보기 본문이 없습니다. 아래에서 본문을 설정해 주세요.</p>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">변수는 발송 화면에서 고객별 값으로 설정할 수 있습니다.</p>
+                    <Button asChild className="w-full">
+                      <Link href={`/services/message-automation?templateId=${encodeURIComponent(selectedTemplate.id)}`}><Send />보내기</Link>
+                    </Button>
+                    <TemplatePreviewEditor
+                      key={`${selectedTemplate.id}:${selectedTemplate.preview_body ?? ""}`}
+                      templateId={selectedTemplate.id}
+                      templateName={selectedTemplate.name}
+                      initialBody={selectedBody}
+                      showPreviewButton={false}
+                      onBodyChange={(body) => setSavedBodies((current) => ({ ...current, [selectedTemplate.id]: body }))}
+                    />
+                  </>
+                ) : (
+                  <p className="py-10 text-center text-sm text-muted-foreground">템플릿 카드를 선택하면 본문과 보내기 버튼이 표시됩니다.</p>
+                )}
+              </CardContent>
+            </Card>
+          </aside>
         </div>
       ) : null}
     </div>

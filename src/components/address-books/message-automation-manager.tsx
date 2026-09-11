@@ -31,6 +31,8 @@ import { formatPhone } from "@/lib/jobs/filter";
 import {
   formatCourseSelectionLabel,
   getCourseLinkOptions,
+  getCourseSelectionVariables,
+  isInstructorNameVariable,
   isCourseLinkVariable,
   isCourseNameVariable,
   type MessageCourse,
@@ -43,6 +45,8 @@ import {
 } from "@/lib/messages/automation-config";
 import { getTemplateVariables } from "@/lib/messages/custom-template";
 import { formatTemplateSelectionLabel } from "@/lib/messages/shoong-guide";
+import { MessageRecipientPreview } from "./message-recipient-preview";
+import { SelectedTemplatePreview } from "./selected-template-preview";
 
 type Book = {
   id: string;
@@ -73,6 +77,7 @@ export function MessageAutomationManager({
   templates,
   courses,
   initialBookId,
+  initialTemplateId,
   selectedContact,
   loadError,
 }: {
@@ -80,13 +85,18 @@ export function MessageAutomationManager({
   templates: Template[];
   courses: MessageCourse[];
   initialBookId: string;
+  initialTemplateId?: string;
   selectedContact: SelectedContact;
   loadError?: string;
 }) {
   const [bookId, setBookId] = useState(
     selectedContact?.address_book_id || initialBookId || "",
   );
-  const [templateId, setTemplateId] = useState(templates[0]?.id ?? "");
+  const [templateId, setTemplateId] = useState(
+    initialTemplateId
+      ? templates.find((template) => template.id === initialTemplateId)?.id ?? ""
+      : templates[0]?.id ?? "",
+  );
   const [variableValues, setVariableValues] = useState<Record<string, string>>(
     {},
   );
@@ -399,6 +409,14 @@ export function MessageAutomationManager({
                 Template Code: {selectedTemplate.template_code}
               </p>
             ) : null}
+            {selectedTemplate ? (
+              <SelectedTemplatePreview
+                key={selectedTemplate.id}
+                templateId={selectedTemplate.id}
+                name={selectedTemplate.name}
+                sendType={selectedTemplate.send_type}
+              />
+            ) : null}
           </CardContent>
         </Card>
       </div>
@@ -414,6 +432,7 @@ export function MessageAutomationManager({
             <div className="grid gap-4 md:grid-cols-2">
               {templateVariables.map((variable) => {
                 const usesCourseName = isCourseNameVariable(variable);
+                const usesInstructorName = isInstructorNameVariable(variable);
                 const usesCourseLink = isCourseLinkVariable(variable);
                 const canUseRecipientName =
                   canMapVariableToRecipientName(variable);
@@ -425,7 +444,7 @@ export function MessageAutomationManager({
                     <Label htmlFor={`automation-variable-${variable}`}>
                       {variable}
                     </Label>
-                    {usesCourseName ? (
+                    {usesCourseName || usesInstructorName ? (
                       <Select
                         value={selectedCourseId}
                         onValueChange={(courseId) => {
@@ -435,27 +454,13 @@ export function MessageAutomationManager({
                           setSelectedCourseId(courseId);
                           setVariableValues((current) => ({
                             ...current,
-                            ...Object.fromEntries(
-                              templateVariables
-                                .filter(isCourseNameVariable)
-                                .map((nameVariable) => [
-                                  nameVariable,
-                                  course
-                                    ? formatCourseSelectionLabel(course)
-                                    : "",
-                                ]),
-                            ),
-                            ...Object.fromEntries(
-                              templateVariables
-                                .filter(isCourseLinkVariable)
-                                .map((linkVariable) => [linkVariable, ""]),
-                            ),
+                            ...getCourseSelectionVariables(templateVariables, course),
                           }));
                           setSelectedLinkFields({});
                           setResult("");
                         }}
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className="w-full" aria-label={`${variable}에 적용할 강의 선택`}>
                           {selectedCourse ? (
                             <span className="flex min-w-0 items-center gap-2">
                               <span className="truncate">
@@ -464,7 +469,7 @@ export function MessageAutomationManager({
                               <Check className="size-4 shrink-0 text-emerald-600" />
                             </span>
                           ) : (
-                            <SelectValue placeholder="강의를 선택하세요" />
+                            <SelectValue placeholder={usesInstructorName ? "강사명을 가져올 강의를 선택하세요" : "강의를 선택하세요"} />
                           )}
                         </SelectTrigger>
                         <SelectContent>
@@ -503,6 +508,26 @@ export function MessageAutomationManager({
                           </SelectItem>
                         </SelectContent>
                       </Select>
+                    ) : null}
+                    {usesInstructorName ? (
+                      <p className="text-xs text-muted-foreground">강의를 선택하면 강사명이 자동 입력됩니다. 직접 입력하거나 수정할 수도 있습니다.</p>
+                    ) : null}
+                    {usesCourseName ? (
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs text-muted-foreground">발송할 강좌명을 직접 입력하거나 수정하세요. 강의를 다시 선택하면 해당 강의명으로 바뀝니다.</p>
+                        {selectedCourse ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={variableValues[variable] === formatCourseSelectionLabel(selectedCourse)}
+                            onClick={() => {
+                              setVariableValues((current) => ({ ...current, [variable]: formatCourseSelectionLabel(selectedCourse) }));
+                              setResult("");
+                            }}
+                          >강의명으로 복원</Button>
+                        ) : null}
+                      </div>
                     ) : null}
                     {usesCourseLink ? (
                       <div className="flex flex-wrap gap-2">
@@ -577,7 +602,7 @@ export function MessageAutomationManager({
                           {copiedLinkVariable === variable ? "복사됨" : "복사"}
                         </Button>
                       </div>
-                    ) : usesCourseName || usesRecipientName ? null : (
+                    ) : usesRecipientName ? null : (
                       <Input
                         id={`automation-variable-${variable}`}
                         value={variableValues[variable] ?? ""}
@@ -602,6 +627,17 @@ export function MessageAutomationManager({
           )}
         </CardContent>
       </Card>
+
+      <MessageRecipientPreview
+        bookId={bookId}
+        contactId={selectedContact?.id}
+        templateId={templateId}
+        templateName={selectedTemplate?.name ?? ""}
+        variables={variableValues}
+        recipientNameVariables={recipientNameVariables}
+        settingsKey={currentTestKey}
+        ready={settingsReady}
+      />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
