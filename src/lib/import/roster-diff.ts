@@ -139,6 +139,7 @@ export function buildUpdatedRosterRecords(
         ...record,
         normalizedValues,
         isExtraParticipant: matched.isExtraParticipant === true,
+        isManuallyAdded: matched.isManuallyAdded === true,
       },
     ];
   });

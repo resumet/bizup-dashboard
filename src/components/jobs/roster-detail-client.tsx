@@ -19,6 +19,7 @@ import { RosterAnalysisCards } from "@/components/jobs/roster-analysis-cards";
 import { DeleteSelectedEnrollmentsButton } from "@/components/jobs/delete-selected-enrollments-button";
 import { EnrollmentMemoInput } from "@/components/jobs/enrollment-memo-input";
 import { ManualEnrollmentDialog } from "@/components/jobs/manual-enrollment-dialog";
+import { ManualEnrollmentName } from "@/components/jobs/manual-enrollment-name";
 import { RosterNotesCard } from "@/components/jobs/roster-notes-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -552,7 +553,21 @@ export function RosterDetailClient({
                     />
                   </TableCell>
                   <TableCell className="font-medium">
-                    {row.values.customerName || "-"}
+                    <ManualEnrollmentName
+                      jobId={jobId}
+                      enrollmentId={row.id}
+                      name={row.values.customerName}
+                      editable={row.isManuallyAdded}
+                      onSaved={(customerName) =>
+                        setRows((current) =>
+                          current.map((item) =>
+                            item.id === row.id
+                              ? { ...item, values: { ...item.values, customerName } }
+                              : item,
+                          ),
+                        )
+                      }
+                    />
                     {row.isDuplicate && (
                       <Badge variant="secondary" className="ml-2">
                         중복

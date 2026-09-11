@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseManualEnrollmentInput } from "./manual-enrollment";
+import { parseManualEnrollmentInput, parseManualEnrollmentName } from "./manual-enrollment";
 
 test("수동 추가 수강생의 입력값과 전화번호를 정규화한다", () => {
   const parsed = parseManualEnrollmentInput({
@@ -20,6 +20,12 @@ test("수동 추가 수강생의 입력값과 전화번호를 정규화한다", 
     source: "",
     adMedia: "",
   });
+});
+
+test("수동 추가 수강생 이름을 정리하고 빈 값과 최대 길이를 거부한다", () => {
+  assert.equal(parseManualEnrollmentName("  새 이름  "), "새 이름");
+  assert.throws(() => parseManualEnrollmentName("   "), /이름/);
+  assert.throws(() => parseManualEnrollmentName("가".repeat(121)), /120자/);
 });
 
 test("수동 추가 시 이름, 숫자 연락처, 이메일 형식을 검증한다", () => {

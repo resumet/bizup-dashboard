@@ -19,6 +19,7 @@ const rows = [
     isDuplicate: false,
     groupChatJoined: true,
     isExtraParticipant: false,
+    isManuallyAdded: false,
     memo: "재결제 확인",
     values: {
       courseName: "AI 실전",
@@ -38,6 +39,7 @@ const rows = [
     isDuplicate: false,
     groupChatJoined: false,
     isExtraParticipant: false,
+    isManuallyAdded: false,
     memo: "",
     values: {
       courseName: "AI 실전",

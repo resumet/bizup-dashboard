@@ -15,7 +15,7 @@ export async function loadJobEnrollmentRows(
     const { data, error } = await supabase
       .from("job_enrollments")
       .select(
-        "id,source_row_number,normalized_phone,normalized_values,is_duplicate,is_extra_participant",
+        "id,source_row_number,normalized_phone,normalized_values,is_duplicate,is_extra_participant,is_manually_added",
       )
       .eq("job_id", jobId)
       .eq("version", version)
@@ -35,6 +35,7 @@ export async function loadJobEnrollmentRows(
           isDuplicate: row.is_duplicate,
           groupChatJoined: normalizedValues?.groupChatJoined === true,
           isExtraParticipant: row.is_extra_participant === true,
+          isManuallyAdded: row.is_manually_added === true,
           memo:
             typeof normalizedValues?.memo === "string"
               ? normalizedValues.memo

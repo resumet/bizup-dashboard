@@ -14,6 +14,13 @@ function clean(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+export function parseManualEnrollmentName(value: unknown) {
+  const name = clean(value);
+  if (!name) throw new Error("이름을 입력해 주세요.");
+  if (name.length > 120) throw new Error("이름은 120자 이하여야 합니다.");
+  return name;
+}
+
 export function parseManualEnrollmentInput(
   value: unknown,
 ): ManualEnrollmentInput {
@@ -22,8 +29,7 @@ export function parseManualEnrollmentInput(
   }
 
   const body = value as Record<string, unknown>;
-  const customerName = clean(body.customerName);
-  if (!customerName) throw new Error("이름을 입력해 주세요.");
+  const customerName = parseManualEnrollmentName(body.customerName);
 
   const normalizedPhone = normalizePhoneForStorage(body.phone);
   if (!normalizedPhone) {

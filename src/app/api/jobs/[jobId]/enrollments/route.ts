@@ -16,6 +16,8 @@ type EnrollmentRecord = {
   normalized_values: Record<string, unknown>;
   original_values: Record<string, unknown>;
   source_row_number: number;
+  is_extra_participant: boolean;
+  is_manually_added: boolean;
 };
 
 async function loadAllEnrollments(
@@ -28,7 +30,7 @@ async function loadAllEnrollments(
     const { data, error } = await admin
       .from("job_enrollments")
       .select(
-        "id,student_id,normalized_phone,normalized_values,original_values,source_row_number",
+        "id,student_id,normalized_phone,normalized_values,original_values,source_row_number,is_extra_participant,is_manually_added",
       )
       .eq("job_id", jobId)
       .eq("version", version)
@@ -165,6 +167,7 @@ export async function POST(request: Request, { params }: Context) {
         source_row_number: sourceRowNumber,
         is_duplicate: false,
         is_extra_participant: false,
+        is_manually_added: true,
       })
       .select("id")
       .single();
@@ -214,6 +217,7 @@ export async function POST(request: Request, { params }: Context) {
           isDuplicate: false,
           groupChatJoined: false,
           isExtraParticipant: false,
+          isManuallyAdded: true,
           memo: "",
           values: normalizedValues,
         },
@@ -307,6 +311,8 @@ export async function DELETE(request: Request, { params }: Context) {
               source_row_number: start + index + 2,
               is_duplicate:
                 (phoneCounts.get(row.normalized_phone ?? "") ?? 0) > 1,
+              is_extra_participant: row.is_extra_participant,
+              is_manually_added: row.is_manually_added,
             })),
           );
         if (insertError)

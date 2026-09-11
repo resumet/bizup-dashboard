@@ -7,6 +7,7 @@ export type RosterRow = {
   isDuplicate: boolean;
   groupChatJoined: boolean;
   isExtraParticipant: boolean;
+  isManuallyAdded: boolean;
   memo: string;
   values: Record<StandardField, string>;
 };
