@@ -17,14 +17,14 @@ Supabase 없이도 현재 대시보드와 가져오기 진입 UI를 확인할 �
 1. Supabase Dashboard에서 프로젝트의 **SQL Editor → New query**를 엽니다.
 2. `supabase/migrations`의 SQL을 파일명 순서대로 적용합니다.
 3. `/login`에서 계정을 생성합니다. `resumet@gmail.com`은 최고관리자, 나머지 신규 계정은 사용자 권한으로 공용 워크스페이스에 연결됩니다.
-4. `/services/course-roster/new`에서 CSV를 검증한 뒤 **명단 저장**을 누릅니다.
+4. `/services/course-roster/new`에서 CSV 또는 XLSX 파일을 검증한 뒤 **명단 저장**을 누릅니다.
 
-`course-files` 버킷은 private이며 20MB CSV만 허용합니다. 저장 API는 로그인 세션과 워크스페이스 멤버십을 검증한 뒤 원본 파일, 작업, 파일 버전 및 감사 로그를 기록합니다.
+`course-files` 버킷은 private이며 20MB 이하의 CSV와 XLSX를 허용합니다. 저장 API는 로그인 세션과 워크스페이스 멤버십을 검증한 뒤 원본 파일, 작업, 파일 버전 및 감사 로그를 기록합니다.
 
 ## 현재 구현 범위
 
 - 서비스 대시보드와 상태별 실행 제어 UI
-- 수강생 명단 작업 목록과 UTF-8 CSV 업로드
+- 수강생 명단 작업 목록과 UTF-8 CSV/XLSX 업로드
 - 샘플 형식 자동 컬럼 매핑, 전화번호 정규화, 오류·중복 검증, 마스킹 미리보기
 - Supabase 브라우저/서버 클라이언트 기반
 - 이메일 로그인/계정 생성과 서버 세션 갱신

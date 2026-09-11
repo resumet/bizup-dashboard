@@ -10,7 +10,16 @@ import {
   normalizePhone,
   normalizePhoneForStorage,
   parseRosterCsv,
+  rosterFileContentType,
 } from "./roster";
+
+test("수강생 명단 원본 형식에 맞는 Storage MIME 타입을 사용한다", () => {
+  assert.equal(rosterFileContentType("수강생.csv"), "text/csv");
+  assert.equal(
+    rosterFileContentType("수강생.XLSX"),
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  );
+});
 
 test("국내 전화번호 표현을 표준 형식으로 변환한다", () => {
   assert.equal(normalizePhone("010-2589-3353"), "01025893353");
