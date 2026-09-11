@@ -14,6 +14,19 @@ export function messageHistorySourceId(job: { address_book_id: string | null; co
   return job.course_job_id ? rosterSourceId(job.course_job_id) : job.address_book_id ?? "";
 }
 
+export function messageSourceMatches(
+  sourceId: string,
+  message: {
+    address_book_id: string | null;
+    course_job_id?: string | null;
+  },
+) {
+  const source = parseRecipientSource(sourceId);
+  return source.kind === "roster"
+    ? message.course_job_id === source.id
+    : message.address_book_id === source.id;
+}
+
 type MessageSourceRelation = { name: string } | { name: string }[] | null;
 
 export function messageHistorySourceName(job: {

@@ -1,7 +1,7 @@
 import { syncMessageDeliveryResults } from "@/lib/messages/delivery-sync";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
-import { parseRecipientSource } from "@/lib/messages/recipient-source";
+import { messageSourceMatches } from "@/lib/messages/recipient-source";
 
 type Context = {
   params: Promise<{ bookId: string; messageId: string }>;
@@ -12,7 +12,6 @@ export const maxDuration = 60;
 
 export async function POST(_: Request, { params }: Context) {
   const { bookId, messageId } = await params;
-  const source = parseRecipientSource(bookId);
   const supabase = await createClient();
   const user = await getAuthenticatedUser(supabase);
   if (!user) {
@@ -21,11 +20,11 @@ export async function POST(_: Request, { params }: Context) {
 
   const { data: message } = await supabase
     .from("address_book_message_jobs")
-    .select("id,provider")
+    .select("id,provider,address_book_id,course_job_id")
     .eq("id", messageId)
-    .eq(source.kind === "roster" ? "course_job_id" : "address_book_id", source.id)
     .maybeSingle();
-  if (!message) {
+  const sourceMatches = message && messageSourceMatches(bookId, message);
+  if (!message || !sourceMatches) {
     return Response.json(
       { message: "발송 이력을 찾을 수 없습니다." },
       { status: 404 },

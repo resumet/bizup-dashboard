@@ -24,7 +24,7 @@ import {
 import { formatPhone } from "@/lib/jobs/filter";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
-import { messageHistorySourceName, parseRecipientSource } from "@/lib/messages/recipient-source";
+import { messageHistorySourceName, messageSourceMatches } from "@/lib/messages/recipient-source";
 
 type PageProps = {
   params: Promise<{ bookId: string; messageId: string }>;
@@ -74,7 +74,6 @@ export default async function AddressMessageHistoryDetailPage({
   searchParams,
 }: PageProps) {
   const { bookId, messageId } = await params;
-  const source = parseRecipientSource(bookId);
   const query = await searchParams;
   const parsedPage = Number.parseInt(query.page ?? "1", 10);
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
@@ -88,10 +87,10 @@ export default async function AddressMessageHistoryDetailPage({
       "id,address_book_id,course_job_id,template_code,target_scope,requested_count,success_count,failed_count,status,provider,delivery_checked_at,created_at,address_books(name),course_jobs(name),message_templates(name)",
     )
     .eq("id", messageId)
-    .eq(source.kind === "roster" ? "course_job_id" : "address_book_id", source.id)
     .maybeSingle();
   if (messageError) throw new Error(`발송 이력 조회 실패: ${messageError.code}`);
-  if (!message) notFound();
+  const sourceMatches = message && messageSourceMatches(bookId, message);
+  if (!message || !sourceMatches) notFound();
 
   const [recipientResult, { data: batches, error: batchError }] = await Promise.all([
     loadRecipientPage(supabase, message.id, page),
