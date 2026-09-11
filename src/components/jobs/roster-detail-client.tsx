@@ -556,13 +556,18 @@ export function RosterDetailClient({
                     <ManualEnrollmentName
                       jobId={jobId}
                       enrollmentId={row.id}
-                      name={row.values.customerName}
+                      normalizedPhone={row.normalizedPhone}
+                      values={row.values}
                       editable={row.isManuallyAdded}
-                      onSaved={(customerName) =>
+                      onSaved={(enrollment) =>
                         setRows((current) =>
                           current.map((item) =>
                             item.id === row.id
-                              ? { ...item, values: { ...item.values, customerName } }
+                              ? {
+                                  ...item,
+                                  normalizedPhone: enrollment.normalizedPhone,
+                                  values: enrollment.values,
+                                }
                               : item,
                           ),
                         )
@@ -813,7 +818,7 @@ function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
-function MessageDialog({
+export function MessageDialog({
   jobId,
   jobName,
   defaultCourseName,
@@ -824,6 +829,8 @@ function MessageDialog({
   mode = "standard",
   defaultOptionInvites = EMPTY_OPTION_INVITES,
   disabled = false,
+  sendEndpoint,
+  selectedOnly = false,
 }: {
   jobId: string;
   jobName: string;
@@ -835,12 +842,14 @@ function MessageDialog({
   mode?: "standard" | "groupChatInvite";
   defaultOptionInvites?: Record<string, InviteValues>;
   disabled?: boolean;
+  sendEndpoint?: string;
+  selectedOnly?: boolean;
 }) {
   const router = useRouter();
   const isGroupChatInvite = mode === "groupChatInvite";
   const [open, setOpen] = useState(false);
   const [scope, setScope] = useState<Scope>(
-    isGroupChatInvite ? "all" : "filtered",
+    selectedOnly ? "selected" : isGroupChatInvite ? "all" : "filtered",
   );
   const [template, setTemplate] = useState(
     isGroupChatInvite ? "paid_invite" : "paid_confirm",
@@ -1005,19 +1014,22 @@ function MessageDialog({
     setSending(true);
     setResult("");
     try {
-      const response = await fetch(`/api/jobs/${jobId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          scope,
-          template,
-          filters,
-          selectedIds: selectedRows.map((row) => row.id),
-          onlyGroupChatNonParticipants,
-          courseName: testCourseName,
-          optionInvites,
-        }),
-      });
+      const response = await fetch(
+        sendEndpoint ?? `/api/jobs/${jobId}/messages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scope,
+            template,
+            filters,
+            selectedIds: selectedRows.map((row) => row.id),
+            onlyGroupChatNonParticipants,
+            courseName: testCourseName,
+            optionInvites,
+          }),
+        },
+      );
       const body = await response.json();
       if (!response.ok)
         throw new Error(body.message ?? "발송 요청에 실패했습니다.");
@@ -1107,7 +1119,7 @@ function MessageDialog({
             <Select
               value={scope}
               onValueChange={(value) => setScope(value as Scope)}
-              disabled={isGroupChatInvite}
+              disabled={isGroupChatInvite || selectedOnly}
             >
               <SelectTrigger className="w-full">
                 <SelectValue />

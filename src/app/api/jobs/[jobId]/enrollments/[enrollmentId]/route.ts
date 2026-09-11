@@ -1,19 +1,36 @@
+import { parseEnrollmentMemo } from "@/lib/jobs/enrollment-memo";
+import {
+  parseManualEnrollmentInput,
+  type ManualEnrollmentInput,
+} from "@/lib/jobs/manual-enrollment";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
-import { parseEnrollmentMemo } from "@/lib/jobs/enrollment-memo";
-import { parseManualEnrollmentName } from "@/lib/jobs/manual-enrollment";
 
 type Context = {
   params: Promise<{ jobId: string; enrollmentId: string }>;
 };
 
-type RequestBody = {
+const MANUAL_DETAIL_FIELDS = [
+  "customerName",
+  "phone",
+  "email",
+  "optionName",
+  "referrer",
+  "source",
+  "adMedia",
+] as const;
+
+type ManualDetailField = (typeof MANUAL_DETAIL_FIELDS)[number];
+type RequestBody = Partial<Record<ManualDetailField, unknown>> & {
   groupChatJoined?: boolean;
   isExtraParticipant?: boolean;
   memo?: unknown;
-  customerName?: unknown;
 };
+
+function hasOwn(body: RequestBody, field: keyof RequestBody) {
+  return Object.prototype.hasOwnProperty.call(body, field);
+}
 
 export async function PATCH(request: Request, { params }: Context) {
   const { jobId, enrollmentId } = await params;
@@ -25,18 +42,17 @@ export async function PATCH(request: Request, { params }: Context) {
   }
 
   const body = (await request.json()) as RequestBody;
-  const hasGroupChatJoined = Object.prototype.hasOwnProperty.call(
-    body,
-    "groupChatJoined",
+  const hasGroupChatJoined = hasOwn(body, "groupChatJoined");
+  const hasExtraParticipant = hasOwn(body, "isExtraParticipant");
+  const hasMemo = hasOwn(body, "memo");
+  const hasManualDetails = MANUAL_DETAIL_FIELDS.some((field) =>
+    hasOwn(body, field),
   );
-  const hasExtraParticipant = Object.prototype.hasOwnProperty.call(
-    body,
-    "isExtraParticipant",
-  );
-  const hasMemo = Object.prototype.hasOwnProperty.call(body, "memo");
-  const hasCustomerName = Object.prototype.hasOwnProperty.call(body, "customerName");
   if (
-    (!hasGroupChatJoined && !hasExtraParticipant && !hasMemo && !hasCustomerName) ||
+    (!hasGroupChatJoined &&
+      !hasExtraParticipant &&
+      !hasMemo &&
+      !hasManualDetails) ||
     (hasGroupChatJoined && typeof body.groupChatJoined !== "boolean") ||
     (hasExtraParticipant && typeof body.isExtraParticipant !== "boolean")
   ) {
@@ -45,8 +61,8 @@ export async function PATCH(request: Request, { params }: Context) {
       { status: 400 },
     );
   }
+
   let memo: string | undefined;
-  let customerName: string | undefined;
   if (hasMemo) {
     try {
       memo = parseEnrollmentMemo(body.memo);
@@ -56,16 +72,6 @@ export async function PATCH(request: Request, { params }: Context) {
           message:
             error instanceof Error ? error.message : "비고를 확인해 주세요.",
         },
-        { status: 400 },
-      );
-    }
-  }
-  if (hasCustomerName) {
-    try {
-      customerName = parseManualEnrollmentName(body.customerName);
-    } catch (error) {
-      return Response.json(
-        { message: error instanceof Error ? error.message : "이름을 확인해 주세요." },
         { status: 400 },
       );
     }
@@ -86,7 +92,9 @@ export async function PATCH(request: Request, { params }: Context) {
   const admin = createAdminClient();
   const { data: enrollment, error: loadError } = await admin
     .from("job_enrollments")
-    .select("id,student_id,normalized_values,original_values,is_manually_added")
+    .select(
+      "id,student_id,normalized_phone,normalized_values,original_values,is_manually_added",
+    )
     .eq("id", enrollmentId)
     .eq("job_id", jobId)
     .eq("version", job.latest_version)
@@ -98,9 +106,9 @@ export async function PATCH(request: Request, { params }: Context) {
       { status: 404 },
     );
   }
-  if (hasCustomerName && !enrollment.is_manually_added) {
+  if (hasManualDetails && !enrollment.is_manually_added) {
     return Response.json(
-      { message: "수동으로 추가한 수강생의 이름만 수정할 수 있습니다." },
+      { message: "수동으로 추가한 수강생의 정보만 수정할 수 있습니다." },
       { status: 403 },
     );
   }
@@ -111,28 +119,139 @@ export async function PATCH(request: Request, { params }: Context) {
     !Array.isArray(enrollment.normalized_values)
       ? enrollment.normalized_values
       : {};
+  const originalValues =
+    enrollment.original_values &&
+    typeof enrollment.original_values === "object" &&
+    !Array.isArray(enrollment.original_values)
+      ? enrollment.original_values
+      : {};
+
+  let manualInput: ManualEnrollmentInput | undefined;
+  if (hasManualDetails) {
+    try {
+      manualInput = parseManualEnrollmentInput({
+        customerName: hasOwn(body, "customerName")
+          ? body.customerName
+          : normalizedValues.customerName,
+        phone: hasOwn(body, "phone")
+          ? body.phone
+          : enrollment.normalized_phone,
+        email: hasOwn(body, "email") ? body.email : normalizedValues.email,
+        optionName: hasOwn(body, "optionName")
+          ? body.optionName
+          : normalizedValues.optionName,
+        referrer: hasOwn(body, "referrer")
+          ? body.referrer
+          : normalizedValues.referrer,
+        source: hasOwn(body, "source") ? body.source : normalizedValues.source,
+        adMedia: hasOwn(body, "adMedia")
+          ? body.adMedia
+          : normalizedValues.adMedia,
+      });
+    } catch (error) {
+      return Response.json(
+        {
+          message:
+            error instanceof Error
+              ? error.message
+              : "수강생 정보를 확인해 주세요.",
+        },
+        { status: 400 },
+      );
+    }
+  }
+
+  if (manualInput) {
+    const { data: duplicate, error: duplicateError } = await admin
+      .from("job_enrollments")
+      .select("id")
+      .eq("job_id", jobId)
+      .eq("version", job.latest_version)
+      .eq("normalized_phone", manualInput.normalizedPhone)
+      .neq("id", enrollmentId)
+      .limit(1)
+      .maybeSingle();
+    if (duplicateError) {
+      return Response.json(
+        { message: `연락처 중복 확인 실패: ${duplicateError.code}` },
+        { status: 400 },
+      );
+    }
+    if (duplicate) {
+      return Response.json(
+        { message: "현재 명단에 같은 연락처가 이미 등록되어 있습니다." },
+        { status: 409 },
+      );
+    }
+  }
+
+  let studentId = enrollment.student_id;
+  if (manualInput) {
+    const { data: student, error: studentError } = await admin
+      .from("students")
+      .upsert(
+        {
+          workspace_id: job.workspace_id,
+          normalized_phone: manualInput.normalizedPhone,
+          name: manualInput.customerName,
+          email: manualInput.email || null,
+          profile: {
+            referrer: manualInput.referrer,
+            source: manualInput.source,
+            adMedia: manualInput.adMedia,
+          },
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "workspace_id,normalized_phone" },
+      )
+      .select("id")
+      .single();
+    if (studentError || !student) {
+      return Response.json(
+        {
+          message: `수강생 원장 저장 실패: ${studentError?.code ?? "UNKNOWN"}`,
+        },
+        { status: 400 },
+      );
+    }
+    studentId = student.id;
+  }
+
+  const savedValues = {
+    ...normalizedValues,
+    ...(manualInput
+      ? {
+          customerName: manualInput.customerName,
+          phone: manualInput.normalizedPhone,
+          email: manualInput.email,
+          optionName: manualInput.optionName,
+          referrer: manualInput.referrer,
+          source: manualInput.source,
+          adMedia: manualInput.adMedia,
+        }
+      : {}),
+    ...(hasGroupChatJoined
+      ? { groupChatJoined: body.groupChatJoined }
+      : {}),
+    ...(hasMemo ? { memo } : {}),
+  };
   const { error: updateError } = await admin
     .from("job_enrollments")
     .update({
-      normalized_values: {
-        ...normalizedValues,
-        ...(hasCustomerName ? { customerName } : {}),
-        ...(hasGroupChatJoined
-          ? { groupChatJoined: body.groupChatJoined }
-          : {}),
-        ...(hasMemo ? { memo } : {}),
-      },
-      ...(hasCustomerName
+      normalized_values: savedValues,
+      ...(manualInput
         ? {
+            student_id: studentId,
+            normalized_phone: manualInput.normalizedPhone,
             original_values: {
-              ...(
-                enrollment.original_values &&
-                typeof enrollment.original_values === "object" &&
-                !Array.isArray(enrollment.original_values)
-                  ? enrollment.original_values
-                  : {}
-              ),
-              이름: customerName,
+              ...originalValues,
+              이름: manualInput.customerName,
+              연락처: manualInput.normalizedPhone,
+              이메일: manualInput.email,
+              옵션명: manualInput.optionName,
+              추천인: manualInput.referrer,
+              "유입 경로": manualInput.source,
+              "광고 매체": manualInput.adMedia,
             },
           }
         : {}),
@@ -151,42 +270,25 @@ export async function PATCH(request: Request, { params }: Context) {
     );
   }
 
-  if (hasCustomerName && enrollment.student_id) {
-    const { error: studentError } = await admin
-      .from("students")
-      .update({ name: customerName, updated_at: new Date().toISOString() })
-      .eq("id", enrollment.student_id);
-    if (studentError) {
-      await admin
-        .from("job_enrollments")
-        .update({
-          normalized_values: enrollment.normalized_values,
-          original_values: enrollment.original_values,
-        })
-        .eq("id", enrollmentId)
-        .eq("job_id", jobId)
-        .eq("version", job.latest_version);
-      return Response.json(
-        { message: `수강생 원장 이름 저장 실패: ${studentError.code}` },
-        { status: 400 },
-      );
-    }
-  }
-
-  if (hasCustomerName) {
+  if (manualInput) {
     await admin.from("audit_logs").insert({
       workspace_id: job.workspace_id,
       actor_id: user.id,
-      event_type: "course_job.manual_enrollment_name_updated",
+      event_type: "course_job.manual_enrollment_updated",
       entity_type: "course_job",
       entity_id: jobId,
       metadata: {
         enrollment_id: enrollmentId,
-        previous_name:
-          typeof normalizedValues.customerName === "string"
-            ? normalizedValues.customerName
-            : null,
-        customer_name: customerName,
+        previous_values: {
+          customerName: normalizedValues.customerName ?? null,
+          phone: enrollment.normalized_phone,
+          email: normalizedValues.email ?? null,
+          optionName: normalizedValues.optionName ?? null,
+          referrer: normalizedValues.referrer ?? null,
+          source: normalizedValues.source ?? null,
+          adMedia: normalizedValues.adMedia ?? null,
+        },
+        updated_values: manualInput,
         version: job.latest_version,
       },
     });
@@ -198,6 +300,14 @@ export async function PATCH(request: Request, { params }: Context) {
       ? { isExtraParticipant: body.isExtraParticipant }
       : {}),
     ...(hasMemo ? { memo } : {}),
-    ...(hasCustomerName ? { customerName } : {}),
+    ...(manualInput
+      ? {
+          customerName: manualInput.customerName,
+          enrollment: {
+            normalizedPhone: manualInput.normalizedPhone,
+            values: savedValues,
+          },
+        }
+      : {}),
   });
 }

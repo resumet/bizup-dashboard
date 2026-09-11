@@ -316,18 +316,16 @@ test("무료강의 수강생 주소록은 비어 있거나 UUID여야 한다", (
   );
 });
 
-test("수강생 명단은 하나만 연결할 수 있다", () => {
-  assert.throws(
-    () =>
-      parseCourseOperationsInput({
-        ...validInput,
-        rosterJobIds: [
-          "f47ac10b-58cc-4372-a567-0e02b2c3d479",
-          "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-        ],
-      }),
-    /하나만 연결/,
-  );
+test("수강생 명단을 여러 개 연결할 수 있다", () => {
+  const parsed = parseCourseOperationsInput({
+    ...validInput,
+    rosterJobIds: [
+      "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    ],
+  });
+
+  assert.equal(parsed.rosterJobIds.length, 2);
 });
 
 test("필수 작업의 예정일과 완료 여부를 고정된 작업 순서로 저장한다", () => {

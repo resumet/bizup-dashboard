@@ -52,8 +52,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
       supabase
         .from("course_jobs")
         .select("id")
-        .eq("course_id", courseId)
-        .limit(1),
+        .eq("course_id", courseId),
       supabase
         .from("message_studio_projects")
         .select("id")

@@ -64,48 +64,58 @@ export async function loadSalesSection(
 
 async function loadCourseRosterAnalysis(
   supabase: SupabaseClient,
-  job: LinkableRosterJob,
+  jobs: LinkableRosterJob[],
 ): Promise<CourseRosterAnalysis> {
-  const firstPage = await supabase
-    .from("job_enrollments")
-    .select("normalized_values", { count: "exact" })
-    .eq("job_id", job.id)
-    .eq("version", job.latest_version)
-    .order("source_row_number")
-    .range(0, ANALYSIS_PAGE_SIZE - 1);
-  if (firstPage.error) throw new Error(firstPage.error.message);
+  const rowsByJob = await Promise.all(
+    jobs.map(async (job) => {
+      const firstPage = await supabase
+        .from("job_enrollments")
+        .select("normalized_values", { count: "exact" })
+        .eq("job_id", job.id)
+        .eq("version", job.latest_version)
+        .order("source_row_number")
+        .range(0, ANALYSIS_PAGE_SIZE - 1);
+      if (firstPage.error) throw new Error(firstPage.error.message);
 
-  const rows = [...(firstPage.data ?? [])];
-  const totalCount = firstPage.count ?? rows.length;
-  const remainingStarts = Array.from(
-    { length: Math.max(0, Math.ceil(totalCount / ANALYSIS_PAGE_SIZE) - 1) },
-    (_, index) => (index + 1) * ANALYSIS_PAGE_SIZE,
+      const rows = [...(firstPage.data ?? [])];
+      const totalCount = firstPage.count ?? rows.length;
+      const remainingStarts = Array.from(
+        {
+          length: Math.max(
+            0,
+            Math.ceil(totalCount / ANALYSIS_PAGE_SIZE) - 1,
+          ),
+        },
+        (_, index) => (index + 1) * ANALYSIS_PAGE_SIZE,
+      );
+
+      for (
+        let offset = 0;
+        offset < remainingStarts.length;
+        offset += ANALYSIS_CONCURRENCY
+      ) {
+        const batch = await Promise.all(
+          remainingStarts
+            .slice(offset, offset + ANALYSIS_CONCURRENCY)
+            .map((start) =>
+              supabase
+                .from("job_enrollments")
+                .select("normalized_values")
+                .eq("job_id", job.id)
+                .eq("version", job.latest_version)
+                .order("source_row_number")
+                .range(start, start + ANALYSIS_PAGE_SIZE - 1),
+            ),
+        );
+        const failed = batch.find((result) => result.error);
+        if (failed?.error) throw new Error(failed.error.message);
+        rows.push(...batch.flatMap((result) => result.data ?? []));
+      }
+      return rows;
+    }),
   );
 
-  for (
-    let offset = 0;
-    offset < remainingStarts.length;
-    offset += ANALYSIS_CONCURRENCY
-  ) {
-    const batch = await Promise.all(
-      remainingStarts
-        .slice(offset, offset + ANALYSIS_CONCURRENCY)
-        .map((start) =>
-          supabase
-            .from("job_enrollments")
-            .select("normalized_values")
-            .eq("job_id", job.id)
-            .eq("version", job.latest_version)
-            .order("source_row_number")
-            .range(start, start + ANALYSIS_PAGE_SIZE - 1),
-        ),
-    );
-    const failed = batch.find((result) => result.error);
-    if (failed?.error) throw new Error(failed.error.message);
-    rows.push(...batch.flatMap((result) => result.data ?? []));
-  }
-
-  const analysisRows = rows.map((row) => {
+  const analysisRows = rowsByJob.flat().map((row) => {
     const values = (row.normalized_values ?? {}) as Record<string, unknown>;
     return {
       values: {
@@ -118,7 +128,7 @@ async function loadCourseRosterAnalysis(
   });
 
   return {
-    sourceJobId: job.id,
+    sourceJobIds: jobs.map((job) => job.id),
     totalCount: analysisRows.length,
     groupChatJoinedCount: countGroupChatParticipants(analysisRows),
     sourceItems: analyzeRosterSources(analysisRows),
@@ -146,20 +156,23 @@ export async function loadStudentsSection(
   if (addressBooksResult.error) throw new Error(addressBooksResult.error.message);
 
   const rosterJobs = (jobsResult.data ?? []) as LinkableRosterJob[];
-  const linkedJob = rosterJobs.find((job) => job.course_id === courseId);
+  const linkedJobs = rosterJobs.filter((job) => job.course_id === courseId);
   const [paidPreviewResult, paidRosterAnalysis, freePreviewResult] =
     await Promise.all([
-      linkedJob
-        ? supabase
+      Promise.all(
+        linkedJobs.map(async (job) => {
+          const result = await supabase
             .from("job_enrollments")
             .select("id,normalized_phone,normalized_values")
-            .eq("job_id", linkedJob.id)
-            .eq("version", linkedJob.latest_version)
+            .eq("job_id", job.id)
+            .eq("version", job.latest_version)
             .order("source_row_number")
-            .limit(20)
-        : Promise.resolve({ data: [], error: null }),
-      linkedJob
-        ? loadCourseRosterAnalysis(supabase, linkedJob)
+            .limit(20);
+          return { job, ...result };
+        }),
+      ),
+      linkedJobs.length
+        ? loadCourseRosterAnalysis(supabase, linkedJobs)
         : Promise.resolve(undefined),
       freeAddressBookId
         ? supabase
@@ -170,11 +183,13 @@ export async function loadStudentsSection(
             .limit(20)
         : Promise.resolve({ data: [], error: null }),
     ]);
-  if (paidPreviewResult.error) throw new Error(paidPreviewResult.error.message);
+  const failedPaidPreview = paidPreviewResult.find((result) => result.error);
+  if (failedPaidPreview?.error) throw new Error(failedPaidPreview.error.message);
   if (freePreviewResult.error) throw new Error(freePreviewResult.error.message);
 
-  const paidStudentPreview: CourseStudentPreview[] = linkedJob
-    ? (paidPreviewResult.data ?? []).map((row) => {
+  const paidStudentPreview: CourseStudentPreview[] = paidPreviewResult.flatMap(
+    ({ job, data }) =>
+      (data ?? []).map((row) => {
         const values = row.normalized_values as Record<string, unknown>;
         return {
           id: row.id,
@@ -183,10 +198,11 @@ export async function loadStudentsSection(
           phone: row.normalized_phone ?? "",
           email: typeof values.email === "string" ? values.email : "",
           memo: typeof values.memo === "string" ? values.memo : "",
-          sourceJobId: linkedJob.id,
+          sourceJobId: job.id,
+          sourceJobName: job.name,
         };
-      })
-    : [];
+      }),
+  );
   const freeStudentPreview: FreeStudentPreview[] = (
     freePreviewResult.data ?? []
   ).map((contact) => ({

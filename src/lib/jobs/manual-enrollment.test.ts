@@ -9,6 +9,9 @@ test("수동 추가 수강생의 입력값과 전화번호를 정규화한다", 
     phone: "010-1234-5678",
     email: " hong@example.com ",
     optionName: " A반 ",
+    referrer: " 추천인 ",
+    source: " 검색 ",
+    adMedia: " 네이버 ",
   });
 
   assert.deepEqual(parsed, {
@@ -16,9 +19,9 @@ test("수동 추가 수강생의 입력값과 전화번호를 정규화한다", 
     normalizedPhone: "01012345678",
     email: "hong@example.com",
     optionName: "A반",
-    referrer: "",
-    source: "",
-    adMedia: "",
+    referrer: "추천인",
+    source: "검색",
+    adMedia: "네이버",
   });
 });
 

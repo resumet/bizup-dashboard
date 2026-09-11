@@ -1897,6 +1897,7 @@ export function CourseOperationsEditor({
             />
           ) : (
           <CourseRosterSections
+            courseId={courseId}
             rosterJobs={loadedRosterJobs}
             selectedRosterIds={draft.rosterJobIds}
             onRosterIdsChange={(rosterJobIds) =>

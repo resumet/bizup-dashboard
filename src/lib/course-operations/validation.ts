@@ -121,8 +121,8 @@ export function parseCourseOperationsInput(value: unknown): CourseOperationsInpu
     throw new Error("커스텀 링크는 최대 30개입니다.");
   }
   const rosterJobIds = ids(input.rosterJobIds);
-  if (rosterJobIds.length > 1) {
-    throw new Error("수강생 명단은 하나만 연결할 수 있습니다.");
+  if (rosterJobIds.length > 50) {
+    throw new Error("수강생 명단은 최대 50개까지 연결할 수 있습니다.");
   }
 
   const freeWebinarAt = timestamp(input.freeWebinarAt, "무료 웨비나 일시");

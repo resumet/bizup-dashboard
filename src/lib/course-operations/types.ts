@@ -133,10 +133,16 @@ export type CourseStudentPreview = {
   email: string;
   memo: string;
   sourceJobId: string;
+  sourceJobName: string;
+};
+
+export type CombinedCourseRosterRow = RosterRow & {
+  sourceJobId: string;
+  sourceJobName: string;
 };
 
 export type CourseRosterAnalysis = {
-  sourceJobId: string;
+  sourceJobIds: string[];
   totalCount: number;
   groupChatJoinedCount: number;
   sourceItems: Array<{
@@ -188,3 +194,4 @@ export type CourseVideosSectionData = {
   youtubeAppearances: YoutubeAppearanceDraft[];
   liveVideos: LiveVideoDraft[];
 };
+import type { RosterRow } from "@/lib/jobs/types";

@@ -59,6 +59,7 @@ function formatPhone(value: string) {
 }
 
 export function CourseRosterSections({
+  courseId,
   rosterJobs,
   selectedRosterIds,
   onRosterIdsChange,
@@ -69,6 +70,7 @@ export function CourseRosterSections({
   freeAddressBookId,
   onFreeAddressBookChange,
 }: {
+  courseId?: string;
   rosterJobs: LinkableRosterJob[];
   selectedRosterIds: string[];
   onRosterIdsChange: (ids: string[]) => void;
@@ -82,21 +84,28 @@ export function CourseRosterSections({
   const [rosterDialogOpen, setRosterDialogOpen] = useState(false);
   const [rosterQuery, setRosterQuery] = useState("");
   const deferredRosterQuery = useDeferredValue(rosterQuery.trim().toLocaleLowerCase("ko-KR"));
-  const [pendingRosterId, setPendingRosterId] = useState("");
+  const [pendingRosterIds, setPendingRosterIds] = useState<string[]>([]);
   const [addressDialogOpen, setAddressDialogOpen] = useState(false);
   const [addressQuery, setAddressQuery] = useState("");
   const deferredAddressQuery = useDeferredValue(addressQuery.trim().toLocaleLowerCase("ko-KR"));
   const [pendingAddressBookId, setPendingAddressBookId] = useState("");
   const [freeRosterOpen, setFreeRosterOpen] = useState(false);
 
-  const selectedRoster =
-    rosterJobs.find((job) => job.id === selectedRosterIds[0]) ?? null;
+  const selectedRosters = rosterJobs.filter((job) =>
+    selectedRosterIds.includes(job.id),
+  );
+  const selectedRosterCount = selectedRosters.reduce(
+    (sum, job) => sum + job.valid_count,
+    0,
+  );
   const visiblePaidStudentPreview = paidStudentPreview.filter((student) =>
     selectedRosterIds.includes(student.sourceJobId),
   );
   const paidStudentPreviewRows = visiblePaidStudentPreview.slice(0, 5);
   const visiblePaidRosterAnalysis =
-    paidRosterAnalysis?.sourceJobId === selectedRoster?.id
+    paidRosterAnalysis &&
+    paidRosterAnalysis.sourceJobIds.length === selectedRosterIds.length &&
+    paidRosterAnalysis.sourceJobIds.every((id) => selectedRosterIds.includes(id))
       ? paidRosterAnalysis
       : null;
   const filteredRosterJobs = deferredRosterQuery
@@ -119,7 +128,7 @@ export function CourseRosterSections({
     : addressBooks;
 
   function openRosterDialog() {
-    setPendingRosterId(selectedRosterIds[0] ?? "");
+    setPendingRosterIds(selectedRosterIds);
     setRosterQuery("");
     setRosterDialogOpen(true);
   }
@@ -144,7 +153,7 @@ export function CourseRosterSections({
           <div className="flex flex-wrap items-center gap-2.5">
             <CardTitle className="mr-1 text-2xl">유료강의 수강생 명단</CardTitle>
             <Badge variant="secondary">
-              {selectedRoster?.valid_count.toLocaleString() ?? 0}명
+              {selectedRosterCount.toLocaleString()}명 · 명단 {selectedRosters.length}개
             </Badge>
             {visiblePaidRosterAnalysis ? (
               <Badge variant="outline">
@@ -152,10 +161,10 @@ export function CourseRosterSections({
                 {visiblePaidRosterAnalysis.groupChatJoinedCount.toLocaleString()}명
               </Badge>
             ) : null}
-            {selectedRoster ? (
+            {selectedRosters.length > 0 && courseId ? (
               <Button variant="outline" size="sm" asChild>
-                <Link href={`/services/course-roster/${selectedRoster.id}`}>
-                  크게 보기<ExternalLink />
+                <Link href={`/services/course-operations/${courseId}/students`}>
+                  전체 보기<ExternalLink />
                 </Link>
               </Button>
             ) : null}
@@ -165,20 +174,27 @@ export function CourseRosterSections({
               size="sm"
               onClick={openRosterDialog}
             >
-              <Users />명단 교체
+              <Users />명단 연결 관리
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {!selectedRoster ? (
+          {selectedRosters.length === 0 ? (
             <div className="flex min-h-40 flex-col items-center justify-center rounded-xl border border-dashed text-center">
               <p className="font-medium">연결된 수강생 명단이 없습니다</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                명단 교체를 눌러 수강생 명단 분석 작업을 연결해 주세요.
+                명단 연결 관리를 눌러 수강생 명단 분석 작업을 연결해 주세요.
               </p>
             </div>
           ) : (
             <div className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                {selectedRosters.map((job) => (
+                  <Badge key={job.id} variant="outline">
+                    {job.name} · {job.valid_count.toLocaleString()}명
+                  </Badge>
+                ))}
+              </div>
               {visiblePaidStudentPreview.length === 0 ? (
                 <div className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
                   변경된 명단은 저장 후 수강생 목록에 반영됩니다.
@@ -189,6 +205,7 @@ export function CourseRosterSections({
                     <TableHeader>
                       <TableRow>
                         <TableHead>이름</TableHead>
+                        <TableHead>출처 명단</TableHead>
                         <TableHead>전화번호</TableHead>
                         <TableHead>이메일</TableHead>
                         <TableHead>비고</TableHead>
@@ -198,6 +215,9 @@ export function CourseRosterSections({
                       {paidStudentPreviewRows.map((student) => (
                         <TableRow key={`${student.sourceJobId}-${student.id}`}>
                           <TableCell className="font-medium">{student.name || "-"}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{student.sourceJobName}</Badge>
+                          </TableCell>
                           <TableCell className="font-mono">{formatPhone(student.phone)}</TableCell>
                           <TableCell className="text-muted-foreground">{student.email || "-"}</TableCell>
                           <TableCell>
@@ -214,7 +234,7 @@ export function CourseRosterSections({
                   </Table>
                 </div>
               )}
-              {selectedRoster.valid_count > 5 ? (
+              {selectedRosterCount > 5 ? (
                 <p className="text-xs text-muted-foreground">
                   화면에는 앞 5명까지 표시합니다.
                 </p>
@@ -229,7 +249,7 @@ export function CourseRosterSections({
           <DialogHeader>
             <DialogTitle>수강생 명단 연결</DialogTitle>
             <DialogDescription>
-              연결할 명단 하나를 선택하세요. 다른 강의에 연결된 명단은 표시되지 않습니다.
+              연결할 명단을 여러 개 선택할 수 있습니다. 다른 강의에 연결된 명단은 표시되지 않습니다.
             </DialogDescription>
           </DialogHeader>
           <div className="relative">
@@ -249,16 +269,20 @@ export function CourseRosterSections({
               </div>
             ) : (
               filteredRosterJobs.map((job) => {
-                const checked = pendingRosterId === job.id;
+                const checked = pendingRosterIds.includes(job.id);
                 return (
                   <div key={job.id} className="flex items-center gap-3 rounded-xl border p-4">
                     <Checkbox
                       id={`replace-roster-${job.id}`}
-                      className="size-5 rounded-full"
+                      className="size-5"
                       checked={checked}
-                      onCheckedChange={(value) =>
-                        setPendingRosterId(value === true ? job.id : "")
-                      }
+                      onCheckedChange={(value) => {
+                        setPendingRosterIds((current) =>
+                          value === true
+                            ? [...new Set([...current, job.id])]
+                            : current.filter((id) => id !== job.id),
+                        );
+                      }}
                     />
                     <Label htmlFor={`replace-roster-${job.id}`} className="min-w-0 flex-1 cursor-pointer">
                       <span className="block truncate font-medium">{job.name}</span>
@@ -278,11 +302,11 @@ export function CourseRosterSections({
             <Button
               type="button"
               onClick={() => {
-                onRosterIdsChange(pendingRosterId ? [pendingRosterId] : []);
+                onRosterIdsChange(pendingRosterIds);
                 setRosterDialogOpen(false);
               }}
             >
-              선택 적용
+              {pendingRosterIds.length.toLocaleString()}개 명단 적용
             </Button>
           </DialogFooter>
         </DialogContent>
