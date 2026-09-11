@@ -209,7 +209,7 @@ export async function POST(request: Request, { params }: Context) {
       if (versionError)
         throw new Error(
           versionError.code === "23505"
-            ? "이미 추가한 파일이거나 다른 업데이트가 먼저 적용되었습니다."
+            ? "다른 업데이트가 먼저 적용되었습니다. 다시 비교해 주세요."
             : `파일 버전 저장 실패: ${versionError.code}`,
         );
       versionSaved = true;

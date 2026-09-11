@@ -70,6 +70,29 @@ test("승인된 추가·삭제만 적용하고 기존 단톡방 참여 상태와
   assert.equal(updated[0].isManuallyAdded, true);
 });
 
+test("같은 파일을 다시 적용하면 삭제한 수강생은 복구하고 남아 있는 수강생은 갱신한다", () => {
+  const current = [record("01011112222", "기존 수강생", true, "보존할 메모")];
+  current[0].normalizedValues.email = "before@example.com";
+  const existing = record("01011112222", "기존 수강생");
+  existing.normalizedValues.email = "after@example.com";
+  existing.normalizedValues.optionName = "갱신 옵션";
+  const deleted = record("01033334444", "삭제했던 수강생");
+
+  const updated = buildUpdatedRosterRecords(
+    current,
+    [existing, deleted],
+    { approveAdditions: true, approveRemovals: false },
+  );
+
+  assert.equal(updated.length, 2);
+  assert.equal(updated[0].normalizedValues.email, "after@example.com");
+  assert.equal(updated[0].normalizedValues.optionName, "갱신 옵션");
+  assert.equal(updated[0].normalizedValues.groupChatJoined, true);
+  assert.equal(updated[0].normalizedValues.memo, "보존할 메모");
+  assert.equal(updated[1].normalizedPhone, "01033334444");
+  assert.equal(updated[1].normalizedValues.customerName, "삭제했던 수강생");
+});
+
 test("같은 전화번호의 다른 이름은 자동 갱신이나 일괄 추가·삭제 승인으로 처리할 수 없다", () => {
   const current = [record("01011112222", "기존 이름", true, "보존할 메모")];
   const incoming = [record("01011112222", "다른 이름")];
