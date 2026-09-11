@@ -351,6 +351,11 @@ export function RosterDetailClient({
       serializeRosterSelection(
         sourceId,
         selectedRows.map((row) => row.id),
+        selectedRows.map((row) => ({
+          id: row.id,
+          name: row.values.customerName,
+          phone: row.normalizedPhone,
+        })),
       ),
     );
     router.push(

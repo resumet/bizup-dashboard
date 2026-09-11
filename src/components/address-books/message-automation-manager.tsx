@@ -53,6 +53,7 @@ import { SelectedTemplatePreview } from "./selected-template-preview";
 import { parseRecipientSource, rosterSourceId } from "@/lib/messages/recipient-source";
 import {
   parseRosterSelection,
+  parseRosterSelectionRecipients,
   rosterSelectionStorageKey,
 } from "@/lib/messages/roster-selection-transfer";
 
@@ -147,6 +148,10 @@ export function MessageAutomationManager({
       : storedSelection === null
         ? null
         : parseRosterSelection(storedSelection, initialBookId);
+  const transferredRecipients =
+    storedSelection && !ignoreTransferredSelection
+      ? parseRosterSelectionRecipients(storedSelection, initialBookId)
+      : [];
 
   const selectedRoster = rosters.find((roster) => rosterSourceId(roster.id) === bookId);
   const selectedBook = selectedRoster
@@ -434,13 +439,40 @@ export function MessageAutomationManager({
             </div>
           )}
           {selectedBook ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 className="size-4 text-emerald-600" />
-              {selectedContact
-                ? "선택한 한 사람만 발송 대상에 포함됩니다."
-                : hasTransferredSelection
-                  ? `${selectedBook.name}에서 선택한 ${recipientCount.toLocaleString("ko-KR")}명만 발송 대상입니다. 동일 전화번호는 한 번만 발송됩니다.`
-                  : `${selectedBook.name}의 전체 ${recipientCount.toLocaleString("ko-KR")}명이 발송 대상입니다.${selectedRoster ? " 동일 전화번호는 한 번만 발송됩니다." : ""}`}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CheckCircle2 className="size-4 text-emerald-600" />
+                {selectedContact
+                  ? "선택한 한 사람만 발송 대상에 포함됩니다."
+                  : hasTransferredSelection
+                    ? `${selectedBook.name}에서 선택한 ${recipientCount.toLocaleString("ko-KR")}명만 발송 대상입니다. 동일 전화번호는 한 번만 발송됩니다.`
+                    : `${selectedBook.name}의 전체 ${recipientCount.toLocaleString("ko-KR")}명이 발송 대상입니다.${selectedRoster ? " 동일 전화번호는 한 번만 발송됩니다." : ""}`}
+              </div>
+              {transferredRecipients.length > 0 ? (
+                <div className="rounded-lg border bg-muted/20 p-3">
+                  <p className="mb-2 text-sm font-medium">선택된 발송 대상</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {transferredRecipients.slice(0, 20).map((recipient) => (
+                      <div
+                        key={recipient.id}
+                        className="flex items-center justify-between gap-3 rounded-md bg-background px-3 py-2 text-sm"
+                      >
+                        <span className="truncate font-medium">
+                          {recipient.name || "이름 없음"}
+                        </span>
+                        <span className="shrink-0 font-mono text-muted-foreground">
+                          {formatPhone(recipient.phone)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {transferredRecipients.length > 20 ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      외 {(transferredRecipients.length - 20).toLocaleString("ko-KR")}명
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
           </CardContent>

@@ -5,6 +5,13 @@ type RosterSelectionTransfer = {
   version: 1;
   sourceId: string;
   selectedIds: string[];
+  recipients?: RosterSelectionRecipient[];
+};
+
+export type RosterSelectionRecipient = {
+  id: string;
+  name: string;
+  phone: string;
 };
 
 export function rosterSelectionStorageKey(selectionKey: string) {
@@ -14,13 +21,47 @@ export function rosterSelectionStorageKey(selectionKey: string) {
 export function serializeRosterSelection(
   sourceId: string,
   selectedIds: string[],
+  recipients: RosterSelectionRecipient[] = [],
 ) {
+  const uniqueIds = [...new Set(selectedIds)];
+  const selected = new Set(uniqueIds);
   const payload: RosterSelectionTransfer = {
     version: 1,
     sourceId,
-    selectedIds: [...new Set(selectedIds)],
+    selectedIds: uniqueIds,
+    recipients: recipients.filter(
+      (recipient, index, items) =>
+        selected.has(recipient.id) &&
+        items.findIndex((item) => item.id === recipient.id) === index,
+    ),
   };
   return JSON.stringify(payload);
+}
+
+export function parseRosterSelectionRecipients(
+  value: string | null,
+  expectedSourceId: string,
+) {
+  const selectedIds = parseRosterSelection(value, expectedSourceId);
+  if (selectedIds.length === 0 || !value) return [];
+  try {
+    const payload = JSON.parse(value) as Partial<RosterSelectionTransfer>;
+    if (!Array.isArray(payload.recipients)) return [];
+    const selected = new Set(selectedIds);
+    return payload.recipients.filter(
+      (recipient, index, items): recipient is RosterSelectionRecipient =>
+        Boolean(
+          recipient &&
+            typeof recipient.id === "string" &&
+            typeof recipient.name === "string" &&
+            typeof recipient.phone === "string" &&
+            selected.has(recipient.id) &&
+            items.findIndex((item) => item?.id === recipient.id) === index,
+        ),
+    );
+  } catch {
+    return [];
+  }
 }
 
 export function parseRosterSelection(
