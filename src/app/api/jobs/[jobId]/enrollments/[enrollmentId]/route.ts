@@ -93,7 +93,7 @@ export async function PATCH(request: Request, { params }: Context) {
   const { data: enrollment, error: loadError } = await admin
     .from("job_enrollments")
     .select(
-      "id,student_id,normalized_phone,normalized_values,original_values,is_manually_added",
+      "id,student_id,normalized_phone,normalized_values,original_values",
     )
     .eq("id", enrollmentId)
     .eq("job_id", jobId)
@@ -106,13 +106,6 @@ export async function PATCH(request: Request, { params }: Context) {
       { status: 404 },
     );
   }
-  if (hasManualDetails && !enrollment.is_manually_added) {
-    return Response.json(
-      { message: "수동으로 추가한 수강생의 정보만 수정할 수 있습니다." },
-      { status: 403 },
-    );
-  }
-
   const normalizedValues =
     enrollment.normalized_values &&
     typeof enrollment.normalized_values === "object" &&

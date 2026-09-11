@@ -597,7 +597,6 @@ export function RosterDetailClient({
                       enrollmentId={row.id}
                       normalizedPhone={row.normalizedPhone}
                       values={row.values}
-                      editable={row.isManuallyAdded}
                       onSaved={(enrollment) =>
                         setRows((current) =>
                           current.map((item) =>

@@ -37,14 +37,12 @@ export function ManualEnrollmentName({
   enrollmentId,
   normalizedPhone,
   values,
-  editable,
   onSaved,
 }: {
   jobId: string;
   enrollmentId: string;
   normalizedPhone: string;
   values: RosterRow["values"];
-  editable: boolean;
   onSaved: (enrollment: SavedEnrollment) => void;
 }) {
   const fieldPrefix = useId();
@@ -54,8 +52,6 @@ export function ManualEnrollmentName({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-
-  if (!editable) return <>{values.customerName || "-"}</>;
 
   function setField(field: keyof ManualForm, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -116,7 +112,7 @@ export function ManualEnrollmentName({
             <DialogHeader>
               <DialogTitle>수강생 정보 수정</DialogTitle>
               <DialogDescription>
-                수동으로 추가한 수강생의 입력 정보를 변경합니다.
+                수강생의 이름, 연락처와 명단 정보를 변경합니다.
               </DialogDescription>
             </DialogHeader>
             {error ? (

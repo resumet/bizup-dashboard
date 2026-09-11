@@ -81,6 +81,13 @@ function cleanValue(value: unknown) {
   return text === "-" ? "" : text;
 }
 
+function optionNameFromOrderItem(value: unknown) {
+  const orderItemName = cleanValue(value);
+  const separatorIndex = orderItemName.lastIndexOf("-");
+  if (separatorIndex < 0) return "";
+  return orderItemName.slice(separatorIndex + 1).replace(/\s+/gu, "");
+}
+
 export function analyzeRosterCsv(bytes: Uint8Array, fileName: string): RosterAnalysis {
   if (bytes.byteLength === 0) throw new Error("빈 파일은 업로드할 수 없습니다.");
   if (bytes.byteLength > MAX_IMPORT_BYTES) throw new Error("파일은 20MB 이하여야 합니다.");
@@ -115,6 +122,9 @@ export function analyzeRosterCsv(bytes: Uint8Array, fileName: string): RosterAna
   if (!mapping.phone) throw new Error("필수 전화번호 컬럼을 찾지 못했습니다. '연락처', '휴대전화번호', '전화번호', '휴대폰번호' 중 하나의 헤더가 필요합니다.");
 
   const orderStatusHeader = headers.find((header) => normalizeHeader(header) === "주문상태");
+  const orderItemNameHeader = headers.find(
+    (header) => normalizeHeader(header) === "주문항목명",
+  );
   const eligibleRows = rows.map((row, index) => ({ row, rowNumber: index + 2 }))
     .filter(({ row }) => !orderStatusHeader || cleanValue(row[orderStatusHeader]).normalize("NFKC") === "결제완료");
 
@@ -127,7 +137,20 @@ export function analyzeRosterCsv(bytes: Uint8Array, fileName: string): RosterAna
     else if (!phone) errors.push({ rowNumber, code: "MISSING_PHONE", reason: "전화번호에서 숫자를 찾을 수 없습니다.", originalValue: originalPhone });
     if (phone) normalizedPhones.push(phone);
 
-    return Object.fromEntries(STANDARD_FIELDS.map((field) => [field, field === "phone" ? phone ?? "" : cleanValue(mapping[field] ? row[mapping[field]!] : "")])) as Record<StandardField, string>;
+    const normalizedValues = Object.fromEntries(
+      STANDARD_FIELDS.map((field) => [
+        field,
+        field === "phone"
+          ? phone ?? ""
+          : cleanValue(mapping[field] ? row[mapping[field]!] : ""),
+      ]),
+    ) as Record<StandardField, string>;
+    if (!normalizedValues.optionName && orderItemNameHeader) {
+      normalizedValues.optionName = optionNameFromOrderItem(
+        row[orderItemNameHeader],
+      );
+    }
+    return normalizedValues;
   });
 
   const phoneCounts = new Map<string, number>();

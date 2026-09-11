@@ -137,6 +137,42 @@ test("주문 엑셀의 회원명과 휴대전화번호를 매핑하고 결제완
   assert.equal(records[1].originalValues["회원명"], "다른 고객");
 });
 
+test("옵션명이 없는 주문 엑셀은 C열 주문항목명의 마지막 하이픈 뒤를 공백 없이 옵션명으로 사용한다", async () => {
+  const buffer = await writeXlsxFile([
+    ["회원명", "휴대전화번호", "주문항목명", "옵션명", "주문상태"],
+    [
+      "옵션 없음",
+      "010-1111-2222",
+      "AI 강의 - 프리 미엄 반",
+      "",
+      "결제완료",
+    ],
+    [
+      "옵션 있음",
+      "010-3333-4444",
+      "AI 강의 - 주문 항목 옵션",
+      "직접 입력 옵션",
+      "결제완료",
+    ],
+  ].map((row) => row.map((value) => ({ value })))).toBuffer();
+
+  const { records } = await analyzeRosterFile(buffer, "purchase_order.xlsx");
+
+  assert.equal(records[0].normalizedValues.optionName, "프리미엄반");
+  assert.equal(records[1].normalizedValues.optionName, "직접 입력 옵션");
+});
+
+test("옵션명 열 자체가 없는 주문 엑셀도 주문항목명에서 옵션명을 보완한다", async () => {
+  const buffer = await writeXlsxFile([
+    ["회원명", "휴대전화번호", "주문항목명", "주문상태"],
+    ["결제 고객", "010-5555-6666", "AI 강의- 주 말 반", "결제완료"],
+  ].map((row) => row.map((value) => ({ value })))).toBuffer();
+
+  const { records } = await analyzeRosterFile(buffer, "purchase_order.xlsx");
+
+  assert.equal(records[0].normalizedValues.optionName, "주말반");
+});
+
 test("결제완료 행의 전화번호 오류는 필터링 전 엑셀 행 번호로 보고한다", () => {
   const { preview, records } = analyzeRosterCsv(new TextEncoder().encode(
     "회원명,휴대전화번호,주문 상태\n환불,,전액환불\n고객,,결제완료",
