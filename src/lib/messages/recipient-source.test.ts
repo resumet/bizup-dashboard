@@ -2,13 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadMessageSource, loadRosterMessageContacts } from "./recipient-source-server";
-import { messageHistorySourceId, parseRecipientSource, rosterSourceId } from "./recipient-source";
+import { messageHistorySourceId, messageHistorySourceName, parseRecipientSource, rosterSourceId } from "./recipient-source";
 
 test("같은 ID의 주소록과 수강생 명단은 서로 다른 발송·이력 대상으로 연결된다", () => {
   assert.deepEqual(parseRecipientSource("same-id"), { kind: "address-book", id: "same-id" });
   assert.deepEqual(parseRecipientSource(rosterSourceId("same-id")), { kind: "roster", id: "same-id" });
   assert.equal(messageHistorySourceId({ address_book_id: "same-id" }), "same-id");
   assert.equal(messageHistorySourceId({ address_book_id: null, course_job_id: "same-id" }), "roster:same-id");
+});
+
+test("발송 소스 관계가 비어도 이력 상세에 표시할 이름을 제공한다", () => {
+  assert.equal(messageHistorySourceName({ address_books: { name: "고객 주소록" } }), "고객 주소록");
+  assert.equal(messageHistorySourceName({ course_job_id: "roster-1", course_jobs: [{ name: "9월 수강생" }] }), "9월 수강생");
+  assert.equal(messageHistorySourceName({ course_job_id: "roster-1", course_jobs: null }), "삭제된 수강생 명단");
 });
 
 function sourceClient(data: unknown, expectedTable: string) {

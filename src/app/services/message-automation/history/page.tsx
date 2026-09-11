@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { messageHistorySourceId } from "@/lib/messages/recipient-source";
+import { messageHistorySourceId, messageHistorySourceName } from "@/lib/messages/recipient-source";
 import { redirect } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 
@@ -89,10 +89,6 @@ export default async function MessageAutomationHistoryPage() {
               </TableHeader>
               <TableBody>
                 {(data ?? []).map((job) => {
-                  const book = Array.isArray(job.address_books)
-                    ? job.address_books[0]
-                    : job.address_books;
-                  const roster = Array.isArray(job.course_jobs) ? job.course_jobs[0] : job.course_jobs;
                   const template = Array.isArray(job.message_templates)
                     ? job.message_templates[0]
                     : job.message_templates;
@@ -101,7 +97,7 @@ export default async function MessageAutomationHistoryPage() {
                       <TableCell className="whitespace-nowrap">
                         {new Date(job.created_at).toLocaleString("ko-KR")}
                       </TableCell>
-                      <TableCell>{roster ? <><Badge variant="outline" className="mr-2">수강생 명단</Badge>{roster.name}</> : book?.name ?? "삭제된 주소록"}</TableCell>
+                      <TableCell>{job.course_job_id ? <><Badge variant="outline" className="mr-2">수강생 명단</Badge>{messageHistorySourceName(job)}</> : messageHistorySourceName(job)}</TableCell>
                       <TableCell>
                         <p className="font-medium">
                           {template?.name ?? job.template_code}
