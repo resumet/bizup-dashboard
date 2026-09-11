@@ -24,6 +24,9 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectGroup,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -47,6 +50,7 @@ import { getTemplateVariables } from "@/lib/messages/custom-template";
 import { formatTemplateSelectionLabel } from "@/lib/messages/shoong-guide";
 import { MessageRecipientPreview } from "./message-recipient-preview";
 import { SelectedTemplatePreview } from "./selected-template-preview";
+import { parseRecipientSource, rosterSourceId } from "@/lib/messages/recipient-source";
 
 type Book = {
   id: string;
@@ -64,6 +68,7 @@ type Template = {
   variable_names: string[];
   is_system: boolean;
 };
+type Roster = { id: string; name: string; valid_count: number; latest_version: number; status: string; updated_at: string };
 type SelectedContact = {
   id: string;
   address_book_id: string;
@@ -74,6 +79,7 @@ type SelectedContact = {
 
 export function MessageAutomationManager({
   books,
+  rosters = [],
   templates,
   courses,
   initialBookId,
@@ -82,6 +88,7 @@ export function MessageAutomationManager({
   loadError,
 }: {
   books: Book[];
+  rosters?: Roster[];
   templates: Template[];
   courses: MessageCourse[];
   initialBookId: string;
@@ -115,7 +122,10 @@ export function MessageAutomationManager({
   const [resultAction, setResultAction] = useState<"test" | "send">("test");
   const [copiedLinkVariable, setCopiedLinkVariable] = useState("");
 
-  const selectedBook = books.find((book) => book.id === bookId);
+  const selectedRoster = rosters.find((roster) => rosterSourceId(roster.id) === bookId);
+  const selectedBook = selectedRoster
+    ? { id: bookId, name: selectedRoster.name, contact_count: selectedRoster.valid_count, updated_at: selectedRoster.updated_at }
+    : books.find((book) => book.id === bookId);
   const selectedTemplate = templates.find(
     (template) => template.id === templateId,
   );
@@ -153,7 +163,7 @@ export function MessageAutomationManager({
     verifiedTestKey && verifiedTestKey === currentTestKey,
   );
   const settingsReady = Boolean(
-    selectedBook && selectedTemplate && recipientCount > 0 && variablesReady,
+    selectedBook && selectedTemplate && recipientCount > 0 && variablesReady && (!selectedRoster || selectedRoster.status === "ready"),
   );
 
   function openCourseLink(variable: string) {
@@ -299,7 +309,7 @@ export function MessageAutomationManager({
           resultAction === "send" &&
           selectedBook ? (
             <Button className="mt-3" size="sm" variant="outline" asChild>
-              <Link href={`/services/message-automation/${selectedBook.id}`}>
+              <Link href={selectedRoster ? "/services/message-automation/history" : `/services/message-automation/${selectedBook.id}`}>
                 발송 이력 보기
               </Link>
             </Button>
@@ -347,6 +357,8 @@ export function MessageAutomationManager({
                   <SelectValue placeholder="주소록을 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>주소록</SelectLabel>
                   {books.map((book) => (
                     <SelectItem
                       key={book.id}
@@ -357,6 +369,17 @@ export function MessageAutomationManager({
                       명
                     </SelectItem>
                   ))}
+                  </SelectGroup>
+                  <SelectSeparator />
+                  <SelectGroup>
+                    <SelectLabel>수강생 명단</SelectLabel>
+                    {rosters.map((roster) => (
+                      <SelectItem key={roster.id} value={rosterSourceId(roster.id)} disabled={roster.valid_count === 0 || roster.status !== "ready"}>
+                        {roster.name} · {roster.valid_count.toLocaleString("ko-KR")}명{roster.status !== "ready" ? " · 발송 불가" : ""}
+                      </SelectItem>
+                    ))}
+                    {rosters.length === 0 ? <SelectItem value="no-rosters" disabled>저장된 수강생 명단이 없습니다</SelectItem> : null}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
@@ -366,7 +389,7 @@ export function MessageAutomationManager({
               <CheckCircle2 className="size-4 text-emerald-600" />
               {selectedContact
                 ? "선택한 한 사람만 발송 대상에 포함됩니다."
-                : `${selectedBook.name}의 전체 ${recipientCount.toLocaleString("ko-KR")}명이 발송 대상입니다.`}
+                : `${selectedBook.name}의 전체 ${recipientCount.toLocaleString("ko-KR")}명이 발송 대상입니다.${selectedRoster ? " 동일 전화번호는 한 번만 발송됩니다." : ""}`}
             </div>
           ) : null}
           </CardContent>
@@ -504,7 +527,7 @@ export function MessageAutomationManager({
                         <SelectContent>
                           <SelectItem value="manual">직접 입력</SelectItem>
                           <SelectItem value="address-book-name">
-                            주소록 이름 셀 연결
+                            {parseRecipientSource(bookId).kind === "roster" ? "수강생 명단 이름 셀 연결" : "주소록 이름 셀 연결"}
                           </SelectItem>
                         </SelectContent>
                       </Select>

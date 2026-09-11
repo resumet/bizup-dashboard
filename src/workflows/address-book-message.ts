@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { loadAllAddressBookContacts } from "@/lib/address-books/load";
+import { loadAllAddressBookContacts, type AddressBookContactRow } from "@/lib/address-books/load";
 import { dispatchDirectalkMessageBatch } from "@/lib/messages/directalk-batch-dispatch";
 import {
   chunkMessageRecipients,
@@ -35,6 +35,7 @@ const DELIVERY_POLL_DELAYS_MS = [
 export type AddressBookMessageWorkflowInput = {
   messageJobId: string;
   bookId: string;
+  rosterContacts?: AddressBookContactRow[];
   provider: MessageProviderName;
   templateCode: string;
   sendType: string;
@@ -47,7 +48,7 @@ export type AddressBookMessageWorkflowInput = {
 
 type PreparedRecipient = {
   id: string;
-  contactId: string;
+  contactId: string | null;
   name: string;
   phone: string;
 };
@@ -70,7 +71,7 @@ async function prepareAddressBookRecipients(
   });
 
   const admin = createAdminClient();
-  const allContacts = await loadAllAddressBookContacts(admin, input.bookId);
+  const allContacts = input.rosterContacts ?? await loadAllAddressBookContacts(admin, input.bookId);
   const keyword = input.keyword.trim().toLocaleLowerCase("ko-KR");
   const selected = new Set(input.selectedIds);
   const contacts = allContacts.filter((contact) =>
@@ -92,7 +93,7 @@ async function prepareAddressBookRecipients(
   const recipients: PreparedRecipient[] = dedupeMessageRecipientsByPhone(
     contacts.map((contact) => ({
       id: deterministicRecipientId(input.messageJobId, contact.id),
-      contactId: contact.id,
+      contactId: input.rosterContacts ? null : contact.id,
       name: contact.name ?? "",
       phone: contact.normalized_phone,
     })),

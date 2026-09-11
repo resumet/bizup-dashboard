@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { messageHistorySourceId } from "@/lib/messages/recipient-source";
 import { redirect } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 
@@ -31,7 +32,7 @@ export default async function MessageAutomationHistoryPage() {
   const { data, error } = await supabase
     .from("address_book_message_jobs")
     .select(
-      "id,address_book_id,template_code,target_scope,requested_count,success_count,failed_count,status,provider,delivery_checked_at,created_at,address_books(name),message_templates(name)",
+      "id,address_book_id,course_job_id,template_code,target_scope,requested_count,success_count,failed_count,status,provider,delivery_checked_at,created_at,address_books(name),course_jobs(name),message_templates(name)",
     )
     .order("created_at", { ascending: false })
     .limit(200);
@@ -44,7 +45,7 @@ export default async function MessageAutomationHistoryPage() {
     )
     .map(
       (job) =>
-        `/api/address-books/${job.address_book_id}/messages/${job.id}/sync`,
+        `/api/address-books/${messageHistorySourceId(job)}/messages/${job.id}/sync`,
     )
     .slice(0, 5);
   return (
@@ -76,7 +77,7 @@ export default async function MessageAutomationHistoryPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>발송시간</TableHead>
-                  <TableHead>주소록</TableHead>
+                  <TableHead>주소록 / 수강생 명단</TableHead>
                   <TableHead>템플릿</TableHead>
                   <TableHead>범위</TableHead>
                   <TableHead className="text-right">요청</TableHead>
@@ -91,6 +92,7 @@ export default async function MessageAutomationHistoryPage() {
                   const book = Array.isArray(job.address_books)
                     ? job.address_books[0]
                     : job.address_books;
+                  const roster = Array.isArray(job.course_jobs) ? job.course_jobs[0] : job.course_jobs;
                   const template = Array.isArray(job.message_templates)
                     ? job.message_templates[0]
                     : job.message_templates;
@@ -99,7 +101,7 @@ export default async function MessageAutomationHistoryPage() {
                       <TableCell className="whitespace-nowrap">
                         {new Date(job.created_at).toLocaleString("ko-KR")}
                       </TableCell>
-                      <TableCell>{book?.name ?? "삭제된 주소록"}</TableCell>
+                      <TableCell>{roster ? <><Badge variant="outline" className="mr-2">수강생 명단</Badge>{roster.name}</> : book?.name ?? "삭제된 주소록"}</TableCell>
                       <TableCell>
                         <p className="font-medium">
                           {template?.name ?? job.template_code}
@@ -142,7 +144,7 @@ export default async function MessageAutomationHistoryPage() {
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" asChild>
                           <Link
-                            href={`/services/message-automation/${job.address_book_id}/messages/${job.id}`}
+                            href={`/services/message-automation/${messageHistorySourceId(job)}/messages/${job.id}`}
                           >
                             <ExternalLink />
                             보기

@@ -1,6 +1,7 @@
 import { syncMessageDeliveryResults } from "@/lib/messages/delivery-sync";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
+import { parseRecipientSource } from "@/lib/messages/recipient-source";
 
 type Context = {
   params: Promise<{ bookId: string; messageId: string }>;
@@ -11,6 +12,7 @@ export const maxDuration = 60;
 
 export async function POST(_: Request, { params }: Context) {
   const { bookId, messageId } = await params;
+  const source = parseRecipientSource(bookId);
   const supabase = await createClient();
   const user = await getAuthenticatedUser(supabase);
   if (!user) {
@@ -21,7 +23,7 @@ export async function POST(_: Request, { params }: Context) {
     .from("address_book_message_jobs")
     .select("id,provider")
     .eq("id", messageId)
-    .eq("address_book_id", bookId)
+    .eq(source.kind === "roster" ? "course_job_id" : "address_book_id", source.id)
     .maybeSingle();
   if (!message) {
     return Response.json(

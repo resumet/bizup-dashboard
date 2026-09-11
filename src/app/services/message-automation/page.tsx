@@ -25,7 +25,7 @@ export default async function MessageAutomationPage({ searchParams }: Props) {
           .eq("address_book_id", query.bookId)
           .maybeSingle()
       : Promise.resolve({ data: null, error: null });
-  const [booksResult, templatesResult, coursesResult, contactResult] =
+  const [booksResult, templatesResult, coursesResult, contactResult, rostersResult] =
     await Promise.all([
       supabase
         .from("address_books")
@@ -44,6 +44,9 @@ export default async function MessageAutomationPage({ searchParams }: Props) {
         )
         .order("updated_at", { ascending: false }),
       contactPromise,
+      supabase.from("course_jobs")
+        .select("id,name,valid_count,latest_version,status,updated_at")
+        .order("updated_at", { ascending: false }),
     ]);
   return (
     <main className="min-h-screen">
@@ -69,6 +72,7 @@ export default async function MessageAutomationPage({ searchParams }: Props) {
         <MessageAutomationManager
           key={`${query.templateId ?? ""}:${query.bookId ?? ""}:${query.contactId ?? ""}`}
           books={booksResult.data ?? []}
+          rosters={rostersResult.data ?? []}
           templates={templatesResult.data ?? []}
           courses={coursesResult.data ?? []}
           initialBookId={query.bookId ?? ""}
@@ -78,7 +82,8 @@ export default async function MessageAutomationPage({ searchParams }: Props) {
             booksResult.error?.message ||
             templatesResult.error?.message ||
             coursesResult.error?.message ||
-            contactResult.error?.message
+            contactResult.error?.message ||
+            rostersResult.error?.message
           }
         />
       </div>

@@ -7,6 +7,7 @@ import {
 import { canMapVariableToRecipientName } from "@/lib/messages/automation-config";
 import { getPhoneSendError } from "@/lib/messages/phone";
 import { getMessageProvider } from "@/lib/messages/provider";
+import { loadMessageSource, loadRosterMessageContacts } from "@/lib/messages/recipient-source-server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -41,12 +42,8 @@ export async function POST(request: Request, { params }: Context) {
       );
     }
 
-    const [{ data: book }, { data: template }] = await Promise.all([
-      supabase
-        .from("address_books")
-        .select("id,workspace_id,contact_count")
-        .eq("id", bookId)
-        .maybeSingle(),
+    const [book, { data: template }] = await Promise.all([
+      loadMessageSource(supabase, bookId),
       supabase
         .from("message_templates")
         .select(
@@ -66,6 +63,9 @@ export async function POST(request: Request, { params }: Context) {
         { message: "템플릿을 찾을 수 없습니다." },
         { status: 404 },
       );
+    }
+    if (book.kind === "roster" && body.scope !== "all") {
+      throw new Error("수강생 명단은 전체 발송을 선택해 주세요.");
     }
 
     const provider = getMessageProvider();
@@ -112,11 +112,15 @@ export async function POST(request: Request, { params }: Context) {
       }
     }
 
+    const rosterContacts = book.kind === "roster"
+      ? await loadRosterMessageContacts(supabase, book.id, book.version)
+      : undefined;
+    if (rosterContacts?.length === 0) throw new Error("발송할 수강생이 없습니다.");
     const admin = createAdminClient();
     messageJobId = randomUUID();
     const requestedCount =
       body.scope === "all"
-        ? book.contact_count
+        ? rosterContacts?.length ?? book.contact_count
         : body.scope === "selected"
           ? selectedIds.length
           : 0;
@@ -125,7 +129,9 @@ export async function POST(request: Request, { params }: Context) {
       .insert({
         id: messageJobId,
         workspace_id: book.workspace_id,
-        address_book_id: bookId,
+        ...(book.kind === "roster"
+          ? { course_job_id: book.id, course_job_version: book.version }
+          : { address_book_id: book.id }),
         template_id: template.id,
         template_code: template.template_code,
         provider: provider.name,
@@ -141,6 +147,7 @@ export async function POST(request: Request, { params }: Context) {
       {
         messageJobId,
         bookId,
+        rosterContacts,
         provider: provider.name,
         templateCode: template.template_code,
         sendType: template.send_type,

@@ -24,6 +24,7 @@ import {
 import { formatPhone } from "@/lib/jobs/filter";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
+import { parseRecipientSource } from "@/lib/messages/recipient-source";
 
 type PageProps = {
   params: Promise<{ bookId: string; messageId: string }>;
@@ -73,6 +74,7 @@ export default async function AddressMessageHistoryDetailPage({
   searchParams,
 }: PageProps) {
   const { bookId, messageId } = await params;
+  const source = parseRecipientSource(bookId);
   const query = await searchParams;
   const parsedPage = Number.parseInt(query.page ?? "1", 10);
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
@@ -81,14 +83,14 @@ export default async function AddressMessageHistoryDetailPage({
   if (!user) redirect("/login");
 
   const [{ data: book }, { data: message }] = await Promise.all([
-    supabase.from("address_books").select("id,name").eq("id", bookId).maybeSingle(),
+    supabase.from(source.kind === "roster" ? "course_jobs" : "address_books").select("id,name").eq("id", source.id).maybeSingle(),
     supabase
       .from("address_book_message_jobs")
       .select(
         "id,template_code,target_scope,requested_count,success_count,failed_count,status,provider,delivery_checked_at,created_at,message_templates(name)",
       )
       .eq("id", messageId)
-      .eq("address_book_id", bookId)
+      .eq(source.kind === "roster" ? "course_job_id" : "address_book_id", source.id)
       .maybeSingle(),
   ]);
   if (!book || !message) notFound();
