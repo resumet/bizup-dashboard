@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { StoredRosterRecord } from "./roster";
-import { buildUpdatedRosterRecords, compareRosterRecords } from "./roster-diff";
+import { buildUpdatedRosterRecords, compareRosterRecords, validateRosterSelection } from "./roster-diff";
 
 function record(
   phone: string,
@@ -30,6 +30,44 @@ function record(
     isExtraParticipant: false,
   };
 }
+
+test("체크한 신규 행과 삭제 행만 적용하고 나머지 기존 수강생은 유지한다", () => {
+  const current = [record("01011112222", "유지", true, "메모"), record("01033334444", "삭제"), record("01055556666", "남김")];
+  const incoming = [record("01011112222", "유지"), record("01077778888", "선택 안 함"), record("01099990000", "추가")];
+  const updated = buildUpdatedRosterRecords(current, incoming, {
+    approveAdditions: false, approveRemovals: false,
+    selectedAdditionIndexes: [1], selectedRemovalIndexes: [0],
+  });
+  assert.deepEqual(updated.map((row) => row.normalizedValues.customerName), ["유지", "추가", "남김"]);
+  assert.equal(updated[0].normalizedValues.memo, "메모");
+  assert.equal(updated[0].normalizedValues.groupChatJoined, true);
+});
+
+test("전화번호와 이름이 같은 신규 행도 옵션별로 따로 선택할 수 있다", () => {
+  const incoming = [record("01011112222", "이름"), record("01011112222", "이름")];
+  incoming[0].normalizedValues.optionName = "첫 옵션";
+  incoming[1].normalizedValues.optionName = "둘째 옵션";
+  const updated = buildUpdatedRosterRecords([], incoming, {
+    approveAdditions: true, approveRemovals: false, selectedAdditionIndexes: [1],
+  });
+  assert.equal(updated.length, 1);
+  assert.equal(updated[0].normalizedValues.optionName, "둘째 옵션");
+  assert.equal(updated[0].isDuplicate, false);
+});
+
+test("빈 선택은 일괄 승인보다 우선하며 기존 명단을 삭제하지 않는다", () => {
+  const updated = buildUpdatedRosterRecords([record("01011112222", "기존")], [record("01033334444", "신규")], {
+    approveAdditions: true, approveRemovals: true, selectedAdditionIndexes: [], selectedRemovalIndexes: [],
+  });
+  assert.deepEqual(updated.map((row) => row.normalizedValues.customerName), ["기존"]);
+});
+
+test("선택 인덱스는 범위를 검증하고 중복 선택은 한 번만 반영한다", () => {
+  for (const invalid of [null, {}, ["0"], [-1], [2], [0.5]]) {
+    assert.throws(() => validateRosterSelection(invalid, 2), /선택한 수강생/);
+  }
+  assert.deepEqual(validateRosterSelection([1, 1, 0], 2), [1, 0]);
+});
 
 test("기존 명단과 새 파일에서 추가·삭제·유지 항목을 전화번호로 비교한다", () => {
   const current = [

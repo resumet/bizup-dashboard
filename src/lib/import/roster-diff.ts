@@ -26,6 +26,13 @@ export type RosterDiffResult = {
 
 export type NameConflictDecisions = Record<string, "add" | "skip">;
 
+export function validateRosterSelection(value: unknown, count: number): number[] {
+  if (!Array.isArray(value) || value.some((index) => !Number.isInteger(index) || index < 0 || index >= count)) {
+    throw new Error("선택한 수강생 정보를 확인해 주세요. 명단을 다시 비교해 주세요.");
+  }
+  return [...new Set(value as number[])];
+}
+
 function comparisonName(record: StoredRosterRecord) {
   return record.normalizedValues.customerName.normalize("NFKC").trim();
 }
@@ -99,9 +106,15 @@ export function toRosterDiffItem(record: StoredRosterRecord): RosterDiffItem {
 export function buildUpdatedRosterRecords(
   current: StoredRosterRecord[],
   incoming: StoredRosterRecord[],
-  options: { approveAdditions: boolean; approveRemovals: boolean; nameConflictDecisions?: NameConflictDecisions; preserveSourceRowNumbers?: boolean },
+  options: { approveAdditions: boolean; approveRemovals: boolean; selectedAdditionIndexes?: number[]; selectedRemovalIndexes?: number[]; nameConflictDecisions?: NameConflictDecisions; preserveSourceRowNumbers?: boolean },
 ) {
   const diff = compareRosterRecords(current, incoming);
+  const selectedAdditions = new Set(options.selectedAdditionIndexes === undefined
+    ? options.approveAdditions ? diff.additions : []
+    : validateRosterSelection(options.selectedAdditionIndexes, diff.additions.length).map((index) => diff.additions[index]));
+  const selectedRemovals = new Set(options.selectedRemovalIndexes === undefined
+    ? options.approveRemovals ? diff.removals : []
+    : validateRosterSelection(options.selectedRemovalIndexes, diff.removals.length).map((index) => diff.removals[index]));
   const decisions = options.nameConflictDecisions ?? {};
   if (diff.nameConflicts.some(({ id }) => decisions[id] !== "add" && decisions[id] !== "skip")) {
     throw new Error("전화번호가 같고 이름이 다른 모든 항목의 추가 여부를 선택해 주세요.");
@@ -119,7 +132,7 @@ export function buildUpdatedRosterRecords(
       return decisions[String(index)] === "add" ? [record] : [];
     }
     const matched = currentBuckets.get(record.normalizedPhone)?.shift();
-    if (!matched) return options.approveAdditions ? [record] : [];
+    if (!matched) return selectedAdditions.has(record) ? [record] : [];
 
     const normalizedValues = {
       ...matched.normalizedValues,
@@ -145,7 +158,7 @@ export function buildUpdatedRosterRecords(
   });
 
   nextRecords.push(...diff.protectedCurrent);
-  if (!options.approveRemovals) nextRecords.push(...diff.removals);
+  nextRecords.push(...diff.removals.filter((record) => !selectedRemovals.has(record)));
 
   const phoneCounts = new Map<string, number>();
   nextRecords.forEach((record) =>

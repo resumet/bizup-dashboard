@@ -74,8 +74,8 @@ export function RosterUpdateDialog({ jobId }: { jobId: string }) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<UpdatePreview | null>(null);
-  const [approveAdditions, setApproveAdditions] = useState(false);
-  const [approveRemovals, setApproveRemovals] = useState(false);
+  const [selectedAdditionIndexes, setSelectedAdditionIndexes] = useState<number[]>([]);
+  const [selectedRemovalIndexes, setSelectedRemovalIndexes] = useState<number[]>([]);
   const [nameConflictDecisions, setNameConflictDecisions] = useState<NameConflictDecisions>({});
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -84,8 +84,8 @@ export function RosterUpdateDialog({ jobId }: { jobId: string }) {
   function reset() {
     setFile(null);
     setPreview(null);
-    setApproveAdditions(false);
-    setApproveRemovals(false);
+    setSelectedAdditionIndexes([]);
+    setSelectedRemovalIndexes([]);
     setNameConflictDecisions({});
     setError("");
   }
@@ -102,8 +102,8 @@ export function RosterUpdateDialog({ jobId }: { jobId: string }) {
     setLoading(true);
     setError("");
     setPreview(null);
-    setApproveAdditions(false);
-    setApproveRemovals(false);
+    setSelectedAdditionIndexes([]);
+    setSelectedRemovalIndexes([]);
     setNameConflictDecisions({});
     try {
       const formData = new FormData();
@@ -142,8 +142,8 @@ export function RosterUpdateDialog({ jobId }: { jobId: string }) {
       formData.set("file", file);
       formData.set("expectedVersion", String(preview.currentVersion));
       formData.set("expectedChecksum", preview.file.checksumSha256);
-      formData.set("approveAdditions", String(approveAdditions));
-      formData.set("approveRemovals", String(approveRemovals));
+      formData.set("selectedAdditionIndexes", JSON.stringify(selectedAdditionIndexes));
+      formData.set("selectedRemovalIndexes", JSON.stringify(selectedRemovalIndexes));
       formData.set("nameConflictDecisions", JSON.stringify(nameConflictDecisions));
       const response = await fetch(`/api/jobs/${jobId}/imports`, {
         method: "POST",
@@ -316,55 +316,32 @@ export function RosterUpdateDialog({ jobId }: { jobId: string }) {
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent value="additions">
+                  <p className="my-3 text-sm text-muted-foreground">추가할 수강생을 체크해 주세요. 체크를 해제하면 추가 대상에서 빠집니다.</p>
                   <DiffTable
                     items={preview.additions}
+                    selectedIndexes={selectedAdditionIndexes}
+                    onSelectionChange={setSelectedAdditionIndexes}
+                    actionLabel="추가"
+                    disabled={applying}
                     emptyMessage="새롭게 추가되는 항목이 없습니다."
                   />
                 </TabsContent>
                 <TabsContent value="removals">
+                  <p className="my-3 text-sm text-muted-foreground">기존 명단에서 삭제할 수강생만 체크해 주세요. 체크하지 않은 수강생은 유지됩니다.</p>
                   <DiffTable
                     items={preview.removals}
+                    selectedIndexes={selectedRemovalIndexes}
+                    onSelectionChange={setSelectedRemovalIndexes}
+                    actionLabel="삭제"
+                    disabled={applying}
                     emptyMessage="새 파일에서 제외된 항목이 없습니다."
                   />
                 </TabsContent>
               </Tabs>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="flex items-start gap-3 rounded-xl border p-4 text-sm">
-                  <Checkbox
-                    checked={approveAdditions}
-                    disabled={applying || preview.summary.additions === 0}
-                    onCheckedChange={(value) =>
-                      setApproveAdditions(value === true)
-                    }
-                  />
-                  <span>
-                    <span className="block font-medium">
-                      신규 {preview.summary.additions}명 추가 승인
-                    </span>
-                    <span className="mt-1 block text-muted-foreground">
-                      체크하지 않으면 신규 항목은 적용하지 않습니다.
-                    </span>
-                  </span>
-                </label>
-                <label className="flex items-start gap-3 rounded-xl border border-destructive/30 p-4 text-sm">
-                  <Checkbox
-                    checked={approveRemovals}
-                    disabled={applying || preview.summary.removals === 0}
-                    onCheckedChange={(value) =>
-                      setApproveRemovals(value === true)
-                    }
-                  />
-                  <span>
-                    <span className="block font-medium">
-                      제외 {preview.summary.removals}명 삭제 승인
-                    </span>
-                    <span className="mt-1 block text-muted-foreground">
-                      체크하지 않으면 기존 명단에 계속 유지합니다.
-                    </span>
-                  </span>
-                </label>
-              </div>
+              <p className="text-sm font-medium" aria-live="polite">
+                추가 선택 {selectedAdditionIndexes.length + Object.values(nameConflictDecisions).filter((decision) => decision === "add").length}명 · 삭제 선택 {selectedRemovalIndexes.length}명
+              </p>
             </div>
           )}
         </div>
@@ -392,7 +369,7 @@ export function RosterUpdateDialog({ jobId }: { jobId: string }) {
                 ) : (
                   <FileSpreadsheet />
                 )}
-                {applying ? "적용 중" : "승인 내용 적용"}
+                {applying ? "적용 중" : "선택 내용 적용"}
               </Button>
             ) : null}
           </div>
@@ -433,10 +410,19 @@ function DiffMetric({
 function DiffTable({
   items,
   emptyMessage,
+  selectedIndexes,
+  onSelectionChange,
+  actionLabel,
+  disabled,
 }: {
   items: DiffItem[];
   emptyMessage: string;
+  selectedIndexes: number[];
+  onSelectionChange: (indexes: number[]) => void;
+  actionLabel: string;
+  disabled: boolean;
 }) {
+  const selected = new Set(selectedIndexes);
   if (items.length === 0) {
     return (
       <div className="rounded-xl border py-12 text-center text-muted-foreground">
@@ -449,6 +435,17 @@ function DiffTable({
       <Table>
         <TableHeader className="sticky top-0 bg-background">
           <TableRow>
+            <TableHead className="w-24">
+              <label className="flex items-center gap-2">
+                <Checkbox
+                  aria-label={`${actionLabel} 대상 전체 선택`}
+                  checked={selected.size === items.length ? true : selected.size > 0 ? "indeterminate" : false}
+                  disabled={disabled}
+                  onCheckedChange={(value) => onSelectionChange(value === true ? items.map((_, index) => index) : [])}
+                />
+                {actionLabel}
+              </label>
+            </TableHead>
             <TableHead>이름</TableHead>
             <TableHead>전화번호</TableHead>
             <TableHead>이메일</TableHead>
@@ -459,6 +456,16 @@ function DiffTable({
         <TableBody>
           {items.map((item, index) => (
             <TableRow key={`${item.phone}-${index}`}>
+              <TableCell>
+                <Checkbox
+                  aria-label={`${item.name || "이름 없음"} ${formatPhone(item.phone)} ${actionLabel}`}
+                  checked={selected.has(index)}
+                  disabled={disabled}
+                  onCheckedChange={(value) => onSelectionChange(value === true
+                    ? [...selectedIndexes, index]
+                    : selectedIndexes.filter((selectedIndex) => selectedIndex !== index))}
+                />
+              </TableCell>
               <TableCell className="font-medium">{item.name || "-"}</TableCell>
               <TableCell className="font-mono">
                 {formatPhone(item.phone)}

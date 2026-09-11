@@ -5,6 +5,7 @@ import {
   buildUpdatedRosterRecords,
   compareRosterRecords,
   toRosterDiffItem,
+  validateRosterSelection,
   type NameConflictDecisions,
 } from "@/lib/import/roster-diff";
 import {
@@ -163,6 +164,14 @@ export async function POST(request: Request, { params }: Context) {
 
     const approveAdditions = formData.get("approveAdditions") === "true";
     const approveRemovals = formData.get("approveRemovals") === "true";
+    const selectedAdditionIndexes = formData.has("selectedAdditionIndexes")
+      ? validateRosterSelection(JSON.parse(String(formData.get("selectedAdditionIndexes"))), diff.additions.length)
+      : undefined;
+    const selectedRemovalIndexes = formData.has("selectedRemovalIndexes")
+      ? validateRosterSelection(JSON.parse(String(formData.get("selectedRemovalIndexes"))), diff.removals.length)
+      : undefined;
+    const additionsApplied = selectedAdditionIndexes?.length ?? (approveAdditions ? diff.additions.length : 0);
+    const removalsApplied = selectedRemovalIndexes?.length ?? (approveRemovals ? diff.removals.length : 0);
     const nameConflictDecisions = JSON.parse(String(formData.get("nameConflictDecisions") ?? "{}")) as NameConflictDecisions;
     if (!nameConflictDecisions || typeof nameConflictDecisions !== "object" || Array.isArray(nameConflictDecisions) ||
       diff.nameConflicts.some(({ id }) => nameConflictDecisions[id] !== "add" && nameConflictDecisions[id] !== "skip")) {
@@ -171,7 +180,7 @@ export async function POST(request: Request, { params }: Context) {
     const finalRecords = buildUpdatedRosterRecords(
       currentRecords,
       incomingRecords,
-      { approveAdditions, approveRemovals, nameConflictDecisions },
+      { approveAdditions, approveRemovals, selectedAdditionIndexes, selectedRemovalIndexes, nameConflictDecisions },
     );
     if (finalRecords.length === 0)
       throw new Error("적용 후 남는 수강생이 없습니다. 삭제 승인을 확인해 주세요.");
@@ -264,8 +273,8 @@ export async function POST(request: Request, { params }: Context) {
         filename: file.name,
         additions_found: diff.additions.length,
         removals_found: diff.removals.length,
-        additions_applied: approveAdditions ? diff.additions.length : 0,
-        removals_applied: approveRemovals ? diff.removals.length : 0,
+        additions_applied: additionsApplied,
+        removals_applied: removalsApplied,
         name_conflict_decisions: nameConflictDecisions,
         name_conflicts_added: diff.nameConflicts.filter(({ id }) => nameConflictDecisions[id] === "add").length,
         excluded_order_rows: preview.summary.excludedOrderRows ?? 0,
@@ -277,8 +286,8 @@ export async function POST(request: Request, { params }: Context) {
       message: "새 명단 버전을 적용했습니다.",
       version: nextVersion,
       finalCount: finalRecords.length,
-      additionsApplied: approveAdditions ? diff.additions.length : 0,
-      removalsApplied: approveRemovals ? diff.removals.length : 0,
+      additionsApplied,
+      removalsApplied,
     });
   } catch (error) {
     return Response.json(
