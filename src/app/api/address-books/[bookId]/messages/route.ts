@@ -64,10 +64,6 @@ export async function POST(request: Request, { params }: Context) {
         { status: 404 },
       );
     }
-    if (book.kind === "roster" && body.scope !== "all") {
-      throw new Error("수강생 명단은 전체 발송을 선택해 주세요.");
-    }
-
     const provider = getMessageProvider();
     provider.validateCustomSendType(template.send_type);
 
@@ -90,14 +86,32 @@ export async function POST(request: Request, { params }: Context) {
         (variable) => !recipientNameVariables.includes(variable),
       ),
     );
-    const selectedIds = Array.isArray(body.selectedIds) ? body.selectedIds : [];
+    const selectedIds = Array.isArray(body.selectedIds)
+      ? [
+          ...new Set(
+            body.selectedIds.filter(
+              (id): id is string => typeof id === "string" && id.length > 0,
+            ),
+          ),
+        ]
+      : [];
     if (body.scope === "selected" && selectedIds.length === 0) {
       return Response.json(
         { message: "선택한 발송 대상이 없습니다." },
         { status: 400 },
       );
     }
-    if (body.scope === "selected" && selectedIds.length === 1) {
+    if (selectedIds.length > 1_000) {
+      return Response.json(
+        { message: "한 번에 최대 1,000명까지 선택 발송할 수 있습니다." },
+        { status: 400 },
+      );
+    }
+    if (
+      book.kind === "address-book" &&
+      body.scope === "selected" &&
+      selectedIds.length === 1
+    ) {
       const { data: selectedContact } = await supabase
         .from("address_book_contacts")
         .select("normalized_phone")
@@ -113,16 +127,23 @@ export async function POST(request: Request, { params }: Context) {
     }
 
     const rosterContacts = book.kind === "roster"
-      ? await loadRosterMessageContacts(supabase, book.id, book.version)
+      ? await loadRosterMessageContacts(
+          supabase,
+          book.id,
+          book.version,
+          body.scope === "selected" ? selectedIds : undefined,
+        )
       : undefined;
-    if (rosterContacts?.length === 0) throw new Error("발송할 수강생이 없습니다.");
+    if (rosterContacts?.length === 0) {
+      throw new Error("선택한 명단에서 발송할 수강생을 찾을 수 없습니다.");
+    }
     const admin = createAdminClient();
     messageJobId = randomUUID();
     const requestedCount =
       body.scope === "all"
         ? rosterContacts?.length ?? book.contact_count
         : body.scope === "selected"
-          ? selectedIds.length
+          ? rosterContacts?.length ?? selectedIds.length
           : 0;
     const { error: jobError } = await admin
       .from("address_book_message_jobs")

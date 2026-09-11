@@ -19,8 +19,24 @@ export async function POST(request: Request, { params }: Context) {
 
   try {
     const body = await request.json();
-    if (typeof body.templateId !== "string" || (body.contactId !== undefined && typeof body.contactId !== "string")) {
+    if (
+      typeof body.templateId !== "string" ||
+      (body.contactId !== undefined && typeof body.contactId !== "string")
+    ) {
       throw new Error("템플릿과 발송 대상을 확인해 주세요.");
+    }
+    const rawSelectedIds: unknown[] = Array.isArray(body.selectedIds)
+      ? body.selectedIds
+      : [];
+    const selectedIds = [
+      ...new Set(
+        rawSelectedIds.filter(
+          (id): id is string => typeof id === "string" && id.length > 0,
+        ),
+      ),
+    ];
+    if (selectedIds.length > 1_000) {
+      throw new Error("한 번에 최대 1,000명까지 미리보기할 수 있습니다.");
     }
     const [book, templateResult] = await Promise.all([
       loadMessageSource(supabase, bookId),
@@ -44,12 +60,19 @@ export async function POST(request: Request, { params }: Context) {
     // Match the workflow's ID order and phone deduplication, stopping at ten recipients.
     let contacts: { id: string; name: string | null; normalized_phone: string }[] = [];
     if (book.kind === "roster") {
-      if (body.contactId !== undefined) throw new Error("수강생 명단은 전체 대상을 선택해 주세요.");
-      contacts = (await loadRosterMessageContacts(supabase, book.id, book.version)).slice(0, 10);
+      contacts = (
+        await loadRosterMessageContacts(
+          supabase,
+          book.id,
+          book.version,
+          selectedIds.length > 0 ? selectedIds : undefined,
+        )
+      ).slice(0, 10);
     }
     for (let offset = 0; book.kind === "address-book" && contacts.length < 10; offset += 10) {
       let query = supabase.from("address_book_contacts").select("id,name,normalized_phone").eq("address_book_id", bookId);
       if (body.contactId !== undefined) query = query.eq("id", body.contactId);
+      else if (selectedIds.length > 0) query = query.in("id", selectedIds);
       const { data, error } = await query.order("id").range(offset, offset + 9);
       if (error) throw new Error("미리보기 고객을 불러오지 못했습니다.");
       contacts = dedupeMessageRecipientsByPhone([...contacts, ...(data ?? [])], (contact) => contact.normalized_phone);

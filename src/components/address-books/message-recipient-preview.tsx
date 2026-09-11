@@ -18,9 +18,10 @@ type Recipient = {
   missingVariables: string[];
 };
 
-export function MessageRecipientPreview({ bookId, contactId, templateId, templateName, variables, recipientNameVariables, settingsKey, ready }: {
+export function MessageRecipientPreview({ bookId, contactId, selectedIds = [], templateId, templateName, variables, recipientNameVariables, settingsKey, ready }: {
   bookId: string;
   contactId?: string;
+  selectedIds?: string[];
   templateId: string;
   templateName: string;
   variables: Record<string, string>;
@@ -39,7 +40,13 @@ export function MessageRecipientPreview({ bookId, contactId, templateId, templat
       const response = await fetch(`/api/address-books/${bookId}/messages/preview`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ templateId, contactId, variables, recipientNameVariables }),
+        body: JSON.stringify({
+          templateId,
+          contactId,
+          selectedIds,
+          variables,
+          recipientNameVariables,
+        }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message ?? "미리보기를 불러오지 못했습니다.");
@@ -59,11 +66,18 @@ export function MessageRecipientPreview({ bookId, contactId, templateId, templat
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
-            {contactId ? "선택한 고객" : "발송 대상 중 첫 10명"}에게 적용될 내용을 확인합니다. 미리보기는 문자를 발송하지 않습니다.
+            {contactId || selectedIds.length > 0
+              ? "선택한 고객 중 첫 10명"
+              : "발송 대상 중 첫 10명"}
+            에게 적용될 내용을 확인합니다. 미리보기는 문자를 발송하지 않습니다.
           </p>
           <Button type="button" variant="outline" onClick={preview} disabled={!ready || loading}>
             {loading ? <Loader2 className="animate-spin" /> : <Eye />}
-            {loading ? "불러오는 중" : contactId ? "고객 미리보기" : "첫 10명 미리보기"}
+            {loading
+              ? "불러오는 중"
+              : contactId || selectedIds.length > 0
+                ? "선택 고객 미리보기"
+                : "첫 10명 미리보기"}
           </Button>
         </div>
         {!ready ? <p className="text-sm text-muted-foreground">주소록·템플릿을 선택하고 변수를 입력해 주세요.</p> : null}

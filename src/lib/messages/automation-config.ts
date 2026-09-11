@@ -21,12 +21,14 @@ export function getRecipientNameVariables(
 export function createAutomationTestKey({
   addressBookId,
   contactId,
+  recipientIds = [],
   templateId,
   variables,
   recipientNameVariables = [],
 }: {
   addressBookId: string;
   contactId?: string;
+  recipientIds?: string[];
   templateId: string;
   variables: Record<string, string>;
   recipientNameVariables?: string[];
@@ -38,6 +40,7 @@ export function createAutomationTestKey({
   return JSON.stringify([
     addressBookId,
     contactId ?? "",
+    [...recipientIds].sort(),
     templateId,
     sortedVariables,
     [...recipientNameVariables].sort((left, right) =>

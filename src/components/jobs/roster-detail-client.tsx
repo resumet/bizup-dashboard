@@ -89,6 +89,11 @@ import {
   MESSAGE_TEMPLATE_LABELS,
   type MessageHistoryItem,
 } from "@/lib/messages/types";
+import { rosterSourceId } from "@/lib/messages/recipient-source";
+import {
+  rosterSelectionStorageKey,
+  serializeRosterSelection,
+} from "@/lib/messages/roster-selection-transfer";
 
 type Props = {
   jobId: string;
@@ -333,6 +338,26 @@ export function RosterDetailClient({
     }
   }
 
+  function openGeneralMessageAutomation() {
+    if (selectedRows.length === 0) return;
+    if (selectedRows.length > 1_000) {
+      window.alert("한 번에 최대 1,000명까지 선택 발송할 수 있습니다.");
+      return;
+    }
+    const sourceId = rosterSourceId(jobId);
+    const selectionKey = crypto.randomUUID();
+    sessionStorage.setItem(
+      rosterSelectionStorageKey(selectionKey),
+      serializeRosterSelection(
+        sourceId,
+        selectedRows.map((row) => row.id),
+      ),
+    );
+    router.push(
+      `/services/message-automation?bookId=${encodeURIComponent(sourceId)}&selectionKey=${encodeURIComponent(selectionKey)}`,
+    );
+  }
+
   if (loadError)
     return (
       <Alert variant="destructive">
@@ -365,10 +390,6 @@ export function RosterDetailClient({
           </p>
         </div>
         <div className="flex flex-wrap gap-2 lg:max-w-[62%] lg:justify-end">
-          <DeleteSelectedEnrollmentsButton
-            jobId={jobId}
-            selectedIds={selectedRows.map((row) => row.id)}
-          />
           <MessageDialog
             key={`group-chat-invite-${linkedOptionInviteVersion}`}
             jobId={jobId}
@@ -391,6 +412,15 @@ export function RosterDetailClient({
             selectedRows={selectedRows}
             filters={filters}
           />
+          <Button
+            type="button"
+            variant="outline"
+            disabled={selectedRows.length === 0}
+            onClick={openGeneralMessageAutomation}
+          >
+            <Send />
+            일반 메시지 보내기
+          </Button>
         </div>
       </div>
       <Card>
@@ -469,6 +499,10 @@ export function RosterDetailClient({
               jobId={jobId}
               courseName={courseName}
               onAdded={(row) => setRows((current) => [...current, row])}
+            />
+            <DeleteSelectedEnrollmentsButton
+              jobId={jobId}
+              selectedIds={selectedRows.map((row) => row.id)}
             />
             <Select
               value={sort}
@@ -1102,8 +1136,8 @@ export function MessageDialog({
         >
           <MessageSquareText />
           {isGroupChatInvite
-            ? "카톡방 미참여자 알림톡 보내기"
-            : "메시지 보내기"}
+            ? "카톡방 미참여 알림톡"
+            : "결제자 안내하기"}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-xl">

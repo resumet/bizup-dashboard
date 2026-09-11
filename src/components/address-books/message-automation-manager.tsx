@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import {
   Check,
   CheckCircle2,
@@ -51,6 +51,10 @@ import { formatTemplateSelectionLabel } from "@/lib/messages/shoong-guide";
 import { MessageRecipientPreview } from "./message-recipient-preview";
 import { SelectedTemplatePreview } from "./selected-template-preview";
 import { parseRecipientSource, rosterSourceId } from "@/lib/messages/recipient-source";
+import {
+  parseRosterSelection,
+  rosterSelectionStorageKey,
+} from "@/lib/messages/roster-selection-transfer";
 
 type Book = {
   id: string;
@@ -77,6 +81,8 @@ type SelectedContact = {
   normalized_phone: string;
 } | null;
 
+const subscribeToSessionStorage = () => () => {};
+
 export function MessageAutomationManager({
   books,
   rosters = [],
@@ -84,6 +90,7 @@ export function MessageAutomationManager({
   courses,
   initialBookId,
   initialTemplateId,
+  initialSelectionKey,
   selectedContact,
   loadError,
 }: {
@@ -93,6 +100,7 @@ export function MessageAutomationManager({
   courses: MessageCourse[];
   initialBookId: string;
   initialTemplateId?: string;
+  initialSelectionKey?: string;
   selectedContact: SelectedContact;
   loadError?: string;
 }) {
@@ -121,6 +129,24 @@ export function MessageAutomationManager({
   const [resultKind, setResultKind] = useState<"success" | "error">("success");
   const [resultAction, setResultAction] = useState<"test" | "send">("test");
   const [copiedLinkVariable, setCopiedLinkVariable] = useState("");
+  const [ignoreTransferredSelection, setIgnoreTransferredSelection] =
+    useState(false);
+  const storedSelection = useSyncExternalStore(
+    subscribeToSessionStorage,
+    () =>
+      initialSelectionKey
+        ? (sessionStorage.getItem(
+            rosterSelectionStorageKey(initialSelectionKey),
+          ) ?? "")
+        : "",
+    () => (initialSelectionKey ? null : ""),
+  );
+  const transferredSelectedIds =
+    ignoreTransferredSelection || storedSelection === ""
+      ? []
+      : storedSelection === null
+        ? null
+        : parseRosterSelection(storedSelection, initialBookId);
 
   const selectedRoster = rosters.find((roster) => rosterSourceId(roster.id) === bookId);
   const selectedBook = selectedRoster
@@ -149,12 +175,23 @@ export function MessageAutomationManager({
       recipientNameVariables.includes(variable) ||
       variableValues[variable]?.trim(),
   );
+  const selectionLoading = transferredSelectedIds === null;
+  const selectionRequested = Boolean(
+    initialSelectionKey && !ignoreTransferredSelection,
+  );
+  const hasTransferredSelection = Boolean(transferredSelectedIds?.length);
+  const selectionInvalid = Boolean(
+    selectionRequested && !selectionLoading && !hasTransferredSelection,
+  );
   const recipientCount = selectedContact
     ? 1
-    : (selectedBook?.contact_count ?? 0);
+    : selectionRequested
+      ? transferredSelectedIds?.length ?? 0
+      : (selectedBook?.contact_count ?? 0);
   const currentTestKey = createAutomationTestKey({
     addressBookId: selectedBook?.id ?? "",
     contactId: selectedContact?.id,
+    recipientIds: transferredSelectedIds ?? [],
     templateId,
     variables: variableValues,
     recipientNameVariables,
@@ -163,7 +200,7 @@ export function MessageAutomationManager({
     verifiedTestKey && verifiedTestKey === currentTestKey,
   );
   const settingsReady = Boolean(
-    selectedBook && selectedTemplate && recipientCount > 0 && variablesReady && (!selectedRoster || selectedRoster.status === "ready"),
+    !selectionLoading && !selectionInvalid && selectedBook && selectedTemplate && recipientCount > 0 && variablesReady && (!selectedRoster || selectedRoster.status === "ready"),
   );
 
   function openCourseLink(variable: string) {
@@ -235,7 +272,7 @@ export function MessageAutomationManager({
     if (!selectedBook || !settingsReady || !testVerified) return;
     const targetLabel = selectedContact
       ? `${selectedContact.name || "이름 없음"}(${formatPhone(selectedContact.normalized_phone)})`
-      : `${selectedBook.name} 전체 ${recipientCount.toLocaleString("ko-KR")}명`;
+      : `${selectedBook.name} ${hasTransferredSelection ? "선택" : "전체"} ${recipientCount.toLocaleString("ko-KR")}명`;
     if (!window.confirm(`${targetLabel}에게 메시지를 발송할까요?`)) return;
 
     setSending(true);
@@ -250,8 +287,11 @@ export function MessageAutomationManager({
             templateId,
             variables: variableValues,
             recipientNameVariables,
-            scope: selectedContact ? "selected" : "all",
-            selectedIds: selectedContact ? [selectedContact.id] : [],
+            scope:
+              selectedContact || selectionRequested ? "selected" : "all",
+            selectedIds: selectedContact
+              ? [selectedContact.id]
+              : (transferredSelectedIds ?? []),
           }),
         },
       );
@@ -297,6 +337,14 @@ export function MessageAutomationManager({
         <Alert variant="destructive">
           <AlertTitle>발송 설정 조회 실패</AlertTitle>
           <AlertDescription>{loadError}</AlertDescription>
+        </Alert>
+      ) : null}
+      {selectionInvalid ? (
+        <Alert variant="destructive">
+          <AlertTitle>선택 목록을 불러오지 못했습니다</AlertTitle>
+          <AlertDescription>
+            수강생 명단에서 발송할 사람을 다시 선택해 주세요.
+          </AlertDescription>
         </Alert>
       ) : null}
       {result ? (
@@ -350,6 +398,7 @@ export function MessageAutomationManager({
                 value={bookId}
                 onValueChange={(value) => {
                   setBookId(value);
+                  setIgnoreTransferredSelection(true);
                   setResult("");
                 }}
               >
@@ -389,7 +438,9 @@ export function MessageAutomationManager({
               <CheckCircle2 className="size-4 text-emerald-600" />
               {selectedContact
                 ? "선택한 한 사람만 발송 대상에 포함됩니다."
-                : `${selectedBook.name}의 전체 ${recipientCount.toLocaleString("ko-KR")}명이 발송 대상입니다.${selectedRoster ? " 동일 전화번호는 한 번만 발송됩니다." : ""}`}
+                : hasTransferredSelection
+                  ? `${selectedBook.name}에서 선택한 ${recipientCount.toLocaleString("ko-KR")}명만 발송 대상입니다. 동일 전화번호는 한 번만 발송됩니다.`
+                  : `${selectedBook.name}의 전체 ${recipientCount.toLocaleString("ko-KR")}명이 발송 대상입니다.${selectedRoster ? " 동일 전화번호는 한 번만 발송됩니다." : ""}`}
             </div>
           ) : null}
           </CardContent>
@@ -654,6 +705,7 @@ export function MessageAutomationManager({
       <MessageRecipientPreview
         bookId={bookId}
         contactId={selectedContact?.id}
+        selectedIds={transferredSelectedIds ?? []}
         templateId={templateId}
         templateName={selectedTemplate?.name ?? ""}
         variables={variableValues}
@@ -693,7 +745,11 @@ export function MessageAutomationManager({
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Send className="size-5" />
-              {selectedContact ? "선택한 1명에게 발송" : "전체 발송"}
+              {selectedContact
+                ? "선택한 1명에게 발송"
+                : hasTransferredSelection
+                  ? `선택한 ${recipientCount.toLocaleString("ko-KR")}명에게 발송`
+                  : "전체 발송"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -721,7 +777,9 @@ export function MessageAutomationManager({
                 ? "발송 작업 등록 중"
                 : selectedContact
                   ? "선택한 1명에게 발송하기"
-                  : `전체 ${recipientCount.toLocaleString("ko-KR")}명 발송하기`}
+                  : hasTransferredSelection
+                    ? `선택한 ${recipientCount.toLocaleString("ko-KR")}명 발송하기`
+                    : `전체 ${recipientCount.toLocaleString("ko-KR")}명 발송하기`}
             </Button>
           </CardContent>
         </Card>

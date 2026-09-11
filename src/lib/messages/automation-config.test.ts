@@ -61,4 +61,11 @@ test("테스트 확인 키는 입력 순서에는 무관하고 발송 설정 변
       recipientNameVariables: ["신청자"],
     }),
   );
+  assert.notEqual(
+    key,
+    createAutomationTestKey({
+      ...base,
+      recipientIds: ["contact-2", "contact-3"],
+    }),
+  );
 });

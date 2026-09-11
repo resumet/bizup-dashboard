@@ -21,12 +21,23 @@ export async function loadMessageSource(supabase: SupabaseClient, sourceId: stri
   return { ...source, name: data.name as string, workspace_id: data.workspace_id as string, contact_count: data.contact_count as number, version: undefined };
 }
 
-export async function loadRosterMessageContacts(supabase: SupabaseClient, jobId: string, version: number): Promise<AddressBookContactRow[]> {
+export async function loadRosterMessageContacts(
+  supabase: SupabaseClient,
+  jobId: string,
+  version: number,
+  selectedIds?: string[],
+): Promise<AddressBookContactRow[]> {
   const rows = await loadJobEnrollmentRows(supabase, jobId, version);
-  return dedupeMessageRecipientsByPhone(rows.map((row) => ({
-    id: row.id,
-    name: row.values?.customerName ?? "",
-    email: row.values?.email ?? "",
-    normalized_phone: row.normalizedPhone,
-  })), (contact) => contact.normalized_phone);
+  const selected = selectedIds ? new Set(selectedIds) : null;
+  return dedupeMessageRecipientsByPhone(
+    rows
+      .filter((row) => !selected || selected.has(row.id))
+      .map((row) => ({
+        id: row.id,
+        name: row.values?.customerName ?? "",
+        email: row.values?.email ?? "",
+        normalized_phone: row.normalizedPhone,
+      })),
+    (contact) => contact.normalized_phone,
+  );
 }

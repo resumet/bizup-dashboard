@@ -73,4 +73,19 @@ test("최신 명단을 페이지 끝까지 읽고 이름을 매핑하며 중복 
   assert.equal(contacts.length, 1000);
   assert.deepEqual(contacts[0], { id: "row-0", name: "수강생 0", email: "0@example.com", normalized_phone: "01000000000" });
   assert.equal(contacts.at(-1)?.id, "row-999");
+
+  const selectedDuplicate = await loadRosterMessageContacts(
+    client,
+    "roster-1",
+    3,
+    ["row-1000"],
+  );
+  assert.deepEqual(selectedDuplicate, [
+    {
+      id: "row-1000",
+      name: "수강생 1000",
+      email: "1000@example.com",
+      normalized_phone: "01000000000",
+    },
+  ]);
 });
