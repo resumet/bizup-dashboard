@@ -21,7 +21,6 @@ export function formatCourseSelectionLabel(course: MessageCourse) {
 }
 
 const COURSE_NAME_VARIABLES = new Set(["강의명", "강좌명"]);
-const COURSE_LINK_VARIABLES = new Set(["링크", "링크명", "입장링크"]);
 
 const COURSE_LINK_FIELDS = [
   ["landing_page_link", "기본 랜딩페이지"],
@@ -40,7 +39,8 @@ export function isCourseNameVariable(variable: string) {
 }
 
 export function isCourseLinkVariable(variable: string) {
-  return COURSE_LINK_VARIABLES.has(variable.trim());
+  const normalized = variable.replace(/[\s_-]+/gu, "");
+  return /링크|url|link|홈페이지|웹사이트|(?:웹|접속|입장|결제|신청|시청|참여|사이트)주소/iu.test(normalized);
 }
 
 export function isInstructorNameVariable(variable: string) {

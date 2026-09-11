@@ -83,6 +83,15 @@ test("선택한 강의의 링크 관리 기본 항목 9개를 모두 포함한�
   );
 });
 
+test("이름에 링크·URL·link 또는 웹 접속 주소가 포함된 모든 변수를 링크 입력으로 분류한다", () => {
+  const names = ["결제링크", "신청 링크", "시청링크1", "강의자료링크", "오픈채팅방링크", "URL", "입장_URL", "paymentLink", "course_url", "LINK_2", "접속 주소", "웹주소", "홈페이지", "웹사이트"];
+  for (const name of names) assert.equal(isCourseLinkVariable(name), true, name);
+  assert.deepEqual(getCourseSelectionVariables(names, course), Object.fromEntries(names.map((name) => [name, ""])));
+  for (const name of ["강좌명", "강사명", "고객명", "전화번호", "입장코드", "배송주소", "이메일주소", ""]) {
+    assert.equal(isCourseLinkVariable(name), false, name);
+  }
+});
+
 test("링크 관리의 커스텀 이름과 URL을 포함하고 비어 있거나 잘못된 항목은 제외한다", () => {
   const options = getCourseLinkOptions({ ...course, landing_page_link: " https://example.com/landing ", custom_links: [
     { name: " 강의 자료 ", url: " https://example.com/materials " },

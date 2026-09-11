@@ -33,3 +33,13 @@ test("DirecTalk의 링크·링크명 변수만 버튼 링크 형식으로 정규
     },
   );
 });
+
+test("추가된 링크 입력 변수의 URL은 본문에서도 사용할 수 있도록 원문을 유지한다", () => {
+  const variables = {
+    결제링크: "https://example.com/pay",
+    접속주소: "https://example.com/join",
+    course_url: "https://example.com/course",
+    paymentLink: "https://example.com/payment",
+  };
+  assert.deepEqual(normalizeDirectalkVariables(variables), variables);
+});
