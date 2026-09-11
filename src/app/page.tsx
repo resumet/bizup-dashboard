@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Bell,
   BookOpenCheck,
+  Calculator,
   CirclePlay,
   ContactRound,
   FileCheck2,
@@ -264,7 +265,15 @@ export default async function DashboardPage() {
               별도 프로젝트를 만들지 않고 바로 사용할 수 있습니다.
             </p>
           </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"><Card className="border-teal-500/30 bg-teal-500/5 transition-colors hover:bg-teal-500/10">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <Card className="border-indigo-500/30 bg-indigo-500/5 transition-colors hover:bg-indigo-500/10">
+              <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+                <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-indigo-600 text-white shadow-sm"><Calculator className="size-5" /></span>
+                <div className="min-w-0 flex-1"><p className="font-semibold">강의 정산 계산기</p><p className="mt-1 text-sm text-muted-foreground">가격·판매 수량·비용으로 회사와 강사의 예상 정산금을 바로 계산합니다.</p></div>
+                <Button asChild size="sm" className="bg-indigo-600 text-white hover:bg-indigo-700"><Link href="/tools/settlement-calculator">실행하기 <ArrowRight /></Link></Button>
+              </CardContent>
+            </Card>
+            <Card className="border-teal-500/30 bg-teal-500/5 transition-colors hover:bg-teal-500/10">
             <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
               <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-teal-600 text-white shadow-sm">
                 <FileDown className="size-5" />
