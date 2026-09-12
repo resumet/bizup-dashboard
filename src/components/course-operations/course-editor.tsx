@@ -23,6 +23,7 @@ import { CourseScheduleCalendar } from "@/components/course-operations/course-sc
 import { CourseShareDialog } from "@/components/course-operations/course-share-dialog";
 import { CourseSettlementManager } from "@/components/course-settlements/course-settlement-manager";
 import { CourseCostManager } from "@/components/course-costs/course-cost-manager";
+import { CourseOrdersManager } from "@/components/course-operations/course-orders-manager";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -210,8 +211,9 @@ type CourseEditorTab =
   | "messages"
   | "videos"
   | "costs"
+  | "orders"
   | "settlement";
-type DeferredCourseEditorTab = Exclude<CourseEditorTab, "information" | "costs" | "settlement">;
+type DeferredCourseEditorTab = Exclude<CourseEditorTab, "information" | "costs" | "settlement" | "orders">;
 type SectionLoadStatus = "idle" | "loading" | "loaded" | "error";
 
 function DeferredSectionState({
@@ -360,7 +362,7 @@ export function CourseOperationsEditor({
   notesLoadError?: string;
   loadError?: string;
   deferDetailSections?: boolean;
-  initialTab?: "information" | "costs" | "settlement";
+  initialTab?: "information" | "costs" | "settlement" | "orders";
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState(() => {
@@ -513,7 +515,7 @@ export function CourseOperationsEditor({
   function changeTab(value: string) {
     const nextTab = value as CourseEditorTab;
     setActiveTab(nextTab);
-    if (nextTab !== "information" && nextTab !== "costs" && nextTab !== "settlement") {
+    if (nextTab !== "information" && nextTab !== "costs" && nextTab !== "settlement" && nextTab !== "orders") {
       void loadDetailSection(nextTab);
     }
   }
@@ -904,7 +906,7 @@ export function CourseOperationsEditor({
         onValueChange={changeTab}
         className="gap-6"
       >
-        <TabsList className="grid w-full grid-cols-4 grid-rows-2 group-data-horizontal/tabs:h-[5.5rem] md:w-fit md:grid-cols-7 md:grid-rows-1 md:group-data-horizontal/tabs:h-12">
+        <TabsList className="grid w-full grid-cols-4 grid-rows-2 group-data-horizontal/tabs:h-[5.5rem] xl:w-fit xl:grid-cols-8 xl:grid-rows-1 xl:group-data-horizontal/tabs:h-12">
           <TabsTrigger value="information" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             정보
           </TabsTrigger>
@@ -913,6 +915,9 @@ export function CourseOperationsEditor({
           </TabsTrigger>
           <TabsTrigger value="students" className="h-10 min-w-0 px-2 md:min-w-32 md:px-5">
             수강생명단
+          </TabsTrigger>
+          <TabsTrigger value="orders" disabled={!courseId} className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
+            주문 내역
           </TabsTrigger>
           <TabsTrigger value="messages" className="h-10 min-w-0 px-2 md:min-w-32 md:px-5">
             단톡방문자
@@ -2114,6 +2119,10 @@ export function CourseOperationsEditor({
           )}
         </TabsContent>
 
+        <TabsContent value="orders" className="mt-0">
+          {courseId ? <CourseOrdersManager courseId={courseId} courseName={initialDraft.name} /> : null}
+        </TabsContent>
+
         <TabsContent value="costs" className="mt-0">
           {courseId ? <CourseCostManager courseId={courseId} /> : null}
         </TabsContent>
@@ -2133,7 +2142,7 @@ export function CourseOperationsEditor({
         </TabsContent>
       </Tabs>
 
-      {activeTab !== "costs" && activeTab !== "settlement" ? (
+      {activeTab !== "costs" && activeTab !== "settlement" && activeTab !== "orders" ? (
         <div className="flex justify-end border-t pt-6">
           <Button className="min-h-10" onClick={saveCourse} disabled={saving}>
             {saving ? <Loader2 className="animate-spin" /> : <Save />}

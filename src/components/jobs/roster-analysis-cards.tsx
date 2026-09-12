@@ -14,16 +14,21 @@ export function RosterAnalysisCards({
   sourceItems,
   optionItems,
   totalCount,
+  scopeLabel = "전체 수강생",
+  defaultExpanded = false,
 }: {
   sourceItems: RosterSourceAnalysis[];
   optionItems: RosterOptionAnalysis[];
   totalCount: number;
+  scopeLabel?: string;
+  defaultExpanded?: boolean;
 }) {
   return (
     <div className="grid items-start gap-5 xl:grid-cols-2">
       <RosterAnalysisCard
         title="유입 경로 분석"
-        description="전체 수강생이 어떤 경로로 유입되었는지 보여줍니다."
+        description={`${scopeLabel}의 유입 경로별 인원과 비율을 보여줍니다.`}
+        defaultExpanded={defaultExpanded}
         categoryLabel="유입 경로"
         itemUnit="경로"
         chartId="source-analysis-chart"
@@ -37,7 +42,8 @@ export function RosterAnalysisCards({
       />
       <RosterAnalysisCard
         title="옵션별 인원 분석"
-        description="전체 수강생이 선택한 옵션별 인원과 비율을 보여줍니다."
+        description={`${scopeLabel}이 선택한 옵션별 인원과 비율을 보여줍니다.`}
+        defaultExpanded={defaultExpanded}
         categoryLabel="옵션명"
         itemUnit="옵션"
         chartId="option-analysis-chart"
@@ -62,6 +68,7 @@ function RosterAnalysisCard({
   barClassName,
   items,
   totalCount,
+  defaultExpanded,
 }: {
   title: string;
   description: string;
@@ -71,8 +78,9 @@ function RosterAnalysisCard({
   barClassName: string;
   items: Array<{ label: string; count: number; percentage: number }>;
   totalCount: number;
+  defaultExpanded: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   return (
     <Card>
@@ -84,7 +92,7 @@ function RosterAnalysisCard({
           </div>
           <div className="flex items-center gap-3">
             <p className="text-sm text-muted-foreground">
-              {items.length.toLocaleString("ko-KR")}개 {itemUnit} · 전체{" "}
+              {items.length.toLocaleString("ko-KR")}개 {itemUnit} · 합계{" "}
               {totalCount.toLocaleString("ko-KR")}명
             </p>
             <Button
@@ -121,6 +129,11 @@ function RosterAnalysisCard({
               <span className="text-right">인원 · 비율</span>
             </div>
             <div className="space-y-3">
+              {items.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  집계할 수강생이 없습니다.
+                </p>
+              ) : null}
               {items.map((item) => (
                 <div
                   key={item.label}

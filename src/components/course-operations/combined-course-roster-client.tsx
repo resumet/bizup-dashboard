@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { ListFilter, Search } from "lucide-react";
 
 import { MessageDialog } from "@/components/jobs/roster-detail-client";
+import { RosterAnalysisCards } from "@/components/jobs/roster-analysis-cards";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -30,6 +31,9 @@ import type {
 } from "@/lib/course-operations/types";
 import { selectCombinedRosterMessageTargets } from "@/lib/course-operations/combined-roster";
 import {
+  analyzeRosterOptions,
+  analyzeRosterSources,
+  countGroupChatParticipants,
   filterRosterRows,
   formatPhone,
   sortRosterRows,
@@ -74,6 +78,18 @@ export function CombinedCourseRosterClient({
       ? filtered
       : (sortRosterRows(filtered, sort) as CombinedCourseRosterRow[]);
   }, [filters, rows, sort, sourceJobId]);
+  const analysis = useMemo(() => {
+    const joined = countGroupChatParticipants(filteredRows);
+    return {
+      options: analyzeRosterOptions(filteredRows),
+      sources: analyzeRosterSources(filteredRows),
+      joined,
+      notJoined: filteredRows.length - joined,
+      joinedPercentage: filteredRows.length
+        ? Math.round((joined / filteredRows.length) * 1000) / 10
+        : 0,
+    };
+  }, [filteredRows]);
   const selectedRows = useMemo(
     () => rows.filter((row) => selected.has(row.id)),
     [rows, selected],
@@ -163,7 +179,7 @@ export function CombinedCourseRosterClient({
             <ListFilter className="size-5" />명단 필터
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
           <div className="relative xl:col-span-2">
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -199,6 +215,20 @@ export function CombinedCourseRosterClient({
             onChange={(value) => setFilter("source", value)}
           />
           <Select
+            value={filters.groupChat}
+            onValueChange={(value) =>
+              setFilter("groupChat", value as RosterFilters["groupChat"])
+            }
+          >
+            <SelectTrigger aria-label="단톡방 참여 여부">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">단톡방 전체</SelectItem>
+              <SelectItem value="notJoined">단톡방 미참여만</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
             value={sort}
             onValueChange={(value) => setSort(value as RosterSort)}
           >
@@ -213,6 +243,61 @@ export function CombinedCourseRosterClient({
           </Select>
         </CardContent>
       </Card>
+
+      <section aria-label="통합 수강생 현황" className="space-y-5">
+        <div>
+          <h2 className="text-lg font-semibold">수강생 현황</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            전체 인원을 제외한 통계는 현재 검색·필터 결과 기준입니다.
+            여러 명단에 중복 등록된 수강생은 각각 집계합니다.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            { label: "전체 수강생", count: rows.length, detail: `연결 명단 ${rosterJobs.length}개 기준` },
+            { label: "현재 필터 인원", count: filteredRows.length, detail: "아래 명단과 동일한 인원" },
+            { label: "단톡방 참여", count: analysis.joined, detail: "현재 필터 기준" },
+            { label: "단톡방 미참여", count: analysis.notJoined, detail: "현재 필터 기준" },
+          ].map((item) => (
+            <Card key={item.label}>
+              <CardHeader>
+                <CardTitle className="text-sm text-muted-foreground">{item.label}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-semibold tabular-nums">
+                  {item.count.toLocaleString("ko-KR")}<span className="ml-1 text-base font-normal">명</span>
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">{item.detail}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">단톡방 참여 현황</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap justify-between gap-2 text-sm">
+              <span>참여 {analysis.joined.toLocaleString("ko-KR")}명 · {analysis.joinedPercentage}%</span>
+              <span>미참여 {analysis.notJoined.toLocaleString("ko-KR")}명 · {filteredRows.length ? Math.round((analysis.notJoined / filteredRows.length) * 1000) / 10 : 0}%</span>
+            </div>
+            <div className="flex h-4 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+              <div className="h-full bg-emerald-500" style={{ width: `${analysis.joinedPercentage}%` }} />
+              <div className="h-full bg-amber-400" style={{ width: `${filteredRows.length ? 100 - analysis.joinedPercentage : 0}%` }} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {filteredRows.length ? "초록: 참여 · 노랑: 미참여. 단톡방 미참여만 필터로 대상 명단을 확인할 수 있습니다." : "집계할 수강생이 없습니다."}
+            </p>
+          </CardContent>
+        </Card>
+        <RosterAnalysisCards
+          sourceItems={analysis.sources}
+          optionItems={analysis.options}
+          totalCount={filteredRows.length}
+          scopeLabel="현재 필터 결과의 수강생"
+          defaultExpanded
+        />
+      </section>
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
