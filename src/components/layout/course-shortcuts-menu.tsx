@@ -18,10 +18,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { CourseQuickLink, CourseQuickLinks } from "@/lib/course-operations/quick-links";
 
-const COMMON_LINK: CourseQuickLink = {
-  label: "무료강의멘트",
-  url: "https://docs.google.com/spreadsheets/d/1uVAgx23JXDqxl5uAjgpGywDyg9F7vZ74wJcsAC1p14c/edit?gid=1923105310#gid=1923105310",
-};
+const COMMON_LINKS: CourseQuickLink[] = [
+  {
+    label: "무료강의멘트",
+    url: "https://docs.google.com/spreadsheets/d/1uVAgx23JXDqxl5uAjgpGywDyg9F7vZ74wJcsAC1p14c/edit?gid=1923105310#gid=1923105310",
+  },
+  {
+    label: "지령창",
+    url: "https://docs.google.com/presentation/d/1glOkbnWTgXufnnUNpcoDIvityzc8EHTyQghgzqpFIKM/edit?usp=sharing",
+  },
+];
 
 function ShortcutItem({ link }: { link: CourseQuickLink }) {
   if (!link.url) {
@@ -68,7 +74,9 @@ export function CourseShortcutsMenu() {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>공통</DropdownMenuSubTrigger>
           <DropdownMenuPortal>
-            <DropdownMenuSubContent className="w-48"><ShortcutItem link={COMMON_LINK} /></DropdownMenuSubContent>
+            <DropdownMenuSubContent className="w-48">
+              {COMMON_LINKS.map((link) => <ShortcutItem key={link.label} link={link} />)}
+            </DropdownMenuSubContent>
           </DropdownMenuPortal>
         </DropdownMenuSub>
         <DropdownMenuSeparator />
