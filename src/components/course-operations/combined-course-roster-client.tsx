@@ -6,6 +6,7 @@ import { ListFilter, Search } from "lucide-react";
 
 import { MessageDialog } from "@/components/jobs/roster-detail-client";
 import { RosterAnalysisCards } from "@/components/jobs/roster-analysis-cards";
+import { CombinedRosterDownload } from "@/components/course-operations/combined-roster-download";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -298,6 +299,8 @@ export function CombinedCourseRosterClient({
           defaultExpanded
         />
       </section>
+
+      <CombinedRosterDownload rows={filteredRows} courseName={courseName} />
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
