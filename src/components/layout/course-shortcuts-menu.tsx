@@ -27,6 +27,10 @@ const COMMON_LINKS: CourseQuickLink[] = [
     label: "지령창",
     url: "https://docs.google.com/presentation/d/1glOkbnWTgXufnnUNpcoDIvityzc8EHTyQghgzqpFIKM/edit?usp=sharing",
   },
+  {
+    label: "카카오플친 문의",
+    url: "https://pf.kakao.com/_xomzxgn/chat",
+  },
 ];
 
 function ShortcutItem({ link }: { link: CourseQuickLink }) {
