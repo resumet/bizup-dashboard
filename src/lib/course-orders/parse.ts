@@ -54,6 +54,9 @@ export function parseCourseOrders(matrix: unknown[][]): CourseOrder[] {
     if (!productName) throw new Error(`${rowNumber}행 주문항목명이 비어 있습니다.`);
     const paymentId = text(get(row, "결제ID"));
     const orderId = text(get(row, "주문ID"));
+    const isSplitPayment = headerKey(get(row, "결제유형")) === "분할결제";
+    const orderNumber = text(get(row, "주문번호"));
+    if (isSplitPayment && !orderNumber) throw new Error(`${rowNumber}행 분할결제의 주문번호가 비어 있습니다.`);
     if (!paymentId && !orderId) throw new Error(`${rowNumber}행 결제ID와 주문ID가 모두 비어 있습니다.`);
     const phoneValue = get(row, "휴대전화번호");
     let phone = text(phoneValue).replace(/[^\d+]/gu, "");
@@ -67,12 +70,54 @@ export function parseCourseOrders(matrix: unknown[][]): CourseOrder[] {
       status: text(get(row, "주문상태")), paymentMethod: text(get(row, "결제방법")),
       rs: text(get(row, "RS")), adMedia: text(get(row, "트래킹 광고 매체")),
       inflowType: text(get(row, "트래킹 유입 구분")), paymentId, orderId,
+      ...(isSplitPayment ? { splitOrderNumber: orderNumber } : {}),
       refundDate: refundDate(get(row, "환불일"), rowNumber),
     }];
   });
   if (!rows.length) throw new Error("저장할 주문 데이터가 없습니다.");
   if (rows.length > 10_000) throw new Error("한 번에 최대 10,000건까지 가져올 수 있습니다.");
-  return rows;
+  return mergeSplitPayments(rows);
+}
+
+function mergeSplitPayments(rows: CourseOrder[]): CourseOrder[] {
+  const groups = new Map<string, CourseOrder[]>();
+  for (const row of rows) {
+    if (!row.splitOrderNumber) continue;
+    const group = groups.get(row.splitOrderNumber) ?? [];
+    group.push(row);
+    groups.set(row.splitOrderNumber, group);
+  }
+  const emitted = new Set<string>();
+  return rows.flatMap((row): CourseOrder[] => {
+    if (!row.splitOrderNumber) return [row];
+    if (emitted.has(row.splitOrderNumber)) return [];
+    emitted.add(row.splitOrderNumber);
+    const payments = new Map<string, CourseOrder>();
+    for (const payment of groups.get(row.splitOrderNumber)!) {
+      const key = payment.paymentId || JSON.stringify(payment);
+      const previous = payments.get(key);
+      if (previous && JSON.stringify(previous) !== JSON.stringify(payment)) {
+        throw new Error("같은 분할결제의 결제ID에 서로 다른 정보가 있습니다. 파일에서 해당 결제 내역을 확인해 주세요.");
+      }
+      payments.set(key, payment);
+    }
+    const parts = [...payments.values()];
+    const join = (field: keyof CourseOrder) => [...new Set(parts.map((part) => String(part[field] ?? "")).filter(Boolean))].sort().join(" / ");
+    const sum = (field: "paymentAmount" | "refundAmount" | "currentAmount") => {
+      const total = parts.reduce((value, part) => value + Math.round(part[field] * 100), 0) / 100;
+      if (Math.abs(total) > 1e12) throw new Error("분할결제 합산 금액이 저장 가능한 범위를 초과했습니다.");
+      return total;
+    };
+    return [{
+      ...row,
+      productName: join("productName"), optionName: join("optionName"),
+      memberName: join("memberName"), phone: join("phone"), email: join("email"),
+      paymentAmount: sum("paymentAmount"), refundAmount: sum("refundAmount"), currentAmount: sum("currentAmount"),
+      status: join("status"), paymentMethod: join("paymentMethod"), rs: join("rs"),
+      adMedia: join("adMedia"), inflowType: join("inflowType"), paymentId: join("paymentId"), orderId: join("orderId"),
+      refundDate: parts.map((part) => part.refundDate).sort().at(-1) ?? "",
+    }];
+  });
 }
 
 export function buildCourseOrderPreview(rows: CourseOrder[], courseName: string): CourseOrderPreview {
@@ -91,6 +136,7 @@ export function buildCourseOrderPreview(rows: CourseOrder[], courseName: string)
 }
 
 export function courseOrderIdentity(row: CourseOrder) {
+  if (row.splitOrderNumber) return JSON.stringify(["split-order", row.splitOrderNumber]);
   return JSON.stringify([row.orderId ? "order" : "payment", row.orderId || row.paymentId, row.productName]);
 }
 

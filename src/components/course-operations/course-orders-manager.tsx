@@ -118,13 +118,13 @@ export function CourseOrdersManager({ courseId, courseName }: { courseId: string
               {busy ? <Loader2 className="animate-spin" /> : <Upload />}파일 분석
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">주문항목명 원문을 보관하고 마지막 ‘ - ’ 오른쪽을 옵션명으로 분류합니다. 같은 주문ID(없으면 결제ID)와 주문항목명을 다시 올리면 갱신되며, 파일에 없는 기존 주문은 유지됩니다.</p>
+          <p className="text-xs text-muted-foreground">주문항목명 원문을 보관하고 마지막 ‘ - ’ 오른쪽을 옵션명으로 분류합니다. 분할결제는 같은 주문번호끼리 금액을 합산해 한 건으로 저장합니다. 같은 주문을 다시 올리면 갱신되며, 파일에 없는 기존 주문은 유지됩니다.</p>
           {preview ? (
             <div className="space-y-3 rounded-lg border p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="font-semibold">이 강의에 연결할 주문항목</h3>
-                  <p className="text-sm text-muted-foreground">파일 전체 {preview.totalCount.toLocaleString("ko-KR")}건 · 선택 {selectedCount.toLocaleString("ko-KR")}건</p>
+                  <p className="text-sm text-muted-foreground">분할결제 통합 후 전체 {preview.totalCount.toLocaleString("ko-KR")}건 · 선택 {selectedCount.toLocaleString("ko-KR")}건</p>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={() => setProducts(products.size === preview.products.length ? new Set() : new Set(preview.products.map((product) => product.name)))} disabled={busy}>
                   {products.size === preview.products.length ? "전체 해제" : "전체 선택"}

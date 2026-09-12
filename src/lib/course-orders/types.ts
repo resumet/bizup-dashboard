@@ -15,6 +15,8 @@ export type CourseOrder = {
   paymentId: string;
   refundDate: string;
   orderId: string;
+  // Import-only identity: persisted through record_key, not a separate DB column.
+  splitOrderNumber?: string;
 };
 
 export type SavedCourseOrder = CourseOrder & { id: string; updatedAt: string };

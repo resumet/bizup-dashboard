@@ -61,5 +61,16 @@ test("실제 SQL로 필드 저장·재업로드 갱신·강의 격리·실패 �
     assert.equal((await db.query("select id from course_orders")).rows.length, 2);
     assert.equal((await db.query("select id from course_order_imports")).rows.length, 3);
     await assert.rejects(save([toOrderRecord(row)]), /permission denied/);
+    await db.exec("reset role");
+    const split = { ...row, splitOrderNumber: "SPLIT-1", paymentId: "part-1" };
+    await save([toOrderRecord(split)]);
+    const key = toOrderRecord(split).record_key;
+    const firstSplit = await db.query<{ id: string }>("select id from course_orders where course_id = $1 and record_key = $2", [courseId, key]);
+    await save([toOrderRecord({ ...split, orderId: "changed-order-id", paymentId: "part-1 / part-2", paymentAmount: 1000000, refundAmount: 100000, currentAmount: 900000, refundDate: "2026-09-12" })]);
+    const splitReload = await db.query<{ id: string; payment_id: string; current_amount: string }>("select id, payment_id, current_amount from course_orders where course_id = $1 and record_key = $2", [courseId, key]);
+    assert.equal(splitReload.rows.length, 1);
+    assert.equal(splitReload.rows[0].id, firstSplit.rows[0].id);
+    assert.equal(splitReload.rows[0].payment_id, "part-1 / part-2");
+    assert.equal(Number(splitReload.rows[0].current_amount), 900000);
   } finally { await db.close(); }
 });

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { existsSync } from "node:fs";
 import { readSheet } from "read-excel-file/node";
-import { buildCourseOrderPreview, COURSE_ORDER_HEADERS, parseCourseOrders, selectCourseOrders, splitCourseOrderProduct } from "./parse";
+import { buildCourseOrderPreview, COURSE_ORDER_HEADERS, courseOrderIdentity, parseCourseOrders, selectCourseOrders, splitCourseOrderProduct } from "./parse";
 import { filterCourseOrders, summarizeCourseOrders } from "./filter";
 import { EMPTY_ORDER_FILTERS } from "./types";
 
@@ -69,14 +69,54 @@ test("범주·회원 검색·결제ID·금액·환불 날짜를 결합해 필터
 });
 
 const samplePath = "docs/purchase_order_20260912.xlsx";
-test("제공한 실제 엑셀의 모든 주문을 읽고 상품별로 선택할 수 있다", { skip: !existsSync(samplePath) }, async () => {
+test("실제 엑셀의 분할결제를 주문번호로 통합하고 모든 상품을 오류 없이 선택한다", { skip: !existsSync(samplePath) }, async () => {
   const sheet = await readSheet(samplePath, 1);
   const rows = parseCourseOrders(sheet as unknown[][]);
-  assert.equal(rows.length, 120);
-  assert.equal(rows.length, sheet.length - 1);
+  assert.equal(sheet.length - 1, 120);
+  assert.equal(rows.length, 115);
+  assert.equal(rows.filter((row) => row.splitOrderNumber).length, 4);
+  for (const [field, index] of [["paymentAmount", 6], ["refundAmount", 7], ["currentAmount", 9]] as const) {
+    assert.equal(rows.reduce((total, row) => total + row[field], 0), sheet.slice(1).reduce((total, row) => total + Number(row[index]), 0));
+  }
   const preview = buildCourseOrderPreview(rows, "AI와 채팅해서 월1,000만원 버는 실전 수익화 퍼널 클래스");
-  assert.equal(preview.products.reduce((sum, product) => sum + product.count, 0), 120);
+  assert.equal(preview.products.reduce((sum, product) => sum + product.count, 0), 115);
+  assert.equal(selectCourseOrders(rows, preview.products.map((product) => product.name)).length, 115);
   const selected = selectCourseOrders(rows, preview.products.filter((product) => product.suggested).map((product) => product.name));
   assert.ok(selected.length > 0 && selected.length < rows.length);
   assert.ok(selected.every((row) => ["기본반", "프리미엄반"].includes(row.optionName)));
+});
+
+function splitMatrix(items: Array<Record<string, unknown>>) {
+  return [
+    [...COURSE_ORDER_HEADERS, "결제유형", "주문번호", "주문ID"],
+    ...items.map((item) => [...matrix(item)[1], item.결제유형 ?? "분할결제", item.주문번호 ?? "ORDER-1", item.주문ID ?? "order-id"]),
+  ];
+}
+
+test("분할결제 금액·환불을 합산하고 결제ID·방법을 보존하며 재업로드 식별자는 일정하다", () => {
+  const first = { 결제ID: "p1", 결제금액: 1000000, 환불금액: 100000, "현 결제금액": 900000, 결제방법: "카드", 환불일: "2026-09-10" };
+  const second = { 결제ID: "p2", 주문ID: "another-id", 결제금액: 500000, 환불금액: 50000, "현 결제금액": 450000, 결제방법: "계좌이체", 환불일: "2026-09-12" };
+  const [merged] = parseCourseOrders(splitMatrix([first, second, first]));
+  assert.equal(merged.paymentAmount, 1500000);
+  assert.equal(merged.refundAmount, 150000);
+  assert.equal(merged.currentAmount, 1350000);
+  assert.equal(merged.paymentId, "p1 / p2");
+  assert.equal(merged.paymentMethod, "계좌이체 / 카드");
+  assert.equal(merged.refundDate, "2026-09-12");
+  assert.equal(selectCourseOrders([merged], [merged.productName]).length, 1);
+  assert.equal(buildCourseOrderPreview([merged], "실전").totalCount, 1);
+  const [reversed] = parseCourseOrders(splitMatrix([second, first]));
+  assert.deepEqual(merged, reversed);
+  const [single] = parseCourseOrders(splitMatrix([first]));
+  assert.equal(courseOrderIdentity(single), courseOrderIdentity(merged));
+});
+
+test("주문번호가 다른 분할결제와 일반결제는 합치지 않고 잘못된 분할결제는 오류를 낸다", () => {
+  const rows = parseCourseOrders(splitMatrix([{ 결제ID: "p1" }, { 결제ID: "p2", 주문번호: "ORDER-2" }, { 결제ID: "p3", 결제유형: "일괄결제" }]));
+  assert.equal(rows.length, 3);
+  assert.equal(selectCourseOrders(rows, [rows[0].productName]).length, 3);
+  assert.throws(() => parseCourseOrders(splitMatrix([{ 주문번호: "" }])), /주문번호가 비어/);
+  assert.throws(() => parseCourseOrders(splitMatrix([{ 결제ID: "same" }, { 결제ID: "same", 결제금액: 100 }])), /같은 분할결제의 결제ID/);
+  const regular = parseCourseOrders(splitMatrix([{ 결제ID: "p1", 결제유형: "일괄결제" }, { 결제ID: "p2", 결제유형: "일괄결제" }]));
+  assert.throws(() => selectCourseOrders(regular, [regular[0].productName]), /서로 다른 결제 정보/);
 });
