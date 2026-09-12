@@ -17,6 +17,13 @@ export function splitCourseOrderProduct(productName: string) {
     : { courseName: productName.slice(0, index).trim(), optionName: productName.slice(index + (spaced?.[0].length ?? 1)).trim() };
 }
 
+export function shortestSelectedCourseName(productNames: Iterable<string>) {
+  const names = [...productNames].flatMap((product) => product.split(" / ").map((name) =>
+    splitCourseOrderProduct(name).courseName.replace(/\s+/gu, " ").trim(),
+  )).filter(Boolean);
+  return names.sort((a, b) => a.length - b.length || a.localeCompare(b, "ko-KR"))[0] ?? "";
+}
+
 function amount(value: unknown, label: string, row: number) {
   const raw = text(value).replace(/,/gu, "").replace(/\s*원$/u, "");
   if (!raw) return 0;

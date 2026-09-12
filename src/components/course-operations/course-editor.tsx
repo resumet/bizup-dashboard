@@ -2120,7 +2120,7 @@ export function CourseOperationsEditor({
         </TabsContent>
 
         <TabsContent value="orders" className="mt-0">
-          {courseId ? <CourseOrdersManager courseId={courseId} courseName={initialDraft.name} /> : null}
+          {courseId ? <CourseOrdersManager courseId={courseId} courseName={draft.name} onCourseNameChange={(name) => setDraft((current) => ({ ...current, name }))} /> : null}
         </TabsContent>
 
         <TabsContent value="costs" className="mt-0">

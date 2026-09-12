@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ChevronDown, ExternalLink } from "lucide-react";
+import { Check, ChevronDown, Copy, ExternalLink } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -50,10 +50,22 @@ export function CourseShortcutsMenu() {
   const [courses, setCourses] = useState<CourseQuickLinks[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [copyStatus, setCopyStatus] = useState<{ label: string; state: "copying" | "copied" | "error" } | null>(null);
   const requestId = useRef(0);
+
+  async function copyLink(link: CourseQuickLink) {
+    setCopyStatus({ label: link.label, state: "copying" });
+    try {
+      await navigator.clipboard.writeText(link.url);
+      setCopyStatus({ label: link.label, state: "copied" });
+    } catch {
+      setCopyStatus({ label: link.label, state: "error" });
+    }
+  }
 
   async function loadCourses(open: boolean) {
     if (!open) return;
+    setCopyStatus(null);
     const currentRequest = ++requestId.current;
     setLoading(true);
     setError("");
@@ -78,8 +90,24 @@ export function CourseShortcutsMenu() {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>공통</DropdownMenuSubTrigger>
           <DropdownMenuPortal>
-            <DropdownMenuSubContent className="w-48">
-              {COMMON_LINKS.map((link) => <ShortcutItem key={link.label} link={link} />)}
+            <DropdownMenuSubContent className="w-72 max-w-[calc(100vw-2rem)]">
+              {COMMON_LINKS.map((link) => (
+                <div key={link.label} className="grid grid-cols-[minmax(0,1fr)_auto] gap-1">
+                  <ShortcutItem link={link} />
+                  <DropdownMenuItem
+                    asChild
+                    disabled={copyStatus?.state === "copying"}
+                    onSelect={(event) => { event.preventDefault(); void copyLink(link); }}
+                  >
+                    <button type="button" aria-label={`${link.label} 링크 복사`} className="justify-center">
+                      {copyStatus?.label === link.label && copyStatus.state === "copied" ? <><Check className="size-3.5" />완료</> : <><Copy className="size-3.5" />복사</>}
+                    </button>
+                  </DropdownMenuItem>
+                </div>
+              ))}
+              <p role="status" aria-live="polite" className={`px-1.5 text-xs ${copyStatus ? "pt-2" : ""} ${copyStatus?.state === "error" ? "text-destructive" : "text-muted-foreground"}`}>
+                {copyStatus?.state === "copied" ? `${copyStatus.label} 링크를 복사했습니다.` : copyStatus?.state === "error" ? "복사하지 못했습니다. 브라우저의 클립보드 권한을 확인한 뒤 다시 시도해 주세요." : ""}
+              </p>
             </DropdownMenuSubContent>
           </DropdownMenuPortal>
         </DropdownMenuSub>

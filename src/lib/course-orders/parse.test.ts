@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { existsSync } from "node:fs";
 import { readSheet } from "read-excel-file/node";
-import { buildCourseOrderPreview, COURSE_ORDER_HEADERS, courseOrderIdentity, parseCourseOrders, selectCourseOrders, splitCourseOrderProduct } from "./parse";
+import { buildCourseOrderPreview, COURSE_ORDER_HEADERS, courseOrderIdentity, parseCourseOrders, selectCourseOrders, shortestSelectedCourseName, splitCourseOrderProduct } from "./parse";
 import { filterCourseOrders, summarizeCourseOrders } from "./filter";
 import { EMPTY_ORDER_FILTERS } from "./types";
 
@@ -92,6 +92,16 @@ function splitMatrix(items: Array<Record<string, unknown>>) {
     ...items.map((item) => [...matrix(item)[1], item.결제유형 ?? "분할결제", item.주문번호 ?? "ORDER-1", item.주문ID ?? "order-id"]),
   ];
 }
+
+test("선택한 항목의 옵션을 제외한 최단 강의명을 고르고 동일 길이는 가나다순으로 정한다", () => {
+  const names = ["(예약자전용) 실전 강의 - 기본반", "실전 강의 - 프리미엄반", "실전 강의 (신규) - 기본반"];
+  assert.equal(shortestSelectedCourseName(names), "실전 강의");
+  assert.equal(shortestSelectedCourseName([names[0], names[2]]), "실전 강의 (신규)");
+  assert.equal(shortestSelectedCourseName(["나나 - 기본", "가가 - 고급"]), "가가");
+  assert.equal(shortestSelectedCourseName(["긴 강의 - 기본 / 강의 - 고급"]), "강의");
+  assert.equal(shortestSelectedCourseName(["강의명"]), "강의명");
+  assert.equal(shortestSelectedCourseName([]), "");
+});
 
 test("분할결제 금액·환불을 합산하고 결제ID·방법을 보존하며 재업로드 식별자는 일정하다", () => {
   const first = { 결제ID: "p1", 결제금액: 1000000, 환불금액: 100000, "현 결제금액": 900000, 결제방법: "카드", 환불일: "2026-09-10" };

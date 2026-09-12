@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, RefreshCw, Upload } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { filterCourseOrders, summarizeCourseOrders } from "@/lib/course-orders/filter";
+import { shortestSelectedCourseName } from "@/lib/course-orders/parse";
 import {
   EMPTY_ORDER_FILTERS, ORDER_CATEGORY_FILTERS,
   type CourseOrderFilters, type CourseOrderPreview, type CourseOrdersResponse,
@@ -37,7 +39,8 @@ async function responseData<T>(response: Response): Promise<T> {
   return data as T;
 }
 
-export function CourseOrdersManager({ courseId, courseName }: { courseId: string; courseName: string }) {
+export function CourseOrdersManager({ courseId, courseName, onCourseNameChange }: { courseId: string; courseName: string; onCourseNameChange?: (name: string) => void }) {
+  const router = useRouter();
   const [data, setData] = useState<CourseOrdersResponse>({ orders: [], imports: [] });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -68,6 +71,7 @@ export function CourseOrdersManager({ courseId, courseName }: { courseId: string
     [key, [...new Set(data.orders.map((row) => row[key]))].sort((a, b) => a.localeCompare(b, "ko-KR"))],
   )), [data.orders]);
   const selectedCount = preview?.products.reduce((sum, product) => sum + (products.has(product.name) ? product.count : 0), 0) ?? 0;
+  const selectedCourseName = shortestSelectedCourseName(products);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
   const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -92,8 +96,11 @@ export function CourseOrdersManager({ courseId, courseName }: { courseId: string
     setBusy(true); setError(""); setNotice("");
     try {
       const body = new FormData(); body.set("file", file); body.set("products", JSON.stringify([...products]));
-      const result = await responseData<{ savedCount: number }>(await fetch(endpoint, { method: "POST", body }));
-      setNotice(`${result.savedCount.toLocaleString("ko-KR")}건을 저장했습니다. 동일 주문항목은 최신 정보로 갱신했습니다.`);
+      const result = await responseData<{ savedCount: number; courseName?: string; warning?: string }>(await fetch(endpoint, { method: "POST", body }));
+      setNotice(`${result.savedCount.toLocaleString("ko-KR")}건을 저장했습니다.${result.courseName ? ` 강의명: ${result.courseName}.` : ""} 동일 주문항목은 최신 정보로 갱신했습니다.`);
+      if (result.warning) setError(result.warning);
+      if (result.courseName) onCourseNameChange?.(result.courseName);
+      router.refresh();
       setPreview(null); setProducts(new Set());
       changeFilters(EMPTY_ORDER_FILTERS); refresh();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "주문 내역을 저장하지 못했습니다."); }
@@ -131,6 +138,12 @@ export function CourseOrdersManager({ courseId, courseName }: { courseId: string
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">강의명과 일치하는 항목을 우선 선택했습니다. 예약자용·신규 등 관련 항목을 확인해 추가하거나 해제하세요.</p>
+              {selectedCourseName ? (
+                <p className="rounded-md bg-muted p-3 text-sm">
+                  저장할 강의명: <strong>{selectedCourseName}</strong>
+                  <span className="mt-1 block text-xs text-muted-foreground">선택한 주문항목에서 옵션명을 제외한 가장 짧은 이름을 사용합니다. 저장 시 강의명에 반영됩니다.</span>
+                </p>
+              ) : null}
               <div className="max-h-80 space-y-2 overflow-y-auto">
                 {preview.products.map((product) => (
                   <label key={product.name} className="flex cursor-pointer items-start gap-3 rounded-md border p-3">
