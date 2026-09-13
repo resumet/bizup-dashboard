@@ -12,6 +12,7 @@ const INSERT_CHUNK_SIZE = 500;
 type MergeAddressBooksBody = {
   name?: unknown;
   sourceBookIds?: unknown;
+  callSalesOnly?: unknown;
 };
 
 export async function POST(request: Request) {
@@ -24,6 +25,10 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as MergeAddressBooksBody;
     const name = typeof body.name === "string" ? body.name.trim() : "";
+    if (body.callSalesOnly !== undefined && typeof body.callSalesOnly !== "boolean") {
+      return Response.json({ message: "콜세일즈용 여부를 확인해 주세요." }, { status: 400 });
+    }
+    const callSalesOnly = body.callSalesOnly === true;
     const sourceBookIds = Array.isArray(body.sourceBookIds)
       ? Array.from(
           new Set(
@@ -94,8 +99,8 @@ export async function POST(request: Request) {
         loadAllAddressBookContacts(admin, bookId),
       ),
     );
-    const merged = mergeAddressBookContacts(contactGroups);
-    if (merged.contacts.length === 0) {
+    const merged = mergeAddressBookContacts(contactGroups, { callSalesOnly });
+    if (merged.contacts.length === 0 && merged.excludedContacts.length === 0) {
       return Response.json(
         { message: "선택한 주소록에 병합할 연락처가 없습니다." },
         { status: 400 },
@@ -157,8 +162,14 @@ export async function POST(request: Request) {
         id: newBook.id,
         contactCount: merged.contacts.length,
         duplicateCount: merged.duplicateCount,
+        excludedCount: merged.excludedContacts.length,
+        excludedContacts: merged.excludedContacts.map(({ sourceGroupIndex, ...contact }) => ({
+          ...contact,
+          sourceBookId: sourceBookIds[sourceGroupIndex],
+          sourceBookName: sourceBooks!.find((book) => book.id === sourceBookIds[sourceGroupIndex])!.name,
+        })),
       },
-      { status: 201 },
+      { status: 201, headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
     const message =

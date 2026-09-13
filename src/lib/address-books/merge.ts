@@ -6,6 +6,11 @@ export type MergeableAddressBookContact = {
 
 export type MergedAddressBookContact = MergeableAddressBookContact;
 
+export type ExcludedMergeContact = MergeableAddressBookContact & {
+  sourceBookId: string;
+  sourceBookName: string;
+};
+
 function cleanOptionalValue(value: string | null) {
   const cleaned = value?.trim();
   return cleaned ? cleaned : null;
@@ -13,14 +18,20 @@ function cleanOptionalValue(value: string | null) {
 
 export function mergeAddressBookContacts(
   contactGroups: readonly (readonly MergeableAddressBookContact[])[],
+  options: { callSalesOnly?: boolean } = {},
 ) {
   const contactsByPhone = new Map<string, MergedAddressBookContact>();
+  const excludedContacts: Array<MergeableAddressBookContact & { sourceGroupIndex: number }> = [];
   let sourceContactCount = 0;
 
-  for (const contacts of contactGroups) {
+  for (const [sourceGroupIndex, contacts] of contactGroups.entries()) {
     for (const contact of contacts) {
       sourceContactCount += 1;
       const normalizedPhone = contact.normalized_phone.trim();
+      if (options.callSalesOnly && !normalizedPhone.startsWith("010")) {
+        excludedContacts.push({ ...contact, normalized_phone: normalizedPhone, sourceGroupIndex });
+        continue;
+      }
       if (!normalizedPhone) continue;
 
       const name = cleanOptionalValue(contact.name);
@@ -47,6 +58,7 @@ export function mergeAddressBookContacts(
   return {
     contacts: Array.from(contactsByPhone.values()),
     sourceContactCount,
-    duplicateCount: sourceContactCount - contactsByPhone.size,
+    duplicateCount: sourceContactCount - excludedContacts.length - contactsByPhone.size,
+    excludedContacts,
   };
 }
