@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, RefreshCw, Upload } from "lucide-react";
+import { Loader2, RefreshCw, Upload, Users } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { filterCourseOrders, summarizeCourseOrders } from "@/lib/course-orders/filter";
 import { shortestSelectedCourseName } from "@/lib/course-orders/parse";
+import { createOrderStudentRoster } from "@/lib/course-orders/student-roster";
+import { CourseOrderStudentRoster } from "./course-order-student-roster";
 import {
   EMPTY_ORDER_FILTERS, ORDER_CATEGORY_FILTERS,
   type CourseOrderFilters, type CourseOrderPreview, type CourseOrdersResponse,
@@ -53,6 +55,7 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange }
   const [filters, setFilters] = useState<CourseOrderFilters>(EMPTY_ORDER_FILTERS);
   const [page, setPage] = useState(1);
   const [reload, setReload] = useState(0);
+  const [rosterCourseId, setRosterCourseId] = useState<string | null>(null);
   const endpoint = `/api/course-operations/${courseId}/orders`;
 
   useEffect(() => {
@@ -66,6 +69,7 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange }
   }, [endpoint, reload]);
 
   const filtered = useMemo(() => filterCourseOrders(data.orders, filters), [data.orders, filters]);
+  const students = useMemo(() => createOrderStudentRoster(data.orders), [data.orders]);
   const totals = useMemo(() => summarizeCourseOrders(filtered), [filtered]);
   const choices = useMemo(() => Object.fromEntries(ORDER_CATEGORY_FILTERS.map(([key]) =>
     [key, [...new Set(data.orders.map((row) => row[key]))].sort((a, b) => a.localeCompare(b, "ko-KR"))],
@@ -166,7 +170,13 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange }
       {notice ? <Alert role="status"><AlertTitle>저장 완료</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert> : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">저장된 주문 내역</h2>
-        <Button type="button" variant="outline" size="sm" onClick={refresh} disabled={loading || busy}><RefreshCw className={loading ? "animate-spin" : ""} />새로고침</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" disabled={loading || busy || Boolean(loadError) || !data.orders.length} onClick={() => {
+            setRosterCourseId(courseId);
+            requestAnimationFrame(() => document.getElementById("course-order-student-roster")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+          }}><Users />수강생 명단 만들기</Button>
+          <Button type="button" variant="outline" size="sm" onClick={refresh} disabled={loading || busy}><RefreshCw className={loading ? "animate-spin" : ""} />새로고침</Button>
+        </div>
       </div>
       {loadError ? <Alert variant="destructive"><AlertTitle>주문 내역 조회 실패</AlertTitle><AlertDescription>{loadError}</AlertDescription></Alert> : null}
       {loading ? <p role="status" className="text-sm text-muted-foreground">주문 내역을 불러오는 중입니다.</p> : !loadError ? (
@@ -229,6 +239,7 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange }
             </div>
           </Card>
           {data.imports.length ? <Card><CardHeader><CardTitle className="text-base">최근 가져오기 이력</CardTitle></CardHeader><CardContent><ul className="space-y-2 text-sm">{data.imports.map((item) => <li key={item.id} className="flex flex-wrap justify-between gap-2"><span className="break-all">{item.fileName} · {item.rowCount.toLocaleString("ko-KR")}건</span><span className="text-muted-foreground">{new Date(item.createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}</span></li>)}</ul></CardContent></Card> : null}
+          {rosterCourseId === courseId && <div id="course-order-student-roster" className="scroll-mt-6"><CourseOrderStudentRoster key={courseId} students={students} /></div>}
         </>
       ) : null}
     </div>
