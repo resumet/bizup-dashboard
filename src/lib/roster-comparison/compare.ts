@@ -5,7 +5,7 @@ const text = (value: unknown) => String(value ?? "").trim();
 
 export function parseComparisonPayers(matrix: unknown[][], fileName: string, matchBy: ComparisonKey): ComparisonContact[] {
   const headerIndex = matrix.slice(0, 20).findIndex((row) => Boolean(mapHeaders(row.map(text))[matchBy]));
-  if (headerIndex < 0) throw new Error(`${matchBy === "phone" ? "전화번호(연락처·휴대전화번호)" : "이메일"} 열을 찾지 못했습니다. 첫 20행 안에 열 제목이 있는 엑셀을 사용해 주세요.`);
+  if (headerIndex < 0) throw new Error(`${matchBy === "phone" ? "전화번호(연락처·휴대전화번호)" : "이메일"} 열을 찾지 못했습니다. 첫 20행 안에 열 제목이 있는 엑셀 또는 CSV를 사용해 주세요.`);
   const headers = matrix[headerIndex].map(text);
   const mapping = mapHeaders(headers);
   const get = (row: unknown[], field: "customerName" | "phone" | "email") => mapping[field] ? text(row[headers.indexOf(mapping[field])]) : "";

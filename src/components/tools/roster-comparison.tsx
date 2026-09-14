@@ -72,19 +72,19 @@ export function RosterComparison() {
       <div>
         <Badge variant="outline" className="mb-3">간편 도구</Badge>
         <h1 className="text-3xl font-semibold tracking-tight">결제자·수강생 명단 비교</h1>
-        <p className="mt-2 text-muted-foreground">결제자 엑셀과 저장된 수강생 명단들을 비교해, 양쪽에 각각 없는 사람을 확인합니다.</p>
+        <p className="mt-2 text-muted-foreground">결제자 엑셀·CSV와 저장된 수강생 명단들을 비교해, 양쪽에 각각 없는 사람을 확인합니다.</p>
       </div>
       <div className="grid items-start gap-5 lg:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle>1. 결제자 명단 엑셀</CardTitle></CardHeader>
+          <CardHeader><CardTitle>1. 결제자 명단 파일</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <Label htmlFor="payer-file">결제자 파일 (.xlsx, 최대 4MB)</Label>
-            <Input id="payer-file" type="file" accept=".xlsx" disabled={busy} onChange={(event) => {
+            <Label htmlFor="payer-file">결제자 파일 (.xlsx / .csv, 최대 4MB)</Label>
+            <Input id="payer-file" type="file" accept=".xlsx,.csv" disabled={busy} onChange={(event) => {
               const next = event.target.files?.[0] ?? null;
               setFile(next); setResult(null); setError("");
-              if (next && (!/\.xlsx$/iu.test(next.name) || next.size > 4 * 1024 * 1024)) { setFile(null); setError("4MB 이하의 .xlsx 파일을 선택해 주세요."); }
+              if (next && (!/\.(xlsx|csv)$/iu.test(next.name) || next.size > 4 * 1024 * 1024)) { setFile(null); setError("4MB 이하의 .xlsx 또는 .csv 파일을 선택해 주세요."); }
             }} />
-            <p className="text-sm text-muted-foreground">첫 번째 시트의 이름·전화번호·이메일 열을 자동으로 찾습니다. 회원명·고객명·휴대전화번호·연락처 등의 열 제목도 사용할 수 있습니다.</p>
+            <p className="text-sm text-muted-foreground">엑셀 첫 번째 시트 또는 UTF-8 CSV의 이름·전화번호·이메일 열을 자동으로 찾습니다. 회원명·고객명·휴대전화번호·연락처 등의 열 제목도 사용할 수 있습니다.</p>
             <div className="space-y-2">
               <Label htmlFor="comparison-key">동일인 비교 기준</Label>
               <select id="comparison-key" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={matchBy} disabled={busy} onChange={(event) => { setMatchBy(event.target.value as ComparisonKey); setResult(null); setError(""); }}>

@@ -270,7 +270,7 @@ export default async function DashboardPage() {
             <Card className="border-cyan-500/30 bg-cyan-500/5 transition-colors hover:bg-cyan-500/10">
               <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
                 <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-cyan-600 text-white shadow-sm"><ArrowLeftRight className="size-5" /></span>
-                <div className="min-w-0 flex-1"><p className="font-semibold">결제자·수강생 명단 비교</p><p className="mt-1 text-sm text-muted-foreground">결제자 엑셀과 여러 수강생 명단을 비교해 양쪽에서 누락된 사람을 찾습니다.</p></div>
+                <div className="min-w-0 flex-1"><p className="font-semibold">결제자·수강생 명단 비교</p><p className="mt-1 text-sm text-muted-foreground">결제자 엑셀·CSV와 여러 수강생 명단을 비교해 양쪽에서 누락된 사람을 찾습니다.</p></div>
                 <Button asChild size="sm" className="bg-cyan-600 text-white hover:bg-cyan-700"><Link href="/services/roster-comparison">실행하기 <ArrowRight /></Link></Button>
               </CardContent>
             </Card>
