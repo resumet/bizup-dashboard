@@ -24,6 +24,7 @@ import { CourseShareDialog } from "@/components/course-operations/course-share-d
 import { CourseSettlementManager } from "@/components/course-settlements/course-settlement-manager";
 import { CourseCostManager } from "@/components/course-costs/course-cost-manager";
 import { CourseOrdersManager } from "@/components/course-operations/course-orders-manager";
+import { CourseWebinarEditor } from "@/components/course-operations/course-webinar-editor";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -205,6 +206,7 @@ function CourseLinkInput({
 }
 
 type CourseEditorTab =
+  | "webinar"
   | "information"
   | "sales"
   | "students"
@@ -213,7 +215,7 @@ type CourseEditorTab =
   | "costs"
   | "orders"
   | "settlement";
-type DeferredCourseEditorTab = Exclude<CourseEditorTab, "information" | "costs" | "settlement" | "orders">;
+type DeferredCourseEditorTab = Exclude<CourseEditorTab, "information" | "costs" | "settlement" | "orders" | "webinar">;
 type SectionLoadStatus = "idle" | "loading" | "loaded" | "error";
 
 function DeferredSectionState({
@@ -362,7 +364,7 @@ export function CourseOperationsEditor({
   notesLoadError?: string;
   loadError?: string;
   deferDetailSections?: boolean;
-  initialTab?: "information" | "costs" | "settlement" | "orders";
+  initialTab?: "information" | "costs" | "settlement" | "orders" | "webinar";
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState(() => {
@@ -515,7 +517,7 @@ export function CourseOperationsEditor({
   function changeTab(value: string) {
     const nextTab = value as CourseEditorTab;
     setActiveTab(nextTab);
-    if (nextTab !== "information" && nextTab !== "costs" && nextTab !== "settlement" && nextTab !== "orders") {
+    if (nextTab !== "information" && nextTab !== "costs" && nextTab !== "settlement" && nextTab !== "orders" && nextTab !== "webinar") {
       void loadDetailSection(nextTab);
     }
   }
@@ -840,7 +842,7 @@ export function CourseOperationsEditor({
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <Badge variant="outline" className="mb-3">
+          <Badge variant="outline" className="mb-3 h-auto min-h-5 max-w-full whitespace-normal break-all">
             COURSE ID · {courseId ?? "생성 전"}
           </Badge>
           <h1 className="text-3xl font-semibold tracking-tight">
@@ -875,7 +877,7 @@ export function CourseOperationsEditor({
               liveVideos: draft.liveVideos,
             }}
           />
-          <Button className="min-h-10" onClick={saveCourse} disabled={saving}>
+          <Button className={activeTab === "webinar" ? "hidden" : "min-h-10"} onClick={saveCourse} disabled={saving}>
             {saving ? <Loader2 className="animate-spin" /> : <Save />}
             {saving ? "저장 중" : courseId ? "변경사항 저장" : "강의 만들기"}
           </Button>
@@ -906,7 +908,7 @@ export function CourseOperationsEditor({
         onValueChange={changeTab}
         className="gap-6"
       >
-        <TabsList className="grid w-full grid-cols-4 grid-rows-2 group-data-horizontal/tabs:h-[5.5rem] xl:w-fit xl:grid-cols-8 xl:grid-rows-1 xl:group-data-horizontal/tabs:h-12">
+        <TabsList className="grid w-full grid-cols-3 grid-rows-3 group-data-horizontal/tabs:h-[8rem] md:grid-cols-5 md:grid-rows-2 md:group-data-horizontal/tabs:h-[5.5rem] 2xl:grid-cols-9 2xl:grid-rows-1 2xl:group-data-horizontal/tabs:h-12">
           <TabsTrigger value="information" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             정보
           </TabsTrigger>
@@ -925,6 +927,7 @@ export function CourseOperationsEditor({
           <TabsTrigger value="videos" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             영상
           </TabsTrigger>
+          <TabsTrigger value="webinar" disabled={!courseId} className="h-10 min-w-0 px-2">라이브 웨비나</TabsTrigger>
           <TabsTrigger value="costs" disabled={!courseId} className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             비용
           </TabsTrigger>
@@ -2119,6 +2122,10 @@ export function CourseOperationsEditor({
           )}
         </TabsContent>
 
+        <TabsContent value="webinar" forceMount className="mt-0 data-[state=inactive]:hidden">
+          {courseId ? <CourseWebinarEditor key={courseId} courseId={courseId} /> : null}
+        </TabsContent>
+
         <TabsContent value="orders" className="mt-0">
           {courseId ? <CourseOrdersManager courseId={courseId} courseName={draft.name} onCourseNameChange={(name) => setDraft((current) => ({ ...current, name }))} /> : null}
         </TabsContent>
@@ -2142,7 +2149,7 @@ export function CourseOperationsEditor({
         </TabsContent>
       </Tabs>
 
-      {activeTab !== "costs" && activeTab !== "settlement" && activeTab !== "orders" ? (
+      {activeTab !== "costs" && activeTab !== "settlement" && activeTab !== "orders" && activeTab !== "webinar" ? (
         <div className="flex justify-end border-t pt-6">
           <Button className="min-h-10" onClick={saveCourse} disabled={saving}>
             {saving ? <Loader2 className="animate-spin" /> : <Save />}

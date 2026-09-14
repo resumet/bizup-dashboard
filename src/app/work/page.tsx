@@ -26,6 +26,7 @@ import { AdminManagementButton } from "@/components/admin/admin-management-butto
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { CourseShortcutsMenu } from "@/components/layout/course-shortcuts-menu";
+import { WebinarDashboard } from "@/components/course-operations/webinar-dashboard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -204,6 +205,7 @@ export default async function DashboardPage() {
             />
           </div>
         </section>
+        <WebinarDashboard />
         <section
           className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3"
           aria-label="서비스 목록"

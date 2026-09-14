@@ -19,6 +19,7 @@ type Props = {
 };
 
 export default async function CourseOperationsDetailPage({ params, searchParams }: Props) {
+  // eslint-disable-next-line react-hooks/purity -- Server request timing only; does not affect rendered content.
   const renderStartedAt = performance.now();
   const { courseId } = await params;
   const { tab } = await searchParams;
@@ -116,6 +117,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
     JSON.stringify({
       event: "course_detail_render",
       courseId,
+      // eslint-disable-next-line react-hooks/purity -- Server request timing only; does not affect rendered content.
       durationMs: Math.round(performance.now() - renderStartedAt),
       initialQueries: 4,
     }),
@@ -156,7 +158,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
           initialNotes={notes}
           notesLoadError={notesLoadError}
           loadError={loadError}
-          initialTab={tab === "settlement" ? "settlement" : tab === "costs" ? "costs" : tab === "orders" ? "orders" : "information"}
+          initialTab={tab === "webinar" ? "webinar" : tab === "settlement" ? "settlement" : tab === "costs" ? "costs" : tab === "orders" ? "orders" : "information"}
         />
       </div>
     </main>
