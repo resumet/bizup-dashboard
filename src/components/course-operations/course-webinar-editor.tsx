@@ -84,10 +84,10 @@ export function CourseWebinarEditor({ courseId }: { courseId: string }) {
       </CardContent>
     </Card>
     <Card>
-      <CardHeader><CardTitle>전환율과 광고 효율</CardTitle><CardDescription>현재 입력값 기준입니다. 단톡방 → 라이브는 시작 인원, 라이브 → 결제는 최대 인원을 기준으로 계산합니다. 구매 전환율은 결제 건수 기준이며 고유 구매자 비율과 다를 수 있습니다.</CardDescription></CardHeader>
+      <CardHeader><CardTitle>전환율과 광고 효율</CardTitle><CardDescription>현재 입력값 기준입니다. 모든 라이브 전환율은 최대 인원을 기준으로 계산합니다. 구매 전환율은 결제 건수 기준이며 고유 구매자 비율과 다를 수 있습니다.</CardDescription></CardHeader>
       <CardContent>
-        <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="웨비나 전환 단계">
-          {([['group_chat_count', '최종 단톡방', '명'], ['live_start_count', '라이브 시작', '명'], ['live_peak_count', '라이브 최대', '명'], ['payment_count', '결제', '건']] as const).map(([key, label, unit], index) => <div className="rounded-xl border bg-muted/30 p-4" key={key}><p className="text-sm text-muted-foreground">{index + 1}. {label}</p><p className="mt-2 text-2xl font-semibold">{formatMetric(preview[key], unit)}</p></div>)}
+        <div className="mb-6 grid gap-3 sm:grid-cols-3" aria-label="웨비나 전환 단계">
+          {([['group_chat_count', '최종 단톡방', '명'], ['live_peak_count', '라이브 최대', '명'], ['payment_count', '결제', '건']] as const).map(([key, label, unit], index) => <div className="rounded-xl border bg-muted/30 p-4" key={key}><p className="text-sm text-muted-foreground">{index + 1}. {label}</p><p className="mt-2 text-2xl font-semibold">{formatMetric(preview[key], unit)}</p></div>)}
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {ratioDefinitions.map(definition => <div key={definition.key} className="rounded-xl border p-4"><p className="text-sm font-medium">{definition.label}</p><p className="my-2 text-2xl font-semibold text-primary">{formatMetric(ratio(preview[definition.numerator], preview[definition.denominator]), "%")}</p><p className="text-xs leading-5 text-muted-foreground">{definition.formula}</p></div>)}

@@ -35,7 +35,7 @@ export function parseWebinarMetrics(value: unknown): WebinarMetrics {
 
 export const ratio = (numerator: number | null, denominator: number | null) => numerator === null || denominator === null || denominator <= 0 ? null : numerator / denominator * 100;
 export const ratioDefinitions = [
-  { key: "chatToLive", label: "단톡방 → 라이브 시작", numerator: "live_start_count", denominator: "group_chat_count", formula: "라이브 시작 인원 ÷ 최종 단톡방 인원 × 100" },
+  { key: "chatToLive", label: "단톡방 → 라이브 최대", numerator: "live_peak_count", denominator: "group_chat_count", formula: "라이브 최대 인원 ÷ 최종 단톡방 인원 × 100" },
   { key: "liveToPayment", label: "라이브 최대 → 결제", numerator: "payment_count", denominator: "live_peak_count", formula: "결제 건수 ÷ 라이브 최대 인원 × 100" },
   { key: "chatToPayment", label: "단톡방 → 결제", numerator: "payment_count", denominator: "group_chat_count", formula: "결제 건수 ÷ 최종 단톡방 인원 × 100" },
   { key: "roas", label: "광고비 대비 매출 (ROAS)", numerator: "revenue", denominator: "ad_spend", formula: "총 매출 ÷ 광고비 × 100" },

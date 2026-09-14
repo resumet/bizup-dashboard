@@ -50,7 +50,7 @@ export function WebinarDashboard() {
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {summary.ratios.map(item => <div key={item.key} className="rounded-xl border p-4"><p className="text-sm font-medium">{item.label}</p><p className="my-2 text-2xl font-semibold text-primary">{formatMetric(item.value, "%")}</p><p className="text-xs leading-5 text-muted-foreground">{item.formula}<br />두 값이 모두 입력된 {item.count}개 강의 합산</p></div>)}
           </div>
-          <p className="text-xs leading-5 text-muted-foreground">—는 미입력 또는 분모 0입니다. 단톡방 → 라이브는 시작 인원, 라이브 → 결제는 최대 인원을 기준으로 계산합니다. 구매 전환율은 결제 건수 기준이며 고유 구매자 비율과 다를 수 있습니다. 소통방 인원은 단톡방에 합산하지 않습니다. 최대 도달 시간은 라이브 시작부터의 경과 시간입니다.</p>
+          <p className="text-xs leading-5 text-muted-foreground">—는 미입력 또는 분모 0입니다. 모든 라이브 전환율은 최대 인원을 기준으로 계산합니다. 구매 전환율은 결제 건수 기준이며 고유 구매자 비율과 다를 수 있습니다. 소통방 인원은 단톡방에 합산하지 않습니다. 최대 도달 시간은 라이브 시작부터의 경과 시간입니다.</p>
           <p className="text-xs text-muted-foreground">표를 좌우로 스크롤하면 종료 인원, 광고비, 결제, 매출과 강의별 전환율을 볼 수 있습니다.</p>
           <div className="max-w-full overflow-x-auto rounded-lg border" tabIndex={0} role="region" aria-label="강의별 웨비나 실적 표">
             <Table className="min-w-[1850px]">

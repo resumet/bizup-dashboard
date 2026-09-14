@@ -27,7 +27,7 @@ test("dashboard weights by audience totals and compares matched cohorts for part
     course({ group_chat_count: 10000, revenue: 99999 }),
     { ...course({}), metrics: null },
   ]);
-  assert.ok(Math.abs(result.ratios[0].value! - 14) < 1e-10); // Not mean(50%, 10%) and not divided by the incomplete course's 10,000.
+  assert.ok(Math.abs(result.ratios[0].value! - 28) < 1e-10); // Peak totals: 280 / 1,000, excluding the incomplete course's 10,000.
   assert.equal(result.ratios[0].count, 2);
   assert.equal(result.ratios[1].value, 19 / 280 * 100);
   assert.equal(result.ratios[3].value, 190);
@@ -47,4 +47,17 @@ test("live-to-payment conversion requires peak audience and never falls back to 
   const combined = conversion([course({ live_start_count: 40, live_peak_count: 100, payment_count: 20 }), course({ live_peak_count: 200, payment_count: 20 }), course({ live_start_count: 100, payment_count: 10 })]);
   assert.equal(combined.count, 2);
   assert.equal(combined.value, 40 / 300 * 100);
+});
+
+test("chat-to-live conversion uses peak audience, preserving missing and zero", () => {
+  const course = (metrics: object): WebinarCourse => ({ id: "test", name: "강의", instructor_name: "강사", free_webinar_at: "2026-09-01T00:00:00Z", metrics: { ...emptyWebinarMetrics(), course_id: "test", version: 1, updated_at: "", ...metrics } });
+  const conversion = (courses: WebinarCourse[]) => summarizeWebinars(courses).ratios.find(item => item.key === "chatToLive")!;
+  assert.equal(conversion([course({ group_chat_count: 1000, live_start_count: 200, live_peak_count: 300, live_end_count: 150 })]).value, 30);
+  assert.equal(conversion([course({ group_chat_count: 100, live_peak_count: 50 })]).value, 50);
+  assert.equal(conversion([course({ group_chat_count: 100, live_start_count: 50, live_end_count: 20 })]).value, null);
+  assert.equal(conversion([course({ group_chat_count: 100, live_peak_count: 0 })]).value, 0);
+  assert.equal(conversion([course({ group_chat_count: 0, live_peak_count: 50 })]).value, null);
+  const combined = conversion([course({ group_chat_count: 1000, live_peak_count: 300 }), course({ group_chat_count: 100, live_start_count: 50 })]);
+  assert.equal(combined.count, 1);
+  assert.equal(combined.value, 30);
 });
