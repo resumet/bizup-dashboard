@@ -95,6 +95,7 @@ export function MessageAutomationManager({
   initialBookId,
   initialTemplateId,
   initialSelectionKey,
+  initialCourseId,
   selectedContact,
   loadError,
 }: {
@@ -105,6 +106,7 @@ export function MessageAutomationManager({
   initialBookId: string;
   initialTemplateId?: string;
   initialSelectionKey?: string;
+  initialCourseId?: string;
   selectedContact: SelectedContact;
   loadError?: string;
 }) {
@@ -117,12 +119,16 @@ export function MessageAutomationManager({
       : templates[0]?.id ?? "",
   );
   const [variableValues, setVariableValues] = useState<Record<string, string>>(
-    {},
+    () => {
+      const template = templates.find((item) => item.id === templateId);
+      const course = courses.find((item) => item.id === initialCourseId);
+      return template && course ? getCourseSelectionVariables(getTemplateVariables(template.applicant_variable, template.variable_names?.length ? template.variable_names : template.course_variable), course) : {};
+    },
   );
   const [variableModes, setVariableModes] = useState<
     Record<string, VariableInputMode>
   >({});
-  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [selectedCourseId, setSelectedCourseId] = useState(courses.some((course) => course.id === initialCourseId) ? initialCourseId! : "");
   const [selectedLinkFields, setSelectedLinkFields] = useState<
     Record<string, string>
   >({});
@@ -209,7 +215,7 @@ export function MessageAutomationManager({
     verifiedTestKey && verifiedTestKey === currentTestKey,
   );
   const settingsReady = Boolean(
-    !selectionLoading && !selectionInvalid && selectedBook && selectedTemplate && recipientCount > 0 && variablesReady && (!selectedRoster || selectedRoster.status === "ready"),
+    !loadError && !selectionLoading && !selectionInvalid && selectedBook && selectedTemplate && recipientCount > 0 && variablesReady && (!selectedRoster || selectedRoster.status === "ready"),
   );
 
   function openCourseLink(variable: string) {
@@ -493,9 +499,11 @@ export function MessageAutomationManager({
               value={templateId}
               onValueChange={(value) => {
                 setTemplateId(value);
-              setVariableValues({});
+              const nextTemplate = templates.find((item) => item.id === value);
+              const initialCourse = courses.find((item) => item.id === initialCourseId);
+              setVariableValues(nextTemplate && initialCourse ? getCourseSelectionVariables(getTemplateVariables(nextTemplate.applicant_variable, nextTemplate.variable_names?.length ? nextTemplate.variable_names : nextTemplate.course_variable), initialCourse) : {});
               setVariableModes({});
-              setSelectedCourseId("");
+              setSelectedCourseId(courses.some((course) => course.id === initialCourseId) ? initialCourseId! : "");
               setSelectedLinkFields({});
               setResult("");
             }}

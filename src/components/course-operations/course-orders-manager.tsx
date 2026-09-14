@@ -56,6 +56,7 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange }
   const [page, setPage] = useState(1);
   const [reload, setReload] = useState(0);
   const [rosterCourseId, setRosterCourseId] = useState<string | null>(null);
+  const [excludedOrderIds, setExcludedOrderIds] = useState<Set<string>>(new Set());
   const endpoint = `/api/course-operations/${courseId}/orders`;
 
   useEffect(() => {
@@ -69,7 +70,7 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange }
   }, [endpoint, reload]);
 
   const filtered = useMemo(() => filterCourseOrders(data.orders, filters), [data.orders, filters]);
-  const students = useMemo(() => createOrderStudentRoster(data.orders), [data.orders]);
+  const students = useMemo(() => createOrderStudentRoster(data.orders).filter((student) => !excludedOrderIds.has(student.orderId)), [data.orders, excludedOrderIds]);
   const totals = useMemo(() => summarizeCourseOrders(filtered), [filtered]);
   const choices = useMemo(() => Object.fromEntries(ORDER_CATEGORY_FILTERS.map(([key]) =>
     [key, [...new Set(data.orders.map((row) => row[key]))].sort((a, b) => a.localeCompare(b, "ko-KR"))],
@@ -239,7 +240,7 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange }
             </div>
           </Card>
           {data.imports.length ? <Card><CardHeader><CardTitle className="text-base">최근 가져오기 이력</CardTitle></CardHeader><CardContent><ul className="space-y-2 text-sm">{data.imports.map((item) => <li key={item.id} className="flex flex-wrap justify-between gap-2"><span className="break-all">{item.fileName} · {item.rowCount.toLocaleString("ko-KR")}건</span><span className="text-muted-foreground">{new Date(item.createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}</span></li>)}</ul></CardContent></Card> : null}
-          {rosterCourseId === courseId && <div id="course-order-student-roster" className="scroll-mt-6"><CourseOrderStudentRoster key={courseId} students={students} /></div>}
+          {rosterCourseId === courseId && <div id="course-order-student-roster" className="scroll-mt-6"><CourseOrderStudentRoster key={courseId} courseId={courseId} students={students} onDelete={(orderId) => setExcludedOrderIds((current) => new Set(current).add(orderId))} onRestore={(orderId) => setExcludedOrderIds((current) => { const next = new Set(current); next.delete(orderId); return next; })} /></div>}
         </>
       ) : null}
     </div>

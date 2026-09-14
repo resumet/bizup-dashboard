@@ -1,20 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createOrderStudentRoster } from "./student-roster";
+import { createOrderStudentRoster, normalizeOrderStudentPhone, formatOrderStudentPhone, summarizeOrderStudents } from "./student-roster";
 import type { SavedCourseOrder } from "./types";
 
 const order: SavedCourseOrder = {
   id: "order-1", updatedAt: "2026-09-15T00:00:00Z", productName: "강의 - 기본반",
   memberName: "김학생", phone: "01012345678", email: "student@example.com", optionName: "기본반",
   paymentAmount: 123456.78, refundAmount: 0, currentAmount: 123456.78, status: "결제완료",
-  paymentMethod: "카드", rs: "", adMedia: "", inflowType: "", paymentId: "payment-1", orderId: "source-1", refundDate: "",
+  paymentMethod: "카드", rs: "", adMedia: "", inflowType: "광고 유입", paymentId: "payment-1", orderId: "source-1", refundDate: "",
 };
 
 test("결제완료 주문만 포함하고 다섯 항목과 원본 금액·전화번호를 보존한다", () => {
   const statuses = ["결제완료", " 결제완료 ", "부분환불", "전액환불", "결제대기", "취소", "미결제완료", "결제완료 / 부분환불", ""];
   const rows = statuses.map((status, index) => ({ ...order, id: String(index), status }));
   assert.deepEqual(createOrderStudentRoster(rows), ["0", "1"].map((orderId) => ({
-    orderId, name: "김학생", phone: "01012345678", email: "student@example.com", optionName: "기본반", amount: 123456.78,
+    orderId, name: "김학생", phone: "01012345678", email: "student@example.com", optionName: "기본반", inflowType: "광고 유입", amount: 123456.78,
   })));
   assert.equal(rows.length, statuses.length);
 });
@@ -31,4 +31,30 @@ test("같은 사람의 다른 주문·옵션과 연락처가 없는 결제완료
   assert.equal(rows[2].amount, 0);
   assert.deepEqual(createOrderStudentRoster([]), []);
   assert.deepEqual(createOrderStudentRoster([{ ...order, status: "전액환불" }]), []);
+});
+
+test("전화번호의 국가번호·누락된 0을 정규화하고 다른 번호를 임의로 만들지 않는다", () => {
+  for (const phone of ["01012345678", "010-1234-5678", "+82 10 1234 5678", "0082-10-1234-5678", "1012345678", "０１０１２３４５６７８"]) {
+    assert.equal(normalizeOrderStudentPhone(phone), "01012345678");
+    assert.equal(formatOrderStudentPhone(phone), "010-1234-5678");
+  }
+  for (const phone of ["", "02-123-4567", "010123", "01012345678 / 01087654321", "abc01012345678"]) assert.equal(normalizeOrderStudentPhone(phone), "");
+  assert.equal(formatOrderStudentPhone("02-123-4567"), "02-123-4567");
+});
+
+test("옵션별 인원은 중복을 제외하고 매출·기여도는 모든 주문 금액을 합산한다", () => {
+  const students = createOrderStudentRoster([
+    { ...order, paymentAmount: 100.10 }, { ...order, id: "2", phone: "+82 10 1234 5678", paymentAmount: 100.20 },
+    { ...order, id: "3", optionName: "심화반", paymentAmount: 300.30 },
+    { ...order, id: "4", optionName: "", phone: "", email: "other@example.com", paymentAmount: 100.10 },
+  ]);
+  const result = summarizeOrderStudents(students);
+  assert.equal(result.people, 2); assert.equal(result.count, 4); assert.equal(result.amount, 600.70);
+  const basic = result.options.find(item => item.optionName === "기본반")!;
+  assert.equal(basic.people, 1); assert.equal(basic.count, 2); assert.equal(basic.amount, 200.30);
+  assert.equal(basic.contribution, 20030 / 60070 * 100);
+  assert.equal(result.options.find(item => item.optionName === "")?.people, 1);
+  assert.ok(Math.abs(result.options.reduce((sum, item) => sum + item.contribution!, 0) - 100) < 1e-9);
+  assert.equal(summarizeOrderStudents([{ ...students[0], amount: 0 }]).options[0].contribution, null);
+  assert.deepEqual(summarizeOrderStudents([]), { people: 0, count: 0, amount: 0, options: [] });
 });

@@ -13,6 +13,7 @@ type Props = {
     contactId?: string;
     templateId?: string;
     selectionKey?: string;
+    courseId?: string;
   }>;
 };
 
@@ -75,7 +76,7 @@ export default async function MessageAutomationPage({ searchParams }: Props) {
       </header>
       <div className="mx-auto max-w-[1600px] px-5 py-10 lg:px-8">
         <MessageAutomationManager
-          key={`${query.templateId ?? ""}:${query.bookId ?? ""}:${query.contactId ?? ""}:${query.selectionKey ?? ""}`}
+          key={`${query.templateId ?? ""}:${query.bookId ?? ""}:${query.contactId ?? ""}:${query.selectionKey ?? ""}:${query.courseId ?? ""}`}
           books={booksResult.data ?? []}
           rosters={rostersResult.data ?? []}
           templates={templatesResult.data ?? []}
@@ -83,12 +84,14 @@ export default async function MessageAutomationPage({ searchParams }: Props) {
           initialBookId={query.bookId ?? ""}
           initialTemplateId={query.templateId ?? ""}
           initialSelectionKey={query.selectionKey ?? ""}
+          initialCourseId={query.courseId ?? ""}
           selectedContact={contactResult.data}
           loadError={
             booksResult.error?.message ||
             templatesResult.error?.message ||
             coursesResult.error?.message ||
             contactResult.error?.message ||
+            (query.contactId && !contactResult.data ? "선택한 수신자를 찾을 수 없습니다. 명단에서 다시 선택해 주세요." : undefined) ||
             rostersResult.error?.message
           }
         />
