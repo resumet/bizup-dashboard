@@ -101,7 +101,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'C:/Users/re
             const result = req.url === '/api/course-webinars' ? await apis.list.GET() : await apis.course[req.method](request, { params: Promise.resolve({ courseId: req.url.split('/')[3] }) });
             res.writeHead(result.status, Object.fromEntries(result.headers)); res.end(await result.text()); return;
           }
-          res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end('<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"></head><body><main id="root" class="mx-auto max-w-[1600px] p-5"></main><script src="/bundle.js"></script></body></html>');
+          res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end('<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"></head><body><main id="root" class="mx-auto max-w-[1600px] p-5 lg:px-8"></main><script src="/bundle.js"></script></body></html>');
         } catch (error) { res.statusCode = 500; res.end(error.message); }
       });
     });
@@ -147,6 +147,19 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'C:/Users/re
     await page.getByText('5,200,000원', { exact: true }).waitFor();
     await page.getByText('7%', { exact: true }).first().waitFor(); // First course: 21 / 300; second has no peak and is excluded.
     await page.getByText('30%', { exact: true }).first().waitFor(); // Chat-to-live also excludes the course without peak audience.
+    for (const width of [1920, 1440, 1280, 1024, 768, 360]) {
+      await page.setViewportSize({ width, height: 1000 });
+      const layout = await page.getByRole('region', { name: '강의별 웨비나 실적 표' }).evaluate(region => ({
+        fits: region.scrollWidth <= region.clientWidth + 1,
+        tableFits: region.querySelector('table').scrollWidth <= region.clientWidth + 1,
+        overflowCells: [...region.querySelectorAll('tbody td')].filter(cell => cell.scrollWidth > cell.clientWidth + 1).length,
+        headings: [...region.querySelectorAll('th')].map(head => ({ lines: head.querySelectorAll(':scope > span').length, fits: head.scrollWidth <= head.clientWidth + 1 })),
+      }));
+      assert.ok(layout.fits && layout.tableFits, `webinar table has no horizontal overflow at ${width}px`);
+      assert.equal(layout.overflowCells, 0, `cell content fits at ${width}px`);
+      if (width >= 1280) assert.ok(layout.headings.every(head => head.lines === 2 && head.fits), `two-line headers fit at ${width}px`);
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 });
     await page.screenshot({ path: path.join(temp, 'dashboard-desktop.png'), fullPage: true });
     await page.getByLabel('웨비나 강의·강사 검색').fill('강사 둘');
     assert.equal(await page.getByRole('row').count(), 2);
@@ -162,7 +175,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'C:/Users/re
     await page.screenshot({ path: path.join(temp, 'work-services-mobile.png'), fullPage: true });
     await page.getByRole('link', { name: '라이브 웨비나 대시보드 실행하기', exact: true }).click();
     await page.getByRole('region', { name: '강의별 웨비나 실적 표' }).waitFor();
-    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'dashboard fits 360px with scrolling table');
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'dashboard fits 360px without a scrolling table');
     await page.screenshot({ path: path.join(temp, 'dashboard-mobile.png'), fullPage: true });
     assert.deepEqual(errors, []);
     const result = { passed: true, checks: ['nine fields save/reload', 'actual editor tab and unsaved state', 'conversion and ROAS display', 'concurrent editor conflict', 'API auth and invalid inputs', 'per-course isolation', '501-course dashboard pagination', 'month and instructor filters', 'course deep link', '360px editor and dashboard'], screenshots: temp };
