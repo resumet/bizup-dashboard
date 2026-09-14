@@ -1,3 +1,4 @@
+import { refundDate } from "@/lib/jobs/refund";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -281,6 +282,7 @@ export async function DELETE(request: Request, { params }: Context) {
         { status: 409 },
       );
 
+    if (selectedRows.some((row) => refundDate(row.normalized_values))) throw new Error("환불자는 삭제할 수 없습니다. 환불자 명단에서 조회해 주세요.");
     const remainingRows = currentRows.filter((row) => !selectedIds.has(row.id));
     if (remainingRows.length === 0)
       return Response.json(

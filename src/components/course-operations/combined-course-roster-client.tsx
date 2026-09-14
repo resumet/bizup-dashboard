@@ -1,5 +1,8 @@
 "use client";
 
+import { refundDate } from "@/lib/jobs/refund";
+import { RefundedRoster } from "@/components/jobs/refunded-roster";
+
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ListFilter, Search } from "lucide-react";
@@ -53,7 +56,7 @@ const ALL_VALUE = "__all__";
 export function CombinedCourseRosterClient({
   courseId,
   courseName,
-  rows,
+  rows: allRows,
   rosterJobs,
   linkedCourseOptionInvites,
 }: {
@@ -63,6 +66,8 @@ export function CombinedCourseRosterClient({
   rosterJobs: LinkableRosterJob[];
   linkedCourseOptionInvites: LinkedCourseOptionInvite[];
 }) {
+  const rows = useMemo(() => allRows.filter((row) => !refundDate(row.values)), [allRows]);
+  const refundedRows = useMemo(() => allRows.filter((row) => refundDate(row.values)), [allRows]);
   const [filters, setFilters] = useState<RosterFilters>(EMPTY_ROSTER_FILTERS);
   const [sourceJobId, setSourceJobId] = useState("");
   const [sort, setSort] = useState<RosterSort>("original");
@@ -141,6 +146,7 @@ export function CombinedCourseRosterClient({
 
   return (
     <div className="space-y-5">
+      <RefundedRoster rows={refundedRows} />
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <div className="mb-3 flex flex-wrap gap-2">

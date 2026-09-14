@@ -1,5 +1,8 @@
 "use client";
 
+import { refundDate } from "@/lib/jobs/refund";
+import { RefundedRoster } from "@/components/jobs/refunded-roster";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -133,7 +136,9 @@ export function RosterDetailClient({
   historyError,
 }: Props) {
   const router = useRouter();
-  const [rows, setRows] = useState(initialRows);
+  const [allRows, setRows] = useState(initialRows);
+  const rows = useMemo(() => allRows.filter((row) => !refundDate(row.values)), [allRows]);
+  const refundedRows = useMemo(() => allRows.filter((row) => refundDate(row.values)), [allRows]);
   const [filters, setFilters] = useState<RosterFilters>(EMPTY_ROSTER_FILTERS);
   const [sort, setSort] = useState<RosterSort>("original");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -370,7 +375,7 @@ export function RosterDetailClient({
         <AlertDescription>{loadError}</AlertDescription>
       </Alert>
     );
-  if (rows.length === 0)
+  if (allRows.length === 0)
     return (
       <Alert>
         <AlertTitle>저장된 상세 명단이 없습니다.</AlertTitle>
@@ -382,6 +387,7 @@ export function RosterDetailClient({
 
   return (
     <div className="space-y-5">
+      <RefundedRoster rows={refundedRows} />
       <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
         <div className="min-w-0">
           <Badge variant="outline" className="mb-3">

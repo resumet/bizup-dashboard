@@ -4,11 +4,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { StandardField } from "@/lib/import/contract";
 import type { RosterRow } from "./types";
+import { refundDate } from "./refund";
 
 export async function loadJobEnrollmentRows(
   supabase: SupabaseClient,
   jobId: string,
   version: number,
+  includeRefunded = false,
 ) {
   const rows: RosterRow[] = [];
   for (let start = 0; ; start += 1000) {
@@ -46,7 +48,7 @@ export async function loadJobEnrollmentRows(
     );
     if ((data?.length ?? 0) < 1000) break;
   }
-  return rows;
+  return includeRefunded ? rows : rows.filter((row) => !refundDate(row.values));
 }
 
 export async function loadJobRoster(supabase: SupabaseClient, jobId: string) {

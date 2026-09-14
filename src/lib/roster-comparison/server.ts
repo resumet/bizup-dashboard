@@ -1,3 +1,4 @@
+import { refundDate } from "@/lib/jobs/refund";
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadJobEnrollmentRows } from "@/lib/jobs/server";
@@ -22,7 +23,7 @@ export function parseComparisonRosterIds(value: unknown): string[] {
   return [...new Set(value)] as string[];
 }
 
-export async function loadComparisonStudents(supabase: SupabaseClient, jobIds: string[]): Promise<ComparisonContact[]> {
+export async function loadComparisonStudents(supabase: SupabaseClient, jobIds: string[], includeRefunded = false): Promise<ComparisonContact[]> {
   // Use the signed-in client: RLS must approve every selected job before loading any contacts.
   const { data: jobs, error } = await supabase.from("course_jobs").select("id,name,latest_version")
     .in("id", jobIds).eq("status", "ready");
@@ -30,8 +31,8 @@ export async function loadComparisonStudents(supabase: SupabaseClient, jobIds: s
   const contacts: ComparisonContact[] = [];
   for (let start = 0; start < jobs.length; start += 4) {
     const batches = await Promise.all(jobs.slice(start, start + 4).map(async (job) => {
-      const rows = await loadJobEnrollmentRows(supabase, job.id, job.latest_version);
-      return rows.map((row) => ({ name: row.values?.customerName ?? "", phone: row.normalizedPhone || row.values?.phone || "", email: row.values?.email ?? "", source: job.name, rowNumber: row.sourceRowNumber }));
+      const rows = await loadJobEnrollmentRows(supabase, job.id, job.latest_version, includeRefunded);
+      return rows.map((row) => ({ name: row.values?.customerName ?? "", phone: row.normalizedPhone || row.values?.phone || "", email: row.values?.email ?? "", source: job.name, rowNumber: row.sourceRowNumber, refunded: Boolean(refundDate(row.values)) }));
     }));
     for (const batch of batches) for (const contact of batch) contacts.push(contact);
     if (contacts.length > 100_000) throw new Error("수강생은 최대 100,000행까지 비교할 수 있습니다. 선택한 명단 수를 줄여 주세요.");

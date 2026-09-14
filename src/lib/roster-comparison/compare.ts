@@ -49,6 +49,7 @@ function groupContacts(contacts: ComparisonContact[], matchBy: ComparisonKey) {
 }
 
 export function findRosterDuplicates(contacts: ComparisonContact[], matchBy: ComparisonKey): RosterDuplicatesResult {
+  contacts = contacts.filter((contact) => !contact.refunded);
   const grouped = groupContacts(contacts, matchBy);
   const duplicates = [...grouped.people].filter(([, person]) => person.rowCount > 1).map(([key, person]) => ({
     ...person,
@@ -58,6 +59,10 @@ export function findRosterDuplicates(contacts: ComparisonContact[], matchBy: Com
 }
 
 export function compareRosters(payers: ComparisonContact[], students: ComparisonContact[], matchBy: ComparisonKey): RosterComparisonResult {
+  const refundedKeys = new Set(students.filter((contact) => contact.refunded).map((contact) => comparisonIdentity(contact, matchBy)).filter(Boolean));
+  for (const contact of students) if (!contact.refunded) refundedKeys.delete(comparisonIdentity(contact, matchBy));
+  payers = payers.filter((contact) => !contact.refunded && !refundedKeys.has(comparisonIdentity(contact, matchBy)));
+  students = students.filter((contact) => !contact.refunded);
   const left = groupContacts(payers, matchBy);
   const right = groupContacts(students, matchBy);
   return {

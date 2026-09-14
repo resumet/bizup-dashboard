@@ -27,7 +27,7 @@ export default async function CourseRosterDetailPage({ params }: PageProps) {
   if (!job) notFound();
 
   const [enrollmentResult, messageResult, testResult, courseOptionsResult, linkedCourseResult, notesResult] = await Promise.all([
-    loadJobEnrollmentRows(supabase, jobId, job.latest_version)
+    loadJobEnrollmentRows(supabase, jobId, job.latest_version, true)
       .then((data) => ({ data, error: null }))
       .catch((error: Error) => ({ data: [], error })),
     supabase.from("message_jobs").select("id,template_key,target_scope,requested_count,success_count,failed_count,status,provider,delivery_checked_at,created_at").eq("course_job_id", jobId).order("created_at", { ascending: false }),

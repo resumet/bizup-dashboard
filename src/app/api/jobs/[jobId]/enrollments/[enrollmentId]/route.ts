@@ -1,3 +1,4 @@
+import { refundDate } from "@/lib/jobs/refund";
 import { parseEnrollmentMemo } from "@/lib/jobs/enrollment-memo";
 import {
   parseManualEnrollmentInput,
@@ -26,6 +27,7 @@ type RequestBody = Partial<Record<ManualDetailField, unknown>> & {
   groupChatJoined?: boolean;
   isExtraParticipant?: boolean;
   memo?: unknown;
+  refund?: boolean;
 };
 
 function hasOwn(body: RequestBody, field: keyof RequestBody) {
@@ -44,15 +46,17 @@ export async function PATCH(request: Request, { params }: Context) {
   const body = (await request.json()) as RequestBody;
   const hasGroupChatJoined = hasOwn(body, "groupChatJoined");
   const hasExtraParticipant = hasOwn(body, "isExtraParticipant");
+  const hasRefund = hasOwn(body, "refund");
   const hasMemo = hasOwn(body, "memo");
   const hasManualDetails = MANUAL_DETAIL_FIELDS.some((field) =>
     hasOwn(body, field),
   );
   if (
-    (!hasGroupChatJoined &&
+    (!hasRefund && !hasGroupChatJoined &&
       !hasExtraParticipant &&
       !hasMemo &&
       !hasManualDetails) ||
+    (hasRefund && body.refund !== true) ||
     (hasGroupChatJoined && typeof body.groupChatJoined !== "boolean") ||
     (hasExtraParticipant && typeof body.isExtraParticipant !== "boolean")
   ) {
@@ -105,6 +109,18 @@ export async function PATCH(request: Request, { params }: Context) {
       { message: "수강생 데이터를 찾을 수 없습니다." },
       { status: 404 },
     );
+  }
+  if (refundDate(enrollment.normalized_values)) {
+    return Response.json({ message: "환불자는 조회만 가능합니다." }, { status: 409 });
+  }
+  if (hasRefund) {
+    const values = { ...enrollment.normalized_values, refundedAt: new Date().toISOString(), refundedBy: user.id };
+    const { data: updated, error } = await admin.from("job_enrollments").update({ normalized_values: values })
+      .eq("id", enrollmentId).eq("job_id", jobId).eq("version", job.latest_version)
+      .is("normalized_values->>refundedAt", null).select("id").maybeSingle();
+    if (error || !updated) return Response.json({ message: "환불 상태를 저장하지 못했습니다. 명단을 새로고침해 주세요." }, { status: 409 });
+    await admin.from("audit_logs").insert({ workspace_id: job.workspace_id, actor_id: user.id, event_type: "course_job.enrollment_refunded", entity_type: "course_job", entity_id: jobId, metadata: { enrollment_id: enrollmentId, version: job.latest_version } });
+    return Response.json({ enrollment: { normalizedPhone: enrollment.normalized_phone, values } });
   }
   const normalizedValues =
     enrollment.normalized_values &&
@@ -228,7 +244,7 @@ export async function PATCH(request: Request, { params }: Context) {
       : {}),
     ...(hasMemo ? { memo } : {}),
   };
-  const { error: updateError } = await admin
+  const { data: savedEnrollment, error: updateError } = await admin
     .from("job_enrollments")
     .update({
       normalized_values: savedValues,
@@ -254,11 +270,12 @@ export async function PATCH(request: Request, { params }: Context) {
     })
     .eq("id", enrollmentId)
     .eq("job_id", jobId)
-    .eq("version", job.latest_version);
+    .eq("version", job.latest_version)
+    .is("normalized_values->>refundedAt", null).select("id").maybeSingle();
 
-  if (updateError) {
+  if (updateError || !savedEnrollment) {
     return Response.json(
-      { message: `수강생 정보 저장 실패: ${updateError.code}` },
+      { message: `수강생 정보 저장 실패: ${updateError?.code ?? "환불 상태 또는 명단 변경"}` },
       { status: 400 },
     );
   }

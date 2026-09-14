@@ -1,3 +1,4 @@
+import { refundDate } from "@/lib/jobs/refund";
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -115,7 +116,7 @@ async function loadCourseRosterAnalysis(
     }),
   );
 
-  const analysisRows = rowsByJob.flat().map((row) => {
+  const analysisRows = rowsByJob.flat().filter((row) => !refundDate(row.normalized_values)).map((row) => {
     const values = (row.normalized_values ?? {}) as Record<string, unknown>;
     return {
       values: {

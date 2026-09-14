@@ -94,6 +94,17 @@ export function ManualEnrollmentName({
     }
   }
 
+  async function markRefunded() {
+    setSaving(true); setError("");
+    try {
+      const response = await fetch(`/api/jobs/${jobId}/enrollments/${enrollmentId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ refund: true }) });
+      const data = await response.json();
+      if (!response.ok || !data.enrollment) throw new Error(data.message ?? "환불 상태를 저장하지 못했습니다.");
+      onSaved(data.enrollment); setOpen(false);
+    } catch (error) { setError(error instanceof Error ? error.message : "환불 상태 저장 실패"); }
+    finally { setSaving(false); }
+  }
+
   return (
     <>
       <Button
@@ -110,9 +121,9 @@ export function ManualEnrollmentName({
         <DialogContent className="sm:max-w-2xl">
           <form onSubmit={save} className="space-y-5">
             <DialogHeader>
-              <DialogTitle>수강생 정보 수정</DialogTitle>
+              <DialogTitle>수강생 상세보기</DialogTitle>
               <DialogDescription>
-                수강생의 이름, 연락처와 명단 정보를 변경합니다.
+                수강생 정보를 수정하거나 환불자로 표시합니다. 환불 처리는 결제 취소가 아닌 명단 상태 변경입니다.
               </DialogDescription>
             </DialogHeader>
             {error ? (
@@ -172,6 +183,7 @@ export function ManualEnrollmentName({
               />
             </div>
             <DialogFooter>
+              <Button type="button" variant="destructive" disabled={saving} onClick={() => void markRefunded()}>환불 처리</Button>
               <Button
                 type="button"
                 variant="outline"

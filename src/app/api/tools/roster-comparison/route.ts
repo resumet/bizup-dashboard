@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     const jobIds = parseComparisonRosterIds(selected);
     const matrix = await readComparisonFile(new Uint8Array(await file.arrayBuffer()), file.name);
     const payers = parseComparisonPayers(matrix, file.name, matchBy);
-    const students = await loadComparisonStudents(supabase, jobIds);
+    const students = await loadComparisonStudents(supabase, jobIds, true);
     return Response.json(compareRosters(payers, students, matchBy), { headers });
   } catch (error) { return Response.json({ message: error instanceof Error ? error.message : "명단 비교에 실패했습니다." }, { status: 400, headers }); }
 }

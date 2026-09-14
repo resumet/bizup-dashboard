@@ -48,7 +48,7 @@ export default async function CombinedCourseRosterPage({ params }: PageProps) {
   const rowsByJob = await Promise.all(
     rosterJobs.map(async (job) => ({
       job,
-      rows: await loadJobEnrollmentRows(supabase, job.id, job.latest_version),
+      rows: await loadJobEnrollmentRows(supabase, job.id, job.latest_version, true),
     })),
   );
   const rows: CombinedCourseRosterRow[] = rowsByJob.flatMap(({ job, rows }) =>

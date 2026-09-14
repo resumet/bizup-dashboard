@@ -1,3 +1,4 @@
+import { refundDate } from "@/lib/jobs/refund";
 import type { StandardField } from "./contract";
 import type { StoredRosterRecord } from "./roster";
 
@@ -41,6 +42,12 @@ export function compareRosterRecords(
   current: StoredRosterRecord[],
   incoming: StoredRosterRecord[],
 ): RosterDiffResult {
+  const refunded = current.filter((record) => refundDate(record.normalizedValues));
+  if (refunded.length) {
+    const phones = new Set(refunded.map((record) => record.normalizedPhone));
+    const diff = compareRosterRecords(current.filter((record) => !refundDate(record.normalizedValues)), incoming.filter((record) => !phones.has(record.normalizedPhone)));
+    return { ...diff, protectedCurrent: [...diff.protectedCurrent, ...refunded] };
+  }
   const namesByPhone = new Map<string, Set<string>>();
   for (const record of [...current, ...incoming]) {
     const names = namesByPhone.get(record.normalizedPhone) ?? new Set<string>();
@@ -107,7 +114,12 @@ export function buildUpdatedRosterRecords(
   current: StoredRosterRecord[],
   incoming: StoredRosterRecord[],
   options: { approveAdditions: boolean; approveRemovals: boolean; selectedAdditionIndexes?: number[]; selectedRemovalIndexes?: number[]; nameConflictDecisions?: NameConflictDecisions; preserveSourceRowNumbers?: boolean },
-) {
+): StoredRosterRecord[] {
+  const refunded = current.filter((record) => refundDate(record.normalizedValues));
+  if (refunded.length) {
+    const phones = new Set(refunded.map((record) => record.normalizedPhone));
+    return [...buildUpdatedRosterRecords(current.filter((record) => !refundDate(record.normalizedValues)), incoming.filter((record) => !phones.has(record.normalizedPhone)), options), ...refunded];
+  }
   const diff = compareRosterRecords(current, incoming);
   const selectedAdditions = new Set(options.selectedAdditionIndexes === undefined
     ? options.approveAdditions ? diff.additions : []
