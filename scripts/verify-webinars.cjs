@@ -82,8 +82,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'C:/Users/re
       const output = path.join(temp, `${key}.cjs`); await fs.writeFile(output, bundle.outputFiles[0].text); apis[key] = require(output);
     }
     const draft = { name: '첫 번째 웨비나', instructorName: '강사 하나', freeWebinarAt: '2026-09-15T10:00:00Z', startsAt: '2026-09-20T00:00:00Z', earlyBirdEvent: '', first50Event: '', courseDifferentiation: '', landingPageLink: '', freeKakaoRoom1Link: '', freeKakaoRoom2Link: '', communicationRoomLink: '', paymentLink: '', inquiryLink: '', curriculumLink: '', freeGiftLink: '', courseViewingLink: '', courseMaterialsLink: '', customLinks: [], options: [], youtubeAppearances: [], liveVideos: [], rosterJobIds: [], messageProjectIds: [], freeAddressBookId: '', requiredTasks: [] };
-    const entry = `import React from 'react';import {createRoot} from 'react-dom/client';import {CourseOperationsEditor} from './src/components/course-operations/course-editor';import {WebinarDashboard} from './src/components/course-operations/webinar-dashboard';
-      const courseId=location.pathname.split('/').pop();createRoot(document.getElementById('root')).render(location.pathname==='/work'?<WebinarDashboard/>:<CourseOperationsEditor courseId={courseId} initialDraft={${JSON.stringify(draft)}} initialTab="webinar"/>);`;
+    const entry = `import React from 'react';import {createRoot} from 'react-dom/client';import {CourseOperationsEditor} from './src/components/course-operations/course-editor';import {WebinarDashboard} from './src/components/course-operations/webinar-dashboard';import {WorkServiceCards} from './src/components/work/service-cards';
+      const courseId=location.pathname.split('/').pop();createRoot(document.getElementById('root')).render(location.pathname==='/work'?<WorkServiceCards/>:location.pathname==='/services/course-webinars'?<WebinarDashboard/>:<CourseOperationsEditor courseId={courseId} initialDraft={${JSON.stringify(draft)}} initialTab="webinar"/>);`;
     const bundle = await esbuild.build({ stdin: { contents: entry, resolveDir: process.cwd(), loader: 'tsx' }, jsx: 'automatic', bundle: true, write: false, platform: 'browser', define: { 'process.env.NODE_ENV': '"development"', 'process.env': '{}' }, plugins: [{ name: 'next-adapter', setup(build) {
       build.onResolve({ filter: /^next\/(link|navigation|image)$/ }, args => ({ path: args.path, namespace: 'next-adapter' }));
       build.onLoad({ filter: /.*/, namespace: 'next-adapter' }, args => ({ contents: args.path === 'next/link' ? "import React from 'react';export default function Link({href,children,prefetch,replace,...props}){return <a href={href} {...props}>{children}</a>}" : args.path === 'next/image' ? "import React from 'react';export default function Image({fill,unoptimized,priority,...props}){return <img {...props}/>}" : "export const useRouter=()=>({push:p=>location.assign(p),refresh:()=>location.reload()});export const usePathname=()=>location.pathname;", loader: 'jsx', resolveDir: process.cwd() }));
@@ -135,7 +135,10 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'C:/Users/re
     assert.equal((await page.request.put(apiUrl, { headers: { 'x-test-auth': 'outsider' }, data: { metrics: {}, version: 2 } })).status(), 404);
     assert.equal((await page.request.put(`${origin}/api/course-operations/${second}/webinar`, { data: { metrics: { group_chat_count: 100, live_start_count: 50, payment_count: 5, ad_spend: 100000, revenue: 200000 }, version: 0 } })).status(), 200);
     assert.equal((await (await page.request.get(`${origin}/api/course-webinars`)).json()).items.length, 501);
-    await page.goto(`${origin}/work`); await page.getByText('조회 501개 강의 · 실적 입력 2개 · 집계는 현재 조회된 전체 강의 기준', { exact: true }).waitFor();
+    await page.goto(`${origin}/work`);
+    await page.screenshot({ path: path.join(temp, 'work-services-desktop.png'), fullPage: true });
+    await page.getByRole('link', { name: '라이브 웨비나 대시보드 실행하기', exact: true }).click();
+    await page.getByText('조회 501개 강의 · 실적 입력 2개 · 집계는 현재 조회된 전체 강의 기준', { exact: true }).waitFor();
     await page.getByLabel('웨비나 개최 월').fill('2026-09');
     await page.getByText('조회 2개 강의 · 실적 입력 2개 · 집계는 현재 조회된 전체 강의 기준', { exact: true }).waitFor();
     await page.getByText('5,200,000원', { exact: true }).waitFor();
@@ -149,7 +152,11 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'C:/Users/re
     await page.screenshot({ path: path.join(temp, 'editor-mobile.png'), fullPage: true });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'editor fits 360px');
     assert.ok(await page.locator('[data-slot="badge"]').first().evaluate(element => element.scrollHeight <= element.clientHeight), 'course ID wraps without clipping');
-    await page.goto(`${origin}/work`); await page.getByRole('region', { name: '강의별 웨비나 실적 표' }).waitFor();
+    await page.goto(`${origin}/work`);
+    await page.getByRole('link', { name: '라이브 웨비나 대시보드 실행하기', exact: true }).waitFor();
+    await page.screenshot({ path: path.join(temp, 'work-services-mobile.png'), fullPage: true });
+    await page.getByRole('link', { name: '라이브 웨비나 대시보드 실행하기', exact: true }).click();
+    await page.getByRole('region', { name: '강의별 웨비나 실적 표' }).waitFor();
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'dashboard fits 360px with scrolling table');
     await page.screenshot({ path: path.join(temp, 'dashboard-mobile.png'), fullPage: true });
     assert.deepEqual(errors, []);
