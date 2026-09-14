@@ -267,6 +267,13 @@ export default async function DashboardPage() {
             </p>
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <Card className="border-violet-500/30 bg-violet-500/5 transition-colors hover:bg-violet-500/10">
+              <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+                <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-violet-600 text-white shadow-sm"><ArrowLeftRight className="size-5" /></span>
+                <div className="min-w-0 flex-1"><p className="font-semibold">수강생 명단 중복 검사</p><p className="mt-1 text-sm text-muted-foreground">선택한 명단에서 중복된 사람과 등장한 명단·원본 행을 확인합니다.</p></div>
+                <Button asChild size="sm" className="bg-violet-600 text-white hover:bg-violet-700"><Link href="/services/roster-duplicates">실행하기 <ArrowRight /></Link></Button>
+              </CardContent>
+            </Card>
             <Card className="border-cyan-500/30 bg-cyan-500/5 transition-colors hover:bg-cyan-500/10">
               <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
                 <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-cyan-600 text-white shadow-sm"><ArrowLeftRight className="size-5" /></span>

@@ -1,5 +1,5 @@
 import { mapHeaders, normalizePhoneForStorage } from "@/lib/import/roster";
-import type { ComparisonContact, ComparisonKey, ComparisonPerson, RosterComparisonResult } from "./types";
+import type { ComparisonContact, ComparisonKey, ComparisonPerson, RosterComparisonResult, RosterDuplicatesResult } from "./types";
 
 const text = (value: unknown) => String(value ?? "").trim();
 
@@ -45,7 +45,16 @@ function groupContacts(contacts: ComparisonContact[], matchBy: ComparisonKey) {
       sources: [...new Set(group.map((row) => row.source))], rowCount: group.length,
     });
   }
-  return { people, invalid, duplicates: contacts.length - invalid.length - people.size };
+  return { people, groups, invalid, duplicates: contacts.length - invalid.length - people.size };
+}
+
+export function findRosterDuplicates(contacts: ComparisonContact[], matchBy: ComparisonKey): RosterDuplicatesResult {
+  const grouped = groupContacts(contacts, matchBy);
+  const duplicates = [...grouped.people].filter(([, person]) => person.rowCount > 1).map(([key, person]) => ({
+    ...person,
+    sources: grouped.groups.get(key)!.map((row) => `${row.source} (원본 ${row.rowNumber}행)`),
+  }));
+  return { matchBy, duplicates, invalid: grouped.invalid, totalRows: contacts.length, uniqueCount: grouped.people.size, duplicateRows: grouped.duplicates };
 }
 
 export function compareRosters(payers: ComparisonContact[], students: ComparisonContact[], matchBy: ComparisonKey): RosterComparisonResult {
