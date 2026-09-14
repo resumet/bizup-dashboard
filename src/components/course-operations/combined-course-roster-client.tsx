@@ -146,7 +146,6 @@ export function CombinedCourseRosterClient({
 
   return (
     <div className="space-y-5">
-      <RefundedRoster rows={refundedRows} />
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <div className="mb-3 flex flex-wrap gap-2">
@@ -378,6 +377,7 @@ export function CombinedCourseRosterClient({
           </div>
         ) : null}
       </Card>
+      <RefundedRoster rows={refundedRows} />
     </div>
   );
 }

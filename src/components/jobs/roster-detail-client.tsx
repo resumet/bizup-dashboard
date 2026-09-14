@@ -387,7 +387,6 @@ export function RosterDetailClient({
 
   return (
     <div className="space-y-5">
-      <RefundedRoster rows={refundedRows} />
       <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
         <div className="min-w-0">
           <Badge variant="outline" className="mb-3">
@@ -681,6 +680,7 @@ export function RosterDetailClient({
           </div>
         )}
       </Card>
+      <RefundedRoster rows={refundedRows} />
       <RosterAnalysisCards
         sourceItems={sourceAnalysis}
         optionItems={optionAnalysis}
