@@ -7,11 +7,12 @@ const literal = (value: string) => "'" + value.replace(/'/g, "''") + "'";
 async function main() {
   const email = process.env.HR_INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
   if (!email) throw new Error("HR_INITIAL_ADMIN_EMAIL을 먼저 설정해 주세요.");
-  const files = (await readdir("supabase/migrations")).filter(name => /^20260914\d+_hr_/.test(name)).sort();
-  if (files.length !== 7) throw new Error("HR 마이그레이션 7개를 확인해 주세요.");
-  const migrations = await Promise.all(files.map(async name => `-- ${name}\n${await readFile(`supabase/migrations/${name}`, "utf8")}`));
+  const files = (await readdir("supabase/migrations")).filter(name => /^20260914\d+_(?:work_)?hr_/.test(name)).sort();
+  if (files.length !== 8) throw new Error("HR 마이그레이션 8개를 확인해 주세요.");
+  // Standalone incremental files have their own transaction; the installation owns one outer transaction.
+  const migrations = await Promise.all(files.map(async name => `-- ${name}\n${(await readFile(`supabase/migrations/${name}`, "utf8")).replace(/^(?:BEGIN|COMMIT);\r?$/gm, "")}`));
   const sql = `-- HR first installation only. Run the entire file in Supabase SQL Editor as postgres.
--- Includes seven migrations and links the existing authentication account as initial HR admin.
+-- Includes eight migrations, links the initial HR admin, and imports existing WORK accounts.
 -- If any step fails, the transaction rolls back. Do not rerun after successful installation.
 BEGIN;
 DO $$ BEGIN

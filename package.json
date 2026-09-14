@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --conditions=react-server --test src/**/*.test.ts",
-    "test:hr": "tsx --conditions=react-server --test src/lib/hr/database.test.ts src/lib/hr/persistence.test.ts",
+    "test:hr": "tsx --conditions=react-server --test src/lib/hr/database.test.ts src/lib/hr/persistence.test.ts src/lib/hr/import-work-accounts.test.ts src/lib/hr/work-account-sync.test.ts",
     "verify:hr:browser": "node scripts/hr/verify-browser.cjs",
     "verify:hr:performance": "tsx scripts/hr/verify-performance.ts",
     "setup:hr": "tsx scripts/hr/setup.ts",

@@ -37,10 +37,10 @@ async function main() {
     if (login.error) throw new Error("개발용 관리자 로그인 실패");
     for (let i = 1; i <= 3; i++) {
       const address = `hr-employee-${i}@example.test`;
-      const created = await admin.auth.admin.createUser({ email: address, password: process.env.HR_DEMO_PASSWORD, email_confirm: true });
-      if (created.error) throw new Error(`개발 직원 ${i} 인증 계정 생성 실패`);
       const reserve = await client.rpc("hr_command", { p_action: "invitation.reserve", p_key: crypto.randomUUID(), p_body: { email: address, name: `개발 직원 ${i}`, department: i === 3 ? "기획" : "운영", role: "employee", employment_start_date: "2020-01-01" } });
       if (reserve.error) throw new Error(`개발 직원 ${i} 초대 기록 생성 실패`);
+      const created = await admin.auth.admin.createUser({ email: address, password: process.env.HR_DEMO_PASSWORD, email_confirm: true });
+      if (created.error) throw new Error(`개발 직원 ${i} 인증 계정 생성 실패`);
       const finished = await admin.rpc("hr_finish_invitation", { p_id: reserve.data.id, p_auth_id: created.data.user.id, p_success: true });
       if (finished.error) throw new Error(`개발 직원 ${i} 등록 실패`);
       const task = await client.rpc("hr_command", { p_action: "task.create", p_key: crypto.randomUUID(), p_body: { title: `개발 업무 ${i}`, description: "가상 데이터입니다. 업무 상세에서 상태·댓글·이관을 확인해 보세요.", assignee_id: finished.data.id } });
