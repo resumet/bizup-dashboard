@@ -1,4 +1,4 @@
-import { refundDate } from "@/lib/jobs/refund";
+import { loadJobEnrollmentRows } from "@/lib/jobs/server";
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -25,9 +25,6 @@ import {
   analyzeRosterSources,
   countGroupChatParticipants,
 } from "@/lib/jobs/filter";
-
-const ANALYSIS_PAGE_SIZE = 1_000;
-const ANALYSIS_CONCURRENCY = 5;
 
 export async function loadSalesSection(
   supabase: SupabaseClient,
@@ -66,75 +63,24 @@ export async function loadSalesSection(
 async function loadCourseRosterAnalysis(
   supabase: SupabaseClient,
   jobs: LinkableRosterJob[],
-): Promise<CourseRosterAnalysis> {
-  const rowsByJob = await Promise.all(
-    jobs.map(async (job) => {
-      const firstPage = await supabase
-        .from("job_enrollments")
-        .select("normalized_values", { count: "exact" })
-        .eq("job_id", job.id)
-        .eq("version", job.latest_version)
-        .order("source_row_number")
-        .range(0, ANALYSIS_PAGE_SIZE - 1);
-      if (firstPage.error) throw new Error(firstPage.error.message);
-
-      const rows = [...(firstPage.data ?? [])];
-      const totalCount = firstPage.count ?? rows.length;
-      const remainingStarts = Array.from(
-        {
-          length: Math.max(
-            0,
-            Math.ceil(totalCount / ANALYSIS_PAGE_SIZE) - 1,
-          ),
-        },
-        (_, index) => (index + 1) * ANALYSIS_PAGE_SIZE,
-      );
-
-      for (
-        let offset = 0;
-        offset < remainingStarts.length;
-        offset += ANALYSIS_CONCURRENCY
-      ) {
-        const batch = await Promise.all(
-          remainingStarts
-            .slice(offset, offset + ANALYSIS_CONCURRENCY)
-            .map((start) =>
-              supabase
-                .from("job_enrollments")
-                .select("normalized_values")
-                .eq("job_id", job.id)
-                .eq("version", job.latest_version)
-                .order("source_row_number")
-                .range(start, start + ANALYSIS_PAGE_SIZE - 1),
-            ),
-        );
-        const failed = batch.find((result) => result.error);
-        if (failed?.error) throw new Error(failed.error.message);
-        rows.push(...batch.flatMap((result) => result.data ?? []));
-      }
-      return rows;
-    }),
-  );
-
-  const analysisRows = rowsByJob.flat().filter((row) => !refundDate(row.normalized_values)).map((row) => {
-    const values = (row.normalized_values ?? {}) as Record<string, unknown>;
-    return {
-      values: {
-        source: typeof values.source === "string" ? values.source : "",
-        optionName:
-          typeof values.optionName === "string" ? values.optionName : "",
-      },
-      groupChatJoined: values.groupChatJoined === true,
-    };
-  });
-
-  return {
+) {
+  // Use the same latest, non-refunded rows as the full roster page.
+  const rowsByJob = await Promise.all(jobs.map(async (job) => ({
+    job, rows: await loadJobEnrollmentRows(supabase, job.id, job.latest_version),
+  })));
+  const rows = rowsByJob.flatMap(({ rows }) => rows);
+  const analysis: CourseRosterAnalysis = {
     sourceJobIds: jobs.map((job) => job.id),
-    totalCount: analysisRows.length,
-    groupChatJoinedCount: countGroupChatParticipants(analysisRows),
-    sourceItems: analyzeRosterSources(analysisRows),
-    optionItems: analyzeRosterOptions(analysisRows),
+    totalCount: rows.length,
+    groupChatJoinedCount: countGroupChatParticipants(rows),
+    sourceItems: analyzeRosterSources(rows),
+    optionItems: analyzeRosterOptions(rows),
   };
+  const preview: CourseStudentPreview[] = rowsByJob.flatMap(({ job, rows }) => rows.slice(0, 20).map((row) => ({
+    id: row.id, name: row.values.customerName || "", phone: row.normalizedPhone,
+    email: row.values.email || "", memo: row.memo, sourceJobId: job.id, sourceJobName: job.name,
+  })));
+  return { analysis, preview, counts: new Map(rowsByJob.map(({ job, rows }) => [job.id, rows.length])) };
 }
 
 export async function loadStudentsSection(
@@ -158,23 +104,8 @@ export async function loadStudentsSection(
 
   const rosterJobs = (jobsResult.data ?? []) as LinkableRosterJob[];
   const linkedJobs = rosterJobs.filter((job) => job.course_id === courseId);
-  const [paidPreviewResult, paidRosterAnalysis, freePreviewResult] =
-    await Promise.all([
-      Promise.all(
-        linkedJobs.map(async (job) => {
-          const result = await supabase
-            .from("job_enrollments")
-            .select("id,normalized_phone,normalized_values")
-            .eq("job_id", job.id)
-            .eq("version", job.latest_version)
-            .order("source_row_number")
-            .limit(20);
-          return { job, ...result };
-        }),
-      ),
-      linkedJobs.length
-        ? loadCourseRosterAnalysis(supabase, linkedJobs)
-        : Promise.resolve(undefined),
+  const [paidRoster, freePreviewResult] = await Promise.all([
+      loadCourseRosterAnalysis(supabase, linkedJobs),
       freeAddressBookId
         ? supabase
             .from("address_book_contacts")
@@ -184,26 +115,8 @@ export async function loadStudentsSection(
             .limit(20)
         : Promise.resolve({ data: [], error: null }),
     ]);
-  const failedPaidPreview = paidPreviewResult.find((result) => result.error);
-  if (failedPaidPreview?.error) throw new Error(failedPaidPreview.error.message);
   if (freePreviewResult.error) throw new Error(freePreviewResult.error.message);
 
-  const paidStudentPreview: CourseStudentPreview[] = paidPreviewResult.flatMap(
-    ({ job, data }) =>
-      (data ?? []).map((row) => {
-        const values = row.normalized_values as Record<string, unknown>;
-        return {
-          id: row.id,
-          name:
-            typeof values.customerName === "string" ? values.customerName : "",
-          phone: row.normalized_phone ?? "",
-          email: typeof values.email === "string" ? values.email : "",
-          memo: typeof values.memo === "string" ? values.memo : "",
-          sourceJobId: job.id,
-          sourceJobName: job.name,
-        };
-      }),
-  );
   const freeStudentPreview: FreeStudentPreview[] = (
     freePreviewResult.data ?? []
   ).map((contact) => ({
@@ -215,10 +128,10 @@ export async function loadStudentsSection(
   }));
 
   return {
-    rosterJobs,
+    rosterJobs: rosterJobs.map((job) => ({ ...job, valid_count: paidRoster.counts.get(job.id) ?? job.valid_count })),
     addressBooks: (addressBooksResult.data ?? []) as AddressBookSummary[],
-    paidStudentPreview,
-    paidRosterAnalysis,
+    paidStudentPreview: paidRoster.preview,
+    paidRosterAnalysis: linkedJobs.length ? paidRoster.analysis : undefined,
     freeStudentPreview,
   };
 }
