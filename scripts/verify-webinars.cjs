@@ -122,7 +122,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'C:/Users/re
     await page.getByText('라이브 웨비나 정보를 저장했습니다. WORK 대시보드에 반영됩니다.', { exact: true }).waitFor();
     await page.reload(); await page.waitForFunction(() => document.querySelector('#webinar-revenue')?.value === '5000000');
     for (const [key, value] of Object.entries(inputs)) assert.equal(await page.locator(`#webinar-${key}`).inputValue(), value);
-    for (const value of ['20%', '10%', '2%', '500%']) await page.getByText(value, { exact: true }).waitFor();
+    for (const value of ['20%', '6.67%', '2%', '500%']) await page.getByText(value, { exact: true }).waitFor();
     await page.screenshot({ path: path.join(temp, 'editor-desktop.png'), fullPage: true });
     const stalePage = await context.newPage(); await stalePage.goto(page.url()); await stalePage.locator('#webinar-payment_count').fill('22');
     await page.locator('#webinar-payment_count').fill('21'); await page.getByRole('button', { name: '웨비나 정보 저장', exact: true }).click(); await page.getByRole('status').waitFor();
@@ -142,6 +142,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'C:/Users/re
     await page.getByLabel('웨비나 개최 월').fill('2026-09');
     await page.getByText('조회 2개 강의 · 실적 입력 2개 · 집계는 현재 조회된 전체 강의 기준', { exact: true }).waitFor();
     await page.getByText('5,200,000원', { exact: true }).waitFor();
+    await page.getByText('7%', { exact: true }).first().waitFor(); // First course: 21 / 300; second has no peak and is excluded.
     await page.screenshot({ path: path.join(temp, 'dashboard-desktop.png'), fullPage: true });
     await page.getByLabel('웨비나 강의·강사 검색').fill('강사 둘');
     assert.equal(await page.getByRole('row').count(), 2);
