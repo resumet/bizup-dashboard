@@ -1,0 +1,17 @@
+"use client";
+import Link from "next/link";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { formatTime } from "@/lib/hr/types";
+import { ErrorNotice, Pager, Panel, useHr, useHrMutation, useHrQuery } from "./shared";
+
+const labels: Record<string, string> = { "task.assigned": "새 업무 배정", "task.watcher": "업무 참조자 추가", "task.transfer": "업무 이관", "task.status": "업무 상태 변경", "task.comment": "새 업무 댓글", "leave.create": "휴가 등록", "leave.update": "휴가 변경", "leave.cancel": "휴가 취소", "correction.request": "근태 정정 요청", "correction.result": "근태 정정 처리 결과", "attendance.corrected": "근태 정정 반영", "attendance.conflict": "휴가·근태 겹침 확인", "review.reminder": "퇴근 전 업무정리 안내", "policy.changed": "근무정책 변경" };
+type Notification = { id: string; event_type: string; entity_id: string | null; payload: Record<string, unknown>; read_at: string | null; created_at: string };
+export function NotificationsPage() {
+  const { me } = useHr(); const [page, setPage] = useState(0); const data = useHrQuery<{ items: Notification[]; total: number; unread: number }>("notifications", { page }, true); const mutation = useHrMutation();
+  return <><h1 className="text-2xl font-semibold">알림함 · 읽지 않음 {data.data?.unread ?? 0}</h1><ErrorNotice error={data.error} retry={data.reload} /><ErrorNotice error={mutation.error} /><Panel title="내 알림"><div className="divide-y">{data.data?.items.map(item => {
+    const href = item.event_type.startsWith("task.") ? `/hr/tasks/${item.entity_id}` : item.event_type.startsWith("leave.") ? me.role === "admin" ? "/hr/admin" : "/hr/leaves" : item.event_type === "review.reminder" ? "/hr" : me.role === "admin" ? "/hr/admin" : "/hr/records";
+    return <article className={`space-y-2 py-4 ${item.read_at ? "text-slate-500" : ""}`} key={item.id}><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-medium">{labels[item.event_type] ?? "HR 알림"}</p><span className="text-xs text-muted-foreground">{formatTime(item.created_at)}</span></div>{item.payload.unavailable ? <p className="text-sm">현재 조회할 수 없는 업무입니다.</p> : <p className="text-sm">{[item.payload.employee_name,item.payload.start_date,item.payload.end_date,item.payload.work_date,typeof item.payload.units === "number" ? `${item.payload.units}일` : null,item.payload.effective_from].filter(Boolean).map(String).join(" · ")}</p>}<div className="flex gap-2">{item.entity_id && !item.payload.unavailable && <Button asChild size="sm" variant="outline"><Link href={href}>상세 보기</Link></Button>}{!item.read_at && <Button size="sm" variant="ghost" disabled={mutation.busy} onClick={async () => { try { await mutation.mutate("notification.read", { id: item.id }); data.reload(); } catch {} }}>읽음 처리</Button>}</div></article>;
+  })}{!data.data?.items.length && <p className="py-6 text-sm text-muted-foreground">새로운 알림이 없습니다.</p>}</div><Pager page={page} total={data.data?.total ?? 0} onPage={setPage} /></Panel></>;
+}
+export function ProfilePage() { const { me, organization } = useHr(); return <Panel title="내 프로필"><dl className="space-y-4 text-sm">{[["이름",me.name],["이메일",me.email],["부서",me.department || "미지정"],["역할",me.role === "admin" ? "관리자" : "직원"],["입사일",me.employment_start_date],["조직",organization.name]].map(([label,value]) => <div key={label}><dt className="text-muted-foreground">{label}</dt><dd className="mt-1">{value}</dd></div>)}</dl><p className="mt-6 text-xs text-muted-foreground">직원 정보 변경은 HR 관리자에게 요청해 주세요.</p></Panel>; }

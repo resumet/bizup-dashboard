@@ -10,6 +10,7 @@ import { CourseShortcutsMenu } from "@/components/layout/course-shortcuts-menu";
 import { Button } from "@/components/ui/button";
 
 const SERVICE_LINKS = [
+  { label: "업무관리 홈", href: "/work" },
   { label: "강의운영", href: "/services/course-operations" },
   { label: "수강생 명단", href: "/services/course-roster" },
   { label: "전화세일즈", href: "/services/phone-sales-list" },
