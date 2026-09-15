@@ -19,6 +19,7 @@
     "@ai-sdk/openai": "^4.0.47",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
+    "@vercel/sandbox": "3.3.0",
     "ai": "^7.0.79",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

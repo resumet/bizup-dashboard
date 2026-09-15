@@ -7,7 +7,7 @@ type WorkerConfig = {
   token: string;
 };
 
-function getWorkerConfig(): WorkerConfig | null {
+export function getWorkerConfig(): WorkerConfig | null {
   const baseUrl = process.env.YOUTUBE_DOWNLOAD_WORKER_URL?.trim();
   const token = process.env.YOUTUBE_DOWNLOAD_WORKER_TOKEN?.trim();
   if (!baseUrl && !token) return null;
@@ -39,8 +39,10 @@ async function callWorker(path: string, url: string) {
   });
   const body = await response.json().catch(() => null) as Record<string, unknown> | null;
   if (!response.ok) {
-    throw new Error(typeof body?.error === "string" ? body.error : `다운로드 워커 오류 (HTTP ${response.status})`);
+    if (response.status === 401 || response.status === 403) throw new Error("다운로드 서버 인증에 실패했습니다. 워커와 Vercel의 인증 토큰 설정을 확인해 주세요.");
+    throw new Error(typeof body?.error === "string" ? body.error : typeof body?.detail === "string" ? body.detail : `다운로드 워커 오류 (HTTP ${response.status})`);
   }
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("다운로드 서버 응답이 올바르지 않습니다. 워커 주소와 서버 상태를 확인해 주세요.");
   return body;
 }
 
@@ -71,8 +73,4 @@ export async function prepareWorkerDownload(url: string): Promise<string | null>
     throw new Error("다운로드 주소는 HTTPS여야 합니다.");
   }
   return downloadUrl.toString();
-}
-
-export function requireWorkerOnVercel(): never {
-  throw new Error("Vercel 배포에서는 외부 다운로드 워커 환경변수가 필요합니다.");
 }

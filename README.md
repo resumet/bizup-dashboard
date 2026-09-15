@@ -50,4 +50,4 @@ Supabase 없이도 현재 대시보드와 가져오기 진입 UI를 확인할 �
 
 ## Vercel 유튜브 다운로드 도구 배포
 
-Vercel Function은 영상 파일을 직접 응답하지 않습니다. `youtube-worker` 컨테이너를 별도로 배포한 뒤 Vercel에 `YOUTUBE_DOWNLOAD_WORKER_URL`, `YOUTUBE_DOWNLOAD_WORKER_TOKEN`을 설정하세요. 자세한 설정은 `youtube-worker/README.md`를 확인합니다.
+Vercel에서는 프로젝트 OIDC 인증으로 임시 Sandbox를 생성하여 영상 정보를 확인하고 다운로드를 처리합니다. 별도 서버 주소나 토큰 설정은 필요하지 않으며, 브라우저가 처리 상태를 확인한 뒤 Sandbox에서 파일을 직접 받습니다. 기존 외부 워커가 있다면 `YOUTUBE_DOWNLOAD_WORKER_URL`, `YOUTUBE_DOWNLOAD_WORKER_TOKEN`을 설정하여 사용할 수도 있습니다. 실행 한도와 검증 방법은 [youtube-worker/README.md](youtube-worker/README.md)를 확인합니다.

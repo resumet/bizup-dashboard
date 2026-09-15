@@ -7,16 +7,25 @@ import re
 import shutil
 import tempfile
 import time
+import threading
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
 app = FastAPI(title="BizUp YouTube Download Worker", docs_url=None, redoc_url=None)
+SANDBOX_DOWNLOADS = os.getenv("SANDBOX_DOWNLOADS") == "1"
+if SANDBOX_DOWNLOADS:
+    # Status requires a signed, short-lived capability URL; cookies are not used.
+    app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"])
+
+job_lock = threading.Lock()
+job: dict = {"status": "idle"}
 
 VIDEO_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{11}$")
 YOUTUBE_HOSTS = {
@@ -28,6 +37,15 @@ YOUTUBE_HOSTS = {
     "www.youtube-nocookie.com",
 }
 MAX_FILE_SIZE = 500 * 1024 * 1024
+
+
+def downloader_options() -> dict:
+    options = {"socket_timeout": 20, "retries": 3}
+    if SANDBOX_DOWNLOADS:
+        import imageio_ffmpeg
+        options["ffmpeg_location"] = imageio_ffmpeg.get_ffmpeg_exe()
+        options["js_runtimes"] = {"node": {}}
+    return options
 
 
 class VideoRequest(BaseModel):
@@ -74,7 +92,7 @@ def normalize_youtube_url(value: str) -> str:
 
 def safe_info(url: str) -> dict:
     try:
-        with YoutubeDL({"quiet": True, "no_warnings": True, "noplaylist": True, "skip_download": True}) as ydl:
+        with YoutubeDL({**downloader_options(), "quiet": True, "no_warnings": True, "noplaylist": True, "skip_download": True}) as ydl:
             info = ydl.extract_info(url, download=False)
     except DownloadError as error:
         raise HTTPException(status_code=400, detail="공개 영상 정보를 확인하지 못했습니다.") from error
@@ -97,7 +115,7 @@ def public_info(info: dict) -> dict:
 
 
 def encode_download_token(url: str) -> str:
-    payload = json.dumps({"url": url, "exp": int(time.time()) + 600}, separators=(",", ":")).encode()
+    payload = json.dumps({"url": url, "exp": int(time.time()) + (1200 if SANDBOX_DOWNLOADS else 600)}, separators=(",", ":")).encode()
     encoded = base64.urlsafe_b64encode(payload).rstrip(b"=")
     signature = hmac.new(required_env("DOWNLOAD_SIGNING_SECRET").encode(), encoded, hashlib.sha256).digest()
     return f"{encoded.decode()}.{base64.urlsafe_b64encode(signature).rstrip(b'=').decode()}"
@@ -123,6 +141,7 @@ def download_file(url: str) -> tuple[Path, Path]:
     output = str(directory / "%(title).120B.%(ext)s")
     try:
         with YoutubeDL({
+            **downloader_options(),
             "quiet": True,
             "no_warnings": True,
             "noplaylist": True,
@@ -164,13 +183,64 @@ def video_info(body: VideoRequest) -> dict:
 @app.post("/v1/downloads", dependencies=[Depends(verify_service_token)])
 def prepare_download(body: VideoRequest, request: Request) -> dict:
     url = normalize_youtube_url(body.url)
-    safe_info(url)
     base_url = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/") or str(request.base_url).rstrip("/")
-    return {"downloadUrl": f"{base_url}/v1/download?token={encode_download_token(url)}"}
+    token = encode_download_token(url)
+    if SANDBOX_DOWNLOADS:
+        with job_lock:
+            if job["status"] != "idle":
+                raise HTTPException(status_code=409, detail="이미 처리 중인 다운로드가 있습니다.")
+            job.update(status="processing", url=url)
+        threading.Thread(target=run_download_job, args=(url,), daemon=True).start()
+        return {
+            "downloadUrl": f"{base_url}/v1/download?token={token}",
+            "statusUrl": f"{base_url}/v1/status?token={token}",
+        }
+    safe_info(url)
+    return {"downloadUrl": f"{base_url}/v1/download?token={token}"}
+
+
+def run_download_job(url: str) -> None:
+    try:
+        safe_info(url)
+        directory, file_path = download_file(url)
+        with job_lock:
+            job.update(status="ready", directory=directory, file_path=file_path)
+    except Exception as error:
+        with job_lock:
+            job.update(status="error", error=error.detail if isinstance(error, HTTPException) else "영상 다운로드에 실패했습니다. 잠시 후 다시 시도해 주세요.")
+
+
+def verify_job(token: str) -> None:
+    url = decode_download_token(token)
+    if not SANDBOX_DOWNLOADS or job.get("url") != url:
+        raise HTTPException(status_code=404, detail="다운로드 작업을 찾을 수 없습니다.")
+
+
+@app.get("/v1/status")
+def download_status(token: str) -> dict:
+    verify_job(token)
+    with job_lock:
+        return {"status": job["status"], "error": job.get("error")}
+
+
+def cleanup_job(directory: Path) -> None:
+    shutil.rmtree(directory, ignore_errors=True)
+    with job_lock:
+        job.update(status="expired")
 
 
 @app.get("/v1/download")
 def download(token: str, background_tasks: BackgroundTasks):
+    if SANDBOX_DOWNLOADS:
+        verify_job(token)
+        with job_lock:
+            if job["status"] != "ready":
+                raise HTTPException(status_code=409, detail="파일이 준비되지 않았거나 다운로드 주소가 만료되었습니다.")
+            directory, file_path = job["directory"], job["file_path"]
+            job.update(status="serving")
+        background_tasks.add_task(cleanup_job, directory)
+        media_type = "video/webm" if file_path.suffix.lower() == ".webm" else "video/mp4"
+        return FileResponse(file_path, filename=file_path.name, media_type=media_type, background=background_tasks, headers={"Cache-Control": "private, no-store"})
     url = decode_download_token(token)
     directory, file_path = download_file(url)
     background_tasks.add_task(shutil.rmtree, directory, True)

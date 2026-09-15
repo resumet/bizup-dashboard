@@ -1,9 +1,9 @@
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getWorkerVideoInfo, requireWorkerOnVercel } from "@/lib/tools/youtube-download-worker";
+import { getWorkerVideoInfo } from "@/lib/tools/youtube-download-worker";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -14,9 +14,13 @@ export async function POST(request: Request) {
     const requestedUrl = body.url || "";
     let info = await getWorkerVideoInfo(requestedUrl);
     if (!info) {
-      if (process.env.VERCEL) requireWorkerOnVercel();
-      const localDownloader = await import("@/lib/tools/youtube-download-server");
-      info = await localDownloader.getYoutubeVideoInfo(requestedUrl);
+      if (process.env.VERCEL) {
+        const { getSandboxVideoInfo } = await import("@/lib/tools/youtube-download-sandbox");
+        info = await getSandboxVideoInfo(requestedUrl);
+      } else {
+        const localDownloader = await import("@/lib/tools/youtube-download-server");
+        info = await localDownloader.getYoutubeVideoInfo(requestedUrl);
+      }
     }
     return Response.json({ info });
   } catch (error) {
