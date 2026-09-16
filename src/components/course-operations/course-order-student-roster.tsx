@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatOrderStudentPhone, normalizeOrderStudentPhone, summarizeOrderStudents, type OrderStudent } from "@/lib/course-orders/student-roster";
+import { CourseRosterShareDialog } from "./course-roster-share-dialog";
 
 const PAGE_SIZE = 50;
 const money = (value: number) => `${value.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}원`;
@@ -41,7 +42,10 @@ export function CourseOrderStudentRoster({ courseId, students, onDelete, onResto
   return <section aria-label="결제완료 수강생 명단">
     <Card>
       <CardHeader>
-        <CardTitle>결제완료 수강생 명단</CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CardTitle>결제완료 수강생 명단</CardTitle>
+          <CourseRosterShareDialog courseId={courseId} />
+        </div>
         <CardDescription>결제완료 {summary.count.toLocaleString("ko-KR")}건 · 수강생 {summary.people.toLocaleString("ko-KR")}명 · 전체 매출 {money(summary.amount)}</CardDescription>
         <p className="text-xs text-muted-foreground">인원은 전화번호(없으면 이메일) 기준으로 중복을 제외합니다. 여러 옵션을 구매한 사람은 각 옵션에 포함됩니다. 매출은 현재 명단의 결제금액 합계입니다.</p>
       </CardHeader>
