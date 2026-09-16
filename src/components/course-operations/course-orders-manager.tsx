@@ -110,7 +110,7 @@ export function CourseOrdersManager({ courseId, onCourseNameChange, onRosterSave
       body: JSON.stringify({ action: "apply", orderIds: rosterPreview.orderIds, token: rosterPreview.token, selectedIds }),
     }));
     setRosterPreview(null); setNotice("선택한 변경 사항을 유료수강생 명단에 반영했습니다.");
-    router.refresh(); onRosterSaved?.();
+    onRosterSaved?.(); router.refresh();
   }
 
   async function previewFile() {
@@ -134,7 +134,6 @@ export function CourseOrdersManager({ courseId, onCourseNameChange, onRosterSave
       setNotice(`${result.savedCount.toLocaleString("ko-KR")}건을 저장했습니다.${result.courseName ? ` 강의명: ${result.courseName}.` : ""} 선택한 주문항목을 최신 명단으로 반영했습니다.`);
       if (result.warning) setError(result.warning);
       if (result.courseName) onCourseNameChange?.(result.courseName);
-      router.refresh();
       setPreview(null); setProducts(new Set());
       changeFilters(EMPTY_ORDER_FILTERS); refresh();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "주문 내역을 저장하지 못했습니다."); }
