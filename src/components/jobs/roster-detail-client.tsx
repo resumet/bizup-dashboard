@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ChevronDown,
   Download,
+  ExternalLink,
   History,
   Loader2,
   MessageSquareText,
@@ -85,6 +86,7 @@ import {
 import type { CourseJobNote } from "@/lib/jobs/notes";
 import {
   buildCourseOptionInviteMap,
+  isOpenableInviteLink,
   optionKey,
   optionLabel,
   validateInviteValues,
@@ -1201,6 +1203,7 @@ export function MessageDialog({
                   linkName: "",
                 };
                 const savedLinkMissing = values.linkName && !invites.links.some(link => link.url === values.linkName);
+                const canOpenLink = isOpenableInviteLink(values.linkName);
                 return (
                   <div key={key} className="grid gap-3 rounded-lg border p-3">
                     <p className="text-sm font-semibold">{optionLabel(key)}</p>
@@ -1225,30 +1228,43 @@ export function MessageDialog({
                       </div>
                       <div className="grid min-w-0 gap-2">
                         <Label htmlFor={`link-name-${key}`}>입장 링크</Label>
-                        <Select
-                          value={values.linkName}
-                          disabled={!invites.loaded}
-                          onValueChange={(value) => {
-                            updateOptionInvite(key, "linkName", value);
-                            void invites.save();
-                          }}
-                        >
-                          <SelectTrigger id={`link-name-${key}`} className="min-w-0">
-                            <SelectValue placeholder="강의 링크 선택">{values.linkName ? invites.links.find(link => link.url === values.linkName)?.label ?? "저장된 링크 (강의 목록에 없음)" : undefined}</SelectValue>
-                          </SelectTrigger>
-                          <SelectContent position="popper" className="max-w-[calc(100vw-3rem)] sm:max-w-md">
-                            {invites.links.map(link => (
-                              <SelectItem key={link.url} value={link.url} disabled={!/^https:/iu.test(link.url)} textValue={link.label}>
-                                <span className="grid min-w-0 gap-1">
-                                  <span className="whitespace-normal break-words font-medium">{link.label}{!/^https:/iu.test(link.url) ? " (HTTPS 필요)" : ""}</span>
-                                  <span className="break-all whitespace-normal text-xs text-muted-foreground">{link.url}</span>
-                                </span>
-                              </SelectItem>
-                            ))}
-                            {savedLinkMissing && <SelectItem value={values.linkName} textValue="저장된 링크 (강의 목록에 없음)">저장된 링크 (강의 목록에 없음)</SelectItem>}
-                            {!invites.links.length && !savedLinkMissing && <SelectItem value="__no_course_links" disabled>등록된 강의 링크가 없습니다.</SelectItem>}
-                          </SelectContent>
-                        </Select>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Select
+                            value={values.linkName}
+                            disabled={!invites.loaded}
+                            onValueChange={(value) => {
+                              updateOptionInvite(key, "linkName", value);
+                              void invites.save();
+                            }}
+                          >
+                            <SelectTrigger id={`link-name-${key}`} className="min-w-0 flex-1">
+                              <SelectValue placeholder="강의 링크 선택">{values.linkName ? invites.links.find(link => link.url === values.linkName)?.label ?? "저장된 링크 (강의 목록에 없음)" : undefined}</SelectValue>
+                            </SelectTrigger>
+                            <SelectContent position="popper" className="max-w-[calc(100vw-3rem)] sm:max-w-md">
+                              {invites.links.map(link => (
+                                <SelectItem key={link.url} value={link.url} disabled={!isOpenableInviteLink(link.url)} textValue={link.label}>
+                                  <span className="grid min-w-0 gap-1">
+                                    <span className="whitespace-normal break-words font-medium">{link.label}{!isOpenableInviteLink(link.url) ? " (HTTPS 필요)" : ""}</span>
+                                    <span className="break-all whitespace-normal text-xs text-muted-foreground">{link.url}</span>
+                                  </span>
+                                </SelectItem>
+                              ))}
+                              {savedLinkMissing && <SelectItem value={values.linkName} textValue="저장된 링크 (강의 목록에 없음)">저장된 링크 (강의 목록에 없음)</SelectItem>}
+                              {!invites.links.length && !savedLinkMissing && <SelectItem value="__no_course_links" disabled>등록된 강의 링크가 없습니다.</SelectItem>}
+                            </SelectContent>
+                          </Select>
+                          {canOpenLink ? (
+                            <Button variant="outline" className="shrink-0" asChild>
+                              <a href={values.linkName.trim()} target="_blank" rel="noopener noreferrer" aria-label={`${optionLabel(key)} 입장 링크 열어보기`}>
+                                <ExternalLink />열어보기
+                              </a>
+                            </Button>
+                          ) : (
+                            <Button type="button" variant="outline" className="shrink-0" disabled aria-label={`${optionLabel(key)} 입장 링크 열어보기`}>
+                              <ExternalLink />열어보기
+                            </Button>
+                          )}
+                        </div>
                         {values.linkName && <p className="break-all text-xs text-muted-foreground">선택된 링크: {values.linkName}</p>}
                         <p className="text-xs text-muted-foreground">
                           {invites.links.length ? "선택하면 이 명단에 자동 저장됩니다." : "연결된 강의의 링크 관리에 링크를 등록해 주세요."}

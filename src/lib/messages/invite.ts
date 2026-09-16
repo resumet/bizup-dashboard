@@ -2,6 +2,15 @@ export type InviteValues = { entryCode: string; linkName: string };
 
 export type CourseOptionInviteSource = InviteValues & { optionName: string };
 
+export function isOpenableInviteLink(value: string) {
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "https:" && Boolean(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function optionKey(optionName: string) {
   return optionName.trim() || "__no_option";
 }
@@ -60,14 +69,7 @@ export function validateInviteValues(values: InviteValues) {
   const codeLength = Array.from(entryCode).length;
   if (entryCode && (codeLength < 4 || codeLength > 6))
     errors.push("입장코드는 4~6글자여야 합니다.");
-  if (linkName) {
-    try {
-      const url = new URL(linkName);
-      if (url.protocol !== "https:")
-        errors.push("링크는 https:// 형식이어야 합니다.");
-    } catch {
-      errors.push("링크는 유효한 https:// 주소여야 합니다.");
-    }
-  }
+  if (linkName && !isOpenableInviteLink(linkName))
+    errors.push("링크는 유효한 https:// 주소여야 합니다.");
   return errors;
 }

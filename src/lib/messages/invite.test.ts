@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildCourseOptionInviteMap, validateInviteValues } from "./invite";
+import {
+  buildCourseOptionInviteMap,
+  isOpenableInviteLink,
+  validateInviteValues,
+} from "./invite";
 
 test("입장코드는 4~6글자이고 링크는 HTTPS여야 한다", () => {
   assert.deepEqual(
@@ -33,6 +37,14 @@ test("입장코드는 4~6글자이고 링크는 HTTPS여야 한다", () => {
       error.includes("모두 입력"),
     ),
   );
+});
+
+test("열어보기는 정상적인 HTTPS 초대 링크에만 제공한다", () => {
+  assert.equal(isOpenableInviteLink("https://open.kakao.com/o/example"), true);
+  assert.equal(isOpenableInviteLink(" https://example.com/invite "), true);
+  assert.equal(isOpenableInviteLink("http://example.com/invite"), false);
+  assert.equal(isOpenableInviteLink("javascript:alert(1)"), false);
+  assert.equal(isOpenableInviteLink("잘못된 주소"), false);
 });
 
 test("강의 옵션과 명단 옵션이 반 접미사만 달라도 초대 정보를 연결한다", () => {
