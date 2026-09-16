@@ -21,6 +21,7 @@ const loadSharedCourse = cache(async (courseId: string, signature: string) => {
     .from("courses")
     .select("name,instructor_name")
     .eq("id", courseId)
+    .eq("order_roster_share_enabled", true)
     .maybeSingle();
   return error ? null : data;
 });

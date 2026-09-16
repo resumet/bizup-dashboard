@@ -15,6 +15,7 @@ import {
 
 const PAGE_SIZE = 50;
 const CHART_COLORS = ["#2563eb", "#7c3aed", "#db2777", "#ea580c", "#16a34a", "#0891b2", "#4f46e5", "#ca8a04"];
+const WON_FORMATTER = new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW", maximumFractionDigits: 0 });
 
 type ChartItem = { label: string; people: number };
 
@@ -104,7 +105,7 @@ export function PublicCourseStudentRoster({ courseName, students }: { courseName
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border bg-card p-5">
           <p className="text-sm text-muted-foreground">결제완료</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums">{summary.count.toLocaleString("ko-KR")}건</p>
@@ -112,6 +113,10 @@ export function PublicCourseStudentRoster({ courseName, students }: { courseName
         <div className="rounded-xl border bg-card p-5">
           <p className="text-sm text-muted-foreground">중복 제외 수강생</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums">{summary.people.toLocaleString("ko-KR")}명</p>
+        </div>
+        <div className="rounded-xl border bg-card p-5">
+          <p className="text-sm text-muted-foreground">전체 결제금액</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums">{WON_FORMATTER.format(summary.amount)}</p>
         </div>
       </div>
 
@@ -152,7 +157,7 @@ export function PublicCourseStudentRoster({ courseName, students }: { courseName
         <div className="overflow-x-auto">
           <Table aria-label="공유 수강생 명단">
             <TableHeader><TableRow>
-              <TableHead>번호</TableHead><TableHead>이름</TableHead><TableHead>전화번호</TableHead><TableHead>이메일</TableHead><TableHead>옵션명</TableHead><TableHead>트래킹 유입구분</TableHead>
+              <TableHead>번호</TableHead><TableHead>이름</TableHead><TableHead>전화번호</TableHead><TableHead>이메일</TableHead><TableHead>옵션명</TableHead><TableHead>트래킹 유입구분</TableHead><TableHead className="text-right">결제금액</TableHead>
             </TableRow></TableHeader>
             <TableBody>
               {visible.map((student, index) => (
@@ -163,9 +168,10 @@ export function PublicCourseStudentRoster({ courseName, students }: { courseName
                   <TableCell>{student.email || "—"}</TableCell>
                   <TableCell>{student.optionName || "—"}</TableCell>
                   <TableCell>{student.inflowType || "—"}</TableCell>
+                  <TableCell className="whitespace-nowrap text-right font-medium tabular-nums">{WON_FORMATTER.format(student.amount)}</TableCell>
                 </TableRow>
               ))}
-              {!visible.length ? <TableRow><TableCell colSpan={6} className="h-28 text-center text-muted-foreground">조건에 맞는 수강생이 없습니다.</TableCell></TableRow> : null}
+              {!visible.length ? <TableRow><TableCell colSpan={7} className="h-28 text-center text-muted-foreground">조건에 맞는 수강생이 없습니다.</TableCell></TableRow> : null}
             </TableBody>
           </Table>
         </div>

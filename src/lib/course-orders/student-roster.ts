@@ -31,7 +31,7 @@ function csvCell(value: string | number) {
 }
 
 export function createOrderStudentCsv(students: OrderStudent[]) {
-  const headers = ["번호", "이름", "전화번호", "이메일", "옵션명", "트래킹 유입구분"];
+  const headers = ["번호", "이름", "전화번호", "이메일", "옵션명", "트래킹 유입구분", "결제금액"];
   const rows = students.map((student, index) => [
     index + 1,
     student.name,
@@ -39,6 +39,7 @@ export function createOrderStudentCsv(students: OrderStudent[]) {
     student.email,
     student.optionName,
     student.inflowType,
+    student.amount,
   ]);
   return `\uFEFF${[headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n")}`;
 }

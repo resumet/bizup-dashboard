@@ -83,7 +83,9 @@ test("공개 명단 CSV에 트래킹 유입구분을 포함하고 엑셀 수식 
   }]);
   assert.ok(csv.startsWith("\uFEFF"));
   assert.ok(csv.includes('"트래킹 유입구분"'));
+  assert.ok(csv.includes('"결제금액"'));
   assert.ok(csv.includes('"\'=HYPERLINK(""https://example.com"")"'));
   assert.ok(csv.includes('"유튜브, 광고"'));
   assert.ok(csv.includes('"010-1234-5678"'));
+  assert.ok(csv.includes('"123456.78"'));
 });
