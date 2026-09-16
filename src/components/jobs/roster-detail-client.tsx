@@ -25,6 +25,7 @@ import { PaidRosterColumnOptions, usePaidRosterColumns, type PaidRosterColumn } 
 import { rosterRecipient } from "@/lib/jobs/linked-student";
 import { resolveRosterMessageTargets } from "@/lib/messages/roster-recipients";
 import { RosterAnalysisCards } from "@/components/jobs/roster-analysis-cards";
+import { PaidRosterSummaryCards } from "@/components/jobs/paid-roster-summary-cards";
 import { DeleteSelectedEnrollmentsButton } from "@/components/jobs/delete-selected-enrollments-button";
 import { EnrollmentMemoInput } from "@/components/jobs/enrollment-memo-input";
 import { ManualEnrollmentDialog } from "@/components/jobs/manual-enrollment-dialog";
@@ -95,6 +96,7 @@ import {
   type MessageHistoryItem,
 } from "@/lib/messages/types";
 import { rosterSourceId } from "@/lib/messages/recipient-source";
+import { summarizePaidRoster } from "@/lib/jobs/paid-roster-summary";
 import {
   rosterSelectionStorageKey,
   serializeRosterSelection,
@@ -168,6 +170,7 @@ export function RosterDetailClient({
   );
   const sourceAnalysis = useMemo(() => analyzeRosterSources(rows), [rows]);
   const optionAnalysis = useMemo(() => analyzeRosterOptions(rows), [rows]);
+  const paidRosterSummary = useMemo(() => summarizePaidRoster(rows), [rows]);
   const selectedRows = sortedRows.filter((row) => selected.has(row.id));
   const allFilteredSelected =
     filteredRows.length > 0 &&
@@ -406,7 +409,6 @@ export function RosterDetailClient({
           <p className="mt-2 text-muted-foreground">
             최신 명단을 조회하고 필터링하거나 메시지를 발송할 수 있습니다.
           </p>
-          {paidRoster && <p className="mt-2 text-lg font-semibold">전체 결제금액 {rows.reduce((sum, row) => sum + (Number(row.values.paymentAmount) || 0), 0).toLocaleString("ko-KR")}원</p>}
         </div>
         <div className="flex flex-wrap gap-2 lg:max-w-[62%] lg:justify-end">
           {paidRoster && courseId && <CourseRosterShareDialog courseId={courseId} />}
@@ -445,6 +447,7 @@ export function RosterDetailClient({
           </Button>
         </div>
       </div>
+      {paidRoster ? <PaidRosterSummaryCards summary={paidRosterSummary} /> : null}
       <Card>
         <CardHeader className="border-b">
           <div className="flex flex-wrap items-center justify-between gap-3">
