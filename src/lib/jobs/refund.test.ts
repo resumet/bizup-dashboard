@@ -6,6 +6,7 @@ import { compareRosters, findRosterDuplicates } from "@/lib/roster-comparison/co
 import { loadComparisonStudents } from "@/lib/roster-comparison/server";
 import { compareRosterRecords, buildUpdatedRosterRecords } from "@/lib/import/roster-diff";
 import type { StoredRosterRecord } from "@/lib/import/roster";
+import { refundDate } from "./refund";
 
 const values = { customerName: "환불회원", phone: "01012345678", email: "refund@example.com", courseName: "강의", optionName: "", referrer: "", source: "", adMedia: "" };
 const refundedAt = "2026-09-14T03:00:00.000Z";
@@ -38,4 +39,29 @@ test("명단 재업로드 시 환불자는 비교에서 제외되고 원본 환�
   for (const source of [[], [incoming]]) {
     assert.deepEqual(buildUpdatedRosterRecords([refunded], source, { approveAdditions: true, approveRemovals: true }), [refunded]);
   }
+});
+
+test("명단 재업로드 시 보존한 환불 기록에도 새 버전의 고유 행 번호를 부여한다", () => {
+  const active: StoredRosterRecord = {
+    normalizedPhone: "01099998888",
+    sourceRowNumber: 14,
+    normalizedValues: { ...values, customerName: "일반회원", phone: "01099998888" },
+    originalValues: {},
+    isDuplicate: false,
+  };
+  const refunded = {
+    normalizedPhone: "01012345678",
+    sourceRowNumber: 14,
+    normalizedValues: { ...values, refundedAt },
+    originalValues: {},
+    isDuplicate: false,
+  };
+
+  const updated = buildUpdatedRosterRecords([active, refunded], [active], {
+    approveAdditions: true,
+    approveRemovals: true,
+  });
+
+  assert.deepEqual(updated.map((record) => record.sourceRowNumber), [2, 3]);
+  assert.equal(refundDate(updated[1].normalizedValues), refundedAt);
 });

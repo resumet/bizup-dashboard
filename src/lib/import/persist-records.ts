@@ -71,6 +71,10 @@ export async function persistRosterRecords(
         })),
       );
     if (enrollmentError)
-      throw new Error(`상세 명단 저장 실패: ${enrollmentError.code}`);
+      throw new Error(
+        enrollmentError.code === "23505"
+          ? "상세 명단의 행 번호가 중복되었습니다. 명단을 다시 비교해 주세요."
+          : `상세 명단 저장 실패: ${enrollmentError.code}`,
+      );
   }
 }

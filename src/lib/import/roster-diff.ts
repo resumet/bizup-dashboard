@@ -118,7 +118,12 @@ export function buildUpdatedRosterRecords(
   const refunded = current.filter((record) => refundDate(record.normalizedValues));
   if (refunded.length) {
     const phones = new Set(refunded.map((record) => record.normalizedPhone));
-    return [...buildUpdatedRosterRecords(current.filter((record) => !refundDate(record.normalizedValues)), incoming.filter((record) => !phones.has(record.normalizedPhone)), options), ...refunded];
+    const combined = [...buildUpdatedRosterRecords(current.filter((record) => !refundDate(record.normalizedValues)), incoming.filter((record) => !phones.has(record.normalizedPhone)), options), ...refunded];
+    // Refund records belong to the same version and share its unique row index.
+    return options.preserveSourceRowNumbers ? combined : combined.map((record, index) => ({
+      ...record,
+      sourceRowNumber: index + 2,
+    }));
   }
   const diff = compareRosterRecords(current, incoming);
   const selectedAdditions = new Set(options.selectedAdditionIndexes === undefined
