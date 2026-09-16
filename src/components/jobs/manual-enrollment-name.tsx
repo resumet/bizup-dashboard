@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { RosterRow } from "@/lib/jobs/types";
+import { formatPaymentAmount } from "@/lib/jobs/payment-fields";
 
 type ManualForm = {
   customerName: string;
@@ -179,7 +180,7 @@ export function ManualEnrollmentName({
               {paidRoster ? <>
                 <FormField id={`${fieldPrefix}-rs`} label="RS" value={form.rs} onChange={(value) => setField("rs", value)} />
                 <FormField id={`${fieldPrefix}-payment-method`} label="결제방법" value={form.paymentMethod} onChange={(value) => setField("paymentMethod", value)} />
-                <FormField id={`${fieldPrefix}-payment-amount`} label="결제금액" inputMode="decimal" value={form.paymentAmount} onChange={(value) => setField("paymentAmount", value)} />
+                <FormField id={`${fieldPrefix}-payment-amount`} label="결제금액" inputMode="decimal" value={form.paymentAmount} onChange={(value) => setField("paymentAmount", value)} onBlur={() => setField("paymentAmount", formatPaymentAmount(form.paymentAmount))} />
                 <FormField id={`${fieldPrefix}-payment-id`} label="결제ID" value={form.paymentId} onChange={(value) => setField("paymentId", value)} />
               </> : <><FormField
                 id={`${fieldPrefix}-referrer`}
@@ -253,7 +254,7 @@ function createForm(
     rs: values.rs ?? "",
     paymentMethod: values.paymentMethod ?? "",
     paymentId: values.paymentId ?? "",
-    paymentAmount: values.paymentAmount ?? "",
+    paymentAmount: formatPaymentAmount(values.paymentAmount ?? ""),
     hasDifferentStudent: values.hasDifferentStudent === true,
     studentName: values.studentName ?? "",
     studentPhone: values.studentPhone ?? "",
@@ -265,6 +266,7 @@ function FormField({
   label,
   value,
   onChange,
+  onBlur,
   required = false,
   type = "text",
   inputMode,
@@ -275,6 +277,7 @@ function FormField({
   label: string;
   value: string;
   onChange: (value: string) => void;
+  onBlur?: () => void;
   required?: boolean;
   type?: "text" | "email";
   inputMode?: "tel" | "decimal";
@@ -293,6 +296,7 @@ function FormField({
         maxLength={maxLength}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        onBlur={onBlur}
       />
     </div>
   );

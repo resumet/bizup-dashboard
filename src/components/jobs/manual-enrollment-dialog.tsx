@@ -1,5 +1,7 @@
 "use client";
 
+import { formatPaymentAmount } from "@/lib/jobs/payment-fields";
+
 import { useId, useState, type FormEvent } from "react";
 import { Loader2, UserPlus } from "lucide-react";
 
@@ -164,7 +166,7 @@ export function ManualEnrollmentDialog({
               <FormField id={`${fieldPrefix}-payment-method`} label="결제방법" value={form.paymentMethod} onChange={(value) => setField("paymentMethod", value)} />
               <FormField id={`${fieldPrefix}-rs`} label="RS" value={form.rs} onChange={(value) => setField("rs", value)} />
               <FormField id={`${fieldPrefix}-payment-id`} label="결제ID" value={form.paymentId} onChange={(value) => setField("paymentId", value)} />
-              <FormField id={`${fieldPrefix}-payment-amount`} label="결제금액" inputMode="decimal" placeholder="원 단위" value={form.paymentAmount} onChange={(value) => setField("paymentAmount", value)} />
+              <FormField id={`${fieldPrefix}-payment-amount`} label="결제금액" inputMode="decimal" placeholder="원 단위" value={form.paymentAmount} onChange={(value) => setField("paymentAmount", value)} onBlur={() => setField("paymentAmount", formatPaymentAmount(form.paymentAmount))} />
             </> : <><FormField
               id={`${fieldPrefix}-referrer`}
               label="추천인"
@@ -210,6 +212,7 @@ function FormField({
   label,
   value,
   onChange,
+  onBlur,
   required = false,
   type = "text",
   inputMode,
@@ -219,6 +222,7 @@ function FormField({
   label: string;
   value: string;
   onChange: (value: string) => void;
+  onBlur?: () => void;
   required?: boolean;
   type?: "text" | "email";
   inputMode?: "tel" | "decimal";
@@ -235,6 +239,7 @@ function FormField({
         placeholder={placeholder}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        onBlur={onBlur}
       />
     </div>
   );
