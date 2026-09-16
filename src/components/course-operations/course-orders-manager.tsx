@@ -41,7 +41,7 @@ async function responseData<T>(response: Response): Promise<T> {
   return data as T;
 }
 
-export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, onRosterSaved }: { courseId: string; courseName: string; onCourseNameChange?: (name: string) => void; onRosterSaved?: () => void }) {
+export function CourseOrdersManager({ courseId, onCourseNameChange, onRosterSaved }: { courseId: string; courseName: string; onCourseNameChange?: (name: string) => void; onRosterSaved?: () => void }) {
   const router = useRouter();
   const [data, setData] = useState<CourseOrdersResponse>({ orders: [], imports: [] });
   const [loading, setLoading] = useState(true);
@@ -133,7 +133,6 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
     <div className="space-y-5">
       <Card>
         <CardHeader><CardTitle>주문 내역 가져오기</CardTitle>
-          <p className="text-sm text-muted-foreground">주문결제 엑셀에서 {courseName}에 연결할 주문항목을 선택해 저장합니다.</p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -147,7 +146,6 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
               {busy ? <Loader2 className="animate-spin" /> : <Upload />}파일 분석
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">주문항목명 원문을 보관하고 마지막 ‘ - ’ 오른쪽을 옵션명으로 분류합니다. 분할결제는 같은 주문번호끼리 금액을 합산해 한 건으로 저장합니다. 선택한 주문항목이 이 강의의 최신 주문 전체로 반영되며, 새 파일에 없는 이전 주문은 정리됩니다.</p>
           {preview ? (
             <div className="space-y-3 rounded-lg border p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -195,7 +193,6 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
           <Button type="button" variant="outline" size="sm" onClick={refresh} disabled={loading || busy}><RefreshCw className={loading ? "animate-spin" : ""} />새로고침</Button>
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">수강생 명단 만들기를 누르면 결제완료 주문 전체가 유료수강생 탭에 바로 저장됩니다. 수정·추가·외부 공유는 유료수강생 탭에서 할 수 있습니다.</p>
       {loadError ? <Alert variant="destructive"><AlertTitle>주문 내역 조회 실패</AlertTitle><AlertDescription>{loadError}</AlertDescription></Alert> : null}
       {loading ? <p role="status" className="text-sm text-muted-foreground">주문 내역을 불러오는 중입니다.</p> : !loadError ? (
         <>
