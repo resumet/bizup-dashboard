@@ -24,6 +24,28 @@ export function formatOrderStudentPhone(value: string) {
   return normalizeOrderStudentPhone(value).replace(/^(010)(\d{4})(\d{4})$/u, "$1-$2-$3") || value.trim() || "—";
 }
 
+export function maskOrderStudentPhone(value: string) {
+  const raw = value.normalize("NFKC").trim();
+  if (/^010-\*{4}-\d{4}$/u.test(raw)) return raw;
+  const phone = normalizeOrderStudentPhone(value);
+  return phone ? `${phone.slice(0, 3)}-****-${phone.slice(-4)}` : raw ? "****" : "—";
+}
+
+export function maskOrderStudentEmail(value: string) {
+  const email = value.normalize("NFKC").trim();
+  const at = email.lastIndexOf("@");
+  if (at <= 0 || at === email.length - 1) return email ? "****" : "—";
+  return `${"*".repeat(Array.from(email.slice(0, at)).length)}${email.slice(at)}`;
+}
+
+export function maskOrderStudentsForPublic(students: OrderStudent[]) {
+  return students.map((student) => ({
+    ...student,
+    phone: maskOrderStudentPhone(student.phone),
+    email: maskOrderStudentEmail(student.email),
+  }));
+}
+
 function csvCell(value: string | number) {
   let text = String(value);
   if (/^[=+\-@]/u.test(text.trimStart())) text = `'${text}`;
@@ -35,8 +57,8 @@ export function createOrderStudentCsv(students: OrderStudent[]) {
   const rows = students.map((student, index) => [
     index + 1,
     student.name,
-    formatOrderStudentPhone(student.phone),
-    student.email,
+    maskOrderStudentPhone(student.phone),
+    maskOrderStudentEmail(student.email),
     student.optionName,
     student.inflowType,
     student.amount,

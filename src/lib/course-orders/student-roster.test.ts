@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createOrderStudentCsv, createOrderStudentRoster, normalizeOrderStudentPhone, formatOrderStudentPhone, summarizeOrderStudents } from "./student-roster";
+import { createOrderStudentCsv, createOrderStudentRoster, normalizeOrderStudentPhone, formatOrderStudentPhone, maskOrderStudentEmail, maskOrderStudentPhone, maskOrderStudentsForPublic, summarizeOrderStudents } from "./student-roster";
 import type { SavedCourseOrder } from "./types";
 
 const order: SavedCourseOrder = {
@@ -60,6 +60,19 @@ test("옵션별 인원은 중복을 제외하고 매출·기여도는 모든 주
   assert.deepEqual(summarizeOrderStudents([]), { people: 0, count: 0, amount: 0, options: [], inflowTypes: [] });
 });
 
+test("공개 명단의 전화번호 중간 4자리와 이메일 아이디를 모두 마스킹한다", () => {
+  assert.equal(maskOrderStudentPhone("010-1234-5678"), "010-****-5678");
+  assert.equal(maskOrderStudentPhone("+82 10 1234 5678"), "010-****-5678");
+  assert.equal(maskOrderStudentPhone("invalid"), "****");
+  assert.equal(maskOrderStudentPhone(""), "—");
+  assert.equal(maskOrderStudentEmail("cjw94130@hanmail.net"), "********@hanmail.net");
+  assert.equal(maskOrderStudentEmail("invalid"), "****");
+  assert.equal(maskOrderStudentEmail(""), "—");
+  const masked = maskOrderStudentsForPublic(createOrderStudentRoster([order]))[0];
+  assert.equal(masked.phone, "010-****-5678");
+  assert.equal(masked.email, "*******@example.com");
+});
+
 test("트래킹 유입구분별 인원은 같은 사람의 중복 결제를 제외한다", () => {
   const students = createOrderStudentRoster([
     order,
@@ -86,6 +99,7 @@ test("공개 명단 CSV에 트래킹 유입구분을 포함하고 엑셀 수식 
   assert.ok(csv.includes('"결제금액"'));
   assert.ok(csv.includes('"\'=HYPERLINK(""https://example.com"")"'));
   assert.ok(csv.includes('"유튜브, 광고"'));
-  assert.ok(csv.includes('"010-1234-5678"'));
+  assert.ok(csv.includes('"010-****-5678"'));
+  assert.ok(csv.includes('"*******@example.com"'));
   assert.ok(csv.includes('"123456.78"'));
 });

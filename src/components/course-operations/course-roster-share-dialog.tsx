@@ -102,7 +102,8 @@ export function CourseRosterShareDialog({
         <DialogHeader>
           <DialogTitle>수강생 명단 외부 공유</DialogTitle>
           <DialogDescription>
-            공개하면 링크를 가진 사람이 로그인 없이 수강생 정보와 결제금액을 볼 수 있습니다.
+            공개하면 링크를 가진 사람이 로그인 없이 수강생 이름과 결제금액을 볼 수 있습니다.
+            전화번호 중간 4자리와 이메일 아이디는 별표로 가려집니다.
             비공개로 바꾸면 기존 링크도 즉시 차단됩니다.
           </DialogDescription>
         </DialogHeader>

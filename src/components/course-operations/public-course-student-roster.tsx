@@ -8,10 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   createOrderStudentCsv,
-  formatOrderStudentPhone,
-  summarizeOrderStudents,
   type OrderStudent,
 } from "@/lib/course-orders/student-roster";
+import type { summarizeOrderStudents } from "@/lib/course-orders/student-roster";
 
 const PAGE_SIZE = 50;
 const CHART_COLORS = ["#2563eb", "#7c3aed", "#db2777", "#ea580c", "#16a34a", "#0891b2", "#4f46e5", "#ca8a04"];
@@ -66,12 +65,13 @@ function RosterPieChart({ id, title, description, items }: { id: string; title: 
   );
 }
 
-export function PublicCourseStudentRoster({ courseName, students }: { courseName: string; students: OrderStudent[] }) {
+type OrderStudentSummary = ReturnType<typeof summarizeOrderStudents>;
+
+export function PublicCourseStudentRoster({ courseName, students, summary }: { courseName: string; students: OrderStudent[]; summary: OrderStudentSummary }) {
   const [query, setQuery] = useState("");
   const [option, setOption] = useState("");
   const [inflowType, setInflowType] = useState("");
   const [page, setPage] = useState(1);
-  const summary = useMemo(() => summarizeOrderStudents(students), [students]);
   const inflowTypes = useMemo(() => [...new Set(students.map((student) => student.inflowType))].sort((a, b) => a.localeCompare(b, "ko-KR")), [students]);
   const optionChartItems = useMemo(() => [...summary.options]
     .sort((a, b) => b.people - a.people || a.optionName.localeCompare(b.optionName, "ko-KR"))
@@ -140,7 +140,7 @@ export function PublicCourseStudentRoster({ courseName, students }: { courseName
           <label className="relative">
             <span className="sr-only">수강생 검색</span>
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="pl-9" placeholder="이름·연락처·옵션·유입구분 검색" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} />
+            <Input className="pl-9" placeholder="이름·전화번호 뒷자리·이메일 도메인 검색" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} />
           </label>
           <select aria-label="옵션 필터" className="h-10 rounded-lg border border-input bg-background px-3 text-sm" value={option} onChange={(event) => { setOption(event.target.value); setPage(1); }}>
             <option value="">전체 옵션</option>
@@ -164,7 +164,7 @@ export function PublicCourseStudentRoster({ courseName, students }: { courseName
                 <TableRow key={student.orderId}>
                   <TableCell className="tabular-nums">{(currentPage - 1) * PAGE_SIZE + index + 1}</TableCell>
                   <TableCell className="font-medium">{student.name || "—"}</TableCell>
-                  <TableCell className="whitespace-nowrap">{formatOrderStudentPhone(student.phone)}</TableCell>
+                  <TableCell className="whitespace-nowrap">{student.phone}</TableCell>
                   <TableCell>{student.email || "—"}</TableCell>
                   <TableCell>{student.optionName || "—"}</TableCell>
                   <TableCell>{student.inflowType || "—"}</TableCell>
