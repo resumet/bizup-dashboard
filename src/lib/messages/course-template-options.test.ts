@@ -19,6 +19,7 @@ const course: MessageCourse = {
   instructor_name: "플랫폼트리x맹렬",
   free_kakao_room_1_link: "https://example.com/kakao-1",
   free_kakao_room_2_link: "https://example.com/kakao-2",
+  paid_kakao_room_link: "https://open.kakao.com/o/paid-students",
   communication_room_link: "https://example.com/community",
   payment_link: "https://example.com/payment",
   inquiry_link: "https://example.com/inquiry",
@@ -64,15 +65,17 @@ test("강의명·강좌명과 링크·링크명 변수를 강의 선택 변수�
   assert.equal(isCourseLinkVariable("입장코드"), false);
 });
 
-test("선택한 강의의 링크 관리 기본 항목 9개를 모두 포함한다", () => {
+test("선택한 강의의 링크 관리 기본 항목 10개를 모두 포함한다", () => {
   const options = getCourseLinkOptions(course);
-  assert.equal(options.length, 9);
+  assert.equal(options.length, 10);
+  assert.equal(options.find((option) => option.field === "paid_kakao_room_link")?.url, course.paid_kakao_room_link);
   assert.deepEqual(
     options.map((option) => option.label),
     [
       "기본 랜딩페이지",
       "무료카톡방 1번",
       "무료카톡방 2번",
+      "유료수강생단톡방",
       "소통방",
       "결제링크",
       "문의하기 링크",
@@ -99,11 +102,11 @@ test("링크 관리의 커스텀 이름과 URL을 포함하고 비어 있거나 
     { name: "", url: "https://example.com" }, { name: "준비 중", url: "" }, null, { url: 123 },
   ] });
   assert.equal(options[0].url, "https://example.com/landing");
-  assert.deepEqual(options.slice(9), [
+  assert.deepEqual(options.slice(10), [
     { field: "custom:0", label: "강의 자료", url: "https://example.com/materials" },
     { field: "custom:1", label: "강의 자료", url: "https://example.com/other" },
   ]);
-  assert.equal(getCourseLinkOptions({ ...course, custom_links: {} }).length, 9);
+  assert.equal(getCourseLinkOptions({ ...course, custom_links: {} }).length, 10);
 });
 
 test("명단·주소록에 연결된 강의를 찾고 여러 강의가 연결된 주소록은 자동 선택하지 않는다", () => {

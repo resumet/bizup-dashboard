@@ -14,6 +14,7 @@ const validInput = {
   landingPageLink: "https://example.com/landing",
   freeKakaoRoom1Link: "https://open.kakao.com/o/free1",
   freeKakaoRoom2Link: "https://open.kakao.com/o/free2",
+  paidKakaoRoomLink: " https://open.kakao.com/o/paid-students ",
   communicationRoomLink: "https://open.kakao.com/o/community",
   paymentLink: "https://example.com/payment",
   inquiryLink: "https://example.com/inquiry",
@@ -61,6 +62,7 @@ test("강의 운영 입력값을 DB 저장 형식으로 변환한다", () => {
   assert.equal(parsed.startsAt, "2026-09-09T15:00:00.000Z");
   assert.equal(parsed.landingPageLink, "https://example.com/landing");
   assert.equal(parsed.freeKakaoRoom1Link, "https://open.kakao.com/o/free1");
+  assert.equal(parsed.paidKakaoRoomLink, "https://open.kakao.com/o/paid-students");
   assert.equal(parsed.courseMaterialsLink, "https://example.com/materials");
   assert.equal(
     parsed.courseDifferentiation,

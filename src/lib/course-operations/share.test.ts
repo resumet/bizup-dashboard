@@ -18,6 +18,7 @@ const data: CourseShareData = {
   landingPageLink: "https://example.com/landing",
   freeKakaoRoom1Link: "https://open.kakao.com/free1",
   freeKakaoRoom2Link: "",
+  paidKakaoRoomLink: "https://open.kakao.com/paid-students",
   communicationRoomLink: "https://open.kakao.com/community",
   paymentLink: "https://example.com/payment",
   inquiryLink: "",
@@ -42,6 +43,7 @@ test("선택한 강의 섹션만 카톡 공유용 요약문에 포함한다", ()
   assert.match(summary, /기본 랜딩페이지/u);
   assert.match(summary, /https:\/\/example.com\/landing/u);
   assert.match(summary, /무료카톡방 1번/u);
+  assert.ok(summary.includes("유료수강생단톡방\nhttps://open.kakao.com/paid-students"));
   assert.doesNotMatch(summary, /10만원 할인/u);
   assert.doesNotMatch(summary, /워크북 증정/u);
 });

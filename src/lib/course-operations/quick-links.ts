@@ -16,6 +16,7 @@ export type QuickLinkCourseRow = {
   course_materials_link: string | null;
   free_kakao_room_1_link: string | null;
   free_kakao_room_2_link: string | null;
+  paid_kakao_room_link: string | null;
   communication_room_link: string | null;
   custom_links: unknown;
 };
@@ -41,6 +42,7 @@ export function buildCourseQuickLinks(course: QuickLinkCourseRow): CourseQuickLi
     { label: "강의자료", url: course.course_materials_link ?? "" },
     { label: "무료카톡방 1", url: course.free_kakao_room_1_link ?? "" },
     { label: "무료카톡방 2", url: course.free_kakao_room_2_link ?? "" },
+    { label: "유료수강생단톡방", url: course.paid_kakao_room_link ?? "" },
     { label: "소통방", url: course.communication_room_link ?? "" },
     ...(teachingLinks.length
       ? teachingLinks.map((link) => ({ label: link.name, url: link.url }))

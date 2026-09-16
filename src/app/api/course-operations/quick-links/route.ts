@@ -15,7 +15,7 @@ export async function GET() {
     const membership = await requireCourseOperationsMembership(user.id);
     const { data, error } = await createAdminClient()
       .from("courses")
-      .select("id,name,instructor_name,free_webinar_at,landing_page_link,payment_link,course_materials_link,free_kakao_room_1_link,free_kakao_room_2_link,communication_room_link,custom_links")
+      .select("id,name,instructor_name,free_webinar_at,landing_page_link,payment_link,course_materials_link,free_kakao_room_1_link,free_kakao_room_2_link,paid_kakao_room_link,communication_room_link,custom_links")
       .eq("workspace_id", membership.workspace_id)
       .order("updated_at", { ascending: false });
     if (error) throw new Error(`강의 바로가기 조회 실패: ${error.code}`);

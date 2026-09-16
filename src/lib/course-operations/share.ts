@@ -32,6 +32,7 @@ export type CourseShareData = {
   landingPageLink: string;
   freeKakaoRoom1Link: string;
   freeKakaoRoom2Link: string;
+  paidKakaoRoomLink: string;
   communicationRoomLink: string;
   paymentLink: string;
   inquiryLink: string;
@@ -86,6 +87,7 @@ function linkSection(data: CourseShareData) {
     ["기본 랜딩페이지", data.landingPageLink],
     ["무료카톡방 1번", data.freeKakaoRoom1Link],
     ["무료카톡방 2번", data.freeKakaoRoom2Link],
+    ["유료수강생단톡방", data.paidKakaoRoomLink],
     ["소통방", data.communicationRoomLink],
     ["결제링크", data.paymentLink],
     ["문의하기 링크", data.inquiryLink],

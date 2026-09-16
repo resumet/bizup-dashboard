@@ -118,6 +118,7 @@ type CourseLinkFieldKey =
   | "landingPageLink"
   | "freeKakaoRoom1Link"
   | "freeKakaoRoom2Link"
+  | "paidKakaoRoomLink"
   | "communicationRoomLink"
   | "paymentLink"
   | "inquiryLink"
@@ -129,6 +130,7 @@ const COURSE_LINKS: Array<{ field: CourseLinkFieldKey; label: string }> = [
   { field: "landingPageLink", label: "기본 랜딩페이지" },
   { field: "freeKakaoRoom1Link", label: "무료카톡방 1번" },
   { field: "freeKakaoRoom2Link", label: "무료카톡방 2번" },
+  { field: "paidKakaoRoomLink", label: "유료수강생단톡방" },
   { field: "communicationRoomLink", label: "소통방" },
   { field: "paymentLink", label: "결제링크" },
   { field: "inquiryLink", label: "문의하기 링크" },
@@ -869,6 +871,7 @@ export function CourseOperationsEditor({
               landingPageLink: draft.landingPageLink,
               freeKakaoRoom1Link: draft.freeKakaoRoom1Link,
               freeKakaoRoom2Link: draft.freeKakaoRoom2Link,
+              paidKakaoRoomLink: draft.paidKakaoRoomLink,
               communicationRoomLink: draft.communicationRoomLink,
               paymentLink: draft.paymentLink,
               inquiryLink: draft.inquiryLink,

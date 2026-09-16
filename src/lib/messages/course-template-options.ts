@@ -7,6 +7,7 @@ export type MessageCourse = {
   free_address_book_id?: string | null;
   free_kakao_room_1_link: string;
   free_kakao_room_2_link: string;
+  paid_kakao_room_link: string;
   communication_room_link: string;
   payment_link: string;
   inquiry_link: string;
@@ -26,6 +27,7 @@ const COURSE_LINK_FIELDS = [
   ["landing_page_link", "기본 랜딩페이지"],
   ["free_kakao_room_1_link", "무료카톡방 1번"],
   ["free_kakao_room_2_link", "무료카톡방 2번"],
+  ["paid_kakao_room_link", "유료수강생단톡방"],
   ["communication_room_link", "소통방"],
   ["payment_link", "결제링크"],
   ["inquiry_link", "문의하기 링크"],

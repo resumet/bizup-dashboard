@@ -46,7 +46,7 @@ export default async function MessageAutomationPage({ searchParams }: Props) {
       supabase
         .from("courses")
         .select(
-          "id,name,instructor_name,free_address_book_id,landing_page_link,custom_links,free_kakao_room_1_link,free_kakao_room_2_link,communication_room_link,payment_link,inquiry_link,curriculum_link,free_gift_link,course_viewing_link",
+          "id,name,instructor_name,free_address_book_id,landing_page_link,custom_links,free_kakao_room_1_link,free_kakao_room_2_link,paid_kakao_room_link,communication_room_link,payment_link,inquiry_link,curriculum_link,free_gift_link,course_viewing_link",
         )
         .order("updated_at", { ascending: false }),
       contactPromise,

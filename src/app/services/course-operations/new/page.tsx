@@ -26,6 +26,7 @@ const EMPTY_DRAFT: CourseOperationsDraft = {
   landingPageLink: "",
   freeKakaoRoom1Link: "",
   freeKakaoRoom2Link: "",
+  paidKakaoRoomLink: "",
   communicationRoomLink: "",
   paymentLink: "",
   inquiryLink: "https://m.site.naver.com/281dJ",

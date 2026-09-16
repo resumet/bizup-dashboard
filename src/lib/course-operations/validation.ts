@@ -150,6 +150,7 @@ export function parseCourseOperationsInput(value: unknown): CourseOperationsInpu
     landingPageLink: url(input.landingPageLink, "기본 랜딩페이지 링크", false),
     freeKakaoRoom1Link: url(input.freeKakaoRoom1Link, "무료카톡방 1번 링크", false),
     freeKakaoRoom2Link: url(input.freeKakaoRoom2Link, "무료카톡방 2번 링크", false),
+    paidKakaoRoomLink: url(input.paidKakaoRoomLink, "유료수강생단톡방 링크", false),
     communicationRoomLink: url(input.communicationRoomLink, "소통방 링크", false),
     paymentLink: url(input.paymentLink, "결제링크", false),
     inquiryLink: url(input.inquiryLink, "문의하기 링크", false),

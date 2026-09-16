@@ -202,6 +202,9 @@ export async function PATCH(
         landing_page_link: input.landingPageLink,
         free_kakao_room_1_link: input.freeKakaoRoom1Link,
         free_kakao_room_2_link: input.freeKakaoRoom2Link,
+        ...(typeof body === "object" && body !== null && "paidKakaoRoomLink" in body
+          ? { paid_kakao_room_link: input.paidKakaoRoomLink }
+          : {}),
         communication_room_link: input.communicationRoomLink,
         payment_link: input.paymentLink,
         inquiry_link: input.inquiryLink,
