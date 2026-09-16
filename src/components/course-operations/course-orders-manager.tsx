@@ -14,6 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { filterCourseOrders, isAwaitingDeposit, summarizeCourseOrderOverview } from "@/lib/course-orders/filter";
 import { shortestSelectedCourseName } from "@/lib/course-orders/parse";
 import { createOrderStudentRoster } from "@/lib/course-orders/student-roster";
+import { PaidRosterChangesDialog } from "./paid-roster-changes-dialog";
+import type { RosterPreview } from "@/lib/course-orders/reconcile-roster";
 import {
   EMPTY_ORDER_FILTERS, ORDER_CATEGORY_FILTERS,
   type CourseOrderFilters, type CourseOrderPreview, type CourseOrdersResponse,
@@ -86,19 +88,29 @@ export function CourseOrdersManager({ courseId, onCourseNameChange, onRosterSave
   function refresh() { setLoading(true); setReload((value) => value + 1); }
 
   const [savingRoster, setSavingRoster] = useState(false);
+  const [rosterPreview, setRosterPreview] = useState<(RosterPreview & { orderIds: string[] }) | null>(null);
   async function saveRoster() {
     if (savingRoster) return;
     setSavingRoster(true); setError(""); setNotice("");
     try {
-      await responseData<{ jobId: string }>(await fetch(`/api/course-operations/${courseId}/paid-students`, {
+      const orderIds = students.map(student => student.orderId);
+      const result = await responseData<RosterPreview>(await fetch(`/api/course-operations/${courseId}/paid-students`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderIds: students.map(student => student.orderId) }),
+        body: JSON.stringify({ action: "preview", orderIds }),
       }));
-      setNotice("유료수강생 명단에 저장했습니다.");
-      router.refresh();
-      onRosterSaved?.();
+      setRosterPreview({ ...result, orderIds });
     } catch (reason) { setError(reason instanceof Error ? reason.message : "유료수강생 명단을 저장하지 못했습니다."); }
     finally { setSavingRoster(false); }
+  }
+
+  async function applyRoster(selectedIds: string[]) {
+    if (!rosterPreview) return;
+    await responseData<{ jobId: string }>(await fetch(`/api/course-operations/${courseId}/paid-students`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "apply", orderIds: rosterPreview.orderIds, token: rosterPreview.token, selectedIds }),
+    }));
+    setRosterPreview(null); setNotice("선택한 변경 사항을 유료수강생 명단에 반영했습니다.");
+    router.refresh(); onRosterSaved?.();
   }
 
   async function previewFile() {
@@ -131,6 +143,7 @@ export function CourseOrdersManager({ courseId, onCourseNameChange, onRosterSave
 
   return (
     <div className="space-y-5">
+      {rosterPreview && <PaidRosterChangesDialog preview={rosterPreview} onClose={() => setRosterPreview(null)} onApply={applyRoster} />}
       <Card>
         <CardHeader><CardTitle>주문 내역 가져오기</CardTitle>
         </CardHeader>
@@ -188,7 +201,7 @@ export function CourseOrdersManager({ courseId, onCourseNameChange, onRosterSave
         <h2 className="text-lg font-semibold">저장된 주문 내역</h2>
         <div className="flex flex-wrap gap-2">
           <Button type="button" size="sm" disabled={loading || busy || savingRoster || Boolean(loadError) || !students.length} onClick={() => void saveRoster()}>
-            {savingRoster ? <Loader2 className="animate-spin" /> : <Users />}{savingRoster ? "유료수강생에 저장 중…" : "수강생 명단 만들기"}
+            {savingRoster ? <Loader2 className="animate-spin" /> : <Users />}{savingRoster ? "변경 내역 확인 중…" : "수강생 명단 만들기"}
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={refresh} disabled={loading || busy}><RefreshCw className={loading ? "animate-spin" : ""} />새로고침</Button>
         </div>
