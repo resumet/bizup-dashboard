@@ -210,7 +210,7 @@ export function CourseOrdersManager({ courseId, onCourseNameChange, onRosterSave
             </div>
             <div className="grid gap-3 lg:grid-cols-3">
               {[
-                ["현 결제금액 합계", money(overview.currentAmount), "전체 주문의 현 결제금액 기준"],
+                ["현 결제금액 합계", money(overview.currentAmount), "결제완료 주문의 현 결제금액 기준"],
                 ["입금대기 합계", money(overview.awaitingDepositAmount), "입금대기 상태가 포함된 주문의 결제금액 기준"],
                 ["환불금액 합계", money(overview.refundAmount), "전체 주문의 환불금액 기준 · 부분환불 포함"],
               ].map(([label, amount, description]) => <Card key={label} role="group" aria-label={label}>

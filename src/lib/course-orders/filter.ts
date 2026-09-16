@@ -38,7 +38,10 @@ export function summarizeCourseOrderOverview(rows: CourseOrder[]) {
   // Sum in cents so decimal amounts do not accumulate floating-point error.
   for (const row of rows) {
     const statuses = row.status.normalize("NFKC").split("/").map((status) => status.replace(/\s/gu, ""));
-    if (statuses.length === 1 && statuses[0] === "결제완료") summary.completedCount += 1;
+    if (statuses.length === 1 && statuses[0] === "결제완료") {
+      summary.completedCount += 1;
+      summary.currentAmount += Math.round(row.currentAmount * 100);
+    }
     if (isAwaitingDeposit(row)) {
       summary.awaitingDepositCount += 1;
       summary.awaitingDepositAmount += Math.round(row.paymentAmount * 100);
@@ -46,7 +49,6 @@ export function summarizeCourseOrderOverview(rows: CourseOrder[]) {
     if (row.refundAmount !== 0 || row.refundDate || statuses.some((status) => ["환불", "환불완료", "전액환불", "부분환불"].includes(status))) {
       summary.refundedCount += 1;
     }
-    summary.currentAmount += Math.round(row.currentAmount * 100);
     summary.refundAmount += Math.round(row.refundAmount * 100);
   }
   summary.currentAmount /= 100;

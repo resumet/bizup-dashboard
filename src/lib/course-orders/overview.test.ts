@@ -17,7 +17,17 @@ test("전체 주문 요약은 상태별 건수와 원본 금액을 집계하고 
     order("환불대기", 200, 200),
   ];
   assert.deepEqual(summarizeCourseOrderOverview(rows), { count: 7, completedCount: 1,
-    awaitingDepositCount: 2, refundedCount: 2, currentAmount: 2200, awaitingDepositAmount: 1200, refundAmount: 500 });
+    awaitingDepositCount: 2, refundedCount: 2, currentAmount: 1000, awaitingDepositAmount: 1200, refundAmount: 500 });
+});
+
+test("현 결제금액은 결제완료 건만 원본 현 결제금액으로 합산한다", () => {
+  const summary = summarizeCourseOrderOverview([
+    order("결제완료", 2000, 1000.1), order(" 결제 완료 ", 900, 500.2),
+    order("입금대기", 5000, 5000), order("결제완료 / 입금대기", 6000, 6000),
+    order("부분환불", 7000, 7000), order("환불대기", 8000, 8000), order("", 9000, 9000),
+  ]);
+  assert.equal(summary.completedCount, 2);
+  assert.equal(summary.currentAmount, 1500.3);
 });
 
 test("환불 상태·금액·날짜 중 하나가 있으면 환불 건수에 한 번만 포함한다", () => {
@@ -34,7 +44,7 @@ test("빈 명단과 소수 금액을 정확하게 표시할 수 있도록 집계
   assert.deepEqual(summarizeCourseOrderOverview([]), { count: 0, completedCount: 0,
     awaitingDepositCount: 0, refundedCount: 0, currentAmount: 0, awaitingDepositAmount: 0, refundAmount: 0 });
   const summary = summarizeCourseOrderOverview([order("입금대기", 0.1, 0.1, 0.1), order("입금대기", 0.2, 0.2, 0.2)]);
-  assert.equal(summary.currentAmount, 0.3);
+  assert.equal(summary.currentAmount, 0);
   assert.equal(summary.awaitingDepositAmount, 0.3);
   assert.equal(summary.refundAmount, 0.3);
 });
