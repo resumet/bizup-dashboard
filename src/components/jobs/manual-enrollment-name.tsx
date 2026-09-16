@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { RosterRow } from "@/lib/jobs/types";
 import { formatPaymentAmount } from "@/lib/jobs/payment-fields";
+import { formatOrderStudentPhone } from "@/lib/course-orders/student-roster";
 
 type ManualForm = {
   customerName: string;
@@ -163,6 +164,7 @@ export function ManualEnrollmentName({
                 placeholder="010-0000-0000"
                 value={form.phone}
                 onChange={(value) => setField("phone", value)}
+                onBlur={() => setField("phone", formatEditablePhone(form.phone))}
               />
               <FormField
                 id={`${fieldPrefix}-email`}
@@ -210,7 +212,7 @@ export function ManualEnrollmentName({
                 <p className="text-sm text-muted-foreground">문자·알림톡은 아래 실제 수강생에게만 발송합니다. 결제자 정보는 결제 내역 확인용으로 보관합니다.</p>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField id={`${fieldPrefix}-student-name`} label="실제 수강생 이름" required maxLength={120} value={form.studentName} onChange={(value) => setField("studentName", value)} />
-                  <FormField id={`${fieldPrefix}-student-phone`} label="실제 수강생 전화번호" required inputMode="tel" placeholder="010-0000-0000" value={form.studentPhone} onChange={(value) => setField("studentPhone", value)} />
+                  <FormField id={`${fieldPrefix}-student-phone`} label="실제 수강생 전화번호" required inputMode="tel" placeholder="010-0000-0000" value={form.studentPhone} onChange={(value) => setField("studentPhone", value)} onBlur={() => setField("studentPhone", formatEditablePhone(form.studentPhone))} />
                 </div>
               </> : <p className="text-sm text-muted-foreground">결제자 본인이 수강하며, 결제자 전화번호로 문자·알림톡을 발송합니다.</p>}
             </div>}
@@ -239,13 +241,17 @@ export function ManualEnrollmentName({
   );
 }
 
+function formatEditablePhone(value: string) {
+  return value.trim() ? formatOrderStudentPhone(value) : "";
+}
+
 function createForm(
   normalizedPhone: string,
   values: RosterRow["values"],
 ): ManualForm {
   return {
     customerName: values.customerName,
-    phone: normalizedPhone,
+    phone: formatEditablePhone(normalizedPhone),
     email: values.email,
     optionName: values.optionName,
     referrer: values.referrer,
@@ -257,7 +263,7 @@ function createForm(
     paymentAmount: formatPaymentAmount(values.paymentAmount ?? ""),
     hasDifferentStudent: values.hasDifferentStudent === true,
     studentName: values.studentName ?? "",
-    studentPhone: values.studentPhone ?? "",
+    studentPhone: formatEditablePhone(values.studentPhone ?? ""),
   };
 }
 
