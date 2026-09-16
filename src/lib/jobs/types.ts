@@ -9,7 +9,7 @@ export type RosterRow = {
   isExtraParticipant: boolean;
   isManuallyAdded: boolean;
   memo: string;
-  values: Record<StandardField, string>;
+  values: Record<StandardField, string> & Partial<Record<"paymentMethod" | "paymentId" | "paymentAmount" | "rs" | "orderRecordKey", string>>;
 };
 
 export type RosterFilters = {

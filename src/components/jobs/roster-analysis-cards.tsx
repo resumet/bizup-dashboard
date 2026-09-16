@@ -16,20 +16,22 @@ export function RosterAnalysisCards({
   totalCount,
   scopeLabel = "전체 수강생",
   defaultExpanded = false,
+  sourceLabel = "유입 경로",
 }: {
   sourceItems: RosterSourceAnalysis[];
   optionItems: RosterOptionAnalysis[];
   totalCount: number;
   scopeLabel?: string;
   defaultExpanded?: boolean;
+  sourceLabel?: string;
 }) {
   return (
     <div className="grid items-start gap-5 xl:grid-cols-2">
       <RosterAnalysisCard
-        title="유입 경로 분석"
-        description={`${scopeLabel}의 유입 경로별 인원과 비율을 보여줍니다.`}
+        title={`${sourceLabel} 분석`}
+        description={`${scopeLabel}의 ${sourceLabel}별 인원과 비율을 보여줍니다.`}
         defaultExpanded={defaultExpanded}
-        categoryLabel="유입 경로"
+        categoryLabel={sourceLabel}
         itemUnit="경로"
         chartId="source-analysis-chart"
         barClassName="bg-primary"

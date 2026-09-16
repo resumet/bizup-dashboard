@@ -1,0 +1,97 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+import { randomUUID } from "node:crypto";
+import { PGlite } from "@electric-sql/pglite";
+import { buildUpdatedRosterRecords } from "@/lib/import/roster-diff";
+import { analyzeRosterCsv, type StoredRosterRecord } from "@/lib/import/roster";
+import { filterGroupChatNonParticipants } from "@/lib/jobs/filter";
+import { loadJobEnrollmentRows } from "@/lib/jobs/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+test("주문 명단 저장은 강의별로 격리하고 반복 저장·추가·개인 상태 보존을 원자적으로 처리한다", async () => {
+  const db = new PGlite();
+  const user = randomUUID(), outsider = randomUUID(), workspace = randomUUID(), course = randomUUID(), otherCourse = randomUUID();
+  try {
+    await db.exec(`create role anon; create role authenticated; create role service_role;
+      create schema auth; create table auth.users(id uuid primary key);
+      create function auth.uid() returns uuid language sql as $$ select nullif(current_setting('test.user_id',true),'')::uuid $$;`);
+    const foundation = await readFile("supabase/migrations/202608260001_foundation.sql", "utf8");
+    await db.exec(foundation.split("create function public.handle_new_user")[0].replace('create extension if not exists "pgcrypto";', ""));
+    await db.exec(`create table public.courses(id uuid primary key, workspace_id uuid not null references workspaces, name text not null);
+      alter table public.course_jobs add column course_id uuid references public.courses on delete set null;
+      alter table public.job_enrollments add column is_extra_participant boolean not null default false, add column is_manually_added boolean not null default false;
+      create unique index on public.job_enrollments(job_id,version,source_row_number);`);
+    await db.exec(await readFile("supabase/migrations/202609120001_course_orders.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations/202609160002_paid_course_rosters.sql", "utf8"));
+    await db.query("insert into auth.users values ($1),($2)", [user, outsider]);
+    await db.query("insert into workspaces(id,name) values($1,'Test')", [workspace]);
+    await db.query("insert into workspace_members(workspace_id,user_id) values($1,$2)", [workspace, user]);
+    await db.query("insert into courses values($1,$3,'테스트 강의'),($2,$3,'다른 강의')", [course, otherCourse, workspace]);
+    const importId = (await db.query<{ id: string }>("insert into course_order_imports(course_id,file_name,row_count) values($1,'test.xlsx',3) returning id", [course])).rows[0].id;
+    const insert = async (key: string, target = course, status = "결제완료") => (await db.query<{ id: string }>(`insert into course_orders(course_id,record_key,product_name,option_name,member_name,phone,email,payment_amount,refund_amount,current_amount,status,payment_method,rs,inflow_type,payment_id,import_id)
+      values($1,$2,'강의','기본반','테스트학생','+82 10-1234-5678','test@example.test',120000,0,120000,$3,'카드','RS 파트너','다른 유입','pay-test',$4) returning id`, [target,key,status,importId])).rows[0].id;
+    const first = await insert("first"), second = await insert("second"), other = await insert("other", otherCourse), refunded = await insert("refund",course,"환불완료");
+    const otherImport = (await db.query<{id:string}>("insert into course_order_imports(course_id,file_name,row_count) values($1,'other.xlsx',1) returning id",[otherCourse])).rows[0].id;
+    await db.query("update course_orders set import_id=$1 where id=$2",[otherImport,other]);
+    const save = async (ids: string[], actor = user) => (await db.query<{ id: string }>("select save_course_paid_roster($1,$2,$3::uuid[]) id", [course, actor, ids])).rows[0].id;
+    const current = async () => (await db.query<{ id:string; normalized_values:Record<string, string | boolean>; normalized_phone:string; is_manually_added:boolean; is_extra_participant:boolean; is_duplicate:boolean }>("select e.* from job_enrollments e join course_jobs j on j.id=e.job_id and j.latest_version=e.version where j.course_id=$1", [course])).rows;
+    await assert.rejects(save([first], outsider), /권한/);
+    await assert.rejects(save([first,other]), /주문이 변경/);
+    await assert.rejects(save([refunded]), /주문이 변경/);
+    assert.equal((await db.query("select * from course_jobs")).rows.length, 0);
+    const job = await save([first]);
+    let rows = await current();
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].normalized_phone, "01012345678");
+    assert.equal(rows[0].normalized_values.paymentMethod, "카드");
+    assert.equal(rows[0].normalized_values.rs, "RS 파트너");
+    assert.equal(rows[0].normalized_values.source, "RS 파트너");
+    assert.equal(rows[0].normalized_values.paymentId, "pay-test");
+    assert.equal(rows[0].normalized_values.paymentAmount, "120000.00");
+    await db.query(`update job_enrollments set normalized_values=normalized_values || '{"groupChatJoined":true,"memo":"참여 확인"}',is_extra_participant=true where id=$1`, [rows[0].id]);
+    await db.query(`insert into job_enrollments(job_id,version,normalized_phone,source_row_number,is_manually_added,normalized_values) values($1,1,'01088889999',3,true,'{"customerName":"수동학생","groupChatJoined":false}')`, [job]);
+    await db.query("update course_orders set payment_method='계좌이체',payment_amount=130000 where id=$1", [first]);
+    assert.equal(await save([first, second]), job);
+    rows = await current();
+    assert.equal(rows.length, 3);
+    const saved = rows.find((row) => row.normalized_values.orderRecordKey === "first")!;
+    assert.equal(saved.normalized_values.groupChatJoined, true);
+    assert.equal(saved.normalized_values.memo, "참여 확인");
+    assert.equal(saved.is_extra_participant, true);
+    assert.equal(saved.normalized_values.paymentMethod, "계좌이체");
+    assert.equal(rows.filter((row) => row.is_manually_added).length, 1);
+    assert.equal(rows.filter((row) => row.is_duplicate).length, 2);
+    await save([first, second]);
+    assert.equal((await current()).length, 3);
+    const before = (await db.query("select latest_version from course_jobs where id=$1",[job])).rows;
+    await save([]);
+    await assert.rejects(save([first,other]), /주문이 변경/);
+    assert.deepEqual((await db.query("select latest_version from course_jobs where id=$1",[job])).rows,before);
+    assert.equal((await current()).length, 3);
+    // Existing message loading sees these enrollments and respects participation flags.
+    const client = { from: () => { const q = { select:()=>q, eq:()=>q, order:()=>q, range: async () => ({ data: await current(),error:null }) }; return q; } } as unknown as SupabaseClient;
+    const loaded = await loadJobEnrollmentRows(client,job,3);
+    assert.equal(filterGroupChatNonParticipants(loaded,true).length,2);
+    await db.exec("set role authenticated");
+    await assert.rejects(save([first]), /permission denied/);
+    await db.exec("reset role");
+    // Deleting a course must retain historical jobs under the existing SET NULL FK.
+    await db.query("delete from courses where id=$1", [course]);
+    assert.equal((await db.query<{course_id: string | null}>("select course_id from course_jobs where id=$1",[job])).rows[0].course_id,null);
+  } finally { await db.close(); }
+});
+
+test("엑셀에 결제정보가 있으면 추가하고, 없는 파일로 갱신해도 결제정보와 주문 연결을 보존한다", () => {
+  const parse = (csv: string) => analyzeRosterCsv(new TextEncoder().encode(csv),"paid.csv").records;
+  const current = parse('이름,연락처,RS,결제방법,결제ID,결제금액\n학생,01012345678,파트너,카드,pay-1,"120,000"');
+  assert.deepEqual({rs:current[0].normalizedValues.rs,method:current[0].normalizedValues.paymentMethod,id:current[0].normalizedValues.paymentId,amount:current[0].normalizedValues.paymentAmount}, {rs:"파트너",method:"카드",id:"pay-1",amount:"120000"});
+  Object.assign(current[0].normalizedValues, {orderRecordKey:"key",groupChatJoined:true,memo:"메모"});
+  const incoming = parse("이름,연락처\n학생,01012345678\n추가,01055556666");
+  const updated: StoredRosterRecord[] = buildUpdatedRosterRecords(current,incoming,{approveAdditions:true,approveRemovals:false});
+  assert.equal(updated.length,2);
+  assert.equal(updated[0].normalizedValues.paymentId,"pay-1");
+  assert.equal(updated[0].normalizedValues.rs,"파트너");
+  assert.equal(updated[0].normalizedValues.groupChatJoined,true);
+  assert.equal((updated[0].normalizedValues as Record<string,unknown>).orderRecordKey,"key");
+});

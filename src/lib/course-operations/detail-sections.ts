@@ -92,6 +92,7 @@ export async function loadStudentsSection(
     supabase
       .from("course_jobs")
       .select("id,name,default_course_name,valid_count,course_id,latest_version")
+      .eq("is_order_roster", false)
       .or(`course_id.is.null,course_id.eq.${courseId}`)
       .order("updated_at", { ascending: false }),
     supabase

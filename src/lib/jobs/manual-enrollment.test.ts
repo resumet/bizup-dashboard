@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-
 import { parseManualEnrollmentInput, parseManualEnrollmentName } from "./manual-enrollment";
+
+test("수동 추가 결제정보를 보존하고 금액을 검증한다", () => {
+  const input = {customerName:"학생",phone:"01012345678",rs:"파트너",paymentMethod:"카드",paymentId:"pay-1",paymentAmount:"120,000원"};
+  const parsed = parseManualEnrollmentInput(input);
+  assert.equal(parsed.rs,"파트너");
+  assert.equal(parsed.paymentMethod,"카드");
+  assert.equal(parsed.paymentId,"pay-1");
+  assert.equal(parsed.paymentAmount,"120000");
+  assert.throws(() => parseManualEnrollmentInput({...input,paymentAmount:"-100"}),/결제금액/);
+});
 
 test("수동 추가 수강생의 입력값과 전화번호를 정규화한다", () => {
   const parsed = parseManualEnrollmentInput({

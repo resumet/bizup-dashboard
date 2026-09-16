@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Check,
   Copy,
@@ -214,8 +214,9 @@ type CourseEditorTab =
   | "videos"
   | "costs"
   | "orders"
+  | "paid-students"
   | "settlement";
-type DeferredCourseEditorTab = Exclude<CourseEditorTab, "information" | "costs" | "settlement" | "orders" | "webinar">;
+type DeferredCourseEditorTab = Exclude<CourseEditorTab, "information" | "costs" | "settlement" | "orders" | "webinar" | "paid-students">;
 type SectionLoadStatus = "idle" | "loading" | "loaded" | "error";
 
 function DeferredSectionState({
@@ -347,6 +348,7 @@ export function CourseOperationsEditor({
   loadError,
   deferDetailSections = false,
   initialTab = "information",
+  paidRoster,
 }: {
   courseId?: string;
   initialDraft: CourseOperationsDraft;
@@ -364,7 +366,8 @@ export function CourseOperationsEditor({
   notesLoadError?: string;
   loadError?: string;
   deferDetailSections?: boolean;
-  initialTab?: "information" | "costs" | "settlement" | "orders" | "webinar";
+  initialTab?: "information" | "costs" | "settlement" | "orders" | "webinar" | "paid-students";
+  paidRoster?: ReactNode;
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState(() => {
@@ -517,7 +520,7 @@ export function CourseOperationsEditor({
   function changeTab(value: string) {
     const nextTab = value as CourseEditorTab;
     setActiveTab(nextTab);
-    if (nextTab !== "information" && nextTab !== "costs" && nextTab !== "settlement" && nextTab !== "orders" && nextTab !== "webinar") {
+    if (nextTab !== "information" && nextTab !== "costs" && nextTab !== "settlement" && nextTab !== "orders" && nextTab !== "webinar" && nextTab !== "paid-students") {
       void loadDetailSection(nextTab);
     }
   }
@@ -908,7 +911,7 @@ export function CourseOperationsEditor({
         onValueChange={changeTab}
         className="gap-6"
       >
-        <TabsList className="grid w-full grid-cols-3 grid-rows-3 group-data-horizontal/tabs:h-[8rem] md:grid-cols-5 md:grid-rows-2 md:group-data-horizontal/tabs:h-[5.5rem] 2xl:grid-cols-9 2xl:grid-rows-1 2xl:group-data-horizontal/tabs:h-12">
+        <TabsList className="grid w-full grid-cols-2 grid-rows-5 group-data-horizontal/tabs:h-[14rem] md:grid-cols-5 md:grid-rows-2 md:group-data-horizontal/tabs:h-[5.5rem] 2xl:grid-cols-10 2xl:grid-rows-1 2xl:group-data-horizontal/tabs:h-12">
           <TabsTrigger value="information" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             정보
           </TabsTrigger>
@@ -918,6 +921,7 @@ export function CourseOperationsEditor({
           <TabsTrigger value="students" className="h-10 min-w-0 px-2 md:min-w-32 md:px-5">
             수강생명단
           </TabsTrigger>
+          <TabsTrigger value="paid-students" disabled={!courseId} className="h-10 min-w-0 px-2">유료수강생</TabsTrigger>
           <TabsTrigger value="orders" disabled={!courseId} className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             주문 내역
           </TabsTrigger>
@@ -2126,8 +2130,10 @@ export function CourseOperationsEditor({
           {courseId ? <CourseWebinarEditor key={courseId} courseId={courseId} /> : null}
         </TabsContent>
 
+        <TabsContent value="paid-students" className="mt-0">{paidRoster}</TabsContent>
+
         <TabsContent value="orders" className="mt-0">
-          {courseId ? <CourseOrdersManager courseId={courseId} courseName={draft.name} onCourseNameChange={(name) => setDraft((current) => ({ ...current, name }))} /> : null}
+          {courseId ? <CourseOrdersManager courseId={courseId} courseName={draft.name} onRosterSaved={() => changeTab("paid-students")} onCourseNameChange={(name) => setDraft((current) => ({ ...current, name }))} /> : null}
         </TabsContent>
 
         <TabsContent value="costs" className="mt-0">

@@ -98,6 +98,7 @@ export async function POST(request: Request, { params }: Context) {
       admin
         .from("course_jobs")
         .select("id,latest_version")
+        .eq("is_order_roster", false)
         .eq("workspace_id", membership.workspace_id)
         .eq("course_id", courseId),
     ]);

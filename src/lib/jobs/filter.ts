@@ -11,6 +11,7 @@ export function filterRosterRows(rows: RosterRow[], filters: RosterFilters) {
         values.email,
         row.normalizedPhone,
         values.referrer,
+        values.rs ?? "",
         row.memo,
       ].some((value) => value.toLocaleLowerCase("ko-KR").includes(keyword));
     return (
@@ -29,7 +30,7 @@ export function uniqueValues(
   field: keyof RosterRow["values"],
 ) {
   return [
-    ...new Set(rows.map((row) => row.values[field]).filter(Boolean)),
+    ...new Set(rows.map((row) => row.values[field]).filter((value): value is string => typeof value === "string" && value !== "")),
   ].sort((a, b) => a.localeCompare(b, "ko-KR"));
 }
 

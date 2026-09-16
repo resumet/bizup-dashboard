@@ -26,6 +26,10 @@ type ManualForm = {
   referrer: string;
   source: string;
   adMedia: string;
+  paymentMethod: string;
+  paymentId: string;
+  paymentAmount: string;
+  rs: string;
 };
 
 const EMPTY_FORM: ManualForm = {
@@ -36,16 +40,19 @@ const EMPTY_FORM: ManualForm = {
   referrer: "",
   source: "",
   adMedia: "",
+  paymentMethod: "", paymentId: "", paymentAmount: "", rs: "",
 };
 
 export function ManualEnrollmentDialog({
   jobId,
   courseName,
   onAdded,
+  paidRoster = false,
 }: {
   jobId: string;
   courseName: string;
   onAdded: (row: RosterRow) => void;
+  paidRoster?: boolean;
 }) {
   const fieldPrefix = useId();
   const [open, setOpen] = useState(false);
@@ -153,7 +160,12 @@ export function ManualEnrollmentDialog({
               value={form.optionName}
               onChange={(value) => setField("optionName", value)}
             />
-            <FormField
+            {paidRoster ? <>
+              <FormField id={`${fieldPrefix}-payment-method`} label="결제방법" value={form.paymentMethod} onChange={(value) => setField("paymentMethod", value)} />
+              <FormField id={`${fieldPrefix}-rs`} label="RS" value={form.rs} onChange={(value) => setField("rs", value)} />
+              <FormField id={`${fieldPrefix}-payment-id`} label="결제ID" value={form.paymentId} onChange={(value) => setField("paymentId", value)} />
+              <FormField id={`${fieldPrefix}-payment-amount`} label="결제금액" inputMode="decimal" placeholder="원 단위" value={form.paymentAmount} onChange={(value) => setField("paymentAmount", value)} />
+            </> : <><FormField
               id={`${fieldPrefix}-referrer`}
               label="추천인"
               value={form.referrer}
@@ -170,7 +182,7 @@ export function ManualEnrollmentDialog({
               label="광고 매체"
               value={form.adMedia}
               onChange={(value) => setField("adMedia", value)}
-            />
+            /></>}
           </div>
 
           <DialogFooter>
@@ -209,7 +221,7 @@ function FormField({
   onChange: (value: string) => void;
   required?: boolean;
   type?: "text" | "email";
-  inputMode?: "tel";
+  inputMode?: "tel" | "decimal";
   placeholder?: string;
 }) {
   return (

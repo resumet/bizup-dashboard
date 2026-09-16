@@ -8,6 +8,9 @@ export type OrderStudent = {
   optionName: string;
   inflowType: string;
   amount: number;
+  paymentMethod?: string;
+  rs?: string;
+  paymentId?: string;
 };
 
 export function normalizeOrderStudentPhone(value: string) {
@@ -49,7 +52,10 @@ export function maskOrderStudentName(value: string) {
 
 export function maskOrderStudentsForPublic(students: OrderStudent[]) {
   return students.map((student) => ({
-    ...student,
+    orderId: student.orderId,
+    optionName: student.optionName,
+    inflowType: student.inflowType,
+    amount: student.amount,
     name: maskOrderStudentName(student.name),
     phone: maskOrderStudentPhone(student.phone),
     email: maskOrderStudentEmail(student.email),
@@ -115,5 +121,8 @@ export function createOrderStudentRoster(orders: SavedCourseOrder[]): OrderStude
       optionName: order.optionName,
       inflowType: order.inflowType,
       amount: order.paymentAmount,
+      paymentMethod: order.paymentMethod,
+      rs: order.rs,
+      paymentId: order.paymentId,
     }));
 }

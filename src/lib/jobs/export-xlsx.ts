@@ -3,16 +3,14 @@ import writeXlsxFile, { type Row } from "write-excel-file/node";
 import { formatPhone } from "./filter";
 import type { RosterRow } from "./types";
 
-export async function buildRosterXlsx(rows: RosterRow[], defaultCourseName = "") {
+export async function buildRosterXlsx(rows: RosterRow[], defaultCourseName = "", paidRoster = false) {
   const header = [
     "강의명",
     "옵션명",
     "고객명",
     "이메일",
     "연락처",
-    "추천인",
-    "유입 경로",
-    "광고 매체",
+    ...(paidRoster ? ["결제방법", "RS", "결제ID", "결제금액"] : ["추천인", "유입 경로", "광고 매체"]),
     "비고",
   ].map((value) => ({
     value,
@@ -29,9 +27,7 @@ export async function buildRosterXlsx(rows: RosterRow[], defaultCourseName = "")
         row.values.customerName,
         row.values.email,
         { value: formatPhone(row.normalizedPhone), type: String },
-        row.values.referrer,
-        row.values.source,
-        row.values.adMedia,
+        ...(paidRoster ? [row.values.paymentMethod ?? "", row.values.rs ?? row.values.source, row.values.paymentId ?? "", row.values.paymentAmount ? Number(row.values.paymentAmount) : ""] : [row.values.referrer, row.values.source, row.values.adMedia]),
         row.memo,
       ],
     ),
@@ -49,6 +45,7 @@ export async function buildRosterXlsx(rows: RosterRow[], defaultCourseName = "")
       { width: 18 },
       { width: 18 },
       { width: 24 },
+      ...(paidRoster ? [{ width: 24 }] : []),
     ],
   }).toBuffer();
 }

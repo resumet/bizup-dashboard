@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { RosterUpdateDialog } from "@/components/jobs/roster-update-dialog";
+import { PaymentIdButton } from "@/components/jobs/payment-id-button";
 import { RosterAnalysisCards } from "@/components/jobs/roster-analysis-cards";
 import { DeleteSelectedEnrollmentsButton } from "@/components/jobs/delete-selected-enrollments-button";
 import { EnrollmentMemoInput } from "@/components/jobs/enrollment-memo-input";
@@ -99,6 +100,7 @@ import {
 } from "@/lib/messages/roster-selection-transfer";
 
 type Props = {
+  paidRoster?: boolean;
   jobId: string;
   jobName: string;
   jobVersion: number;
@@ -119,6 +121,7 @@ type Scope = "all" | "filtered" | "selected";
 const EMPTY_OPTION_INVITES: Record<string, InviteValues> = {};
 
 export function RosterDetailClient({
+  paidRoster = false,
   jobId,
   jobName,
   jobVersion,
@@ -375,7 +378,7 @@ export function RosterDetailClient({
         <AlertDescription>{loadError}</AlertDescription>
       </Alert>
     );
-  if (allRows.length === 0)
+  if (allRows.length === 0 && !paidRoster)
     return (
       <Alert>
         <AlertTitle>저장된 상세 명단이 없습니다.</AlertTitle>
@@ -393,11 +396,12 @@ export function RosterDetailClient({
             v{jobVersion} · {jobStatus === "ready" ? "분석 완료" : jobStatus}
           </Badge>
           <h1 className="text-3xl font-semibold tracking-tight">
-            {jobName}{courseName ? ` (${courseName})` : ""}
+            {paidRoster ? "유료수강생" : <>{jobName}{courseName ? ` (${courseName})` : ""}</>}
           </h1>
           <p className="mt-2 text-muted-foreground">
             최신 명단을 조회하고 필터링하거나 메시지를 발송할 수 있습니다.
           </p>
+          {paidRoster && <p className="mt-2 text-lg font-semibold">전체 결제금액 {rows.reduce((sum, row) => sum + (Number(row.values.paymentAmount) || 0), 0).toLocaleString("ko-KR")}원</p>}
         </div>
         <div className="flex flex-wrap gap-2 lg:max-w-[62%] lg:justify-end">
           <MessageDialog
@@ -411,7 +415,7 @@ export function RosterDetailClient({
             filters={filters}
             mode="groupChatInvite"
             defaultOptionInvites={linkedOptionInvites}
-            disabled={!hasLinkedCourse}
+            disabled={!hasLinkedCourse || rows.length === 0}
           />
           <MessageDialog
             jobId={jobId}
@@ -421,6 +425,7 @@ export function RosterDetailClient({
             filteredRows={filteredRows}
             selectedRows={selectedRows}
             filters={filters}
+            disabled={rows.length === 0}
           />
           <Button
             type="button"
@@ -456,7 +461,7 @@ export function RosterDetailClient({
               <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="pl-9"
-                placeholder="이름·전화·이메일·추천인·비고"
+                placeholder={paidRoster ? "이름·전화·이메일·RS·비고" : "이름·전화·이메일·추천인·비고"}
                 aria-label="수강생 검색"
                 value={filters.keyword}
                 onChange={(event) => setFilter("keyword", event.target.value)}
@@ -476,7 +481,7 @@ export function RosterDetailClient({
             />
             <FilterSelect
               value={filters.source}
-              placeholder="전체 유입 경로"
+              placeholder={paidRoster ? "전체 RS" : "전체 유입 경로"}
               values={uniqueValues(rows, "source")}
               onChange={(value) => setFilter("source", value)}
             />
@@ -504,10 +509,11 @@ export function RosterDetailClient({
             </Select>
           </div>
           <div className="flex flex-wrap items-center gap-2 border-t pt-4">
-            <RosterUpdateDialog jobId={jobId} />
+            <RosterUpdateDialog jobId={jobId} label={paidRoster ? "수강생 엑셀로 추가" : undefined} />
             <ManualEnrollmentDialog
               jobId={jobId}
               courseName={courseName}
+              paidRoster={paidRoster}
               onAdded={(row) => setRows((current) => [...current, row])}
             />
             <DeleteSelectedEnrollmentsButton
@@ -575,9 +581,7 @@ export function RosterDetailClient({
                 <TableHead>연락처</TableHead>
                 <TableHead>이메일</TableHead>
                 <TableHead>옵션명</TableHead>
-                <TableHead>추천인</TableHead>
-                <TableHead>유입 경로</TableHead>
-                <TableHead>광고 매체</TableHead>
+                {paidRoster ? <><TableHead>결제방법</TableHead><TableHead>RS</TableHead><TableHead>결제ID</TableHead><TableHead className="text-right">결제금액</TableHead></> : <><TableHead>추천인</TableHead><TableHead>유입 경로</TableHead><TableHead>광고 매체</TableHead></>}
                 <TableHead>비고</TableHead>
               </TableRow>
             </TableHeader>
@@ -651,9 +655,12 @@ export function RosterDetailClient({
                   </TableCell>
                   <TableCell>{row.values.email || "-"}</TableCell>
                   <TableCell>{row.values.optionName || "-"}</TableCell>
-                  <TableCell>{row.values.referrer || "-"}</TableCell>
-                  <TableCell>{row.values.source || "-"}</TableCell>
-                  <TableCell>{row.values.adMedia || "-"}</TableCell>
+                  {paidRoster ? <>
+                    <TableCell>{row.values.paymentMethod || "—"}</TableCell>
+                    <TableCell>{row.values.rs || row.values.source || "—"}</TableCell>
+                    <TableCell><PaymentIdButton value={row.values.paymentId} name={row.values.customerName} /></TableCell>
+                    <TableCell className="text-right tabular-nums">{row.values.paymentAmount ? `${Number(row.values.paymentAmount).toLocaleString("ko-KR")}원` : "—"}</TableCell>
+                  </> : <><TableCell>{row.values.referrer || "-"}</TableCell><TableCell>{row.values.source || "-"}</TableCell><TableCell>{row.values.adMedia || "-"}</TableCell></>}
                   <TableCell>
                     <EnrollmentMemoInput
                       jobId={jobId}
@@ -682,6 +689,7 @@ export function RosterDetailClient({
       </Card>
       <RefundedRoster rows={refundedRows} />
       <RosterAnalysisCards
+        sourceLabel={paidRoster ? "RS" : undefined}
         sourceItems={sourceAnalysis}
         optionItems={optionAnalysis}
         totalCount={rows.length}

@@ -28,6 +28,7 @@ export default async function CombinedCourseRosterPage({ params }: PageProps) {
     supabase
       .from("course_jobs")
       .select("id,name,default_course_name,valid_count,course_id,latest_version")
+      .eq("is_order_roster", false)
       .eq("course_id", courseId)
       .order("updated_at", { ascending: false }),
     supabase

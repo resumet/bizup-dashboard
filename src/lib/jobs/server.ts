@@ -54,7 +54,7 @@ export async function loadJobEnrollmentRows(
 export async function loadJobRoster(supabase: SupabaseClient, jobId: string) {
   const { data: job, error: jobError } = await supabase
     .from("course_jobs")
-    .select("id,workspace_id,name,default_course_name,latest_version")
+    .select("id,workspace_id,name,default_course_name,latest_version,is_order_roster")
     .eq("id", jobId)
     .maybeSingle();
   if (jobError || !job) throw new Error("작업을 찾을 수 없거나 접근 권한이 없습니다.");

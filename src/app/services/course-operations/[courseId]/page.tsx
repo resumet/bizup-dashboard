@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import { PaidCourseRoster } from "@/components/course-operations/paid-course-roster";
 import { CourseOperationsEditor } from "@/components/course-operations/course-editor";
 import { PendingLinkLabel } from "@/components/navigation/pending-link-label";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
       supabase
         .from("course_jobs")
         .select("id")
+        .eq("is_order_roster", false)
         .eq("course_id", courseId),
       supabase
         .from("message_studio_projects")
@@ -146,6 +148,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
       <div className="mx-auto max-w-[1600px] px-5 py-8 lg:px-8">
         <CourseOperationsEditor
           courseId={courseId}
+          paidRoster={<PaidCourseRoster courseId={courseId} />}
           initialDraft={draft}
           initialBannerUrl={
             course.banner_image_path
@@ -158,7 +161,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
           initialNotes={notes}
           notesLoadError={notesLoadError}
           loadError={loadError}
-          initialTab={tab === "webinar" ? "webinar" : tab === "settlement" ? "settlement" : tab === "costs" ? "costs" : tab === "orders" ? "orders" : "information"}
+          initialTab={tab === "paid-students" ? "paid-students" : tab === "webinar" ? "webinar" : tab === "settlement" ? "settlement" : tab === "costs" ? "costs" : tab === "orders" ? "orders" : "information"}
         />
       </div>
     </main>

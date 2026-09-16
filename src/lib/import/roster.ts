@@ -4,11 +4,12 @@ import { parse } from "csv-parse/sync";
 import { readSheet, type SheetData } from "read-excel-file/node";
 
 import { STANDARD_FIELDS, type ImportPreview, type StandardField } from "./contract";
+import { parsePaymentAmount, type PaymentFields } from "@/lib/jobs/payment-fields";
 
 export type StoredRosterRecord = {
   sourceRowNumber: number;
   normalizedPhone: string;
-  normalizedValues: Record<StandardField, string> & {
+  normalizedValues: Record<StandardField, string> & PaymentFields & {
     groupChatJoined?: boolean;
     memo?: string;
   };
@@ -119,6 +120,11 @@ export function analyzeRosterCsv(bytes: Uint8Array, fileName: string): RosterAna
 
   if (headers.length === 0 || rows.length === 0) throw new Error("헤더와 데이터 행이 필요합니다.");
   const mapping = mapHeaders(headers);
+  const paymentHeaders = Object.entries({ paymentMethod: ["결제방법", "결제수단"], paymentId: ["결제id"], paymentAmount: ["결제금액"], rs: ["rs", "rs추천인"] })
+    .flatMap(([field, aliases]) => {
+      const header = headers.find((value) => aliases.includes(normalizeHeader(value)));
+      return header ? [[field, header] as const] : [];
+    });
   if (!mapping.phone) throw new Error("필수 전화번호 컬럼을 찾지 못했습니다. '연락처', '휴대전화번호', '전화번호', '휴대폰번호' 중 하나의 헤더가 필요합니다.");
 
   const orderStatusHeader = headers.find((header) => normalizeHeader(header) === "주문상태");
@@ -137,7 +143,7 @@ export function analyzeRosterCsv(bytes: Uint8Array, fileName: string): RosterAna
     else if (!phone) errors.push({ rowNumber, code: "MISSING_PHONE", reason: "전화번호에서 숫자를 찾을 수 없습니다.", originalValue: originalPhone });
     if (phone) normalizedPhones.push(phone);
 
-    const normalizedValues = Object.fromEntries(
+    const normalizedValues: StoredRosterRecord["normalizedValues"] = Object.fromEntries(
       STANDARD_FIELDS.map((field) => [
         field,
         field === "phone"
@@ -145,6 +151,10 @@ export function analyzeRosterCsv(bytes: Uint8Array, fileName: string): RosterAna
           : cleanValue(mapping[field] ? row[mapping[field]!] : ""),
       ]),
     ) as Record<StandardField, string>;
+    for (const [field, header] of paymentHeaders) {
+      const value = cleanValue(row[header]);
+      normalizedValues[field as keyof PaymentFields] = field === "paymentAmount" ? parsePaymentAmount(value) : value;
+    }
     if (!normalizedValues.optionName && orderItemNameHeader) {
       normalizedValues.optionName = optionNameFromOrderItem(
         row[orderItemNameHeader],

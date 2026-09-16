@@ -78,6 +78,7 @@ export async function assertLinkableItems(
       ? admin
           .from("course_jobs")
           .select("id,course_id")
+          .eq("is_order_roster", false)
           .eq("workspace_id", workspaceId)
           .in("id", input.rosterJobIds)
       : Promise.resolve({ data: [], error: null }),
@@ -239,7 +240,7 @@ export async function replaceCourseLinks(
 ) {
   const admin = createAdminClient();
   const [linkedJobs, linkedProjects] = await Promise.all([
-    admin.from("course_jobs").select("id").eq("course_id", courseId),
+    admin.from("course_jobs").select("id").eq("course_id", courseId).eq("is_order_roster", false),
     admin
       .from("message_studio_projects")
       .select("id")
@@ -283,7 +284,8 @@ export async function replaceCourseLinks(
         .from("course_jobs")
         .update({ course_id: courseId })
         .eq("workspace_id", workspaceId)
-        .in("id", input.rosterJobIds),
+        .in("id", input.rosterJobIds)
+        .eq("is_order_roster", false),
     );
   }
   if (input.messageProjectIds.length) {

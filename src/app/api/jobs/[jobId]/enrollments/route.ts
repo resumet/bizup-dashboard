@@ -57,7 +57,7 @@ export async function POST(request: Request, { params }: Context) {
     const { data: job } = await supabase
       .from("course_jobs")
       .select(
-        "id,workspace_id,default_course_name,latest_version,valid_count",
+        "id,workspace_id,default_course_name,latest_version,valid_count,is_order_roster",
       )
       .eq("id", jobId)
       .maybeSingle();
@@ -119,10 +119,11 @@ export async function POST(request: Request, { params }: Context) {
       email: input.email,
       phone: input.normalizedPhone,
       referrer: input.referrer,
-      source: input.source,
+      source: job.is_order_roster ? input.rs ?? "" : input.source,
       adMedia: input.adMedia,
       groupChatJoined: false,
       memo: "",
+      ...(job.is_order_roster ? { rs: input.rs ?? "", paymentMethod: input.paymentMethod ?? "", paymentId: input.paymentId ?? "", paymentAmount: input.paymentAmount ?? "" } : {}),
     };
 
     const { data: student, error: studentError } = await admin
@@ -260,7 +261,7 @@ export async function DELETE(request: Request, { params }: Context) {
 
     const { data: job } = await supabase
       .from("course_jobs")
-      .select("id,workspace_id,latest_version")
+      .select("id,workspace_id,latest_version,is_order_roster")
       .eq("id", jobId)
       .maybeSingle();
     if (!job)
@@ -284,7 +285,7 @@ export async function DELETE(request: Request, { params }: Context) {
 
     if (selectedRows.some((row) => refundDate(row.normalized_values))) throw new Error("환불자는 삭제할 수 없습니다. 환불자 명단에서 조회해 주세요.");
     const remainingRows = currentRows.filter((row) => !selectedIds.has(row.id));
-    if (remainingRows.length === 0)
+    if (remainingRows.length === 0 && !job.is_order_roster)
       return Response.json(
         { message: "전체 명단은 삭제할 수 없습니다. 최소 1명을 남겨 주세요." },
         { status: 400 },

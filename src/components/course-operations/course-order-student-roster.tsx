@@ -9,23 +9,42 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatOrderStudentPhone, normalizeOrderStudentPhone, summarizeOrderStudents, type OrderStudent } from "@/lib/course-orders/student-roster";
 import { CourseRosterShareDialog } from "./course-roster-share-dialog";
+import { PaymentIdButton } from "@/components/jobs/payment-id-button";
 
 const PAGE_SIZE = 50;
 const money = (value: number) => `${value.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}원`;
 const percent = (value: number | null) => value === null ? "—" : `${value.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}%`;
 
-export function CourseOrderStudentRoster({ courseId, students, onDelete, onRestore }: { courseId: string; students: OrderStudent[]; onDelete: (orderId: string) => void; onRestore: (orderId: string) => void }) {
+export function CourseOrderStudentRoster({ courseId, students, onDelete, onRestore, onSaved }: { courseId: string; students: OrderStudent[]; onDelete: (orderId: string) => void; onRestore: (orderId: string) => void; onSaved?: () => void }) {
   const router = useRouter();
   const [page, setPage] = useState(1);
   const [option, setOption] = useState<string | null>(null);
   const [deleted, setDeleted] = useState<OrderStudent | null>(null);
   const [preparing, setPreparing] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const summary = useMemo(() => summarizeOrderStudents(students), [students]);
   const filtered = students.filter((student) => option === null || student.optionName === option);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
   const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  async function saveRoster() {
+    setSaving(true); setError(""); setSaved(false);
+    try {
+      const response = await fetch(`/api/course-operations/${courseId}/paid-students`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderIds: students.map((student) => student.orderId) }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message ?? "명단을 저장하지 못했습니다.");
+      setSaved(true);
+      router.refresh();
+      onSaved?.();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "명단을 저장하지 못했습니다."); }
+    finally { setSaving(false); }
+  }
 
   async function openMessage(student: OrderStudent) {
     if (preparing) return;
@@ -44,12 +63,17 @@ export function CourseOrderStudentRoster({ courseId, students, onDelete, onResto
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <CardTitle>결제완료 수강생 명단</CardTitle>
-          <CourseRosterShareDialog courseId={courseId} />
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" disabled={saving || !students.length} onClick={() => void saveRoster()}>{saving && <Loader2 className="animate-spin" />}{saving ? "저장 중" : "유료수강생 명단에 저장하기"}</Button>
+            <CourseRosterShareDialog courseId={courseId} />
+          </div>
         </div>
         <CardDescription>결제완료 {summary.count.toLocaleString("ko-KR")}건 · 수강생 {summary.people.toLocaleString("ko-KR")}명 · 전체 매출 {money(summary.amount)}</CardDescription>
         <p className="text-xs text-muted-foreground">인원은 전화번호(없으면 이메일) 기준으로 중복을 제외합니다. 여러 옵션을 구매한 사람은 각 옵션에 포함됩니다. 매출은 현재 명단의 결제금액 합계입니다.</p>
       </CardHeader>
       <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">저장하기를 누르면 옵션 필터와 관계없이 이 명단 전체가 유료수강생 탭에 저장됩니다. 같은 주문은 갱신하고, 기존 수강생과 카톡방 참여 상태·비고는 유지합니다.</p>
+        {saved && <p role="status" className="text-sm text-emerald-700">유료수강생 명단에 저장했습니다.</p>}
         <div className="overflow-x-auto rounded-md border" role="region" aria-label="옵션별 매출 통계">
           <Table><TableHeader><TableRow><TableHead>옵션명</TableHead><TableHead className="text-right">인원</TableHead><TableHead className="text-right">결제금액</TableHead><TableHead className="text-right">매출 기여도</TableHead></TableRow></TableHeader>
             <TableBody>{summary.options.map((item) => <TableRow key={item.optionName}>
@@ -70,7 +94,7 @@ export function CourseOrderStudentRoster({ courseId, students, onDelete, onResto
         <div className="overflow-x-auto rounded-md border">
           <Table aria-label="수강생 상세 명단">
             <TableHeader><TableRow>
-              <TableHead>번호</TableHead><TableHead>이름</TableHead><TableHead>전화번호</TableHead><TableHead>이메일</TableHead><TableHead>옵션명</TableHead><TableHead>트래킹 유입 구분</TableHead><TableHead className="text-right">금액</TableHead><TableHead><span className="sr-only">작업</span></TableHead>
+              <TableHead>번호</TableHead><TableHead>이름</TableHead><TableHead>전화번호</TableHead><TableHead>이메일</TableHead><TableHead>옵션명</TableHead><TableHead>결제방법</TableHead><TableHead>RS</TableHead><TableHead>결제ID</TableHead><TableHead className="text-right">금액</TableHead><TableHead><span className="sr-only">작업</span></TableHead>
             </TableRow></TableHeader>
             <TableBody>
               {visible.map((student, index) => <TableRow key={student.orderId}>
@@ -79,7 +103,7 @@ export function CourseOrderStudentRoster({ courseId, students, onDelete, onResto
                 <TableCell>{formatOrderStudentPhone(student.phone)}</TableCell>
                 <TableCell>{student.email || "—"}</TableCell>
                 <TableCell className="min-w-40 max-w-80 whitespace-normal break-words">{student.optionName || "—"}</TableCell>
-                <TableCell>{student.inflowType || "—"}</TableCell>
+                <TableCell>{student.paymentMethod || "—"}</TableCell><TableCell>{student.rs || "—"}</TableCell><TableCell><PaymentIdButton value={student.paymentId} name={student.name} /></TableCell>
                 <TableCell className="text-right tabular-nums">{money(student.amount)}</TableCell>
                 <TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" aria-label={`${student.name || "이름 없음"} 메뉴`} disabled={Boolean(preparing)}>{preparing === student.orderId ? <Loader2 className="animate-spin" /> : <MoreHorizontal />}</Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -88,7 +112,7 @@ export function CourseOrderStudentRoster({ courseId, students, onDelete, onResto
                   </DropdownMenuContent>
                 </DropdownMenu></TableCell>
               </TableRow>)}
-              {!filtered.length && <TableRow><TableCell colSpan={8} className="h-24 text-center text-muted-foreground">{students.length ? "선택한 옵션의 수강생이 없습니다." : "결제완료인 주문이 없습니다."}</TableCell></TableRow>}
+              {!filtered.length && <TableRow><TableCell colSpan={10} className="h-24 text-center text-muted-foreground">{students.length ? "선택한 옵션의 수강생이 없습니다." : "결제완료인 주문이 없습니다."}</TableCell></TableRow>}
             </TableBody>
           </Table>
         </div>

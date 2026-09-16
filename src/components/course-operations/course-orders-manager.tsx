@@ -41,7 +41,7 @@ async function responseData<T>(response: Response): Promise<T> {
   return data as T;
 }
 
-export function CourseOrdersManager({ courseId, courseName, onCourseNameChange }: { courseId: string; courseName: string; onCourseNameChange?: (name: string) => void }) {
+export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, onRosterSaved }: { courseId: string; courseName: string; onCourseNameChange?: (name: string) => void; onRosterSaved?: () => void }) {
   const router = useRouter();
   const [data, setData] = useState<CourseOrdersResponse>({ orders: [], imports: [] });
   const [loading, setLoading] = useState(true);
@@ -240,7 +240,7 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange }
             </div>
           </Card>
           {data.imports.length ? <Card><CardHeader><CardTitle className="text-base">최근 가져오기 이력</CardTitle></CardHeader><CardContent><ul className="space-y-2 text-sm">{data.imports.map((item) => <li key={item.id} className="flex flex-wrap justify-between gap-2"><span className="break-all">{item.fileName} · {item.rowCount.toLocaleString("ko-KR")}건</span><span className="text-muted-foreground">{new Date(item.createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}</span></li>)}</ul></CardContent></Card> : null}
-          {rosterCourseId === courseId && <div id="course-order-student-roster" className="scroll-mt-6"><CourseOrderStudentRoster key={courseId} courseId={courseId} students={students} onDelete={(orderId) => setExcludedOrderIds((current) => new Set(current).add(orderId))} onRestore={(orderId) => setExcludedOrderIds((current) => { const next = new Set(current); next.delete(orderId); return next; })} /></div>}
+          {rosterCourseId === courseId && <div id="course-order-student-roster" className="scroll-mt-6"><CourseOrderStudentRoster key={courseId} courseId={courseId} students={students} onSaved={onRosterSaved} onDelete={(orderId) => setExcludedOrderIds((current) => new Set(current).add(orderId))} onRestore={(orderId) => setExcludedOrderIds((current) => { const next = new Set(current); next.delete(orderId); return next; })} /></div>}
         </>
       ) : null}
     </div>

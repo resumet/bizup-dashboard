@@ -83,7 +83,7 @@ export async function POST(request: Request, { params }: Context) {
 
     const { data: job } = await supabase
       .from("course_jobs")
-      .select("id,workspace_id,latest_version")
+      .select("id,workspace_id,latest_version,is_order_roster")
       .eq("id", jobId)
       .maybeSingle();
     if (!job)
@@ -97,6 +97,11 @@ export async function POST(request: Request, { params }: Context) {
       bytes,
       file.name,
     );
+    if (job.is_order_roster) {
+      for (const record of incomingRecords) {
+        record.normalizedValues.source = record.normalizedValues.rs ?? "";
+      }
+    }
     if (preview.summary.errorRows > 0) {
       return Response.json(
         {

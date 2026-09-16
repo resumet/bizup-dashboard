@@ -26,7 +26,7 @@ export async function POST(request: Request, { params }: Context) {
       : filterRosterRows(rows, filters);
     if (exportRows.length === 0) return Response.json({ message: "내보낼 대상이 없습니다." }, { status: 400 });
 
-    const buffer = await buildRosterXlsx(exportRows, job.default_course_name || "");
+    const buffer = await buildRosterXlsx(exportRows, job.default_course_name || "", job.is_order_roster === true);
     const filename = `${job.name}-${body.scope === "selected" ? "선택" : "필터"}.xlsx`;
     await createAdminClient().from("audit_logs").insert({ workspace_id: job.workspace_id, actor_id: user.id, event_type: "course_job.exported", entity_type: "course_job", entity_id: job.id, metadata: { row_count: exportRows.length, scope: body.scope === "selected" ? "selected" : "filtered" } });
     return new Response(Buffer.from(buffer), { headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`, "Cache-Control": "no-store" } });

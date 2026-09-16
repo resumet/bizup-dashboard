@@ -1,6 +1,7 @@
 import { normalizePhoneForStorage } from "@/lib/import/roster";
+import { parsePaymentAmount, type PaymentFields } from "./payment-fields";
 
-export type ManualEnrollmentInput = {
+export type ManualEnrollmentInput = PaymentFields & {
   customerName: string;
   normalizedPhone: string;
   email: string;
@@ -42,6 +43,8 @@ export function parseManualEnrollmentInput(
   }
 
   return {
+    ...Object.fromEntries(["paymentMethod", "paymentId", "rs"].filter((key) => typeof body[key] === "string").map((key) => [key, clean(body[key])])),
+    ...(typeof body.paymentAmount === "string" ? { paymentAmount: parsePaymentAmount(body.paymentAmount) } : {}),
     customerName,
     normalizedPhone,
     email,

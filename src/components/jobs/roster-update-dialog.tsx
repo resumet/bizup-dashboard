@@ -68,7 +68,7 @@ type UpdatePreview = {
   removals: DiffItem[];
 };
 
-export function RosterUpdateDialog({ jobId }: { jobId: string }) {
+export function RosterUpdateDialog({ jobId, label = "엑셀 추가" }: { jobId: string; label?: string }) {
   const router = useRouter();
   const fileInputId = useId();
   const [open, setOpen] = useState(false);
@@ -171,7 +171,7 @@ export function RosterUpdateDialog({ jobId }: { jobId: string }) {
       <DialogTrigger asChild>
         <Button variant="outline">
           <FileSpreadsheet />
-          엑셀 추가
+          {label}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[92vh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-5xl">

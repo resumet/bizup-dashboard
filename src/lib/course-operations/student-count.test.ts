@@ -12,7 +12,7 @@ test("강의 인원·연결 명단 인원·미리보기·전체보기가 환불�
       const query = { select: () => query, eq: () => query, order: () => query, range: async (start: number, end: number) => ({ data: rows.slice(start, end + 1), error: null }) };
       return query;
     }
-    const query = { select: () => query, or: () => query, order: async () => ({ data: table === "course_jobs" ? jobs : [], error: null }) };
+    const query = { select: () => query, eq: () => query, or: () => query, order: async () => ({ data: table === "course_jobs" ? jobs : [], error: null }) };
     return query;
   } } as unknown as SupabaseClient;
   const section = await loadStudentsSection(client, "course", "");

@@ -10,11 +10,12 @@ const order: SavedCourseOrder = {
   paymentMethod: "카드", rs: "", adMedia: "", inflowType: "광고 유입", paymentId: "payment-1", orderId: "source-1", refundDate: "",
 };
 
-test("결제완료 주문만 포함하고 다섯 항목과 원본 금액·전화번호를 보존한다", () => {
+test("결제완료 주문만 포함하고 원본 결제정보·RS·전화번호를 보존한다", () => {
   const statuses = ["결제완료", " 결제완료 ", "부분환불", "전액환불", "결제대기", "취소", "미결제완료", "결제완료 / 부분환불", ""];
   const rows = statuses.map((status, index) => ({ ...order, id: String(index), status }));
   assert.deepEqual(createOrderStudentRoster(rows), ["0", "1"].map((orderId) => ({
     orderId, name: "김학생", phone: "01012345678", email: "student@example.com", optionName: "기본반", inflowType: "광고 유입", amount: 123456.78,
+    paymentMethod: "카드", rs: "", paymentId: "payment-1",
   })));
   assert.equal(rows.length, statuses.length);
 });
@@ -58,6 +59,13 @@ test("옵션별 인원은 중복을 제외하고 매출·기여도는 모든 주
   assert.ok(Math.abs(result.options.reduce((sum, item) => sum + item.contribution!, 0) - 100) < 1e-9);
   assert.equal(summarizeOrderStudents([{ ...students[0], amount: 0 }]).options[0].contribution, null);
   assert.deepEqual(summarizeOrderStudents([]), { people: 0, count: 0, amount: 0, options: [], inflowTypes: [] });
+});
+
+test("공개 명단에 결제ID와 내부 RS 정보가 전달되지 않는다", () => {
+  const [publicRow] = maskOrderStudentsForPublic(createOrderStudentRoster([{...order,rs:"내부 RS"}]));
+  assert.equal("paymentId" in publicRow,false);
+  assert.equal("rs" in publicRow,false);
+  assert.equal(publicRow.name,"김*생");
 });
 
 test("공개 명단의 이름·전화번호·이메일을 마스킹한다", () => {
