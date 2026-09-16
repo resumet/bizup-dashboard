@@ -19,6 +19,7 @@ import {
 
 import { RosterUpdateDialog } from "@/components/jobs/roster-update-dialog";
 import { PaymentIdButton } from "@/components/jobs/payment-id-button";
+import { PaidRosterColumnOptions, usePaidRosterColumns, type PaidRosterColumn } from "@/components/jobs/paid-roster-column-options";
 import { rosterRecipient } from "@/lib/jobs/linked-student";
 import { resolveRosterMessageTargets } from "@/lib/messages/roster-recipients";
 import { RosterAnalysisCards } from "@/components/jobs/roster-analysis-cards";
@@ -141,6 +142,8 @@ export function RosterDetailClient({
   historyError,
 }: Props) {
   const router = useRouter();
+  const { hiddenColumns, setHiddenColumns } = usePaidRosterColumns(currentUserId);
+  const showColumn = (column: PaidRosterColumn) => !paidRoster || !hiddenColumns.includes(column);
   const [allRows, setRows] = useState(initialRows);
   const rows = useMemo(() => allRows.filter((row) => !refundDate(row.values)), [allRows]);
   const refundedRows = useMemo(() => allRows.filter((row) => refundDate(row.values)), [allRows]);
@@ -511,6 +514,7 @@ export function RosterDetailClient({
             </Select>
           </div>
           <div className="flex flex-wrap items-center gap-2 border-t pt-4">
+            {paidRoster && <PaidRosterColumnOptions hiddenColumns={hiddenColumns} onChange={setHiddenColumns} />}
             <RosterUpdateDialog jobId={jobId} label={paidRoster ? "수강생 엑셀로 추가" : undefined} />
             <ManualEnrollmentDialog
               jobId={jobId}
@@ -563,7 +567,7 @@ export function RosterDetailClient({
       </Card>
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
-          <Table>
+          <Table aria-label={paidRoster ? "유료수강생 명단" : "수강생 명단"}>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-10">
@@ -573,19 +577,24 @@ export function RosterDetailClient({
                     onCheckedChange={(value) => toggleFiltered(value === true)}
                   />
                 </TableHead>
-                <TableHead>{paidRoster ? "결제자" : "고객명"}</TableHead>
-                <TableHead className="whitespace-nowrap text-center">
+                {showColumn("customerName") && <TableHead>{paidRoster ? "결제자" : "고객명"}</TableHead>}
+                {showColumn("groupChat") && <TableHead className="whitespace-nowrap text-center">
                   단톡방 참여
-                </TableHead>
-                <TableHead className="whitespace-nowrap text-center">
+                </TableHead>}
+                {showColumn("extraParticipant") && <TableHead className="whitespace-nowrap text-center">
                   별도 추가 인원
-                </TableHead>
-                <TableHead>{paidRoster ? "결제자 연락처" : "연락처"}</TableHead>
-                {paidRoster && <TableHead>수신 수강생</TableHead>}
-                <TableHead>이메일</TableHead>
-                <TableHead>옵션명</TableHead>
-                {paidRoster ? <><TableHead>결제방법</TableHead><TableHead>RS</TableHead><TableHead>결제ID</TableHead><TableHead className="text-right">결제금액</TableHead></> : <><TableHead>추천인</TableHead><TableHead>유입 경로</TableHead><TableHead>광고 매체</TableHead></>}
-                <TableHead>비고</TableHead>
+                </TableHead>}
+                {showColumn("phone") && <TableHead>{paidRoster ? "결제자 연락처" : "연락처"}</TableHead>}
+                {paidRoster && showColumn("recipient") && <TableHead>수신 수강생</TableHead>}
+                {showColumn("email") && <TableHead>이메일</TableHead>}
+                {showColumn("optionName") && <TableHead>옵션명</TableHead>}
+                {paidRoster ? <>
+                  {showColumn("paymentMethod") && <TableHead>결제방법</TableHead>}
+                  {showColumn("rs") && <TableHead>RS</TableHead>}
+                  {showColumn("paymentId") && <TableHead>결제ID</TableHead>}
+                  {showColumn("paymentAmount") && <TableHead className="text-right">결제금액</TableHead>}
+                </> : <><TableHead>추천인</TableHead><TableHead>유입 경로</TableHead><TableHead>광고 매체</TableHead></>}
+                {showColumn("memo") && <TableHead>비고</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -603,7 +612,7 @@ export function RosterDetailClient({
                       }
                     />
                   </TableCell>
-                  <TableCell className="font-medium">
+                  {showColumn("customerName") && <TableCell className="font-medium">
                     <ManualEnrollmentName
                       paidRoster={paidRoster}
                       jobId={jobId}
@@ -629,8 +638,8 @@ export function RosterDetailClient({
                         중복
                       </Badge>
                     )}
-                  </TableCell>
-                  <TableCell>
+                  </TableCell>}
+                  {showColumn("groupChat") && <TableCell>
                     <div className="flex justify-center">
                       <Checkbox
                         aria-label={`${row.values.customerName || "수강생"} 단톡방 참여`}
@@ -641,8 +650,8 @@ export function RosterDetailClient({
                         }
                       />
                     </div>
-                  </TableCell>
-                  <TableCell>
+                  </TableCell>}
+                  {showColumn("extraParticipant") && <TableCell>
                     <div className="flex justify-center">
                       <Checkbox
                         aria-label={`${row.values.customerName || "수강생"} 별도 추가 인원`}
@@ -653,26 +662,26 @@ export function RosterDetailClient({
                         }
                       />
                     </div>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
+                  </TableCell>}
+                  {showColumn("phone") && <TableCell className="font-mono text-sm">
                     {formatPhone(row.normalizedPhone)}
-                  </TableCell>
-                  {paidRoster && <TableCell className="min-w-40">
+                  </TableCell>}
+                  {paidRoster && showColumn("recipient") && <TableCell className="min-w-40">
                     {row.values.hasDifferentStudent ? <div className="space-y-1">
                       <Badge variant="secondary">수강생 연결</Badge>
                       <p className="font-medium">{rosterRecipient(row).name || "이름 확인 필요"}</p>
                       <p className="whitespace-nowrap font-mono text-xs">{formatPhone(rosterRecipient(row).phone) || "전화번호 확인 필요"}</p>
                     </div> : <span className="text-sm text-muted-foreground">결제자 본인</span>}
                   </TableCell>}
-                  <TableCell>{row.values.email || "-"}</TableCell>
-                  <TableCell>{row.values.optionName || "-"}</TableCell>
+                  {showColumn("email") && <TableCell>{row.values.email || "-"}</TableCell>}
+                  {showColumn("optionName") && <TableCell>{row.values.optionName || "-"}</TableCell>}
                   {paidRoster ? <>
-                    <TableCell>{row.values.paymentMethod || "—"}</TableCell>
-                    <TableCell>{row.values.rs || row.values.source || "—"}</TableCell>
-                    <TableCell><PaymentIdButton value={row.values.paymentId} name={row.values.customerName} /></TableCell>
-                    <TableCell className="text-right tabular-nums">{row.values.paymentAmount ? `${Number(row.values.paymentAmount).toLocaleString("ko-KR")}원` : "—"}</TableCell>
+                    {showColumn("paymentMethod") && <TableCell>{row.values.paymentMethod || "—"}</TableCell>}
+                    {showColumn("rs") && <TableCell>{row.values.rs || row.values.source || "—"}</TableCell>}
+                    {showColumn("paymentId") && <TableCell><PaymentIdButton value={row.values.paymentId} name={row.values.customerName} /></TableCell>}
+                    {showColumn("paymentAmount") && <TableCell className="text-right tabular-nums">{row.values.paymentAmount ? `${Number(row.values.paymentAmount).toLocaleString("ko-KR")}원` : "—"}</TableCell>}
                   </> : <><TableCell>{row.values.referrer || "-"}</TableCell><TableCell>{row.values.source || "-"}</TableCell><TableCell>{row.values.adMedia || "-"}</TableCell></>}
-                  <TableCell>
+                  {showColumn("memo") && <TableCell>
                     <EnrollmentMemoInput
                       jobId={jobId}
                       enrollmentId={row.id}
@@ -686,7 +695,7 @@ export function RosterDetailClient({
                         )
                       }
                     />
-                  </TableCell>
+                  </TableCell>}
                 </TableRow>
               ))}
             </TableBody>
