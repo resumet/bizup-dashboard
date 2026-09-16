@@ -54,9 +54,25 @@ test("옵션별 인원은 중복을 제외하고 매출·기여도는 모든 주
   assert.equal(basic.people, 1); assert.equal(basic.count, 2); assert.equal(basic.amount, 200.30);
   assert.equal(basic.contribution, 20030 / 60070 * 100);
   assert.equal(result.options.find(item => item.optionName === "")?.people, 1);
+  assert.deepEqual(result.inflowTypes, [{ inflowType: "광고 유입", people: 2, count: 4 }]);
   assert.ok(Math.abs(result.options.reduce((sum, item) => sum + item.contribution!, 0) - 100) < 1e-9);
   assert.equal(summarizeOrderStudents([{ ...students[0], amount: 0 }]).options[0].contribution, null);
-  assert.deepEqual(summarizeOrderStudents([]), { people: 0, count: 0, amount: 0, options: [] });
+  assert.deepEqual(summarizeOrderStudents([]), { people: 0, count: 0, amount: 0, options: [], inflowTypes: [] });
+});
+
+test("트래킹 유입구분별 인원은 같은 사람의 중복 결제를 제외한다", () => {
+  const students = createOrderStudentRoster([
+    order,
+    { ...order, id: "2" },
+    { ...order, id: "3", inflowType: "검색 유입" },
+    { ...order, id: "4", phone: "01099998888", email: "other@example.com", inflowType: "검색 유입" },
+    { ...order, id: "5", phone: "01077776666", email: "none@example.com", inflowType: "" },
+  ]);
+  assert.deepEqual(summarizeOrderStudents(students).inflowTypes, [
+    { inflowType: "검색 유입", people: 2, count: 2 },
+    { inflowType: "", people: 1, count: 1 },
+    { inflowType: "광고 유입", people: 1, count: 2 },
+  ]);
 });
 
 test("공개 명단 CSV에 트래킹 유입구분을 포함하고 엑셀 수식 실행을 막는다", () => {

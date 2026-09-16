@@ -50,10 +50,14 @@ export function summarizeOrderStudents(students: OrderStudent[]) {
   };
   const totalCents = students.reduce((sum, student) => sum + Math.round(student.amount * 100), 0);
   const groups = new Map<string, { people: Set<string>; count: number; cents: number }>();
+  const inflowGroups = new Map<string, { people: Set<string>; count: number }>();
   for (const student of students) {
     const group = groups.get(student.optionName) ?? { people: new Set<string>(), count: 0, cents: 0 };
     group.people.add(personKey(student)); group.count++; group.cents += Math.round(student.amount * 100);
     groups.set(student.optionName, group);
+    const inflowGroup = inflowGroups.get(student.inflowType) ?? { people: new Set<string>(), count: 0 };
+    inflowGroup.people.add(personKey(student)); inflowGroup.count++;
+    inflowGroups.set(student.inflowType, inflowGroup);
   }
   return {
     people: new Set(students.map(personKey)).size, count: students.length, amount: totalCents / 100,
@@ -61,6 +65,9 @@ export function summarizeOrderStudents(students: OrderStudent[]) {
       optionName, people: group.people.size, count: group.count, amount: group.cents / 100,
       contribution: totalCents > 0 ? group.cents / totalCents * 100 : null,
     })).sort((a, b) => b.amount - a.amount || a.optionName.localeCompare(b.optionName, "ko-KR")),
+    inflowTypes: [...inflowGroups].map(([inflowType, group]) => ({
+      inflowType, people: group.people.size, count: group.count,
+    })).sort((a, b) => b.people - a.people || a.inflowType.localeCompare(b.inflowType, "ko-KR")),
   };
 }
 
