@@ -24,6 +24,25 @@ export function formatOrderStudentPhone(value: string) {
   return normalizeOrderStudentPhone(value).replace(/^(010)(\d{4})(\d{4})$/u, "$1-$2-$3") || value.trim() || "—";
 }
 
+function csvCell(value: string | number) {
+  let text = String(value);
+  if (/^[=+\-@]/u.test(text.trimStart())) text = `'${text}`;
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
+export function createOrderStudentCsv(students: OrderStudent[]) {
+  const headers = ["번호", "이름", "전화번호", "이메일", "옵션명", "트래킹 유입구분"];
+  const rows = students.map((student, index) => [
+    index + 1,
+    student.name,
+    formatOrderStudentPhone(student.phone),
+    student.email,
+    student.optionName,
+    student.inflowType,
+  ]);
+  return `\uFEFF${[headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n")}`;
+}
+
 export function summarizeOrderStudents(students: OrderStudent[]) {
   const personKey = (student: OrderStudent) => {
     const phone = normalizeOrderStudentPhone(student.phone);

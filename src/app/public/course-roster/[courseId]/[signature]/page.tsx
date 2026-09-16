@@ -47,7 +47,7 @@ export default async function PublicCourseRosterPage({ params }: Props) {
         </div>
       </header>
       <div className="mx-auto max-w-6xl px-5 py-8 lg:px-8">
-        <PublicCourseStudentRoster students={students} />
+        <PublicCourseStudentRoster courseName={course.name} students={students} />
         <p className="mt-5 text-center text-xs text-muted-foreground">
           링크를 전달받은 사람만 확인할 수 있으며 현재 결제완료 주문을 기준으로 자동 갱신됩니다.
         </p>

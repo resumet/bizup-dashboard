@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createOrderStudentRoster, normalizeOrderStudentPhone, formatOrderStudentPhone, summarizeOrderStudents } from "./student-roster";
+import { createOrderStudentCsv, createOrderStudentRoster, normalizeOrderStudentPhone, formatOrderStudentPhone, summarizeOrderStudents } from "./student-roster";
 import type { SavedCourseOrder } from "./types";
 
 const order: SavedCourseOrder = {
@@ -57,4 +57,17 @@ test("옵션별 인원은 중복을 제외하고 매출·기여도는 모든 주
   assert.ok(Math.abs(result.options.reduce((sum, item) => sum + item.contribution!, 0) - 100) < 1e-9);
   assert.equal(summarizeOrderStudents([{ ...students[0], amount: 0 }]).options[0].contribution, null);
   assert.deepEqual(summarizeOrderStudents([]), { people: 0, count: 0, amount: 0, options: [] });
+});
+
+test("공개 명단 CSV에 트래킹 유입구분을 포함하고 엑셀 수식 실행을 막는다", () => {
+  const csv = createOrderStudentCsv([{
+    ...createOrderStudentRoster([order])[0],
+    name: '=HYPERLINK("https://example.com")',
+    inflowType: "유튜브, 광고",
+  }]);
+  assert.ok(csv.startsWith("\uFEFF"));
+  assert.ok(csv.includes('"트래킹 유입구분"'));
+  assert.ok(csv.includes('"\'=HYPERLINK(""https://example.com"")"'));
+  assert.ok(csv.includes('"유튜브, 광고"'));
+  assert.ok(csv.includes('"010-1234-5678"'));
 });
