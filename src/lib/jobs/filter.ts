@@ -12,6 +12,8 @@ export function filterRosterRows(rows: RosterRow[], filters: RosterFilters) {
         row.normalizedPhone,
         values.referrer,
         values.rs ?? "",
+        values.studentName ?? "",
+        values.studentPhone ?? "",
         row.memo,
       ].some((value) => value.toLocaleLowerCase("ko-KR").includes(keyword));
     return (

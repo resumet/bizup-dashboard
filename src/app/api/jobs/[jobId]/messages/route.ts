@@ -5,6 +5,7 @@ import {
   filterRosterRows,
 } from "@/lib/jobs/filter";
 import { loadJobRoster } from "@/lib/jobs/server";
+import { resolveRosterMessageTargets } from "@/lib/messages/roster-recipients";
 import { EMPTY_ROSTER_FILTERS, type RosterFilters } from "@/lib/jobs/types";
 import {
   optionKey,
@@ -84,10 +85,10 @@ export async function POST(request: Request, { params }: Context) {
         : body.scope === "filtered"
           ? filterRosterRows(rows, filters)
           : rows.filter((row) => selected.has(row.id));
-    const targets = filterGroupChatNonParticipants(
+    const targets = resolveRosterMessageTargets(filterGroupChatNonParticipants(
       scopeTargets,
       body.onlyGroupChatNonParticipants === true,
-    );
+    ));
     if (targets.length === 0) {
       return Response.json(
         { message: "발송 대상이 없습니다." },

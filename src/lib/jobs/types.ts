@@ -1,4 +1,5 @@
 import type { StandardField } from "@/lib/import/contract";
+import type { LinkedStudentValues } from "./linked-student";
 
 export type RosterRow = {
   id: string;
@@ -9,7 +10,7 @@ export type RosterRow = {
   isExtraParticipant: boolean;
   isManuallyAdded: boolean;
   memo: string;
-  values: Record<StandardField, string> & Partial<Record<"paymentMethod" | "paymentId" | "paymentAmount" | "rs" | "orderRecordKey", string>>;
+  values: Record<StandardField, string> & LinkedStudentValues & Partial<Record<"paymentMethod" | "paymentId" | "paymentAmount" | "rs" | "orderRecordKey", string>>;
 };
 
 export type RosterFilters = {

@@ -3,7 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AddressBookContactRow } from "@/lib/address-books/load";
 import { loadJobEnrollmentRows } from "@/lib/jobs/server";
-import { dedupeMessageRecipientsByPhone } from "./dispatch";
+import { resolveRosterMessageTargets } from "./roster-recipients";
 import { parseRecipientSource } from "./recipient-source";
 
 export async function loadMessageSource(supabase: SupabaseClient, sourceId: string) {
@@ -29,15 +29,14 @@ export async function loadRosterMessageContacts(
 ): Promise<AddressBookContactRow[]> {
   const rows = await loadJobEnrollmentRows(supabase, jobId, version);
   const selected = selectedIds ? new Set(selectedIds) : null;
-  return dedupeMessageRecipientsByPhone(
-    rows
-      .filter((row) => !selected || selected.has(row.id))
-      .map((row) => ({
+  const targets = resolveRosterMessageTargets(rows.filter((row) => !selected || selected.has(row.id)));
+  if (targets.some((row) => row.values.hasDifferentStudent && (!row.normalizedPhone || !row.values.customerName))) {
+    throw new Error("연결된 실제 수강생의 이름과 전화번호를 확인해 주세요.");
+  }
+  return targets.map((row) => ({
         id: row.id,
         name: row.values?.customerName ?? "",
         email: row.values?.email ?? "",
         normalized_phone: row.normalizedPhone,
-      })),
-    (contact) => contact.normalized_phone,
-  );
+      }));
 }

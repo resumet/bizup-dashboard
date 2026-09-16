@@ -1,5 +1,6 @@
 import { refundDate } from "@/lib/jobs/refund";
 import { parseEnrollmentMemo } from "@/lib/jobs/enrollment-memo";
+import { parseLinkedStudent, type LinkedStudentValues } from "@/lib/jobs/linked-student";
 import {
   parseManualEnrollmentInput,
   type ManualEnrollmentInput,
@@ -20,6 +21,13 @@ const MANUAL_DETAIL_FIELDS = [
   "referrer",
   "source",
   "adMedia",
+  "paymentMethod",
+  "paymentId",
+  "paymentAmount",
+  "rs",
+  "hasDifferentStudent",
+  "studentName",
+  "studentPhone",
 ] as const;
 
 type ManualDetailField = (typeof MANUAL_DETAIL_FIELDS)[number];
@@ -43,7 +51,12 @@ export async function PATCH(request: Request, { params }: Context) {
     return Response.json({ message: "로그인이 필요합니다." }, { status: 401 });
   }
 
-  const body = (await request.json()) as RequestBody;
+  const input = await request.json().catch(() => null);
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return Response.json({ message: "수강생 정보를 확인해 주세요." }, { status: 400 });
+  }
+  const body = input as RequestBody;
+  const hasStudentLink = ["hasDifferentStudent", "studentName", "studentPhone"].some((key) => hasOwn(body, key as keyof RequestBody));
   const hasGroupChatJoined = hasOwn(body, "groupChatJoined");
   const hasExtraParticipant = hasOwn(body, "isExtraParticipant");
   const hasRefund = hasOwn(body, "refund");
@@ -83,7 +96,7 @@ export async function PATCH(request: Request, { params }: Context) {
 
   const { data: job } = await supabase
     .from("course_jobs")
-    .select("id,workspace_id,latest_version")
+    .select("id,workspace_id,latest_version,is_order_roster")
     .eq("id", jobId)
     .maybeSingle();
   if (!job) {
@@ -94,6 +107,9 @@ export async function PATCH(request: Request, { params }: Context) {
   }
 
   const admin = createAdminClient();
+  if (hasStudentLink && !job.is_order_roster) {
+    return Response.json({ message: "결제자와 수강생 연결은 유료수강생 명단에서 설정해 주세요." }, { status: 400 });
+  }
   const { data: enrollment, error: loadError } = await admin
     .from("job_enrollments")
     .select(
@@ -117,6 +133,7 @@ export async function PATCH(request: Request, { params }: Context) {
     const values = { ...enrollment.normalized_values, refundedAt: new Date().toISOString(), refundedBy: user.id };
     const { data: updated, error } = await admin.from("job_enrollments").update({ normalized_values: values })
       .eq("id", enrollmentId).eq("job_id", jobId).eq("version", job.latest_version)
+      .eq("normalized_values", JSON.stringify(enrollment.normalized_values))
       .is("normalized_values->>refundedAt", null).select("id").maybeSingle();
     if (error || !updated) return Response.json({ message: "환불 상태를 저장하지 못했습니다. 명단을 새로고침해 주세요." }, { status: 409 });
     await admin.from("audit_logs").insert({ workspace_id: job.workspace_id, actor_id: user.id, event_type: "course_job.enrollment_refunded", entity_type: "course_job", entity_id: jobId, metadata: { enrollment_id: enrollmentId, version: job.latest_version } });
@@ -136,6 +153,7 @@ export async function PATCH(request: Request, { params }: Context) {
       : {};
 
   let manualInput: ManualEnrollmentInput | undefined;
+  let linkedStudent: LinkedStudentValues | undefined;
   if (hasManualDetails) {
     try {
       manualInput = parseManualEnrollmentInput({
@@ -156,7 +174,20 @@ export async function PATCH(request: Request, { params }: Context) {
         adMedia: hasOwn(body, "adMedia")
           ? body.adMedia
           : normalizedValues.adMedia,
+        ...(job.is_order_roster ? Object.fromEntries(["rs", "paymentMethod", "paymentId", "paymentAmount"].map((field) => [field,
+          hasOwn(body, field as keyof RequestBody) ? body[field as keyof RequestBody] : normalizedValues[field] ?? "",
+        ])) : {}),
       });
+      if (job.is_order_roster) {
+        manualInput.source = manualInput.rs ?? "";
+      }
+      if (hasStudentLink) {
+        linkedStudent = parseLinkedStudent({
+          hasDifferentStudent: hasOwn(body, "hasDifferentStudent") ? body.hasDifferentStudent : normalizedValues.hasDifferentStudent ?? false,
+          studentName: hasOwn(body, "studentName") ? body.studentName : normalizedValues.studentName,
+          studentPhone: hasOwn(body, "studentPhone") ? body.studentPhone : normalizedValues.studentPhone,
+        });
+      }
     } catch (error) {
       return Response.json(
         {
@@ -170,7 +201,7 @@ export async function PATCH(request: Request, { params }: Context) {
     }
   }
 
-  if (manualInput) {
+  if (manualInput && manualInput.normalizedPhone !== enrollment.normalized_phone) {
     const { data: duplicate, error: duplicateError } = await admin
       .from("job_enrollments")
       .select("id")
@@ -237,8 +268,10 @@ export async function PATCH(request: Request, { params }: Context) {
           referrer: manualInput.referrer,
           source: manualInput.source,
           adMedia: manualInput.adMedia,
+          ...(job.is_order_roster ? { rs: manualInput.rs, paymentMethod: manualInput.paymentMethod, paymentId: manualInput.paymentId, paymentAmount: manualInput.paymentAmount } : {}),
         }
       : {}),
+    ...linkedStudent,
     ...(hasGroupChatJoined
       ? { groupChatJoined: body.groupChatJoined }
       : {}),
@@ -271,12 +304,13 @@ export async function PATCH(request: Request, { params }: Context) {
     .eq("id", enrollmentId)
     .eq("job_id", jobId)
     .eq("version", job.latest_version)
+    .eq("normalized_values", JSON.stringify(normalizedValues))
     .is("normalized_values->>refundedAt", null).select("id").maybeSingle();
 
   if (updateError || !savedEnrollment) {
     return Response.json(
-      { message: `수강생 정보 저장 실패: ${updateError?.code ?? "환불 상태 또는 명단 변경"}` },
-      { status: 400 },
+      { message: updateError ? `수강생 정보 저장 실패: ${updateError.code}` : "다른 변경이 먼저 저장되었습니다. 명단을 새로고침한 뒤 다시 수정해 주세요." },
+      { status: 409 },
     );
   }
 
@@ -299,6 +333,7 @@ export async function PATCH(request: Request, { params }: Context) {
           adMedia: normalizedValues.adMedia ?? null,
         },
         updated_values: manualInput,
+        ...(linkedStudent ? { linked_student: linkedStudent } : {}),
         version: job.latest_version,
       },
     });

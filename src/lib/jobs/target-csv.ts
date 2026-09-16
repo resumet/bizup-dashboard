@@ -1,4 +1,5 @@
 import type { RosterRow } from "./types";
+import { rosterRecipient, type LinkedStudentValues } from "./linked-student";
 
 function csvCell(value: string) {
   return `"${value.replaceAll('"', '""')}"`;
@@ -11,15 +12,15 @@ function formatPhone(phone: string) {
 export function buildTargetContactCsv(
   rows: ReadonlyArray<{
     normalizedPhone: RosterRow["normalizedPhone"];
-    values: Pick<RosterRow["values"], "customerName">;
+    values: Pick<RosterRow["values"], "customerName"> & LinkedStudentValues;
   }>,
 ) {
   const records = [
     ["이름", "전화번호"],
-    ...rows.map((row) => [
-      row.values.customerName.trim(),
-      formatPhone(row.normalizedPhone),
-    ]),
+    ...rows.map((row) => {
+      const recipient = rosterRecipient(row);
+      return [recipient.name.trim(), formatPhone(recipient.phone)];
+    }),
   ];
 
   return `\uFEFF${records

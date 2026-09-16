@@ -19,6 +19,8 @@ import {
 
 import { RosterUpdateDialog } from "@/components/jobs/roster-update-dialog";
 import { PaymentIdButton } from "@/components/jobs/payment-id-button";
+import { rosterRecipient } from "@/lib/jobs/linked-student";
+import { resolveRosterMessageTargets } from "@/lib/messages/roster-recipients";
 import { RosterAnalysisCards } from "@/components/jobs/roster-analysis-cards";
 import { DeleteSelectedEnrollmentsButton } from "@/components/jobs/delete-selected-enrollments-button";
 import { EnrollmentMemoInput } from "@/components/jobs/enrollment-memo-input";
@@ -359,7 +361,7 @@ export function RosterDetailClient({
       serializeRosterSelection(
         sourceId,
         selectedRows.map((row) => row.id),
-        selectedRows.map((row) => ({
+        resolveRosterMessageTargets(selectedRows).map((row) => ({
           id: row.id,
           name: row.values.customerName,
           phone: row.normalizedPhone,
@@ -571,14 +573,15 @@ export function RosterDetailClient({
                     onCheckedChange={(value) => toggleFiltered(value === true)}
                   />
                 </TableHead>
-                <TableHead>고객명</TableHead>
+                <TableHead>{paidRoster ? "결제자" : "고객명"}</TableHead>
                 <TableHead className="whitespace-nowrap text-center">
                   단톡방 참여
                 </TableHead>
                 <TableHead className="whitespace-nowrap text-center">
                   별도 추가 인원
                 </TableHead>
-                <TableHead>연락처</TableHead>
+                <TableHead>{paidRoster ? "결제자 연락처" : "연락처"}</TableHead>
+                {paidRoster && <TableHead>수신 수강생</TableHead>}
                 <TableHead>이메일</TableHead>
                 <TableHead>옵션명</TableHead>
                 {paidRoster ? <><TableHead>결제방법</TableHead><TableHead>RS</TableHead><TableHead>결제ID</TableHead><TableHead className="text-right">결제금액</TableHead></> : <><TableHead>추천인</TableHead><TableHead>유입 경로</TableHead><TableHead>광고 매체</TableHead></>}
@@ -602,6 +605,7 @@ export function RosterDetailClient({
                   </TableCell>
                   <TableCell className="font-medium">
                     <ManualEnrollmentName
+                      paidRoster={paidRoster}
                       jobId={jobId}
                       enrollmentId={row.id}
                       normalizedPhone={row.normalizedPhone}
@@ -653,6 +657,13 @@ export function RosterDetailClient({
                   <TableCell className="font-mono text-sm">
                     {formatPhone(row.normalizedPhone)}
                   </TableCell>
+                  {paidRoster && <TableCell className="min-w-40">
+                    {row.values.hasDifferentStudent ? <div className="space-y-1">
+                      <Badge variant="secondary">수강생 연결</Badge>
+                      <p className="font-medium">{rosterRecipient(row).name || "이름 확인 필요"}</p>
+                      <p className="whitespace-nowrap font-mono text-xs">{formatPhone(rosterRecipient(row).phone) || "전화번호 확인 필요"}</p>
+                    </div> : <span className="text-sm text-muted-foreground">결제자 본인</span>}
+                  </TableCell>}
                   <TableCell>{row.values.email || "-"}</TableCell>
                   <TableCell>{row.values.optionName || "-"}</TableCell>
                   {paidRoster ? <>
@@ -924,10 +935,10 @@ export function MessageDialog({
 
   const scopeTargets =
     scope === "all" ? rows : scope === "filtered" ? filteredRows : selectedRows;
-  const targets = filterGroupChatNonParticipants(
+  const targets = resolveRosterMessageTargets(filterGroupChatNonParticipants(
     scopeTargets,
     onlyGroupChatNonParticipants,
-  );
+  ));
   const targetOptionKeys = [
     ...new Set(targets.map((row) => optionKey(row.values.optionName))),
   ];

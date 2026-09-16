@@ -5,11 +5,12 @@ import { readSheet, type SheetData } from "read-excel-file/node";
 
 import { STANDARD_FIELDS, type ImportPreview, type StandardField } from "./contract";
 import { parsePaymentAmount, type PaymentFields } from "@/lib/jobs/payment-fields";
+import type { LinkedStudentValues } from "@/lib/jobs/linked-student";
 
 export type StoredRosterRecord = {
   sourceRowNumber: number;
   normalizedPhone: string;
-  normalizedValues: Record<StandardField, string> & PaymentFields & {
+  normalizedValues: Record<StandardField, string> & PaymentFields & LinkedStudentValues & {
     groupChatJoined?: boolean;
     memo?: string;
   };

@@ -49,7 +49,7 @@ test("주문 명단 저장은 강의별로 격리하고 반복 저장·추가·�
     assert.equal(rows[0].normalized_values.source, "RS 파트너");
     assert.equal(rows[0].normalized_values.paymentId, "pay-test");
     assert.equal(rows[0].normalized_values.paymentAmount, "120000.00");
-    await db.query(`update job_enrollments set normalized_values=normalized_values || '{"groupChatJoined":true,"memo":"참여 확인"}',is_extra_participant=true where id=$1`, [rows[0].id]);
+    await db.query(`update job_enrollments set normalized_values=normalized_values || '{"groupChatJoined":true,"memo":"참여 확인","hasDifferentStudent":true,"studentName":"실제학생","studentPhone":"01055556666"}',is_extra_participant=true where id=$1`, [rows[0].id]);
     await db.query(`insert into job_enrollments(job_id,version,normalized_phone,source_row_number,is_manually_added,normalized_values) values($1,1,'01088889999',3,true,'{"customerName":"수동학생","groupChatJoined":false}')`, [job]);
     await db.query("update course_orders set payment_method='계좌이체',payment_amount=130000 where id=$1", [first]);
     assert.equal(await save([first, second]), job);
@@ -58,6 +58,9 @@ test("주문 명단 저장은 강의별로 격리하고 반복 저장·추가·�
     const saved = rows.find((row) => row.normalized_values.orderRecordKey === "first")!;
     assert.equal(saved.normalized_values.groupChatJoined, true);
     assert.equal(saved.normalized_values.memo, "참여 확인");
+    assert.equal(saved.normalized_values.hasDifferentStudent, true);
+    assert.equal(saved.normalized_values.studentName, "실제학생");
+    assert.equal(saved.normalized_values.studentPhone, "01055556666");
     assert.equal(saved.is_extra_participant, true);
     assert.equal(saved.normalized_values.paymentMethod, "계좌이체");
     assert.equal(rows.filter((row) => row.is_manually_added).length, 1);
@@ -86,12 +89,15 @@ test("엑셀에 결제정보가 있으면 추가하고, 없는 파일로 갱신�
   const parse = (csv: string) => analyzeRosterCsv(new TextEncoder().encode(csv),"paid.csv").records;
   const current = parse('이름,연락처,RS,결제방법,결제ID,결제금액\n학생,01012345678,파트너,카드,pay-1,"120,000"');
   assert.deepEqual({rs:current[0].normalizedValues.rs,method:current[0].normalizedValues.paymentMethod,id:current[0].normalizedValues.paymentId,amount:current[0].normalizedValues.paymentAmount}, {rs:"파트너",method:"카드",id:"pay-1",amount:"120000"});
-  Object.assign(current[0].normalizedValues, {orderRecordKey:"key",groupChatJoined:true,memo:"메모"});
+  Object.assign(current[0].normalizedValues, {orderRecordKey:"key",groupChatJoined:true,memo:"메모",hasDifferentStudent:true,studentName:"실제학생",studentPhone:"01055556666"});
   const incoming = parse("이름,연락처\n학생,01012345678\n추가,01055556666");
   const updated: StoredRosterRecord[] = buildUpdatedRosterRecords(current,incoming,{approveAdditions:true,approveRemovals:false});
   assert.equal(updated.length,2);
   assert.equal(updated[0].normalizedValues.paymentId,"pay-1");
   assert.equal(updated[0].normalizedValues.rs,"파트너");
   assert.equal(updated[0].normalizedValues.groupChatJoined,true);
+  assert.equal(updated[0].normalizedValues.hasDifferentStudent,true);
+  assert.equal(updated[0].normalizedValues.studentName,"실제학생");
+  assert.equal(updated[0].normalizedValues.studentPhone,"01055556666");
   assert.equal((updated[0].normalizedValues as Record<string,unknown>).orderRecordKey,"key");
 });

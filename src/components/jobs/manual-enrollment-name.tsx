@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { RosterRow } from "@/lib/jobs/types";
 
 type ManualForm = {
@@ -25,6 +26,13 @@ type ManualForm = {
   referrer: string;
   source: string;
   adMedia: string;
+  paymentMethod: string;
+  paymentId: string;
+  paymentAmount: string;
+  rs: string;
+  hasDifferentStudent: boolean;
+  studentName: string;
+  studentPhone: string;
 };
 
 type SavedEnrollment = {
@@ -38,12 +46,14 @@ export function ManualEnrollmentName({
   normalizedPhone,
   values,
   onSaved,
+  paidRoster = false,
 }: {
   jobId: string;
   enrollmentId: string;
   normalizedPhone: string;
   values: RosterRow["values"];
   onSaved: (enrollment: SavedEnrollment) => void;
+  paidRoster?: boolean;
 }) {
   const fieldPrefix = useId();
   const [open, setOpen] = useState(false);
@@ -53,7 +63,7 @@ export function ManualEnrollmentName({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  function setField(field: keyof ManualForm, value: string) {
+  function setField<K extends keyof ManualForm>(field: K, value: ManualForm[K]) {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
@@ -72,7 +82,10 @@ export function ManualEnrollmentName({
       const response = await fetch(`/api/jobs/${jobId}/enrollments/${enrollmentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(paidRoster ? form : {
+          customerName: form.customerName, phone: form.phone, email: form.email, optionName: form.optionName,
+          referrer: form.referrer, source: form.source, adMedia: form.adMedia,
+        }),
       });
       const body = (await response.json()) as {
         message?: string;
@@ -118,10 +131,10 @@ export function ManualEnrollmentName({
         <Pencil className="size-3.5" />
       </Button>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
           <form onSubmit={save} className="space-y-5">
             <DialogHeader>
-              <DialogTitle>수강생 상세보기</DialogTitle>
+              <DialogTitle>수강생 정보 수정</DialogTitle>
               <DialogDescription>
                 수강생 정보를 수정하거나 환불자로 표시합니다. 환불 처리는 결제 취소가 아닌 명단 상태 변경입니다.
               </DialogDescription>
@@ -135,7 +148,7 @@ export function ManualEnrollmentName({
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 id={`${fieldPrefix}-name`}
-                label="이름"
+                label={paidRoster ? "결제자 이름" : "이름"}
                 required
                 maxLength={120}
                 value={form.customerName}
@@ -143,7 +156,7 @@ export function ManualEnrollmentName({
               />
               <FormField
                 id={`${fieldPrefix}-phone`}
-                label="연락처"
+                label={paidRoster ? "결제자 전화번호" : "연락처"}
                 required
                 inputMode="tel"
                 placeholder="010-0000-0000"
@@ -163,7 +176,12 @@ export function ManualEnrollmentName({
                 value={form.optionName}
                 onChange={(value) => setField("optionName", value)}
               />
-              <FormField
+              {paidRoster ? <>
+                <FormField id={`${fieldPrefix}-rs`} label="RS" value={form.rs} onChange={(value) => setField("rs", value)} />
+                <FormField id={`${fieldPrefix}-payment-method`} label="결제방법" value={form.paymentMethod} onChange={(value) => setField("paymentMethod", value)} />
+                <FormField id={`${fieldPrefix}-payment-amount`} label="결제금액" inputMode="decimal" value={form.paymentAmount} onChange={(value) => setField("paymentAmount", value)} />
+                <FormField id={`${fieldPrefix}-payment-id`} label="결제ID" value={form.paymentId} onChange={(value) => setField("paymentId", value)} />
+              </> : <><FormField
                 id={`${fieldPrefix}-referrer`}
                 label="추천인"
                 value={form.referrer}
@@ -180,8 +198,21 @@ export function ManualEnrollmentName({
                 label="광고 매체"
                 value={form.adMedia}
                 onChange={(value) => setField("adMedia", value)}
-              />
+              /></>}
             </div>
+            {paidRoster && <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
+              <div className="flex items-center gap-2">
+                <Checkbox id={`${fieldPrefix}-different-student`} checked={form.hasDifferentStudent} onCheckedChange={(checked) => setField("hasDifferentStudent", checked === true)} />
+                <Label htmlFor={`${fieldPrefix}-different-student`}>결제자와 수강생 다름</Label>
+              </div>
+              {form.hasDifferentStudent ? <>
+                <p className="text-sm text-muted-foreground">문자·알림톡은 아래 실제 수강생에게만 발송합니다. 결제자 정보는 결제 내역 확인용으로 보관합니다.</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField id={`${fieldPrefix}-student-name`} label="실제 수강생 이름" required maxLength={120} value={form.studentName} onChange={(value) => setField("studentName", value)} />
+                  <FormField id={`${fieldPrefix}-student-phone`} label="실제 수강생 전화번호" required inputMode="tel" placeholder="010-0000-0000" value={form.studentPhone} onChange={(value) => setField("studentPhone", value)} />
+                </div>
+              </> : <p className="text-sm text-muted-foreground">결제자 본인이 수강하며, 결제자 전화번호로 문자·알림톡을 발송합니다.</p>}
+            </div>}
             <DialogFooter>
               <Button type="button" variant="destructive" disabled={saving} onClick={() => void markRefunded()}>환불 처리</Button>
               <Button
@@ -194,7 +225,7 @@ export function ManualEnrollmentName({
               </Button>
               <Button
                 type="submit"
-                disabled={saving || !form.customerName.trim() || !form.phone.trim()}
+                disabled={saving || !form.customerName.trim() || !form.phone.trim() || (paidRoster && form.hasDifferentStudent && (!form.studentName.trim() || !form.studentPhone.trim()))}
               >
                 {saving ? <Loader2 className="animate-spin" /> : null}
                 {saving ? "저장 중" : "저장"}
@@ -219,6 +250,13 @@ function createForm(
     referrer: values.referrer,
     source: values.source,
     adMedia: values.adMedia,
+    rs: values.rs ?? "",
+    paymentMethod: values.paymentMethod ?? "",
+    paymentId: values.paymentId ?? "",
+    paymentAmount: values.paymentAmount ?? "",
+    hasDifferentStudent: values.hasDifferentStudent === true,
+    studentName: values.studentName ?? "",
+    studentPhone: values.studentPhone ?? "",
   };
 }
 
@@ -239,7 +277,7 @@ function FormField({
   onChange: (value: string) => void;
   required?: boolean;
   type?: "text" | "email";
-  inputMode?: "tel";
+  inputMode?: "tel" | "decimal";
   placeholder?: string;
   maxLength?: number;
 }) {

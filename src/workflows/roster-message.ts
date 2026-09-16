@@ -5,6 +5,7 @@ import {
   filterRosterRows,
 } from "@/lib/jobs/filter";
 import { loadJobRoster } from "@/lib/jobs/server";
+import { resolveRosterMessageTargets } from "@/lib/messages/roster-recipients";
 import {
   EMPTY_ROSTER_FILTERS,
   type RosterFilters,
@@ -12,7 +13,6 @@ import {
 import { dispatchDirectalkMessageBatch } from "@/lib/messages/directalk-batch-dispatch";
 import {
   chunkMessageRecipients,
-  dedupeMessageRecipientsByPhone,
   messageDispatchBatchSize,
   resolveMessageJobStatus,
 } from "@/lib/messages/dispatch";
@@ -94,12 +94,11 @@ async function prepareRosterRecipients(input: RosterMessageWorkflowInput) {
       : input.scope === "filtered"
         ? filterRosterRows(rows, filters)
         : rows.filter((row) => selectedIds.has(row.id));
-  const targets = dedupeMessageRecipientsByPhone(
+  const targets = resolveRosterMessageTargets(
     filterGroupChatNonParticipants(
       scopeTargets,
       input.onlyGroupChatNonParticipants,
     ),
-    (target) => target.normalizedPhone,
   );
 
   if (targets.length === 0) throw new Error("발송 대상이 없습니다.");
