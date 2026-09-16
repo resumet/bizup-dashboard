@@ -924,10 +924,10 @@ export function CourseOperationsEditor({
           <TabsTrigger value="students" className="h-10 min-w-0 px-2 md:min-w-32 md:px-5">
             수강생명단
           </TabsTrigger>
-          <TabsTrigger value="paid-students" disabled={!courseId} className="h-10 min-w-0 px-2">유료수강생</TabsTrigger>
           <TabsTrigger value="orders" disabled={!courseId} className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             주문 내역
           </TabsTrigger>
+          <TabsTrigger value="paid-students" disabled={!courseId} className="h-10 min-w-0 px-2">유료수강생</TabsTrigger>
           <TabsTrigger value="messages" className="h-10 min-w-0 px-2 md:min-w-32 md:px-5">
             단톡방문자
           </TabsTrigger>
