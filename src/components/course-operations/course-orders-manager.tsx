@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { filterCourseOrders, isAwaitingDeposit, summarizeCourseOrders } from "@/lib/course-orders/filter";
+import { filterCourseOrders, isAwaitingDeposit, summarizeCourseOrderOverview } from "@/lib/course-orders/filter";
 import { shortestSelectedCourseName } from "@/lib/course-orders/parse";
 import { createOrderStudentRoster } from "@/lib/course-orders/student-roster";
 import { CourseOrderStudentRoster } from "./course-order-student-roster";
@@ -75,7 +75,7 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
   const scopedOrders = orderView === "awaitingDeposit" ? awaitingDeposit : data.orders;
   const filtered = useMemo(() => filterCourseOrders(scopedOrders, filters), [scopedOrders, filters]);
   const students = useMemo(() => createOrderStudentRoster(data.orders).filter((student) => !excludedOrderIds.has(student.orderId)), [data.orders, excludedOrderIds]);
-  const totals = useMemo(() => summarizeCourseOrders(filtered), [filtered]);
+  const overview = useMemo(() => summarizeCourseOrderOverview(data.orders), [data.orders]);
   const choices = useMemo(() => Object.fromEntries(ORDER_CATEGORY_FILTERS.map(([key]) =>
     [key, [...new Set(scopedOrders.map((row) => row[key]))].sort((a, b) => a.localeCompare(b, "ko-KR"))],
   )), [scopedOrders]);
@@ -186,6 +186,29 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
       {loadError ? <Alert variant="destructive"><AlertTitle>주문 내역 조회 실패</AlertTitle><AlertDescription>{loadError}</AlertDescription></Alert> : null}
       {loading ? <p role="status" className="text-sm text-muted-foreground">주문 내역을 불러오는 중입니다.</p> : !loadError ? (
         <>
+          <section aria-label="전체 주문 요약" className="space-y-3">
+            <p className="text-sm text-muted-foreground">이 강의에 저장된 전체 주문 기준입니다.</p>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              {([
+                ["결제완료", overview.completedCount, "text-emerald-700 dark:text-emerald-400"],
+                ["입금대기", overview.awaitingDepositCount, "text-amber-700 dark:text-amber-400"],
+                ["환불", overview.refundedCount, "text-rose-700 dark:text-rose-400"],
+                ["전체 주문", overview.count, ""],
+              ] as const).map(([label, count, color]) => <Card key={label} role="group" aria-label={`${label} 건수`}>
+                <CardContent><p className="text-sm text-muted-foreground">{label}</p><p className={`mt-2 text-2xl font-semibold tabular-nums ${color}`}>{count.toLocaleString("ko-KR")}<span className="ml-1 text-sm font-normal text-muted-foreground">건</span></p></CardContent>
+              </Card>)}
+            </div>
+            <div className="grid gap-3 lg:grid-cols-3">
+              {[
+                ["현 결제금액 합계", money(overview.currentAmount), "전체 주문의 현 결제금액 기준"],
+                ["입금대기 합계", money(overview.awaitingDepositAmount), "입금대기 상태가 포함된 주문의 결제금액 기준"],
+                ["환불금액 합계", money(overview.refundAmount), "전체 주문의 환불금액 기준 · 부분환불 포함"],
+              ].map(([label, amount, description]) => <Card key={label} role="group" aria-label={label}>
+                <CardContent><p className="text-sm text-muted-foreground">{label}</p><p className="mt-2 break-all text-2xl font-semibold tabular-nums">{amount}</p><p className="mt-2 text-xs text-muted-foreground">{description}</p></CardContent>
+              </Card>)}
+            </div>
+            <p className="text-xs text-muted-foreground">환불 건수에는 부분환불이 포함됩니다. 분할결제 등으로 여러 상태가 포함된 주문은 상태별 건수에 중복 집계될 수 있습니다.</p>
+          </section>
           <Tabs value={orderView} onValueChange={(value) => {
             setOrderView(value === "awaitingDeposit" ? "awaitingDeposit" : "all");
             changeFilters(EMPTY_ORDER_FILTERS);
@@ -234,12 +257,7 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
               <Button type="button" size="sm" variant="outline" onClick={() => changeFilters(EMPTY_ORDER_FILTERS)}>필터 초기화</Button>
             </CardContent>
           </Card>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {[
-              [orderView === "awaitingDeposit" ? "입금대기 주문항목" : "현재 필터 주문항목", `${totals.count.toLocaleString("ko-KR")}건 / ${orderView === "awaitingDeposit" ? "입금대기" : "전체"} ${scopedOrders.length.toLocaleString("ko-KR")}건`],
-              ["결제금액 합계", money(totals.paymentAmount)], ["환불금액 합계", money(totals.refundAmount)], ["현 결제금액 합계", money(totals.currentAmount)],
-            ].map(([label, value]) => <Card key={label}><CardContent><p className="text-sm text-muted-foreground">{label}</p><p className="mt-2 text-xl font-semibold tabular-nums">{value}</p></CardContent></Card>)}
-          </div>
+          <p className="text-sm text-muted-foreground">조회 {filtered.length.toLocaleString("ko-KR")}건 / {orderView === "awaitingDeposit" ? "입금대기" : "전체"} {scopedOrders.length.toLocaleString("ko-KR")}건</p>
           <Card className="overflow-hidden">
             <div className="overflow-x-auto">
               <Table aria-label={orderView === "awaitingDeposit" ? "입금대기 주문 내역" : "전체 주문 내역"}>

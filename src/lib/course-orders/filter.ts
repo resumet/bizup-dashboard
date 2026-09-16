@@ -31,3 +31,26 @@ export function summarizeCourseOrders(rows: CourseOrder[]) {
     currentAmount: sum.currentAmount + row.currentAmount,
   }), { count: 0, paymentAmount: 0, refundAmount: 0, currentAmount: 0 });
 }
+
+export function summarizeCourseOrderOverview(rows: CourseOrder[]) {
+  const summary = { count: rows.length, completedCount: 0, awaitingDepositCount: 0, refundedCount: 0,
+    currentAmount: 0, awaitingDepositAmount: 0, refundAmount: 0 };
+  // Sum in cents so decimal amounts do not accumulate floating-point error.
+  for (const row of rows) {
+    const statuses = row.status.normalize("NFKC").split("/").map((status) => status.replace(/\s/gu, ""));
+    if (statuses.length === 1 && statuses[0] === "결제완료") summary.completedCount += 1;
+    if (isAwaitingDeposit(row)) {
+      summary.awaitingDepositCount += 1;
+      summary.awaitingDepositAmount += Math.round(row.paymentAmount * 100);
+    }
+    if (row.refundAmount !== 0 || row.refundDate || statuses.some((status) => ["환불", "환불완료", "전액환불", "부분환불"].includes(status))) {
+      summary.refundedCount += 1;
+    }
+    summary.currentAmount += Math.round(row.currentAmount * 100);
+    summary.refundAmount += Math.round(row.refundAmount * 100);
+  }
+  summary.currentAmount /= 100;
+  summary.awaitingDepositAmount /= 100;
+  summary.refundAmount /= 100;
+  return summary;
+}
