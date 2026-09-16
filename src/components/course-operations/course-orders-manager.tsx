@@ -10,7 +10,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { filterCourseOrders, summarizeCourseOrders } from "@/lib/course-orders/filter";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { filterCourseOrders, isAwaitingDeposit, summarizeCourseOrders } from "@/lib/course-orders/filter";
 import { shortestSelectedCourseName } from "@/lib/course-orders/parse";
 import { createOrderStudentRoster } from "@/lib/course-orders/student-roster";
 import { CourseOrderStudentRoster } from "./course-order-student-roster";
@@ -53,6 +54,7 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
   const [products, setProducts] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [filters, setFilters] = useState<CourseOrderFilters>(EMPTY_ORDER_FILTERS);
+  const [orderView, setOrderView] = useState<"all" | "awaitingDeposit">("all");
   const [page, setPage] = useState(1);
   const [reload, setReload] = useState(0);
   const [rosterCourseId, setRosterCourseId] = useState<string | null>(null);
@@ -69,12 +71,14 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
     return () => controller.abort();
   }, [endpoint, reload]);
 
-  const filtered = useMemo(() => filterCourseOrders(data.orders, filters), [data.orders, filters]);
+  const awaitingDeposit = useMemo(() => data.orders.filter(isAwaitingDeposit), [data.orders]);
+  const scopedOrders = orderView === "awaitingDeposit" ? awaitingDeposit : data.orders;
+  const filtered = useMemo(() => filterCourseOrders(scopedOrders, filters), [scopedOrders, filters]);
   const students = useMemo(() => createOrderStudentRoster(data.orders).filter((student) => !excludedOrderIds.has(student.orderId)), [data.orders, excludedOrderIds]);
   const totals = useMemo(() => summarizeCourseOrders(filtered), [filtered]);
   const choices = useMemo(() => Object.fromEntries(ORDER_CATEGORY_FILTERS.map(([key]) =>
-    [key, [...new Set(data.orders.map((row) => row[key]))].sort((a, b) => a.localeCompare(b, "ko-KR"))],
-  )), [data.orders]);
+    [key, [...new Set(scopedOrders.map((row) => row[key]))].sort((a, b) => a.localeCompare(b, "ko-KR"))],
+  )), [scopedOrders]);
   const selectedCount = preview?.products.reduce((sum, product) => sum + (products.has(product.name) ? product.count : 0), 0) ?? 0;
   const selectedCourseName = shortestSelectedCourseName(products);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -182,6 +186,16 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
       {loadError ? <Alert variant="destructive"><AlertTitle>주문 내역 조회 실패</AlertTitle><AlertDescription>{loadError}</AlertDescription></Alert> : null}
       {loading ? <p role="status" className="text-sm text-muted-foreground">주문 내역을 불러오는 중입니다.</p> : !loadError ? (
         <>
+          <Tabs value={orderView} onValueChange={(value) => {
+            setOrderView(value === "awaitingDeposit" ? "awaitingDeposit" : "all");
+            changeFilters(EMPTY_ORDER_FILTERS);
+          }}>
+            <TabsList aria-label="주문 내역 보기" className="w-full sm:w-fit">
+              <TabsTrigger value="all" className="px-4">전체 주문 ({data.orders.length.toLocaleString("ko-KR")})</TabsTrigger>
+              <TabsTrigger value="awaitingDeposit" className="px-4">입금대기 ({awaitingDeposit.length.toLocaleString("ko-KR")})</TabsTrigger>
+            </TabsList>
+            <TabsContent value={orderView} className="space-y-5">
+              {orderView === "awaitingDeposit" && <p className="text-sm text-muted-foreground">주문상태가 입금대기인 항목을 모아 보여줍니다. 분할결제 중 입금대기인 항목이 있는 주문도 포함합니다.</p>}
           <Card>
             <CardHeader><CardTitle className="text-base">주문 필터</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -222,23 +236,25 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
           </Card>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {[
-              ["현재 필터 주문항목", `${totals.count.toLocaleString("ko-KR")}건 / 전체 ${data.orders.length.toLocaleString("ko-KR")}건`],
+              [orderView === "awaitingDeposit" ? "입금대기 주문항목" : "현재 필터 주문항목", `${totals.count.toLocaleString("ko-KR")}건 / ${orderView === "awaitingDeposit" ? "입금대기" : "전체"} ${scopedOrders.length.toLocaleString("ko-KR")}건`],
               ["결제금액 합계", money(totals.paymentAmount)], ["환불금액 합계", money(totals.refundAmount)], ["현 결제금액 합계", money(totals.currentAmount)],
             ].map(([label, value]) => <Card key={label}><CardContent><p className="text-sm text-muted-foreground">{label}</p><p className="mt-2 text-xl font-semibold tabular-nums">{value}</p></CardContent></Card>)}
           </div>
           <Card className="overflow-hidden">
             <div className="overflow-x-auto">
-              <Table>
+              <Table aria-label={orderView === "awaitingDeposit" ? "입금대기 주문 내역" : "전체 주문 내역"}>
                 <TableHeader><TableRow>{COLUMNS.map((column) => <TableHead key={column.key} className={column.money ? "text-right" : ""}>{column.label}</TableHead>)}</TableRow></TableHeader>
                 <TableBody>{visible.map((row) => <TableRow key={row.id}>{COLUMNS.map((column) => <TableCell key={column.key} className={column.money ? "text-right tabular-nums" : column.key === "productName" ? "min-w-72 max-w-96 whitespace-normal" : ""}>{column.money ? money(Number(row[column.key])) : row[column.key] || "-"}</TableCell>)}</TableRow>)}</TableBody>
               </Table>
             </div>
-            {!filtered.length ? <p className="p-10 text-center text-sm text-muted-foreground">{data.orders.length ? "조건에 맞는 주문이 없습니다." : "저장된 주문 내역이 없습니다. 위에서 주문결제 엑셀을 가져오세요."}</p> : null}
+            {!filtered.length ? <p className="p-10 text-center text-sm text-muted-foreground">{orderView === "awaitingDeposit" && !awaitingDeposit.length ? "입금대기인 주문이 없습니다. 입금대기 내역이 포함된 주문결제 엑셀을 가져오면 여기에 표시됩니다." : scopedOrders.length ? "조건에 맞는 주문이 없습니다." : "저장된 주문 내역이 없습니다. 위에서 주문결제 엑셀을 가져오세요."}</p> : null}
             <div className="flex items-center justify-between gap-3 border-t p-4 text-sm">
               <span>{currentPage} / {pageCount}페이지 · 페이지당 {PAGE_SIZE}건</span>
               <div className="flex gap-2"><Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>이전</Button><Button variant="outline" size="sm" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>다음</Button></div>
             </div>
           </Card>
+            </TabsContent>
+          </Tabs>
           {data.imports.length ? <Card><CardHeader><CardTitle className="text-base">최근 가져오기 이력</CardTitle></CardHeader><CardContent><ul className="space-y-2 text-sm">{data.imports.map((item) => <li key={item.id} className="flex flex-wrap justify-between gap-2"><span className="break-all">{item.fileName} · {item.rowCount.toLocaleString("ko-KR")}건</span><span className="text-muted-foreground">{new Date(item.createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}</span></li>)}</ul></CardContent></Card> : null}
           {rosterCourseId === courseId && <div id="course-order-student-roster" className="scroll-mt-6"><CourseOrderStudentRoster key={courseId} courseId={courseId} students={students} onSaved={onRosterSaved} onDelete={(orderId) => setExcludedOrderIds((current) => new Set(current).add(orderId))} onRestore={(orderId) => setExcludedOrderIds((current) => { const next = new Set(current); next.delete(orderId); return next; })} /></div>}
         </>

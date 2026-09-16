@@ -1,5 +1,10 @@
 import type { CourseOrder, CourseOrderFilters } from "./types";
 
+export function isAwaitingDeposit(order: Pick<CourseOrder, "status">) {
+  // Split payments can combine statuses, e.g. "결제완료 / 입금대기".
+  return order.status.normalize("NFKC").split("/").some((status) => status.replace(/\s/gu, "") === "입금대기");
+}
+
 export function filterCourseOrders<T extends CourseOrder>(rows: T[], filters: CourseOrderFilters): T[] {
   const keyword = filters.keyword.trim().toLocaleLowerCase("ko-KR");
   const inRange = (value: number, min: string, max: string) =>
