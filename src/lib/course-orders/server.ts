@@ -57,10 +57,17 @@ export function toOrderRecord(row: CourseOrder) {
 }
 
 export async function saveCourseOrders(admin: ReturnType<typeof createAdminClient>, courseId: string, userId: string, fileName: string, rows: CourseOrder[]) {
-  const { error } = await admin.rpc("import_course_orders", {
+  const { data: importId, error } = await admin.rpc("import_course_orders", {
     p_course_id: courseId, p_actor_id: userId, p_file_name: fileName, p_rows: rows.map(toOrderRecord),
   });
   if (error) throw databaseError(error.code);
+  if (typeof importId !== "string") throw new CourseOrderError("주문 가져오기 결과를 확인하지 못했습니다.", 500);
+
+  // Rows touched by this upload now reference its import. Remove untouched rows so
+  // the selected rows in the latest workbook are the course's source of truth.
+  const { error: cleanupError } = await admin.from("course_orders").delete()
+    .eq("course_id", courseId).neq("import_id", importId);
+  if (cleanupError) throw new CourseOrderError(`이전 주문 정리에 실패했습니다. (${cleanupError.code})`, 500);
 }
 
 export async function loadCourseOrders(admin: ReturnType<typeof createAdminClient>, courseId: string): Promise<CourseOrdersResponse> {

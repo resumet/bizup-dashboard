@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { loadCourseOrders, readCourseOrderUpload, toOrderRecord } from "./server";
+import { loadCourseOrders, readCourseOrderUpload, saveCourseOrders, toOrderRecord } from "./server";
+import type { CourseOrder } from "./types";
 import { COURSE_ORDER_HEADERS, parseCourseOrders } from "./parse";
 
 test("조회는 1,000건 제한을 넘어 모든 페이지를 읽고 저장 필드를 복원한다", async () => {
@@ -41,4 +42,42 @@ test("업로드 API는 확장자·크기·손상된 엑셀을 검증한다", asy
     const form = new FormData(); form.set("file", new File([bytes], name));
     await assert.rejects(readCourseOrderUpload(form), message);
   }
+});
+
+test("새 주문 파일을 저장한 뒤 이전 파일에서만 남은 주문을 정리한다", async () => {
+  const calls: unknown[] = [];
+  const cleanup = {
+    eq: (column: string, value: string) => {
+      calls.push(["eq", column, value]);
+      return cleanup;
+    },
+    neq: async (column: string, value: string) => {
+      calls.push(["neq", column, value]);
+      return { error: null };
+    },
+  };
+  const admin = {
+    rpc: async (name: string, input: unknown) => {
+      calls.push(["rpc", name, input]);
+      return { data: "00000000-0000-4000-8000-000000000099", error: null };
+    },
+    from: (table: string) => {
+      calls.push(["from", table]);
+      return { delete: () => cleanup };
+    },
+  } as unknown as Parameters<typeof saveCourseOrders>[0];
+  const order: CourseOrder = {
+    productName: "강의 - 기본반", optionName: "기본반", memberName: "수강생",
+    phone: "01012345678", email: "student@example.com", paymentAmount: 1000,
+    refundAmount: 0, currentAmount: 1000, status: "결제완료", paymentMethod: "카드",
+    rs: "", adMedia: "", inflowType: "", paymentId: "payment", refundDate: "", orderId: "order",
+  };
+
+  await saveCourseOrders(admin, "00000000-0000-4000-8000-000000000001", "user", "orders.xlsx", [order]);
+
+  assert.deepEqual(calls.slice(-3), [
+    ["from", "course_orders"],
+    ["eq", "course_id", "00000000-0000-4000-8000-000000000001"],
+    ["neq", "import_id", "00000000-0000-4000-8000-000000000099"],
+  ]);
 });

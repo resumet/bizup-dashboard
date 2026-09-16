@@ -102,7 +102,7 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange }
     try {
       const body = new FormData(); body.set("file", file); body.set("products", JSON.stringify([...products]));
       const result = await responseData<{ savedCount: number; courseName?: string; warning?: string }>(await fetch(endpoint, { method: "POST", body }));
-      setNotice(`${result.savedCount.toLocaleString("ko-KR")}건을 저장했습니다.${result.courseName ? ` 강의명: ${result.courseName}.` : ""} 동일 주문항목은 최신 정보로 갱신했습니다.`);
+      setNotice(`${result.savedCount.toLocaleString("ko-KR")}건을 저장했습니다.${result.courseName ? ` 강의명: ${result.courseName}.` : ""} 선택한 주문항목을 최신 명단으로 반영했습니다.`);
       if (result.warning) setError(result.warning);
       if (result.courseName) onCourseNameChange?.(result.courseName);
       router.refresh();
@@ -130,7 +130,7 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange }
               {busy ? <Loader2 className="animate-spin" /> : <Upload />}파일 분석
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">주문항목명 원문을 보관하고 마지막 ‘ - ’ 오른쪽을 옵션명으로 분류합니다. 분할결제는 같은 주문번호끼리 금액을 합산해 한 건으로 저장합니다. 같은 주문을 다시 올리면 갱신되며, 파일에 없는 기존 주문은 유지됩니다.</p>
+          <p className="text-xs text-muted-foreground">주문항목명 원문을 보관하고 마지막 ‘ - ’ 오른쪽을 옵션명으로 분류합니다. 분할결제는 같은 주문번호끼리 금액을 합산해 한 건으로 저장합니다. 선택한 주문항목이 이 강의의 최신 주문 전체로 반영되며, 새 파일에 없는 이전 주문은 정리됩니다.</p>
           {preview ? (
             <div className="space-y-3 rounded-lg border p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
