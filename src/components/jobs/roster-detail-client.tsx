@@ -90,10 +90,6 @@ import {
   type InviteValues,
 } from "@/lib/messages/invite";
 import {
-  recommendInviteLinks,
-  type InviteLinkSuggestion,
-} from "@/lib/messages/invite-suggestions";
-import {
   MESSAGE_SCOPE_LABELS,
   MESSAGE_TEMPLATE_LABELS,
   type MessageHistoryItem,
@@ -942,10 +938,6 @@ export function MessageDialog({
   const [sending, setSending] = useState(false);
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState("");
-  const [inviteLinkSuggestions, setInviteLinkSuggestions] = useState<
-    InviteLinkSuggestion[]
-  >([]);
-  const [suggestionError, setSuggestionError] = useState("");
 
   const scopeTargets =
     scope === "all" ? rows : scope === "filtered" ? filteredRows : selectedRows;
@@ -982,47 +974,6 @@ export function MessageDialog({
       ?.values.courseName ||
     defaultCourseName.trim();
 
-  useEffect(() => {
-    if (!open) return;
-    const controller = new AbortController();
-
-    async function loadSuggestions() {
-      try {
-        const response = await fetch(
-          `/api/jobs/${jobId}/invite-link-suggestions`,
-          { signal: controller.signal },
-        );
-        const body = await response.json();
-        if (!response.ok) {
-          throw new Error(body.message ?? "추천 링크를 불러오지 못했습니다.");
-        }
-        setInviteLinkSuggestions(
-          Array.isArray(body.suggestions) ? body.suggestions : [],
-        );
-        setSuggestionError("");
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        setSuggestionError(
-          error instanceof Error
-            ? error.message
-            : "추천 링크를 불러오지 못했습니다.",
-        );
-      }
-    }
-
-    void loadSuggestions();
-    return () => controller.abort();
-  }, [jobId, open]);
-
-  function courseNameForOption(key: string) {
-    return (
-      courseName.trim() ||
-      targets.find((row) => optionKey(row.values.optionName) === key)?.values
-        .courseName ||
-      defaultCourseName.trim()
-    );
-  }
-
   function downloadTargetContacts() {
     if (targets.length === 0) return;
 
@@ -1035,41 +986,6 @@ export function MessageDialog({
     anchor.download = targetContactCsvFileName(jobName);
     anchor.click();
     URL.revokeObjectURL(url);
-  }
-
-  async function saveInviteLinkSuggestion(key: string, linkName: string) {
-    if (validateInviteValues({ entryCode: "1234", linkName }).length > 0) {
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `/api/jobs/${jobId}/invite-link-suggestions`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            courseName: courseNameForOption(key),
-            optionName: key,
-            linkName,
-          }),
-        },
-      );
-      const body = await response.json();
-      if (!response.ok) {
-        throw new Error(body.message ?? "추천 링크를 저장하지 못했습니다.");
-      }
-      if (body.suggestion) {
-        setInviteLinkSuggestions((current) => [body.suggestion, ...current]);
-      }
-      setSuggestionError("");
-    } catch (error) {
-      setSuggestionError(
-        error instanceof Error
-          ? error.message
-          : "추천 링크를 저장하지 못했습니다.",
-      );
-    }
   }
 
   function updateOptionInvite(
@@ -1281,13 +1197,7 @@ export function MessageDialog({
                   entryCode: "",
                   linkName: "",
                 };
-                const recommendedLinks = recommendInviteLinks(
-                  inviteLinkSuggestions,
-                  courseNameForOption(key),
-                  key,
-                ).filter(
-                  (suggestion) => suggestion.linkName !== values.linkName,
-                );
+                const savedLinkMissing = values.linkName && !invites.links.some(link => link.url === values.linkName);
                 return (
                   <div key={key} className="grid gap-3 rounded-lg border p-3">
                     <p className="text-sm font-semibold">{optionLabel(key)}</p>
@@ -1310,60 +1220,37 @@ export function MessageDialog({
                           }
                         />
                       </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor={`link-name-${key}`}>
-                          입장 링크 (https://)
-                        </Label>
-                        <Input
-                          id={`link-name-${key}`}
-                          type="url"
-                          placeholder="https://..."
+                      <div className="grid min-w-0 gap-2">
+                        <Label htmlFor={`link-name-${key}`}>입장 링크</Label>
+                        <Select
                           value={values.linkName}
-                          maxLength={2048}
-                          onChange={(event) =>
-                            updateOptionInvite(
-                              key,
-                              "linkName",
-                              event.target.value,
-                            )
-                          }
-                          onBlur={() => {
+                          disabled={!invites.loaded}
+                          onValueChange={(value) => {
+                            updateOptionInvite(key, "linkName", value);
                             void invites.save();
-                            void saveInviteLinkSuggestion(key, values.linkName);
                           }}
-                        />
-                        {recommendedLinks.length > 0 ? (
-                          <details className="min-w-0 text-xs">
-                            <summary className="cursor-pointer text-muted-foreground">
-                              강의명·옵션명 기준 추천
-                            </summary>
-                            <div className="mt-2 grid gap-1.5">
-                            {recommendedLinks.map((suggestion) => (
-                              <Button
-                                key={`${suggestion.linkName}-${suggestion.usedAt}`}
-                                type="button"
-                                variant="outline"
-                                size="xs"
-                                className="h-auto min-w-0 justify-start px-2 py-1.5 text-left font-normal"
-                                title={`${suggestion.courseName} · ${optionLabel(suggestion.optionName)}`}
-                                onClick={() => {
-                                  updateOptionInvite(
-                                    key,
-                                    "linkName",
-                                    suggestion.linkName,
-                                  );
-                                  void invites.save();
-                                }}
-                              >
-                                <History className="shrink-0" />
-                                <span className="truncate">
-                                  {suggestion.linkName}
+                        >
+                          <SelectTrigger id={`link-name-${key}`} className="min-w-0">
+                            <SelectValue placeholder="강의 링크 선택">{values.linkName ? invites.links.find(link => link.url === values.linkName)?.label ?? "저장된 링크 (강의 목록에 없음)" : undefined}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent position="popper" className="max-w-[calc(100vw-3rem)] sm:max-w-md">
+                            {invites.links.map(link => (
+                              <SelectItem key={link.url} value={link.url} disabled={!/^https:/iu.test(link.url)} textValue={link.label}>
+                                <span className="grid min-w-0 gap-1">
+                                  <span className="whitespace-normal break-words font-medium">{link.label}{!/^https:/iu.test(link.url) ? " (HTTPS 필요)" : ""}</span>
+                                  <span className="break-all whitespace-normal text-xs text-muted-foreground">{link.url}</span>
                                 </span>
-                              </Button>
+                              </SelectItem>
                             ))}
-                            </div>
-                          </details>
-                        ) : null}
+                            {savedLinkMissing && <SelectItem value={values.linkName} textValue="저장된 링크 (강의 목록에 없음)">저장된 링크 (강의 목록에 없음)</SelectItem>}
+                            {!invites.links.length && !savedLinkMissing && <SelectItem value="__no_course_links" disabled>등록된 강의 링크가 없습니다.</SelectItem>}
+                          </SelectContent>
+                        </Select>
+                        {values.linkName && <p className="break-all text-xs text-muted-foreground">선택된 링크: {values.linkName}</p>}
+                        <p className="text-xs text-muted-foreground">
+                          {invites.links.length ? "선택하면 이 명단에 자동 저장됩니다." : "연결된 강의의 링크 관리에 링크를 등록해 주세요."}
+                          {invites.courseId && <> <Link href={`/services/course-operations/${invites.courseId}`} target="_blank" rel="noreferrer" className="underline underline-offset-2">강의 링크 관리</Link></>}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -1377,9 +1264,6 @@ export function MessageDialog({
                   </AlertDescription>
                 </Alert>
               )}
-              {suggestionError ? (
-                <p className="text-xs text-destructive">{suggestionError}</p>
-              ) : null}
             </fieldset>
           )}
           <div className="rounded-lg border bg-muted/35 p-3 text-sm">

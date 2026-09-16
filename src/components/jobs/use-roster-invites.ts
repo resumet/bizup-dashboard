@@ -2,10 +2,13 @@
 
 import { useRef, useState } from "react";
 import type { InviteValues } from "@/lib/messages/invite";
+import type { CourseInviteLink } from "@/lib/messages/course-invite-links";
 
 /** Queue saves so a slow earlier request cannot overwrite a newer edit. */
 export function useRosterInvites(jobId: string, defaults: Record<string, InviteValues>) {
   const [optionInvites, setOptionInvites] = useState(defaults);
+  const [links, setLinks] = useState<CourseInviteLink[]>([]);
+  const [courseId, setCourseId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -27,6 +30,8 @@ export function useRosterInvites(jobId: string, defaults: Record<string, InviteV
       saved.current = body.optionInvites;
       current.current = { ...defaults, ...body.optionInvites };
       setOptionInvites(current.current);
+      setLinks(body.links ?? []);
+      setCourseId(body.courseId ?? null);
       ready.current = true;
       setLoaded(true);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "입장정보를 불러오지 못했습니다."); }
@@ -65,5 +70,5 @@ export function useRosterInvites(jobId: string, defaults: Record<string, InviteV
     return pending;
   }
 
-  return { optionInvites, loading, loaded, saving, status, error, load, update, save };
+  return { optionInvites, links, courseId, loading, loaded, saving, status, error, load, update, save };
 }
