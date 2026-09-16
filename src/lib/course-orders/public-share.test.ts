@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   courseRosterSharePath,
+  courseRosterShareTitle,
   createCourseRosterShareSignature,
   verifyCourseRosterShareSignature,
 } from "./public-share";
@@ -20,4 +21,10 @@ test("강의별 서명 링크를 만들고 위조된 서명을 거부한다", ()
     `/public/course-roster/${courseId}/${signature}`,
   );
   assert.throws(() => createCourseRosterShareSignature("invalid", secret));
+});
+
+test("공유 페이지 제목을 강사명과 강의명으로 만든다", () => {
+  assert.equal(courseRosterShareTitle(" 김강사 ", " 기본반 "), "김강사 - 기본반 결제명단");
+  assert.equal(courseRosterShareTitle("", "기본반"), "기본반 결제명단");
+  assert.equal(courseRosterShareTitle("", ""), "강의 결제명단");
 });

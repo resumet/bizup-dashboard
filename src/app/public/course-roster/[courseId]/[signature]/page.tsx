@@ -1,34 +1,55 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
+import { cache } from "react";
 
 import { PublicCourseStudentRoster } from "@/components/course-operations/public-course-student-roster";
-import { verifyCourseRosterShareSignature } from "@/lib/course-orders/public-share";
+import { courseRosterShareTitle, verifyCourseRosterShareSignature } from "@/lib/course-orders/public-share";
 import { loadCourseOrders } from "@/lib/course-orders/server";
 import { createOrderStudentRoster } from "@/lib/course-orders/student-roster";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = {
-  title: "수강생 명단",
-  robots: { index: false, follow: false, nocache: true },
-};
 
 type Props = { params: Promise<{ courseId: string; signature: string }> };
 
-export default async function PublicCourseRosterPage({ params }: Props) {
-  const { courseId, signature } = await params;
+const loadSharedCourse = cache(async (courseId: string, signature: string) => {
   const secret = process.env.COURSE_INTAKE_SESSION_SECRET?.trim() ?? "";
-  if (!verifyCourseRosterShareSignature(courseId, signature, secret)) notFound();
+  if (!verifyCourseRosterShareSignature(courseId, signature, secret)) return null;
 
-  const admin = createAdminClient();
-  const { data: course, error: courseError } = await admin
+  const { data, error } = await createAdminClient()
     .from("courses")
     .select("name,instructor_name")
     .eq("id", courseId)
     .maybeSingle();
-  if (courseError || !course) notFound();
+  return error ? null : data;
+});
 
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { courseId, signature } = await params;
+  const course = await loadSharedCourse(courseId, signature);
+  const title = course
+    ? courseRosterShareTitle(course.instructor_name ?? "", course.name)
+    : "결제명단";
+  const description = course
+    ? `${course.name} 결제완료 수강생 명단`
+    : "공유된 결제완료 수강생 명단";
+
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: "website" },
+    twitter: { card: "summary", title, description },
+    robots: { index: false, follow: false, nocache: true },
+  };
+}
+
+export default async function PublicCourseRosterPage({ params }: Props) {
+  const { courseId, signature } = await params;
+  const course = await loadSharedCourse(courseId, signature);
+  if (!course) notFound();
+
+  const admin = createAdminClient();
   const { orders } = await loadCourseOrders(admin, courseId);
   const students = createOrderStudentRoster(orders);
 

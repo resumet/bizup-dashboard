@@ -22,3 +22,9 @@ export function courseRosterSharePath(courseId: string, signature: string) {
   if (!UUID_PATTERN.test(courseId) || !SIGNATURE_PATTERN.test(signature)) throw new Error("공유 링크가 올바르지 않습니다.");
   return `/public/course-roster/${courseId}/${signature}`;
 }
+
+export function courseRosterShareTitle(instructorName: string, courseName: string) {
+  const instructor = instructorName.normalize("NFKC").trim();
+  const course = courseName.normalize("NFKC").trim();
+  return `${instructor ? `${instructor} - ` : ""}${course || "강의"} 결제명단`;
+}
