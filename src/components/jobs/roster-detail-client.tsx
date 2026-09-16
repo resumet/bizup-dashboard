@@ -533,25 +533,30 @@ export function RosterDetailClient({
               jobId={jobId}
               selectedIds={selectedRows.map((row) => row.id)}
             />
-            <Select
-              value={sort}
-              onValueChange={(value) => setSort(value as RosterSort)}
-            >
-              <SelectTrigger className="w-44" aria-label="수강생 이름 정렬">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="original">원래 목록순</SelectItem>
-                <SelectItem value="nameAsc">이름 오름차순</SelectItem>
-                <SelectItem value="nameDesc">이름 내림차순</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Label htmlFor={`${jobId}-roster-sort`} className="shrink-0 text-sm text-muted-foreground">
+                목록 정렬
+              </Label>
+              <Select
+                value={sort}
+                onValueChange={(value) => setSort(value as RosterSort)}
+              >
+                <SelectTrigger id={`${jobId}-roster-sort`} className="w-48" aria-label={paidRoster ? "유료수강생 목록 정렬" : "수강생 이름 정렬"}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="original">{paidRoster ? "등록된 순서 (기본)" : "원래 목록순"}</SelectItem>
+                  <SelectItem value="nameAsc">{paidRoster ? "가나다순 (가→하)" : "이름 오름차순"}</SelectItem>
+                  <SelectItem value="nameDesc">{paidRoster ? "가나다 역순 (하→가)" : "이름 내림차순"}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button
               variant="outline"
               onClick={() => setSort("original")}
               disabled={sort === "original"}
             >
-              원래 목록대로
+              {paidRoster ? "처음 순서로" : "원래 목록대로"}
             </Button>
             <Button
               variant="outline"
