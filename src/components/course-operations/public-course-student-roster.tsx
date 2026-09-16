@@ -47,14 +47,14 @@ function RosterPieChart({ id, title, description, items }: { id: string; title: 
             <span className="text-xs text-muted-foreground">구분별 합계</span>
           </div>
         </div>
-        <ul className="grid gap-3 sm:grid-cols-2">
+        <ul className="grid min-w-0 gap-3">
           {items.map((item, index) => (
-            <li key={item.label} className="flex items-center gap-3 rounded-lg border p-3">
-              <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }} />
-              <span className="min-w-0 flex-1 truncate text-sm">{item.label}</span>
-              <span className="whitespace-nowrap font-medium tabular-nums">
+            <li key={item.label} className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-4 py-3">
+              <span className="size-3 rounded-full" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }} />
+              <span className="break-words text-sm leading-5" title={item.label}>{item.label}</span>
+              <span className="whitespace-nowrap text-right font-medium tabular-nums">
                 {item.people.toLocaleString("ko-KR")}명
-                <span className="ml-1 text-xs font-normal text-muted-foreground">({total ? (item.people / total * 100).toFixed(1) : "0.0"}%)</span>
+                <span className="ml-1.5 text-xs font-normal text-muted-foreground">({total ? (item.people / total * 100).toFixed(1) : "0.0"}%)</span>
               </span>
             </li>
           ))}
