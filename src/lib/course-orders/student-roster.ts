@@ -38,9 +38,19 @@ export function maskOrderStudentEmail(value: string) {
   return `${"*".repeat(Array.from(email.slice(0, at)).length)}${email.slice(at)}`;
 }
 
+export function maskOrderStudentName(value: string) {
+  const name = value.normalize("NFKC").trim();
+  const characters = Array.from(name);
+  if (!characters.length) return "—";
+  if (characters.length === 1) return "*";
+  if (characters.length === 2) return `${characters[0]}*`;
+  return `${characters[0]}${"*".repeat(characters.length - 2)}${characters.at(-1)}`;
+}
+
 export function maskOrderStudentsForPublic(students: OrderStudent[]) {
   return students.map((student) => ({
     ...student,
+    name: maskOrderStudentName(student.name),
     phone: maskOrderStudentPhone(student.phone),
     email: maskOrderStudentEmail(student.email),
   }));
@@ -56,7 +66,7 @@ export function createOrderStudentCsv(students: OrderStudent[]) {
   const headers = ["번호", "이름", "전화번호", "이메일", "옵션명", "트래킹 유입구분", "결제금액"];
   const rows = students.map((student, index) => [
     index + 1,
-    student.name,
+    maskOrderStudentName(student.name),
     maskOrderStudentPhone(student.phone),
     maskOrderStudentEmail(student.email),
     student.optionName,

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createOrderStudentCsv, createOrderStudentRoster, normalizeOrderStudentPhone, formatOrderStudentPhone, maskOrderStudentEmail, maskOrderStudentPhone, maskOrderStudentsForPublic, summarizeOrderStudents } from "./student-roster";
+import { createOrderStudentCsv, createOrderStudentRoster, normalizeOrderStudentPhone, formatOrderStudentPhone, maskOrderStudentEmail, maskOrderStudentName, maskOrderStudentPhone, maskOrderStudentsForPublic, summarizeOrderStudents } from "./student-roster";
 import type { SavedCourseOrder } from "./types";
 
 const order: SavedCourseOrder = {
@@ -60,7 +60,12 @@ test("옵션별 인원은 중복을 제외하고 매출·기여도는 모든 주
   assert.deepEqual(summarizeOrderStudents([]), { people: 0, count: 0, amount: 0, options: [], inflowTypes: [] });
 });
 
-test("공개 명단의 전화번호 중간 4자리와 이메일 아이디를 모두 마스킹한다", () => {
+test("공개 명단의 이름·전화번호·이메일을 마스킹한다", () => {
+  assert.equal(maskOrderStudentName("최지원"), "최*원");
+  assert.equal(maskOrderStudentName("김철"), "김*");
+  assert.equal(maskOrderStudentName("남궁민수"), "남**수");
+  assert.equal(maskOrderStudentName("김"), "*");
+  assert.equal(maskOrderStudentName(""), "—");
   assert.equal(maskOrderStudentPhone("010-1234-5678"), "010-****-5678");
   assert.equal(maskOrderStudentPhone("+82 10 1234 5678"), "010-****-5678");
   assert.equal(maskOrderStudentPhone("invalid"), "****");
@@ -69,6 +74,7 @@ test("공개 명단의 전화번호 중간 4자리와 이메일 아이디를 모
   assert.equal(maskOrderStudentEmail("invalid"), "****");
   assert.equal(maskOrderStudentEmail(""), "—");
   const masked = maskOrderStudentsForPublic(createOrderStudentRoster([order]))[0];
+  assert.equal(masked.name, "김*생");
   assert.equal(masked.phone, "010-****-5678");
   assert.equal(masked.email, "*******@example.com");
 });
@@ -97,7 +103,8 @@ test("공개 명단 CSV에 트래킹 유입구분을 포함하고 엑셀 수식 
   assert.ok(csv.startsWith("\uFEFF"));
   assert.ok(csv.includes('"트래킹 유입구분"'));
   assert.ok(csv.includes('"결제금액"'));
-  assert.ok(csv.includes('"\'=HYPERLINK(""https://example.com"")"'));
+  assert.equal(csv.includes("HYPERLINK"), false);
+  assert.ok(csv.includes('"\'='));
   assert.ok(csv.includes('"유튜브, 광고"'));
   assert.ok(csv.includes('"010-****-5678"'));
   assert.ok(csv.includes('"*******@example.com"'));
