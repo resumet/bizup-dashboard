@@ -93,7 +93,7 @@ export async function CourseRosterDetail({ jobId, embedded = false }: { jobId: s
     linkName: option.group_chat_link ?? "",
   }));
 
-  const detail = (<RosterDetailClient key={`${job.id}-${job.latest_version}`} paidRoster={job.is_order_roster === true} jobId={job.id} jobName={job.name} jobVersion={job.latest_version} jobStatus={job.status} defaultCourseName={courseName} rows={rows} messageHistory={messageHistory} linkedCourseOptionInvites={linkedCourseOptionInvites} hasLinkedCourse={Boolean(job.course_id)} currentUserId={user.id} currentUserEmail={user.email ?? "이메일 정보 없음"} notes={notes} notesError={notesError} loadError={enrollmentResult.error?.message ?? courseOptionsResult.error?.message ?? linkedCourseResult.error?.message} historyError={historyError} />);
+  const detail = (<RosterDetailClient key={`${job.id}-${job.latest_version}`} paidRoster={job.is_order_roster === true} courseId={job.course_id ?? undefined} jobId={job.id} jobName={job.name} jobVersion={job.latest_version} jobStatus={job.status} defaultCourseName={courseName} rows={rows} messageHistory={messageHistory} linkedCourseOptionInvites={linkedCourseOptionInvites} hasLinkedCourse={Boolean(job.course_id)} currentUserId={user.id} currentUserEmail={user.email ?? "이메일 정보 없음"} notes={notes} notesError={notesError} loadError={enrollmentResult.error?.message ?? courseOptionsResult.error?.message ?? linkedCourseResult.error?.message} historyError={historyError} />);
   if (embedded) return detail;
   return <main className="min-h-screen">
     <header className="border-b bg-background">

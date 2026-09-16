@@ -5,8 +5,9 @@ import { cache } from "react";
 
 import { PublicCourseStudentRoster } from "@/components/course-operations/public-course-student-roster";
 import { courseRosterShareTitle, verifyCourseRosterShareSignature } from "@/lib/course-orders/public-share";
-import { loadCourseOrders } from "@/lib/course-orders/server";
-import { createOrderStudentRoster, maskOrderStudentsForPublic, summarizeOrderStudents } from "@/lib/course-orders/student-roster";
+import { loadJobEnrollmentRows } from "@/lib/jobs/server";
+import { paidRosterStudents } from "@/lib/course-orders/paid-student-share";
+import { maskOrderStudentsForPublic, summarizeOrderStudents } from "@/lib/course-orders/student-roster";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +20,7 @@ const loadSharedCourse = cache(async (courseId: string, signature: string) => {
 
   const { data, error } = await createAdminClient()
     .from("courses")
-    .select("name,instructor_name")
+    .select("name,instructor_name,order_roster_share_masked")
     .eq("id", courseId)
     .eq("order_roster_share_enabled", true)
     .maybeSingle();
@@ -51,10 +52,12 @@ export default async function PublicCourseRosterPage({ params }: Props) {
   if (!course) notFound();
 
   const admin = createAdminClient();
-  const { orders } = await loadCourseOrders(admin, courseId);
-  const students = createOrderStudentRoster(orders);
+  const { data: job, error } = await admin.from("course_jobs").select("id,latest_version")
+    .eq("course_id", courseId).eq("is_order_roster", true).maybeSingle();
+  if (error || !job) notFound();
+  const students = paidRosterStudents(await loadJobEnrollmentRows(admin, job.id, job.latest_version));
   const summary = summarizeOrderStudents(students);
-  const publicStudents = maskOrderStudentsForPublic(students);
+  const publicStudents = maskOrderStudentsForPublic(students, course.order_roster_share_masked);
 
   return (
     <main className="min-h-screen bg-muted/20">
@@ -73,7 +76,7 @@ export default async function PublicCourseRosterPage({ params }: Props) {
       <div className="mx-auto max-w-6xl px-5 py-8 lg:px-8">
         <PublicCourseStudentRoster courseName={course.name} students={publicStudents} summary={summary} />
         <p className="mt-5 text-center text-xs text-muted-foreground">
-          링크를 전달받은 사람만 확인할 수 있으며 현재 결제완료 주문을 기준으로 자동 갱신됩니다.
+          링크를 전달받은 사람만 확인할 수 있으며 저장된 유료수강생 명단을 기준으로 갱신됩니다.
         </p>
       </div>
     </main>

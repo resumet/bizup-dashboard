@@ -14,7 +14,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { filterCourseOrders, isAwaitingDeposit, summarizeCourseOrderOverview } from "@/lib/course-orders/filter";
 import { shortestSelectedCourseName } from "@/lib/course-orders/parse";
 import { createOrderStudentRoster } from "@/lib/course-orders/student-roster";
-import { CourseOrderStudentRoster } from "./course-order-student-roster";
 import {
   EMPTY_ORDER_FILTERS, ORDER_CATEGORY_FILTERS,
   type CourseOrderFilters, type CourseOrderPreview, type CourseOrdersResponse,
@@ -57,8 +56,6 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
   const [orderView, setOrderView] = useState<"all" | "awaitingDeposit">("all");
   const [page, setPage] = useState(1);
   const [reload, setReload] = useState(0);
-  const [rosterCourseId, setRosterCourseId] = useState<string | null>(null);
-  const [excludedOrderIds, setExcludedOrderIds] = useState<Set<string>>(new Set());
   const endpoint = `/api/course-operations/${courseId}/orders`;
 
   useEffect(() => {
@@ -74,7 +71,7 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
   const awaitingDeposit = useMemo(() => data.orders.filter(isAwaitingDeposit), [data.orders]);
   const scopedOrders = orderView === "awaitingDeposit" ? awaitingDeposit : data.orders;
   const filtered = useMemo(() => filterCourseOrders(scopedOrders, filters), [scopedOrders, filters]);
-  const students = useMemo(() => createOrderStudentRoster(data.orders).filter((student) => !excludedOrderIds.has(student.orderId)), [data.orders, excludedOrderIds]);
+  const students = useMemo(() => createOrderStudentRoster(data.orders), [data.orders]);
   const overview = useMemo(() => summarizeCourseOrderOverview(data.orders), [data.orders]);
   const choices = useMemo(() => Object.fromEntries(ORDER_CATEGORY_FILTERS.map(([key]) =>
     [key, [...new Set(scopedOrders.map((row) => row[key]))].sort((a, b) => a.localeCompare(b, "ko-KR"))],
@@ -87,6 +84,22 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
 
   function changeFilters(next: CourseOrderFilters) { setFilters(next); setPage(1); }
   function refresh() { setLoading(true); setReload((value) => value + 1); }
+
+  const [savingRoster, setSavingRoster] = useState(false);
+  async function saveRoster() {
+    if (savingRoster) return;
+    setSavingRoster(true); setError(""); setNotice("");
+    try {
+      await responseData<{ jobId: string }>(await fetch(`/api/course-operations/${courseId}/paid-students`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderIds: students.map(student => student.orderId) }),
+      }));
+      setNotice("유료수강생 명단에 저장했습니다.");
+      router.refresh();
+      onRosterSaved?.();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "유료수강생 명단을 저장하지 못했습니다."); }
+    finally { setSavingRoster(false); }
+  }
 
   async function previewFile() {
     if (!file) return;
@@ -176,13 +189,13 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">저장된 주문 내역</h2>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" disabled={loading || busy || Boolean(loadError) || !data.orders.length} onClick={() => {
-            setRosterCourseId(courseId);
-            requestAnimationFrame(() => document.getElementById("course-order-student-roster")?.scrollIntoView({ behavior: "smooth", block: "start" }));
-          }}><Users />수강생 명단 만들기</Button>
+          <Button type="button" size="sm" disabled={loading || busy || savingRoster || Boolean(loadError) || !students.length} onClick={() => void saveRoster()}>
+            {savingRoster ? <Loader2 className="animate-spin" /> : <Users />}{savingRoster ? "유료수강생에 저장 중…" : "수강생 명단 만들기"}
+          </Button>
           <Button type="button" variant="outline" size="sm" onClick={refresh} disabled={loading || busy}><RefreshCw className={loading ? "animate-spin" : ""} />새로고침</Button>
         </div>
       </div>
+      <p className="text-xs text-muted-foreground">수강생 명단 만들기를 누르면 결제완료 주문 전체가 유료수강생 탭에 바로 저장됩니다. 수정·추가·외부 공유는 유료수강생 탭에서 할 수 있습니다.</p>
       {loadError ? <Alert variant="destructive"><AlertTitle>주문 내역 조회 실패</AlertTitle><AlertDescription>{loadError}</AlertDescription></Alert> : null}
       {loading ? <p role="status" className="text-sm text-muted-foreground">주문 내역을 불러오는 중입니다.</p> : !loadError ? (
         <>
@@ -274,7 +287,6 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
             </TabsContent>
           </Tabs>
           {data.imports.length ? <Card><CardHeader><CardTitle className="text-base">최근 가져오기 이력</CardTitle></CardHeader><CardContent><ul className="space-y-2 text-sm">{data.imports.map((item) => <li key={item.id} className="flex flex-wrap justify-between gap-2"><span className="break-all">{item.fileName} · {item.rowCount.toLocaleString("ko-KR")}건</span><span className="text-muted-foreground">{new Date(item.createdAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}</span></li>)}</ul></CardContent></Card> : null}
-          {rosterCourseId === courseId && <div id="course-order-student-roster" className="scroll-mt-6"><CourseOrderStudentRoster key={courseId} courseId={courseId} students={students} onSaved={onRosterSaved} onDelete={(orderId) => setExcludedOrderIds((current) => new Set(current).add(orderId))} onRestore={(orderId) => setExcludedOrderIds((current) => { const next = new Set(current); next.delete(orderId); return next; })} /></div>}
         </>
       ) : null}
     </div>

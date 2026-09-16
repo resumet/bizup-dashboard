@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatOrderStudentPhone, normalizeOrderStudentPhone, summarizeOrderStudents, type OrderStudent } from "@/lib/course-orders/student-roster";
-import { CourseRosterShareDialog } from "./course-roster-share-dialog";
 import { PaymentIdButton } from "@/components/jobs/payment-id-button";
 
 const PAGE_SIZE = 50;
@@ -65,7 +64,6 @@ export function CourseOrderStudentRoster({ courseId, students, onDelete, onResto
           <CardTitle>결제완료 수강생 명단</CardTitle>
           <div className="flex flex-wrap gap-2">
             <Button type="button" disabled={saving || !students.length} onClick={() => void saveRoster()}>{saving && <Loader2 className="animate-spin" />}{saving ? "저장 중" : "유료수강생 명단에 저장하기"}</Button>
-            <CourseRosterShareDialog courseId={courseId} />
           </div>
         </div>
         <CardDescription>결제완료 {summary.count.toLocaleString("ko-KR")}건 · 수강생 {summary.people.toLocaleString("ko-KR")}명 · 전체 매출 {money(summary.amount)}</CardDescription>

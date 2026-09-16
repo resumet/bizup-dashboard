@@ -50,15 +50,16 @@ export function maskOrderStudentName(value: string) {
   return `${characters[0]}${"*".repeat(characters.length - 2)}${characters.at(-1)}`;
 }
 
-export function maskOrderStudentsForPublic(students: OrderStudent[]) {
+export function maskOrderStudentsForPublic(students: OrderStudent[], masked = true) {
   return students.map((student) => ({
     orderId: student.orderId,
     optionName: student.optionName,
     inflowType: student.inflowType,
     amount: student.amount,
-    name: maskOrderStudentName(student.name),
-    phone: maskOrderStudentPhone(student.phone),
-    email: maskOrderStudentEmail(student.email),
+    paymentMethod: student.paymentMethod ?? "",
+    name: masked ? maskOrderStudentName(student.name) : student.name,
+    phone: masked ? maskOrderStudentPhone(student.phone) : formatOrderStudentPhone(student.phone),
+    email: masked ? maskOrderStudentEmail(student.email) : student.email,
   }));
 }
 
@@ -68,16 +69,17 @@ function csvCell(value: string | number) {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
-export function createOrderStudentCsv(students: OrderStudent[]) {
-  const headers = ["번호", "이름", "전화번호", "이메일", "옵션명", "트래킹 유입구분", "결제금액"];
+export function createOrderStudentCsv(students: OrderStudent[], masked = true, sourceLabel = "트래킹 유입구분") {
+  const headers = ["번호", "이름", "전화번호", "이메일", "옵션명", sourceLabel, "결제금액", "결제방법"];
   const rows = students.map((student, index) => [
     index + 1,
-    maskOrderStudentName(student.name),
-    maskOrderStudentPhone(student.phone),
-    maskOrderStudentEmail(student.email),
+    masked ? maskOrderStudentName(student.name) : student.name,
+    masked ? maskOrderStudentPhone(student.phone) : student.phone,
+    masked ? maskOrderStudentEmail(student.email) : student.email,
     student.optionName,
     student.inflowType,
     student.amount,
+    student.paymentMethod ?? "",
   ]);
   return `\uFEFF${[headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n")}`;
 }

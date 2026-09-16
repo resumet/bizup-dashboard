@@ -19,6 +19,8 @@ import {
 
 import { RosterUpdateDialog } from "@/components/jobs/roster-update-dialog";
 import { PaymentIdButton } from "@/components/jobs/payment-id-button";
+import { CourseRosterShareDialog } from "@/components/course-operations/course-roster-share-dialog";
+import { useRosterInvites } from "./use-roster-invites";
 import { PaidRosterColumnOptions, usePaidRosterColumns, type PaidRosterColumn } from "@/components/jobs/paid-roster-column-options";
 import { rosterRecipient } from "@/lib/jobs/linked-student";
 import { resolveRosterMessageTargets } from "@/lib/messages/roster-recipients";
@@ -104,6 +106,7 @@ import {
 
 type Props = {
   paidRoster?: boolean;
+  courseId?: string;
   jobId: string;
   jobName: string;
   jobVersion: number;
@@ -125,6 +128,7 @@ const EMPTY_OPTION_INVITES: Record<string, InviteValues> = {};
 
 export function RosterDetailClient({
   paidRoster = false,
+  courseId,
   jobId,
   jobName,
   jobVersion,
@@ -409,6 +413,7 @@ export function RosterDetailClient({
           {paidRoster && <p className="mt-2 text-lg font-semibold">전체 결제금액 {rows.reduce((sum, row) => sum + (Number(row.values.paymentAmount) || 0), 0).toLocaleString("ko-KR")}원</p>}
         </div>
         <div className="flex flex-wrap gap-2 lg:max-w-[62%] lg:justify-end">
+          {paidRoster && courseId && <CourseRosterShareDialog courseId={courseId} />}
           <MessageDialog
             key={`group-chat-invite-${linkedOptionInviteVersion}`}
             jobId={jobId}
@@ -430,6 +435,7 @@ export function RosterDetailClient({
             filteredRows={filteredRows}
             selectedRows={selectedRows}
             filters={filters}
+            defaultOptionInvites={linkedOptionInvites}
             disabled={rows.length === 0}
           />
           <Button
@@ -927,9 +933,8 @@ export function MessageDialog({
     isGroupChatInvite ? "paid_invite" : "paid_confirm",
   );
   const [courseName, setCourseName] = useState(defaultCourseName);
-  const [optionInvites, setOptionInvites] = useState<
-    Record<string, InviteValues>
-  >(defaultOptionInvites);
+  const invites = useRosterInvites(jobId, defaultOptionInvites);
+  const { optionInvites } = invites;
   const [testOption, setTestOption] = useState("");
   const [onlyGroupChatNonParticipants, setOnlyGroupChatNonParticipants] =
     useState(isGroupChatInvite);
@@ -1072,20 +1077,24 @@ export function MessageDialog({
     field: keyof InviteValues,
     value: string,
   ) {
-    setOptionInvites((current) => ({
-      ...current,
-      [key]: {
-        entryCode: current[key]?.entryCode ?? "",
-        linkName: current[key]?.linkName ?? "",
-        [field]: value,
-      },
-    }));
+    invites.update(key, field, value);
+  }
+
+  async function changeOpen(nextOpen: boolean) {
+    if (nextOpen) {
+      setOpen(true);
+      void invites.load();
+    } else if (!sending && !testing) {
+      // Close also flushes edits made immediately before Escape or clicking outside.
+      if (!invites.loaded || await invites.save()) setOpen(false);
+    }
   }
 
   async function sendMessages() {
     setSending(true);
     setResult("");
     try {
+      if (template === "paid_invite" && !await invites.save()) return;
       const response = await fetch(
         sendEndpoint ?? `/api/jobs/${jobId}/messages`,
         {
@@ -1122,6 +1131,7 @@ export function MessageDialog({
     setTesting(true);
     setResult("");
     try {
+      if (template === "paid_invite" && !await invites.save()) return;
       const testInvite = optionInvites[activeTestOption] ?? {
         entryCode: "",
         linkName: "",
@@ -1161,7 +1171,7 @@ export function MessageDialog({
 
   const inviteVariablesMissing = inviteErrors.length > 0;
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(value) => void changeOpen(value)}>
       <DialogTrigger asChild>
         <Button
           variant={isGroupChatInvite ? "secondary" : "default"}
@@ -1178,14 +1188,14 @@ export function MessageDialog({
             : "결제자 안내하기"}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>알림톡 발송</DialogTitle>
           <DialogDescription>
-            대상과 변수를 확인한 뒤 서버에서 메시지 발송 API를 호출합니다.
+            발송 대상을 확인해 주세요. 입장정보는 이 명단에 저장되어 다음에도 불러옵니다.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-2">
+        <div className="grid min-h-0 gap-4 overflow-y-auto overscroll-contain py-4 pr-2">
           <div className="grid gap-2">
             <Label>발송 대상</Label>
             <Select
@@ -1263,8 +1273,9 @@ export function MessageDialog({
             />
           </div>
           {template === "paid_invite" && (
-            <div className="grid gap-3">
+            <fieldset disabled={!invites.loaded} className="grid min-w-0 gap-3">
               <Label>옵션별 초대 정보</Label>
+              {invites.loading && <p role="status" className="text-sm text-muted-foreground">저장된 입장정보를 불러오는 중입니다.</p>}
               {targetOptionKeys.map((key) => {
                 const values = optionInvites[key] ?? {
                   entryCode: "",
@@ -1288,6 +1299,8 @@ export function MessageDialog({
                         <Input
                           id={`entry-code-${key}`}
                           value={values.entryCode}
+                          maxLength={100}
+                          onBlur={() => void invites.save()}
                           onChange={(event) =>
                             updateOptionInvite(
                               key,
@@ -1306,6 +1319,7 @@ export function MessageDialog({
                           type="url"
                           placeholder="https://..."
                           value={values.linkName}
+                          maxLength={2048}
                           onChange={(event) =>
                             updateOptionInvite(
                               key,
@@ -1313,15 +1327,17 @@ export function MessageDialog({
                               event.target.value,
                             )
                           }
-                          onBlur={() =>
-                            void saveInviteLinkSuggestion(key, values.linkName)
-                          }
+                          onBlur={() => {
+                            void invites.save();
+                            void saveInviteLinkSuggestion(key, values.linkName);
+                          }}
                         />
                         {recommendedLinks.length > 0 ? (
-                          <div className="grid gap-1.5">
-                            <span className="text-xs text-muted-foreground">
+                          <details className="min-w-0 text-xs">
+                            <summary className="cursor-pointer text-muted-foreground">
                               강의명·옵션명 기준 추천
-                            </span>
+                            </summary>
+                            <div className="mt-2 grid gap-1.5">
                             {recommendedLinks.map((suggestion) => (
                               <Button
                                 key={`${suggestion.linkName}-${suggestion.usedAt}`}
@@ -1330,13 +1346,14 @@ export function MessageDialog({
                                 size="xs"
                                 className="h-auto min-w-0 justify-start px-2 py-1.5 text-left font-normal"
                                 title={`${suggestion.courseName} · ${optionLabel(suggestion.optionName)}`}
-                                onClick={() =>
+                                onClick={() => {
                                   updateOptionInvite(
                                     key,
                                     "linkName",
                                     suggestion.linkName,
-                                  )
-                                }
+                                  );
+                                  void invites.save();
+                                }}
                               >
                                 <History className="shrink-0" />
                                 <span className="truncate">
@@ -1344,7 +1361,8 @@ export function MessageDialog({
                                 </span>
                               </Button>
                             ))}
-                          </div>
+                            </div>
+                          </details>
                         ) : null}
                       </div>
                     </div>
@@ -1362,7 +1380,7 @@ export function MessageDialog({
               {suggestionError ? (
                 <p className="text-xs text-destructive">{suggestionError}</p>
               ) : null}
-            </div>
+            </fieldset>
           )}
           <div className="rounded-lg border bg-muted/35 p-3 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1392,7 +1410,9 @@ export function MessageDialog({
                 .join(", ") || "대상 없음"}
             </p>
           </div>
-          <div className="grid gap-3 rounded-lg border border-dashed p-3 text-sm">
+          <details className="rounded-lg border border-dashed p-3 text-sm">
+            <summary className="cursor-pointer font-medium">테스트 발송 설정</summary>
+            <div className="mt-3 grid gap-3">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <Badge variant="secondary">테스트 수신자</Badge>
@@ -1417,7 +1437,8 @@ export function MessageDialog({
                 </Select>
               </div>
             )}
-          </div>
+            </div>
+          </details>
           <label className="flex items-start gap-3 text-sm">
             <Checkbox
               checked={confirmed}
@@ -1437,13 +1458,18 @@ export function MessageDialog({
             </Alert>
           )}
         </div>
-        <DialogFooter className="sm:justify-between">
+        <DialogFooter className="flex-col bg-background sm:flex-col">
+          {(invites.error || invites.status || invites.saving) && <p role={invites.error ? "alert" : "status"} className={`text-xs ${invites.error ? "text-destructive" : "text-muted-foreground"}`}>{invites.error || (invites.saving ? "입장정보 저장 중…" : invites.status)}</p>}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-2">
+          {template === "paid_invite" && <Button variant="outline" disabled={!invites.loaded || invites.saving} onClick={() => void invites.save()}>입장정보 저장</Button>}
           <Button
             variant="secondary"
             onClick={sendTestMessage}
             disabled={
               testing ||
               sending ||
+              (template === "paid_invite" && !invites.loaded) ||
               !testCourseName ||
               testInviteErrors.length > 0
             }
@@ -1451,8 +1477,9 @@ export function MessageDialog({
             {testing ? <Loader2 className="animate-spin" /> : <TestTube2 />}
             테스트 발송
           </Button>
+          </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button variant="outline" disabled={sending || testing} onClick={() => void changeOpen(false)}>
               닫기
             </Button>
             <Button
@@ -1461,6 +1488,7 @@ export function MessageDialog({
                 !confirmed ||
                 sending ||
                 testing ||
+                (template === "paid_invite" && !invites.loaded) ||
                 targets.length === 0 ||
                 inviteVariablesMissing
               }
@@ -1468,6 +1496,7 @@ export function MessageDialog({
               {sending ? <Loader2 className="animate-spin" /> : <Send />}최종
               발송
             </Button>
+          </div>
           </div>
         </DialogFooter>
       </DialogContent>

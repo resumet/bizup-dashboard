@@ -77,7 +77,7 @@ export function PublicCourseStudentRoster({ courseName, students, summary }: { c
     .sort((a, b) => b.people - a.people || a.optionName.localeCompare(b.optionName, "ko-KR"))
     .map((item) => ({ label: item.optionName || "옵션 없음", people: item.people })), [summary.options]);
   const inflowChartItems = useMemo(() => summary.inflowTypes
-    .map((item) => ({ label: item.inflowType || "유입구분 없음", people: item.people })), [summary.inflowTypes]);
+    .map((item) => ({ label: item.inflowType || "RS 없음", people: item.people })), [summary.inflowTypes]);
   const filtered = useMemo(() => {
     const keyword = query.normalize("NFKC").trim().toLocaleLowerCase("ko-KR");
     return students.filter((student) => {
@@ -93,7 +93,7 @@ export function PublicCourseStudentRoster({ courseName, students, summary }: { c
   const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   function downloadCsv() {
-    const blob = new Blob([createOrderStudentCsv(filtered)], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob([createOrderStudentCsv(filtered, false, "RS")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     const safeCourseName = courseName.replace(/[\\/:*?"<>|]/gu, "_").trim() || "수강생";
@@ -107,7 +107,7 @@ export function PublicCourseStudentRoster({ courseName, students, summary }: { c
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border bg-card p-5">
-          <p className="text-sm text-muted-foreground">결제완료</p>
+          <p className="text-sm text-muted-foreground">저장된 유료수강생 명단</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums">{summary.count.toLocaleString("ko-KR")}건</p>
         </div>
         <div className="rounded-xl border bg-card p-5">
@@ -129,8 +129,8 @@ export function PublicCourseStudentRoster({ courseName, students, summary }: { c
         />
         <RosterPieChart
           id="inflow-chart-title"
-          title="트래킹 유입구분별 수강생"
-          description="같은 유입구분의 중복 결제는 한 명으로 계산합니다."
+          title="RS별 수강생"
+          description="같은 RS의 중복 결제는 한 명으로 계산합니다."
           items={inflowChartItems}
         />
       </div>
@@ -146,9 +146,9 @@ export function PublicCourseStudentRoster({ courseName, students, summary }: { c
             <option value="">전체 옵션</option>
             {summary.options.map((item) => <option key={item.optionName} value={item.optionName}>{item.optionName || "옵션 없음"}</option>)}
           </select>
-          <select aria-label="트래킹 유입구분 필터" className="h-10 rounded-lg border border-input bg-background px-3 text-sm" value={inflowType} onChange={(event) => { setInflowType(event.target.value); setPage(1); }}>
-            <option value="">전체 유입구분</option>
-            {inflowTypes.map((item) => <option key={item} value={item}>{item || "유입구분 없음"}</option>)}
+          <select aria-label="RS 필터" className="h-10 rounded-lg border border-input bg-background px-3 text-sm" value={inflowType} onChange={(event) => { setInflowType(event.target.value); setPage(1); }}>
+            <option value="">전체 RS</option>
+            {inflowTypes.map((item) => <option key={item} value={item}>{item || "RS 없음"}</option>)}
           </select>
           <Button type="button" variant="outline" onClick={downloadCsv} disabled={!filtered.length}>
             <Download />CSV 다운로드
@@ -157,7 +157,7 @@ export function PublicCourseStudentRoster({ courseName, students, summary }: { c
         <div className="overflow-x-auto">
           <Table aria-label="공유 수강생 명단">
             <TableHeader><TableRow>
-              <TableHead>번호</TableHead><TableHead>이름</TableHead><TableHead>전화번호</TableHead><TableHead>이메일</TableHead><TableHead>옵션명</TableHead><TableHead>트래킹 유입구분</TableHead><TableHead className="text-right">결제금액</TableHead>
+              <TableHead>번호</TableHead><TableHead>이름</TableHead><TableHead>전화번호</TableHead><TableHead>이메일</TableHead><TableHead>옵션명</TableHead><TableHead>RS</TableHead><TableHead>결제방법</TableHead><TableHead className="text-right">결제금액</TableHead>
             </TableRow></TableHeader>
             <TableBody>
               {visible.map((student, index) => (
@@ -167,11 +167,11 @@ export function PublicCourseStudentRoster({ courseName, students, summary }: { c
                   <TableCell className="whitespace-nowrap">{student.phone}</TableCell>
                   <TableCell>{student.email || "—"}</TableCell>
                   <TableCell>{student.optionName || "—"}</TableCell>
-                  <TableCell>{student.inflowType || "—"}</TableCell>
+                  <TableCell>{student.inflowType || "—"}</TableCell><TableCell>{student.paymentMethod || "—"}</TableCell>
                   <TableCell className="whitespace-nowrap text-right font-medium tabular-nums">{WON_FORMATTER.format(student.amount)}</TableCell>
                 </TableRow>
               ))}
-              {!visible.length ? <TableRow><TableCell colSpan={7} className="h-28 text-center text-muted-foreground">조건에 맞는 수강생이 없습니다.</TableCell></TableRow> : null}
+              {!visible.length ? <TableRow><TableCell colSpan={8} className="h-28 text-center text-muted-foreground">조건에 맞는 수강생이 없습니다.</TableCell></TableRow> : null}
             </TableBody>
           </Table>
         </div>
