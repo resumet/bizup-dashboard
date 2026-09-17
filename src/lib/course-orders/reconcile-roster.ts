@@ -13,7 +13,7 @@ export type RosterSnapshot = {
   orders: ReconcileOrder[]; enrollments: ReconcileEnrollment[];
 };
 export type RosterChange = {
-  id: string; kind: "add" | "update" | "merge"; orderId: string;
+  id: string; kind: "add" | "update" | "merge" | "remove"; orderId: string | null;
   targetId: string | null; removeIds: string[]; name: string; phone: string;
   reason: string; before: { optionName: string; paymentAmount: number } | null;
   after: { optionName: string; paymentAmount: number };
@@ -33,7 +33,7 @@ function identity(name: string, number: string, email: string) {
   return contact && normalize(name) ? `${normalize(name)}|${contact}` : "";
 }
 const completed = (order: ReconcileOrder) => normalize(order.status) === "결제완료";
-const fullyRefunded = (order: ReconcileOrder) => normalize(order.status).includes("환불") && Number(order.current_amount) === 0;
+const fullyRefunded = (order: ReconcileOrder) => /취소|환불/u.test(normalize(order.status)) && Number(order.current_amount) === 0;
 const amount = (value: unknown) => Number(text(value).replace(/,/gu, "") || value || 0);
 
 // A duplicate with its own operator edits needs manual review, never silent deletion.
@@ -90,7 +90,7 @@ export function planPaidRoster(snapshot: RosterSnapshot, orderIds: string[]): Ro
         continue;
       }
       target = refunded[0];
-      reason = "같은 결제자(이름·연락처)의 기존 주문이 전액환불되고 새 주문이 결제완료되어, 기존 수강생의 금액과 옵션을 갱신합니다.";
+      reason = "같은 결제자(이름·연락처)의 기존 주문이 취소·전액환불되고 새 주문이 결제완료되어, 기존 수강생의 금액과 옵션을 갱신합니다.";
       if (exact && exact.id !== target.id) {
         if (duplicateHasEdits(exact, target, order)) {
           plan.conflicts.push({ name: order.member_name, reason: "재결제로 추가된 중복 명단에도 별도로 수정한 정보가 있어 자동으로 합칠 수 없습니다. 두 명단의 참여 이력과 수강생 정보를 확인해 주세요." });
@@ -125,6 +125,24 @@ export function planPaidRoster(snapshot: RosterSnapshot, orderIds: string[]): Ro
       name: target ? text(target.normalized_values.customerName) : order.member_name,
       phone: target ? target.normalized_phone ?? "" : phone(order.phone),
       reason: target ? reason : "결제완료된 신규 주문을 유료수강생 명단에 추가합니다.", before, after,
+    });
+  }
+  const mergedIds = new Set(plan.changes.flatMap(change => change.removeIds));
+  for (const row of snapshot.enrollments) {
+    const key = text(row.normalized_values.orderRecordKey);
+    if (!key || row.is_manually_added || text(row.normalized_values.refundedAt) || usedTargets.has(row.id) || mergedIds.has(row.id)) continue;
+    const source = ordersByKey.get(key);
+    const cancelled = source && Number(source.current_amount) === 0 && /취소|환불/u.test(normalize(source.status));
+    if (source && !cancelled) continue;
+    // A repurchase or ambiguous matching must be resolved before removing the old entry.
+    if ((activeCounts.get(rowIdentity(row)) ?? 0) > 0) continue;
+    const before = { optionName: text(row.normalized_values.optionName), paymentAmount: amount(row.normalized_values.paymentAmount) };
+    plan.changes.push({
+      id: row.id, kind: "remove", orderId: source?.id ?? null, targetId: row.id, removeIds: [],
+      name: text(row.normalized_values.customerName), phone: row.normalized_phone ?? "",
+      reason: source ? `주문상태가 '${source.status}'이고 잔여 결제금액이 0원입니다. 승인하면 현재 명단에서 제외하고 환불자 목록에 보관합니다.`
+        : "연결된 주문이 최신 주문내역에서 없어졌습니다. 취소·환불 여부를 확인하고 승인하면 현재 명단에서 제외하여 환불자 목록에 보관합니다.",
+      before, after: before,
     });
   }
   return plan;

@@ -212,7 +212,7 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">저장된 주문 내역</h2>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" disabled={loading || busy || savingRoster || Boolean(loadError) || !students.length} onClick={() => void saveRoster()}>
+          <Button type="button" size="sm" disabled={loading || busy || savingRoster || Boolean(loadError)} onClick={() => void saveRoster()}>
             {savingRoster ? <Loader2 className="animate-spin" /> : <Users />}{savingRoster ? "변경 내역 확인 중…" : "수강생 명단 만들기"}
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={refresh} disabled={loading || busy}><RefreshCw className={loading ? "animate-spin" : ""} />새로고침</Button>

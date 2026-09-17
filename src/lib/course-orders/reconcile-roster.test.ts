@@ -57,6 +57,29 @@ test("부분환불·입금대기는 재결제 연결 대상으로 오인하지 �
   assert.equal(planPaidRoster(state([order("pending", { status: "입금대기" })], []), ["pending"]).changes.length, 0);
 });
 
+test("전액환불·취소·누락 주문은 기존 수강생 제외 후보로 표시하고 부분환불·수동·이미 환불자는 유지한다", () => {
+  for (const status of ["전액환불", "주문취소"]) {
+    const s = state([order("old", { status, current_amount: 0 })], [enrollment("old")]);
+    const before = structuredClone(s);
+    const changes = planPaidRoster(s, []).changes;
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].kind, "remove");
+    assert.equal(changes[0].targetId, "old");
+    assert.deepEqual(s, before);
+  }
+  const missing = planPaidRoster(state([], [enrollment("old")]), []).changes[0];
+  assert.equal(missing.kind, "remove");
+  assert.equal(missing.orderId, null);
+  assert.match(missing.reason, /없어졌습니다/);
+  assert.equal(planPaidRoster(state([order("old", { status: "부분환불", current_amount: 10000 })], [enrollment("old")]), []).changes.length, 0);
+  assert.equal(planPaidRoster(state([order("old")], [enrollment("old")]), []).changes.length, 0); // Omitted selection is not an absent order.
+  for (const row of [enrollment("old", { refundedAt: "2026-09-18" }), enrollment("old", { orderRecordKey: "" }), { ...enrollment("old"), is_manually_added: true }]) {
+    assert.equal(planPaidRoster(state([], [row]), []).changes.length, 0);
+  }
+  assert.equal(planPaidRoster(state([refund, order("new")], [enrollment("old")]), []).changes.length, 0); // Repurchase not selected: retain old entry.
+  assert.equal(planPaidRoster(state([order("old", { status: "주문취소", current_amount: 0 }), order("new")], [enrollment("old")]), ["new"]).changes[0].kind, "update");
+});
+
 test("선택 반영은 가격·옵션만 수정하고 개인 정보 보존, 중복 정리, 이력, 동시 수정 검증을 원자적으로 수행한다", async () => {
   const db = new PGlite();
   const actor = randomUUID(), outsider = randomUUID(), workspace = randomUUID(), course = randomUUID();
@@ -70,7 +93,7 @@ test("선택 반영은 가격·옵션만 수정하고 개인 정보 보존, 중�
       alter table public.course_jobs add column course_id uuid references public.courses on delete set null;
       alter table public.job_enrollments add column is_extra_participant boolean not null default false, add column is_manually_added boolean not null default false;
       create unique index on public.job_enrollments(job_id,version,source_row_number);`);
-    for (const name of ["202609120001_course_orders", "202609160002_paid_course_rosters", "202609160005_paid_roster_reconciliation"]) {
+    for (const name of ["202609120001_course_orders", "202609160002_paid_course_rosters", "202609160005_paid_roster_reconciliation", "202609180001_paid_roster_removal_review"]) {
       await db.exec(await readFile(`supabase/migrations/${name}.sql`, "utf8"));
     }
     await db.query("insert into auth.users values($1),($2)", [actor, outsider]);
@@ -124,9 +147,51 @@ test("선택 반영은 가격·옵션만 수정하고 개인 정보 보존, 중�
     const fresh = await snapshot();
     await db.query("update course_orders set payment_amount=130000 where id=$1", [extraId]);
     await assert.rejects(apply(fresh, [extraId]), /미리보기/);
+    const review = async (s: RosterSnapshot, changes: unknown[], who = actor) => db.query(
+      "select apply_paid_roster_review($1,$2,$3::jsonb,$4::jsonb)", [course, who, JSON.stringify(s), JSON.stringify(changes)],
+    );
+    await db.query("update course_orders set status='주문취소',current_amount=0 where id=$1", [newId]);
+    const removalPreview = await snapshot();
+    const proposed = planPaidRoster(removalPreview, [extraId]).changes;
+    const removal = proposed.find(c => c.kind === "remove")!;
+    assert.ok(removal);
+    const addition = proposed.find(c => c.kind === "add")!;
+    await assert.rejects(review(removalPreview, [removal], outsider), /권한/);
+    await assert.rejects(review(removalPreview, [removal, { ...addition, orderId: randomUUID() }]), /주문/);
+    assert.deepEqual(await snapshot(), removalPreview); // Entire transaction rolls back, including exclusion.
+    await review(removalPreview, [addition]); // Unapproved exclusion remains active.
+    const afterAddition = await snapshot();
+    const retained = afterAddition.enrollments.find(r => r.normalized_values.orderRecordKey === "new")!;
+    assert.equal(retained.normalized_values.refundedAt, undefined);
+    await assert.rejects(review(removalPreview, [removal]), /미리보기/);
+    const approved = planPaidRoster(afterAddition, []).changes.filter(c => c.kind === "remove");
+    assert.equal(approved.length, 1);
+    await review(afterAddition, approved); // Exclusion-only update, no paid orders selected.
+    const afterRemoval = await snapshot();
+    const archived = afterRemoval.enrollments.find(r => r.id === retained.id)!;
+    assert.ok(archived.normalized_values.refundedAt);
+    assert.equal(archived.normalized_values.refundedBy, actor);
+    const { refundedAt, refundedBy, refundSource, ...preserved } = archived.normalized_values;
+    assert.ok(refundedAt && refundedBy && refundSource);
+    assert.deepEqual(preserved, retained.normalized_values);
+    assert.deepEqual(archived.original_values, retained.original_values);
+    assert.equal(planPaidRoster(afterRemoval, []).changes.length, 0);
+    await db.query("update course_orders set status='전액환불',current_amount=0 where id=$1", [extraId]);
+    const nextId = await insert("next", "01099990000");
+    const mixedSnapshot = await snapshot();
+    const mixed = planPaidRoster(mixedSnapshot, [nextId]).changes;
+    assert.equal(mixed.filter(c => c.kind === "add").length, 1);
+    assert.equal(mixed.filter(c => c.kind === "remove").length, 1);
+    await review(mixedSnapshot, mixed);
+    const mixedResult = await snapshot();
+    assert.ok(mixedResult.enrollments.find(r => r.normalized_values.orderRecordKey === "extra")?.normalized_values.refundedAt);
+    assert.ok(mixedResult.enrollments.find(r => r.normalized_values.orderRecordKey === "new")?.normalized_values.refundedAt);
+    assert.equal(mixedResult.enrollments.find(r => r.normalized_values.orderRecordKey === "next")?.normalized_values.refundedAt, undefined);
+    assert.equal(mixedResult.enrollments.length, 3);
     await db.exec("set role authenticated");
     await assert.rejects(snapshot(), /permission denied/);
     await assert.rejects(apply(fresh, [extraId]), /permission denied/);
+    await assert.rejects(review(afterRemoval, approved), /permission denied/);
     await db.exec("reset role");
   } finally { await db.close(); }
 });

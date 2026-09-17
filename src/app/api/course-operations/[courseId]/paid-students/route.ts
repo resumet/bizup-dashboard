@@ -47,11 +47,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ cou
     const selectedIds = new Set(input.data.selectedIds ?? []);
     const changes = plan.changes.filter(change => selectedIds.has(change.id));
     if (!changes.length || changes.length !== selectedIds.size) throw new CourseOrderError("반영할 항목을 다시 선택해 주세요.");
-    const { data, error } = await admin.rpc("apply_paid_roster_changes", {
+    const hasRemovals = changes.some(change => change.kind === "remove");
+    const { data, error } = await admin.rpc(hasRemovals ? "apply_paid_roster_review" : "apply_paid_roster_changes", {
       p_course_id: courseId, p_actor_id: user.id, p_snapshot: snapshot,
-      p_changes: changes.map(({ orderId, targetId, removeIds }) => ({ orderId, targetId, removeIds })),
+      p_changes: changes.map(({ kind, orderId, targetId, removeIds }) => ({ kind, orderId, targetId, removeIds })),
     });
-    if (error) throw new CourseOrderError(error.code === "P0001" ? error.message : "유료수강생 명단을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.", 409);
+    if (error) throw new CourseOrderError(error.code === "PGRST202" && hasRemovals
+      ? "취소·환불 제외 승인 기능의 DB 업데이트가 필요합니다. 관리자에게 문의해 주세요."
+      : error.code === "P0001" ? error.message : "유료수강생 명단을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.", 409);
     if (!changes.some(change => change.kind === "add")) return Response.json({ jobId: data, appliedCount: changes.length, addedRows: [] }, { headers });
     try {
       const { rows } = await loadJobRoster(admin, data);
