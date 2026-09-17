@@ -18,21 +18,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { CourseQuickLink, CourseQuickLinks } from "@/lib/course-operations/quick-links";
 
-const COMMON_LINKS: CourseQuickLink[] = [
-  {
-    label: "무료강의멘트",
-    url: "https://docs.google.com/spreadsheets/d/1uVAgx23JXDqxl5uAjgpGywDyg9F7vZ74wJcsAC1p14c/edit?gid=1923105310#gid=1923105310",
-  },
-  {
-    label: "지령창",
-    url: "https://docs.google.com/presentation/d/1glOkbnWTgXufnnUNpcoDIvityzc8EHTyQghgzqpFIKM/edit?usp=sharing",
-  },
-  {
-    label: "카카오플친 문의",
-    url: "https://pf.kakao.com/_xomzxgn/chat",
-  },
-];
-
 function ShortcutItem({ link }: { link: CourseQuickLink }) {
   if (!link.url) {
     return <DropdownMenuItem disabled>{link.label}<span className="ml-auto text-xs">미등록</span></DropdownMenuItem>;
@@ -48,10 +33,24 @@ function ShortcutItem({ link }: { link: CourseQuickLink }) {
 
 export function CourseShortcutsMenu() {
   const [courses, setCourses] = useState<CourseQuickLinks[]>([]);
+  const [commonLinks, setCommonLinks] = useState<CourseQuickLink[]>([]);
+  const [commonLoading, setCommonLoading] = useState(false);
+  const [commonError, setCommonError] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [copyStatus, setCopyStatus] = useState<{ label: string; state: "copying" | "copied" | "error" } | null>(null);
   const requestId = useRef(0);
+
+  async function loadCommonLinks() {
+    setCommonLoading(true); setCommonError("");
+    try {
+      const response = await fetch("/api/common-links", { cache: "no-store" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message);
+      setCommonLinks(body.links);
+    } catch { setCommonError("공통 링크를 불러오지 못했습니다."); }
+    finally { setCommonLoading(false); }
+  }
 
   async function copyLink(link: CourseQuickLink) {
     setCopyStatus({ label: link.label, state: "copying" });
@@ -65,6 +64,7 @@ export function CourseShortcutsMenu() {
 
   async function loadCourses(open: boolean) {
     if (!open) return;
+    void loadCommonLinks();
     setCopyStatus(null);
     const currentRequest = ++requestId.current;
     setLoading(true);
@@ -90,9 +90,12 @@ export function CourseShortcutsMenu() {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>공통</DropdownMenuSubTrigger>
           <DropdownMenuPortal>
-            <DropdownMenuSubContent className="w-72 max-w-[calc(100vw-2rem)]">
-              {COMMON_LINKS.map((link) => (
-                <div key={link.label} className="grid grid-cols-[minmax(0,1fr)_auto] gap-1">
+            <DropdownMenuSubContent className="max-h-[var(--radix-dropdown-menu-content-available-height)] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto">
+              {commonLoading ? <DropdownMenuItem disabled>공통 링크 불러오는 중…</DropdownMenuItem> : commonError ? <>
+                <DropdownMenuLabel className="whitespace-normal text-destructive">{commonError}</DropdownMenuLabel>
+                <DropdownMenuItem onSelect={event => { event.preventDefault(); void loadCommonLinks(); }}>다시 시도</DropdownMenuItem>
+              </> : !commonLinks.length ? <DropdownMenuItem disabled>등록된 공통 링크가 없습니다.</DropdownMenuItem> : commonLinks.map((link, index) => (
+                <div key={`${index}-${link.label}`} className="grid grid-cols-[minmax(0,1fr)_auto] gap-1">
                   <ShortcutItem link={link} />
                   <DropdownMenuItem
                     asChild

@@ -15,13 +15,13 @@ export function AdminManagementButton({ email }: { email: string }) {
       className="border-violet-500/40 bg-violet-500/10 text-violet-700 hover:bg-violet-500/20 dark:text-violet-300"
     >
       <Link
-        href="/admin/users"
+        href="/admin"
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="사용자 권한 관리 새 창에서 열기"
+        aria-label="관리자 화면 새 창에서 열기"
       >
         <ShieldCheck />
-        권한 관리
+        관리자 화면
       </Link>
     </Button>
   );

@@ -11,6 +11,7 @@ import {
 
 import { AdminManagementButton } from "@/components/admin/admin-management-button";
 import { UserRoleSelect } from "@/components/admin/user-role-select";
+import { CommonLinksManager } from "@/components/admin/common-links-manager";
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -124,7 +125,7 @@ export default async function AdminUsersPage({
           <div className="flex items-center gap-3">
             <BrandHomeLink showName={false} />
             <div>
-              <p className="font-semibold">사용자 권한 관리</p>
+              <p className="font-semibold">관리자 화면</p>
               <p className="text-xs text-muted-foreground">최고관리자 전용</p>
             </div>
           </div>
@@ -138,6 +139,7 @@ export default async function AdminUsersPage({
       </header>
 
       <div className="mx-auto max-w-[1600px] space-y-6 px-5 py-8 lg:px-8">
+        <CommonLinksManager />
         <section>
           <Badge variant="secondary" className="mb-3">최고관리자 전용</Badge>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -202,7 +204,7 @@ export default async function AdminUsersPage({
                   <Button type="submit" variant="outline">검색</Button>
                   {query ? (
                     <Button asChild variant="ghost">
-                      <Link href="/admin/users">초기화</Link>
+                      <Link href="/admin">초기화</Link>
                     </Button>
                   ) : null}
                 </form>
