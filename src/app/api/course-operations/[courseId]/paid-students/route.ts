@@ -2,6 +2,8 @@ import { z } from "zod";
 import { createHash } from "node:crypto";
 import { authorizeCourseOrders, CourseOrderError, courseOrderErrorResponse } from "@/lib/course-orders/server";
 import { planPaidRoster, type RosterSnapshot } from "@/lib/course-orders/reconcile-roster";
+import { loadJobRoster } from "@/lib/jobs/server";
+import { selectNewStudentInvites } from "@/lib/course-orders/new-student-invites";
 
 export const runtime = "nodejs";
 const inputSchema = z.object({
@@ -50,6 +52,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ cou
       p_changes: changes.map(({ orderId, targetId, removeIds }) => ({ orderId, targetId, removeIds })),
     });
     if (error) throw new CourseOrderError(error.code === "P0001" ? error.message : "유료수강생 명단을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.", 409);
-    return Response.json({ jobId: data, appliedCount: changes.length }, { headers });
+    if (!changes.some(change => change.kind === "add")) return Response.json({ jobId: data, appliedCount: changes.length, addedRows: [] }, { headers });
+    try {
+      const { rows } = await loadJobRoster(admin, data);
+      const addedRows = selectNewStudentInvites(changes, state.orders, rows);
+      return Response.json({ jobId: data, appliedCount: changes.length, addedRows }, { headers });
+    } catch {
+      // The transaction already committed. Never report a save failure or invite a retry of it.
+      return Response.json({ jobId: data, appliedCount: changes.length, addedRows: [], inviteError: "명단은 저장했지만 신규 발송 대상을 불러오지 못했습니다. 유료수강생 탭에서 발송 대상을 선택해 주세요." }, { headers });
+    }
   } catch (error) { return courseOrderErrorResponse(error); }
 }

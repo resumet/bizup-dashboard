@@ -1,6 +1,7 @@
 "use client";
 
 import { refundDate } from "@/lib/jobs/refund";
+import { buildInviteClipboardText } from "@/lib/messages/invite";
 import { RefundedRoster } from "@/components/jobs/refunded-roster";
 
 import Link from "next/link";
@@ -1387,6 +1388,14 @@ export function MessageDialog({
           </Button>
           </div>
           <div className="flex gap-2">
+            {template === "paid_invite" && <Button variant="outline" disabled={!invites.loaded} onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(buildInviteClipboardText(testCourseName, targetOptionKeys, optionInvites));
+                setResult("내용을 복사했습니다.");
+              } catch {
+                setResult("내용을 복사하지 못했습니다. 브라우저의 클립보드 권한을 확인해 주세요.");
+              }
+            }}>내용복사</Button>}
             <Button variant="outline" disabled={sending || testing} onClick={() => void changeOpen(false)}>
               닫기
             </Button>

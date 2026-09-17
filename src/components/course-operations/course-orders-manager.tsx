@@ -15,6 +15,8 @@ import { filterCourseOrders, isAwaitingDeposit, summarizeCourseOrderOverview } f
 import { shortestSelectedCourseName } from "@/lib/course-orders/parse";
 import { createOrderStudentRoster } from "@/lib/course-orders/student-roster";
 import { PaidRosterChangesDialog } from "./paid-roster-changes-dialog";
+import { MessageDialog } from "@/components/jobs/roster-detail-client";
+import { EMPTY_ROSTER_FILTERS, type RosterRow } from "@/lib/jobs/types";
 import type { RosterPreview } from "@/lib/course-orders/reconcile-roster";
 import {
   EMPTY_ORDER_FILTERS, ORDER_CATEGORY_FILTERS,
@@ -43,7 +45,7 @@ async function responseData<T>(response: Response): Promise<T> {
   return data as T;
 }
 
-export function CourseOrdersManager({ courseId, onCourseNameChange, onRosterSaved }: { courseId: string; courseName: string; onCourseNameChange?: (name: string) => void; onRosterSaved?: () => void }) {
+export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, onRosterSaved }: { courseId: string; courseName: string; onCourseNameChange?: (name: string) => void; onRosterSaved?: () => void }) {
   const router = useRouter();
   const [data, setData] = useState<CourseOrdersResponse>({ orders: [], imports: [] });
   const [loading, setLoading] = useState(true);
@@ -89,6 +91,7 @@ export function CourseOrdersManager({ courseId, onCourseNameChange, onRosterSave
 
   const [savingRoster, setSavingRoster] = useState(false);
   const [rosterPreview, setRosterPreview] = useState<(RosterPreview & { orderIds: string[] }) | null>(null);
+  const [newStudentInvite, setNewStudentInvite] = useState<{ jobId: string; addedRows: RosterRow[] } | null>(null);
   async function saveRoster() {
     if (savingRoster) return;
     setSavingRoster(true); setError(""); setNotice("");
@@ -105,12 +108,15 @@ export function CourseOrdersManager({ courseId, onCourseNameChange, onRosterSave
 
   async function applyRoster(selectedIds: string[]) {
     if (!rosterPreview) return;
-    await responseData<{ jobId: string }>(await fetch(`/api/course-operations/${courseId}/paid-students`, {
+    const result = await responseData<{ jobId: string; addedRows: RosterRow[]; inviteError?: string }>(await fetch(`/api/course-operations/${courseId}/paid-students`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "apply", orderIds: rosterPreview.orderIds, token: rosterPreview.token, selectedIds }),
     }));
     setRosterPreview(null); setNotice("선택한 변경 사항을 유료수강생 명단에 반영했습니다.");
-    onRosterSaved?.(); router.refresh();
+    setNewStudentInvite(result.addedRows.length ? result : null);
+    if (result.inviteError) setError(result.inviteError);
+    if (!result.addedRows.length) onRosterSaved?.();
+    router.refresh();
   }
 
   async function previewFile() {
@@ -143,6 +149,13 @@ export function CourseOrdersManager({ courseId, onCourseNameChange, onRosterSave
   return (
     <div className="space-y-5">
       {rosterPreview && <PaidRosterChangesDialog preview={rosterPreview} onClose={() => setRosterPreview(null)} onApply={applyRoster} />}
+      {newStudentInvite && <Card><CardContent className="flex flex-wrap items-center gap-3 pt-6">
+        <p className="text-sm">이번에 신규 추가된 수강생 {newStudentInvite.addedRows.length}명에게 카톡방 참여 안내를 보낼 수 있습니다.</p>
+        <MessageDialog key={newStudentInvite.addedRows.map(row => row.id).join(",")} jobId={newStudentInvite.jobId} jobName={courseName}
+          defaultCourseName={courseName} rows={newStudentInvite.addedRows} filteredRows={newStudentInvite.addedRows}
+          selectedRows={newStudentInvite.addedRows} filters={EMPTY_ROSTER_FILTERS} mode="groupChatInvite" selectedOnly />
+        <Button type="button" variant="outline" onClick={onRosterSaved}>유료수강생 명단 보기</Button>
+      </CardContent></Card>}
       <Card>
         <CardHeader><CardTitle>주문 내역 가져오기</CardTitle>
         </CardHeader>

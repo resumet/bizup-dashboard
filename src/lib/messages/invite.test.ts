@@ -2,10 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildInviteClipboardText,
   buildCourseOptionInviteMap,
   isOpenableInviteLink,
   validateInviteValues,
 } from "./invite";
+
+test("초대 내용은 강의명과 옵션별 링크명·참여코드를 줄바꿈으로 복사한다", () => {
+  assert.equal(buildInviteClipboardText("실전 강의", ["기본반", "심화반"], {
+    기본반: { linkName: "https://example.com/basic", entryCode: "0123" },
+    심화반: { linkName: "https://example.com/advanced", entryCode: "ABCD" },
+  }), "실전 강의\n기본반\nhttps://example.com/basic\n0123\n\n심화반\nhttps://example.com/advanced\nABCD");
+  assert.equal(buildInviteClipboardText("강의", ["__no_option"], {}), "강의\n옵션 없음\n\n");
+});
 
 test("입장코드는 4~6글자이고 링크는 HTTPS여야 한다", () => {
   assert.deepEqual(

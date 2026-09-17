@@ -2,6 +2,10 @@ export type InviteValues = { entryCode: string; linkName: string };
 
 export type CourseOptionInviteSource = InviteValues & { optionName: string };
 
+export function buildInviteClipboardText(courseName: string, keys: string[], invites: Record<string, InviteValues>) {
+  return `${courseName}\n${keys.map((key) => [optionLabel(key), invites[key]?.linkName ?? "", invites[key]?.entryCode ?? ""].join("\n")).join("\n\n")}`;
+}
+
 export function isOpenableInviteLink(value: string) {
   try {
     const url = new URL(value.trim());
