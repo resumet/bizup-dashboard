@@ -516,10 +516,20 @@ export function CourseOperationsEditor({
   function changeTab(value: string) {
     const nextTab = value as CourseEditorTab;
     setActiveTab(nextTab);
-    if (nextTab !== "information" && nextTab !== "costs" && nextTab !== "settlement" && nextTab !== "orders" && nextTab !== "webinar" && nextTab !== "paid-students") {
+    if (nextTab === "information") {
+      void loadDetailSection("videos");
+    } else if (nextTab !== "costs" && nextTab !== "settlement" && nextTab !== "orders" && nextTab !== "webinar" && nextTab !== "paid-students") {
       void loadDetailSection(nextTab);
     }
   }
+
+  useEffect(() => {
+    if (activeTab === "information") {
+      void loadDetailSection("videos");
+    }
+    // loadDetailSection is intentionally recreated with the editor state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   async function selectMessageProject(messageProjectId: string) {
     setDraft((current) => ({
