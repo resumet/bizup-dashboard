@@ -48,8 +48,8 @@ export function CoursePaymentSummaryTable({ summaries }: { summaries: CoursePaym
     setSavedId(null);
   }
 
-  async function save(id: string) {
-    const draft = drafts.get(id);
+  async function save(id: string, patch?: Partial<{ novaSettled: boolean; instructorSettled: boolean }>) {
+    const draft = { ...drafts.get(id), ...patch };
     if (!draft || savingId) return;
     setSavingId(id); setSavedId(null); setError("");
     try {
