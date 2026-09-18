@@ -62,7 +62,7 @@ export function CoursePaymentSummaryTable({ summaries }: { summaries: CoursePaym
         <div className="overflow-x-auto rounded-md border">
           <Table className="min-w-[1080px]">
             <TableHeader><TableRow>
-              <TableHead>강의 제목</TableHead><TableHead>개강일</TableHead><TableHead>강사명</TableHead>
+              <TableHead>강의 제목</TableHead><TableHead>무료웨비나 날짜</TableHead><TableHead>강사명</TableHead>
               <TableHead>기수</TableHead><TableHead className="text-right">결제 건수</TableHead>
               <TableHead className="text-right">전체 결제금액</TableHead><TableHead>노바 정산</TableHead>
               <TableHead>강사 정산</TableHead><TableHead className="text-right">저장</TableHead>
@@ -80,7 +80,7 @@ export function CoursePaymentSummaryTable({ summaries }: { summaries: CoursePaym
                 const saving = savingId === item.id;
                 return <TableRow key={item.id}>
                   <TableCell className="font-medium"><Link href={`/services/course-operations/${item.id}`} className="hover:underline">{item.name}</Link></TableCell>
-                  <TableCell>{formatDate(item.starts_at)}</TableCell>
+                  <TableCell>{formatDate(item.free_webinar_at)}</TableCell>
                   <TableCell>{item.instructor_name || "-"}</TableCell>
                   <TableCell><Input className="h-8 w-24" value={draft.cohort} placeholder="예: 1기" onChange={(event) => updateDraft(item.id, { cohort: event.target.value })} /></TableCell>
                   <TableCell className="text-right tabular-nums">{item.payment_count.toLocaleString("ko-KR")}</TableCell>

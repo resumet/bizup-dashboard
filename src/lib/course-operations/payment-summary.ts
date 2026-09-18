@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export type CoursePaymentSummary = {
   id: string;
   name: string;
-  starts_at: string;
+  free_webinar_at: string;
   instructor_name: string;
   cohort: string;
   nova_settled: boolean;
@@ -22,9 +22,9 @@ export async function loadCoursePaymentSummaries(workspaceId: string) {
   const admin = createAdminClient();
   const { data: courses, error: courseError } = await admin
     .from("courses")
-    .select("id,name,starts_at,instructor_name,cohort,nova_settled,instructor_settled")
+    .select("id,name,free_webinar_at,instructor_name,cohort,nova_settled,instructor_settled")
     .eq("workspace_id", workspaceId)
-    .order("starts_at", { ascending: false });
+    .order("free_webinar_at", { ascending: false });
   if (courseError) {
     throw new Error(`전체 결제내역 강의 조회 실패 (${courseError.code}): ${courseError.message}`);
   }
