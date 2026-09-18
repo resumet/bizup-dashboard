@@ -1617,7 +1617,7 @@ export function CourseOperationsEditor({
             />
           ) : (
           <div className="space-y-6">
-        <Card className="overflow-x-auto">
+        <Card className="overflow-x-auto [&_[data-slot=card-description]]:hidden">
           <CardHeader>
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle>유튜브 출연</CardTitle>
@@ -1799,7 +1799,7 @@ export function CourseOperationsEditor({
           </CardContent>
         </Card>
 
-        <Card className="overflow-x-auto">
+        <Card className="overflow-x-auto [&_[data-slot=card-description]]:hidden">
           <CardHeader>
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle>기존 라이브 영상 링크</CardTitle>
