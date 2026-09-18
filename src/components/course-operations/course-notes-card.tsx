@@ -26,7 +26,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -197,9 +196,6 @@ export function CourseNotesCard({
               강의 메모
               <Badge variant="secondary">{notes.length}건</Badge>
             </CardTitle>
-            <CardDescription className="mt-1">
-              강의 운영 내용을 기록합니다. 입력한 URL은 저장 후 클릭할 수 있습니다.
-            </CardDescription>
           </div>
           <span className="text-xs text-muted-foreground">
             작성자 {currentUserEmail}

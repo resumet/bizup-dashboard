@@ -1216,13 +1216,11 @@ export function CourseOperationsEditor({
           </>
         </div>
 
+        <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-4">
             <div>
               <CardTitle>링크 관리</CardTitle>
-              <CardDescription className="mt-1">
-                카톡방·웨비나·강의 링크와 직접 만든 링크를 한 목록에서 관리합니다.
-              </CardDescription>
             </div>
             <Button
               type="button"
@@ -1278,6 +1276,7 @@ export function CourseOperationsEditor({
             loadError={notesLoadError}
           />
         ) : null}
+        </div>
 
         </TabsContent>
 
