@@ -926,14 +926,14 @@ export function CourseOperationsEditor({
           <TabsTrigger value="sales" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             판매 조건
           </TabsTrigger>
-          <TabsTrigger value="students" className="h-10 min-w-0 px-2 md:min-w-32 md:px-5">
+          <TabsTrigger value="students" className="hidden">
             수강생명단
           </TabsTrigger>
           <TabsTrigger value="orders" disabled={!courseId} className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             주문 내역
           </TabsTrigger>
           <TabsTrigger value="paid-students" disabled={!courseId} className="h-10 min-w-0 px-2">유료수강생</TabsTrigger>
-          <TabsTrigger value="messages" className="h-10 min-w-0 px-2 md:min-w-32 md:px-5">
+          <TabsTrigger value="messages" className="hidden">
             단톡방문자
           </TabsTrigger>
           <TabsTrigger value="webinar" disabled={!courseId} className="h-10 min-w-0 px-2">라이브 웨비나</TabsTrigger>
