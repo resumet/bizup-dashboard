@@ -189,19 +189,12 @@ function CourseLinkInput({
           variant="outline"
           className="h-10"
           disabled={!openableLink}
-          asChild={Boolean(openableLink)}
+          onClick={() => {
+            if (openableLink) window.open(openableLink, "_blank", "noopener,noreferrer");
+          }}
         >
-          {openableLink ? (
-            <a href={openableLink} target="_blank" rel="noopener noreferrer">
-              <ExternalLink />
-              열기
-            </a>
-          ) : (
-            <span>
-              <ExternalLink />
-              열기
-            </span>
-          )}
+          <ExternalLink />
+          열기
         </Button>
       </TableCell>
     </TableRow>
