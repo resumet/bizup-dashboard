@@ -851,7 +851,7 @@ export function CourseOperationsEditor({
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <Badge variant="outline" className="mb-3 h-auto min-h-5 max-w-full whitespace-normal break-all">
+          <Badge variant="outline" className="hidden">
             COURSE ID · {courseId ?? "생성 전"}
           </Badge>
           <h1 className="text-3xl font-semibold tracking-tight">
