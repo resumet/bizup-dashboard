@@ -14,9 +14,11 @@ import {
   MessageSquareText,
   Settings2,
   Trash2,
+  CircleDollarSign,
 } from "lucide-react";
 
 import { CourseListCalendar } from "@/components/course-operations/course-list-calendar";
+import { CoursePaymentSummaryTable } from "@/components/course-operations/course-payment-summary";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -40,13 +42,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { CourseSummary } from "@/lib/course-operations/types";
+import type { CoursePaymentSummary } from "@/lib/course-operations/payment-summary";
 import { courseBannerUrl } from "@/lib/course-operations/banner";
 import {
   formatWebinarCountdown,
   sortByNearestWebinar,
 } from "@/lib/course-operations/webinar-proximity";
 
-type ViewMode = "cards" | "list" | "calendar";
+type ViewMode = "cards" | "list" | "calendar" | "payments";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -60,10 +63,12 @@ export function CourseOperationsList({
   courses,
   todayKoreaDate,
   canDelete,
+  paymentSummaries = [],
 }: {
   courses: CourseSummary[];
   todayKoreaDate: string;
   canDelete: boolean;
+  paymentSummaries?: CoursePaymentSummary[];
 }) {
   const router = useRouter();
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
@@ -117,6 +122,16 @@ export function CourseOperationsList({
           >
             <Grid2X2 />
             카드
+          </Button>
+          <Button
+            type="button"
+            variant={viewMode === "payments" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("payments")}
+            aria-pressed={viewMode === "payments"}
+          >
+            <CircleDollarSign />
+            전체 결제내역
           </Button>
           <Button
             type="button"
@@ -293,8 +308,10 @@ export function CourseOperationsList({
             </TableBody>
           </Table>
         </Card>
-      ) : (
+      ) : viewMode === "calendar" ? (
         <CourseListCalendar courses={courses} />
+      ) : (
+        <CoursePaymentSummaryTable summaries={paymentSummaries} />
       )}
 
       <AlertDialog

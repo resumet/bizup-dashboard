@@ -1,0 +1,97 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import { Check, Loader2, Save } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { CoursePaymentSummary } from "@/lib/course-operations/payment-summary";
+
+const money = (value: number) => `${value.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}원`;
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeZone: "Asia/Seoul" }).format(new Date(value));
+}
+
+export function CoursePaymentSummaryTable({ summaries }: { summaries: CoursePaymentSummary[] }) {
+  const [drafts, setDrafts] = useState(() => new Map(summaries.map((item) => [item.id, {
+    cohort: item.cohort,
+    novaSettled: item.nova_settled,
+    instructorSettled: item.instructor_settled,
+  }])));
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
+  function updateDraft(id: string, patch: Partial<{ cohort: string; novaSettled: boolean; instructorSettled: boolean }>) {
+    setDrafts((current) => {
+      const next = new Map(current);
+      next.set(id, { ...next.get(id)!, ...patch });
+      return next;
+    });
+    setSavedId(null);
+  }
+
+  async function save(id: string) {
+    const draft = drafts.get(id);
+    if (!draft || savingId) return;
+    setSavingId(id); setSavedId(null); setError("");
+    try {
+      const response = await fetch(`/api/course-operations/${id}/payment-summary`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draft),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.message ?? "정산 정보를 저장하지 못했습니다.");
+      setSavedId(id);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "정산 정보를 저장하지 못했습니다.");
+    } finally { setSavingId(null); }
+  }
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader>
+        <CardTitle>전체 결제내역</CardTitle>
+        <CardDescription>결제완료 상태의 주문을 강의별로 집계합니다. 기수와 정산 상태는 이 표에서 관리할 수 있습니다.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
+        <div className="overflow-x-auto rounded-md border">
+          <Table className="min-w-[1080px]">
+            <TableHeader><TableRow>
+              <TableHead>강의 제목</TableHead><TableHead>개강일</TableHead><TableHead>강사명</TableHead>
+              <TableHead>기수</TableHead><TableHead className="text-right">결제 건수</TableHead>
+              <TableHead className="text-right">전체 결제금액</TableHead><TableHead>노바 정산</TableHead>
+              <TableHead>강사 정산</TableHead><TableHead className="text-right">저장</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {summaries.map((item) => {
+                const draft = drafts.get(item.id)!;
+                const saving = savingId === item.id;
+                return <TableRow key={item.id}>
+                  <TableCell className="font-medium"><Link href={`/services/course-operations/${item.id}`} className="hover:underline">{item.name}</Link></TableCell>
+                  <TableCell>{formatDate(item.starts_at)}</TableCell>
+                  <TableCell>{item.instructor_name || "-"}</TableCell>
+                  <TableCell><Input className="h-8 w-24" value={draft.cohort} placeholder="예: 1기" onChange={(event) => updateDraft(item.id, { cohort: event.target.value })} /></TableCell>
+                  <TableCell className="text-right tabular-nums">{item.payment_count.toLocaleString("ko-KR")}</TableCell>
+                  <TableCell className="text-right tabular-nums">{money(item.payment_amount)}</TableCell>
+                  <TableCell><label className="inline-flex items-center gap-2 text-sm"><Checkbox checked={draft.novaSettled} onCheckedChange={(checked) => updateDraft(item.id, { novaSettled: checked === true })} />{draft.novaSettled ? <Badge variant="default">완료</Badge> : <Badge variant="outline">미정산</Badge>}</label></TableCell>
+                  <TableCell><label className="inline-flex items-center gap-2 text-sm"><Checkbox checked={draft.instructorSettled} onCheckedChange={(checked) => updateDraft(item.id, { instructorSettled: checked === true })} />{draft.instructorSettled ? <Badge variant="default">완료</Badge> : <Badge variant="outline">미정산</Badge>}</label></TableCell>
+                  <TableCell className="text-right"><Button type="button" size="sm" variant="outline" onClick={() => void save(item.id)} disabled={saving} aria-label={`${item.name} 정산 정보 저장`}>{saving ? <Loader2 className="animate-spin" /> : savedId === item.id ? <Check /> : <Save />}<span className="sr-only">저장</span></Button></TableCell>
+                </TableRow>;
+              })}
+              {!summaries.length ? <TableRow><TableCell colSpan={9} className="h-32 text-center text-muted-foreground">등록된 강의가 없습니다.</TableCell></TableRow> : null}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

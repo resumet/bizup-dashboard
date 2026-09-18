@@ -95,6 +95,9 @@ export type CourseSummary = {
   course_options: Array<{ id: string }>;
   course_jobs: Array<{ id: string }>;
   message_studio_projects: Array<{ id: string }>;
+  cohort: string;
+  nova_settled: boolean;
+  instructor_settled: boolean;
 };
 
 export type LinkableRosterJob = {
