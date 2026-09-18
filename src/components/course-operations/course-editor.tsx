@@ -926,9 +926,6 @@ export function CourseOperationsEditor({
           <TabsTrigger value="messages" className="h-10 min-w-0 px-2 md:min-w-32 md:px-5">
             단톡방문자
           </TabsTrigger>
-          <TabsTrigger value="videos" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
-            영상
-          </TabsTrigger>
           <TabsTrigger value="webinar" disabled={!courseId} className="h-10 min-w-0 px-2">라이브 웨비나</TabsTrigger>
           <TabsTrigger value="costs" disabled={!courseId} className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             비용
@@ -1571,7 +1568,7 @@ export function CourseOperationsEditor({
           )}
         </TabsContent>
 
-        <TabsContent value="videos" className="mt-0">
+        <TabsContent value="information" className="mt-0">
           {sectionStatuses.videos !== "loaded" ? (
             <DeferredSectionState
               status={sectionStatuses.videos}
@@ -1580,7 +1577,7 @@ export function CourseOperationsEditor({
             />
           ) : (
           <div className="space-y-6">
-        <Card>
+        <Card className="overflow-x-auto">
           <CardHeader>
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle>유튜브 출연</CardTitle>
@@ -1762,7 +1759,7 @@ export function CourseOperationsEditor({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="overflow-x-auto">
           <CardHeader>
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle>기존 라이브 영상 링크</CardTitle>
