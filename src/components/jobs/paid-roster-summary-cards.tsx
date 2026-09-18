@@ -13,6 +13,11 @@ export function PaidRosterSummaryCards({ summary }: { summary: PaidRosterSummary
             <p className="text-sm text-muted-foreground">전체 결제자 수</p>
             <p className="mt-2 text-2xl font-semibold tabular-nums">
               {summary.payerCount.toLocaleString("ko-KR")}
+              {summary.options.length > 0 ? (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  ({summary.options.map((option) => `${option.optionName} ${option.payerCount.toLocaleString("ko-KR")}명`).join(" / ")})
+                </span>
+              ) : null}
               <span className="ml-1 text-sm font-normal text-muted-foreground">명</span>
             </p>
           </CardContent>
@@ -27,7 +32,7 @@ export function PaidRosterSummaryCards({ summary }: { summary: PaidRosterSummary
         </Card>
       </div>
       {summary.options.length > 0 ? (
-        <div className="contents [&>h2]:hidden">
+        <div className="hidden">
           <h2 className="text-sm font-medium text-muted-foreground">옵션별 결제자 수</h2>
           <div className="contents">
             {summary.options.map((option) => (
