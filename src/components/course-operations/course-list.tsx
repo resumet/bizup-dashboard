@@ -166,7 +166,7 @@ export function CourseOperationsList({
 
       {viewMode === "cards" ? (
         <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {cardCourses.map((course) => (
+          {cardCourses.map((course, index) => (
             <Card
               key={course.id}
               className="min-h-[29rem] overflow-hidden transition-shadow hover:shadow-md"
@@ -182,6 +182,8 @@ export function CourseOperationsList({
                     alt={`${course.name} 배너`}
                     fill
                     unoptimized
+                    loading={index < 2 ? "eager" : "lazy"}
+                    priority={index < 2}
                     sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
                     className="object-cover transition-transform duration-300 group-hover/card:scale-[1.02]"
                   />
