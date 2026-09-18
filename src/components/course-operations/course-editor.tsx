@@ -1617,7 +1617,7 @@ export function CourseOperationsEditor({
             />
           ) : (
           <div className="space-y-6">
-        <Card className="overflow-x-auto [&_[data-slot=card-description]]:hidden">
+        <Card className="[&_[data-slot=card-description]]:hidden">
           <CardHeader>
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle>유튜브 출연</CardTitle>
@@ -1672,9 +1672,9 @@ export function CourseOperationsEditor({
                 아직 등록된 유튜브 출연 정보가 없습니다.
               </div>
             ) : (
-              <div className="overflow-x-auto pb-1">
-                <div className="min-w-[1200px] space-y-2">
-                  <div className="grid grid-cols-[180px_minmax(240px,1fr)_minmax(240px,1fr)_minmax(280px,1fr)_72px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
+              <div className="pb-1">
+                <div className="space-y-2">
+                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_72px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
                     <span>채널명</span>
                     <span>채널 주소</span>
                     <span>게시된 영상 주소</span>
@@ -1685,7 +1685,7 @@ export function CourseOperationsEditor({
                   {draft.youtubeAppearances.map((appearance, index) => (
                     <div
                       key={`youtube-${index}`}
-                      className="grid grid-cols-[180px_minmax(240px,1fr)_minmax(240px,1fr)_minmax(280px,1fr)_72px_44px] items-center gap-2"
+                      className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_72px_44px] items-center gap-2"
                     >
                       <Input
                         id={`channel-name-${index}`}
