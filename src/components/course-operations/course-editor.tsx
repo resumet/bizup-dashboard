@@ -1674,7 +1674,7 @@ export function CourseOperationsEditor({
             ) : (
               <div className="pb-1">
                 <div className="space-y-2">
-                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_72px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
+                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_72px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
                     <span>채널명</span>
                     <span>채널 주소</span>
                     <span>게시된 영상 주소</span>
@@ -1685,7 +1685,7 @@ export function CourseOperationsEditor({
                   {draft.youtubeAppearances.map((appearance, index) => (
                     <div
                       key={`youtube-${index}`}
-                      className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_72px_44px] items-center gap-2"
+                      className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_72px_44px] items-center gap-2"
                     >
                       <Input
                         id={`channel-name-${index}`}
