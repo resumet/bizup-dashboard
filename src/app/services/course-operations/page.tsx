@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 
 import { CourseOperationsList } from "@/components/course-operations/course-list";
-import { loadCoursePaymentSummaries, type CoursePaymentSummary } from "@/lib/course-operations/payment-summary";
+import type { CoursePaymentSummary } from "@/lib/course-operations/payment-summary";
 import { hasAdminAccess } from "@/lib/admin/access";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -27,13 +27,10 @@ export default async function CourseOperationsPage() {
   const membership = await requireCourseOperationsMembership(user.id);
 
   let courses: CourseSummary[] = [];
-  let paymentSummaries: CoursePaymentSummary[] = [];
+  const paymentSummaries: CoursePaymentSummary[] = [];
   let loadError = "";
   try {
-    [courses, paymentSummaries] = await Promise.all([
-      getCachedCourseSummaries(membership.workspace_id),
-      loadCoursePaymentSummaries(membership.workspace_id),
-    ]);
+    courses = await getCachedCourseSummaries(membership.workspace_id);
   } catch (caught) {
     loadError =
       caught instanceof Error

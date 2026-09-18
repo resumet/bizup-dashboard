@@ -70,6 +70,8 @@ export function CourseOperationsList({
   const [deleteTarget, setDeleteTarget] = useState<CourseSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [loadedPaymentSummaries, setLoadedPaymentSummaries] = useState(paymentSummaries);
+  const [paymentLoading, setPaymentLoading] = useState(false);
   const cardCourses = useMemo(
     () => sortByFarthestWebinar(courses),
     [courses],
@@ -104,6 +106,17 @@ export function CourseOperationsList({
     setDeleteTarget(course);
   }
 
+  async function openPayments() {
+    setViewMode("payments");
+    if (loadedPaymentSummaries.length || paymentLoading) return;
+    setPaymentLoading(true);
+    try {
+      const response = await fetch("/api/course-operations/payment-summary", { cache: "no-store" });
+      if (!response.ok) throw new Error("결제내역을 불러오지 못했습니다.");
+      setLoadedPaymentSummaries(await response.json());
+    } finally { setPaymentLoading(false); }
+  }
+
   return (
     <>
       <div className="mb-4 flex justify-end" aria-label="강의 목록 보기 방식">
@@ -122,7 +135,7 @@ export function CourseOperationsList({
             type="button"
             variant={viewMode === "payments" ? "secondary" : "ghost"}
             size="sm"
-            onClick={() => setViewMode("payments")}
+            onClick={() => void openPayments()}
             aria-pressed={viewMode === "payments"}
           >
             <CircleDollarSign />
@@ -287,7 +300,7 @@ export function CourseOperationsList({
       ) : viewMode === "calendar" ? (
         <CourseListCalendar courses={courses} />
       ) : (
-        <CoursePaymentSummaryTable summaries={paymentSummaries} />
+        {paymentLoading ? <p className="py-12 text-center text-muted-foreground">결제내역을 불러오는 중입니다.</p> : <CoursePaymentSummaryTable summaries={loadedPaymentSummaries} />}
       )}
 
       <AlertDialog
