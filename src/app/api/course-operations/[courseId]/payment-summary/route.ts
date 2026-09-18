@@ -1,4 +1,3 @@
-import { invalidateCourseOperationsList } from "@/lib/course-operations/list-cache";
 import { requireCourseOperationsMembership, requireCourseOperationsUser } from "@/lib/course-operations/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -47,7 +46,6 @@ export async function PATCH(
       entity_id: courseId,
       metadata: { cohort, novaSettled, instructorSettled },
     });
-    invalidateCourseOperationsList();
     return Response.json({ id: courseId });
   } catch (error) {
     return Response.json({ message: error instanceof Error ? error.message : "정산 정보를 저장하지 못했습니다." }, { status: 400 });

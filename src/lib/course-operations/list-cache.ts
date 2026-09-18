@@ -14,7 +14,7 @@ const loadCachedCourseSummaries = unstable_cache(
     const { data, error } = await admin
       .from("courses")
       .select(
-        "id,name,instructor_name,banner_image_path,free_webinar_at,starts_at,updated_at,cohort,nova_settled,instructor_settled",
+        "id,name,instructor_name,banner_image_path,free_webinar_at,starts_at,updated_at,cohort,nova_settled,instructor_settled,course_options(count),course_jobs(count),message_studio_projects(count)",
       )
       .eq("workspace_id", workspaceId)
       .order("updated_at", { ascending: false });
@@ -24,9 +24,9 @@ const loadCachedCourseSummaries = unstable_cache(
 
     return (data ?? []).map((course) => ({
       ...course,
-      course_options: [],
-      course_jobs: [],
-      message_studio_projects: [],
+      course_options: Array.from({ length: course.course_options?.[0]?.count ?? 0 }, (_, index) => ({ id: String(index) })),
+      course_jobs: Array.from({ length: course.course_jobs?.[0]?.count ?? 0 }, (_, index) => ({ id: String(index) })),
+      message_studio_projects: Array.from({ length: course.message_studio_projects?.[0]?.count ?? 0 }, (_, index) => ({ id: String(index) })),
       required_tasks: [],
     })) as CourseSummary[];
   },
