@@ -123,7 +123,8 @@ type CourseLinkFieldKey =
   | "inquiryLink"
   | "curriculumLink"
   | "freeGiftLink"
-  | "courseViewingLink";
+  | "courseViewingLink"
+  | "courseMaterialsLink";
 
 const COURSE_LINKS: Array<{ field: CourseLinkFieldKey; label: string }> = [
   { field: "landingPageLink", label: "기본 랜딩페이지" },
@@ -136,6 +137,7 @@ const COURSE_LINKS: Array<{ field: CourseLinkFieldKey; label: string }> = [
   { field: "curriculumLink", label: "커리큘럼 보기 링크" },
   { field: "freeGiftLink", label: "무료강의 수강 선물받기 링크" },
   { field: "courseViewingLink", label: "강의 시청하기 링크" },
+  { field: "courseMaterialsLink", label: "강의자료 링크" },
 ];
 
 function getOpenableLink(value: string) {
@@ -947,14 +949,11 @@ export function CourseOperationsEditor({
         </TabsList>
 
         <TabsContent value="information" className="mt-0 space-y-6">
-          <div className="grid items-stretch gap-6 xl:grid-cols-2">
-          <div className="space-y-6">
+          <div className="grid items-start gap-6 xl:grid-cols-2">
+          <>
             <Card>
             <CardHeader>
-              <CardTitle>기본 정보와 일정</CardTitle>
-              <CardDescription>
-                강의를 식별하고 운영할 기본 정보입니다.
-              </CardDescription>
+              <CardTitle>배너 설정</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-5 md:grid-cols-2">
               <div className="grid gap-2 md:col-span-2">
@@ -1008,6 +1007,14 @@ export function CourseOperationsEditor({
                   </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>강의 기본 정보</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-5 md:grid-cols-2">
               <div className="grid gap-2 md:col-span-2">
                 <Label htmlFor="course-name">강의명</Label>
                 <Input
@@ -1081,7 +1088,7 @@ export function CourseOperationsEditor({
                   }
                 />
               </div>
-              <div className="grid gap-2 md:col-span-2">
+              <div className="hidden">
                 <Label htmlFor="course-materials-link">강의자료 링크</Label>
                 <div className="flex gap-2">
                   <Input
@@ -1124,9 +1131,9 @@ export function CourseOperationsEditor({
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="hidden">
               <CardHeader>
-                <CardTitle>필수 작업 목록</CardTitle>
+                <CardTitle className="hidden">필수 작업 목록</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -1200,8 +1207,7 @@ export function CourseOperationsEditor({
                 </Table>
               </CardContent>
             </Card>
-          </div>
-
+          </>
         </div>
 
         <Card>
