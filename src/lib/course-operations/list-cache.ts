@@ -3,9 +3,6 @@ import "server-only";
 import { revalidateTag, unstable_cache } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { normalizeRequiredTasks } from "./required-tasks";
-import { toKoreaDate } from "./schedule";
-import { applyTaskDeadlines } from "./task-deadlines";
 import type { CourseSummary } from "./types";
 
 export const COURSE_OPERATIONS_LIST_CACHE_TAG = "course-operations-list";
@@ -17,7 +14,7 @@ const loadCachedCourseSummaries = unstable_cache(
     const { data, error } = await admin
       .from("courses")
       .select(
-        "id,name,instructor_name,banner_image_path,free_webinar_at,starts_at,updated_at,required_tasks,cohort,nova_settled,instructor_settled",
+        "id,name,instructor_name,banner_image_path,free_webinar_at,starts_at,updated_at,cohort,nova_settled,instructor_settled",
       )
       .eq("workspace_id", workspaceId)
       .order("updated_at", { ascending: false });
@@ -30,10 +27,7 @@ const loadCachedCourseSummaries = unstable_cache(
       course_options: [],
       course_jobs: [],
       message_studio_projects: [],
-      required_tasks: applyTaskDeadlines(
-        normalizeRequiredTasks(course.required_tasks),
-        toKoreaDate(course.free_webinar_at),
-      ),
+      required_tasks: [],
     })) as CourseSummary[];
   },
   [COURSE_OPERATIONS_LIST_CACHE_TAG],
