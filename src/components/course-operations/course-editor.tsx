@@ -1799,7 +1799,7 @@ export function CourseOperationsEditor({
           </CardContent>
         </Card>
 
-        <Card className="overflow-x-auto [&_[data-slot=card-description]]:hidden">
+        <Card className="[&_[data-slot=card-description]]:hidden">
           <CardHeader>
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle>기존 라이브 영상 링크</CardTitle>
@@ -1831,9 +1831,9 @@ export function CourseOperationsEditor({
                 아직 등록된 라이브 영상 링크가 없습니다.
               </div>
             ) : (
-              <div className="overflow-x-auto pb-1">
-                <div className="min-w-[900px] space-y-2">
-                  <div className="grid grid-cols-[220px_minmax(280px,1fr)_minmax(220px,1fr)_72px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
+              <div className="pb-1">
+                <div className="space-y-2">
+                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_72px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
                     <span>이름</span>
                     <span>주소</span>
                     <span>비고</span>
@@ -1845,7 +1845,7 @@ export function CourseOperationsEditor({
                     return (
                       <div
                         key={`live-video-${index}`}
-                        className="grid grid-cols-[220px_minmax(280px,1fr)_minmax(220px,1fr)_72px_44px] items-center gap-2"
+                        className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_72px_44px] items-center gap-2"
                       >
                         <Input
                           id={`live-video-name-${index}`}
