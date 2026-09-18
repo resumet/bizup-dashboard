@@ -409,7 +409,7 @@ export function RosterDetailClient({
           <h1 className="text-3xl font-semibold tracking-tight">
             {paidRoster ? "유료수강생" : <>{jobName}{courseName ? ` (${courseName})` : ""}</>}
           </h1>
-          <p className="mt-2 text-muted-foreground">
+          <p className="hidden">
             최신 명단을 조회하고 필터링하거나 메시지를 발송할 수 있습니다.
           </p>
         </div>
