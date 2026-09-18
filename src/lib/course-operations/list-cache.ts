@@ -17,7 +17,7 @@ const loadCachedCourseSummaries = unstable_cache(
     const { data, error } = await admin
       .from("courses")
       .select(
-        "id,name,instructor_name,banner_image_path,free_webinar_at,starts_at,updated_at,required_tasks,cohort,nova_settled,instructor_settled,course_options(id),course_jobs(id),message_studio_projects(id)",
+        "id,name,instructor_name,banner_image_path,free_webinar_at,starts_at,updated_at,required_tasks,cohort,nova_settled,instructor_settled",
       )
       .eq("workspace_id", workspaceId)
       .order("updated_at", { ascending: false });
@@ -27,6 +27,9 @@ const loadCachedCourseSummaries = unstable_cache(
 
     return (data ?? []).map((course) => ({
       ...course,
+      course_options: [],
+      course_jobs: [],
+      message_studio_projects: [],
       required_tasks: applyTaskDeadlines(
         normalizeRequiredTasks(course.required_tasks),
         toKoreaDate(course.free_webinar_at),
