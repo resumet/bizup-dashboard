@@ -3,7 +3,7 @@ import {
   ArrowLeftRight, ArrowRight, BookOpenCheck, Calculator, ChartNoAxesCombined,
   CirclePlay, ContactRound, FileCheck2, FileDown, FileSpreadsheet, HandCoins,
   MessageSquareText, Palette, PhoneCall, ShoppingCart, Users, WalletCards,
-  WandSparkles, type LucideIcon,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +17,6 @@ const services: Service[] = [
   { title: "주소록 매니저", description: "Excel 또는 CSV로 주소록을 만들고 연락처를 검색·수정·업데이트합니다.", route: "/services/address-books", icon: ContactRound },
   { title: "전화세일즈 명단 만들기", description: "무료강의 신청자 명단에서 유료강의 신청자를 제외해 전화 세일즈 대상과 콜 인력 비용을 계산합니다.", route: "/services/phone-sales-list", icon: PhoneCall },
   { title: "알림톡·문자 자동화", description: "기존 주소록을 선택하고 템플릿으로 알림톡과 문자를 발송합니다.", route: "/services/message-automation", icon: MessageSquareText },
-  { title: "문자 생성·제작 프로그램", description: "예시 문자 30개를 바탕으로 강의별 신규 마케팅 문자 30개를 AI로 제작합니다.", route: "/services/message-studio", icon: WandSparkles },
   { title: "강의별 정산", description: "월별 비즈업 정산 엑셀을 분석하고 강사별 정산표와 최종 정산서를 작성합니다.", route: "/services/settlement-analysis", icon: HandCoins },
   { title: "자금 흐름", description: "현재 통장 잔액과 강의별 입출금, 월 고정지출을 반영해 향후 12개월 회사 자금을 예측합니다.", route: "/services/cash-flow", icon: WalletCards },
   { title: "주문결제 매출분석", description: "주문결제 엑셀을 강의·상품·광고 유입별로 분석하고 환불과 중복 구매자를 확인합니다.", route: "/services/purchase-analysis", icon: ShoppingCart },
