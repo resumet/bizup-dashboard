@@ -60,7 +60,7 @@ export default async function CourseOperationsPage() {
           <div>
             <Badge variant="outline" className="mb-3">강의 중심 관리</Badge>
             <h1 className="text-3xl font-semibold tracking-tight">강의 목록</h1>
-            <p className="mt-2 max-w-2xl text-muted-foreground">
+            <p className="hidden">
               강의 ID를 기준으로 일정, 옵션, 수강생 명단과 문자 제작물을 한곳에서
               관리합니다.
             </p>

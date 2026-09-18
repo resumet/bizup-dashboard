@@ -42,7 +42,7 @@ import {
 import type { CourseSummary } from "@/lib/course-operations/types";
 import type { CoursePaymentSummary } from "@/lib/course-operations/payment-summary";
 import { courseBannerUrl } from "@/lib/course-operations/banner";
-import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
+import { sortByFarthestWebinar } from "@/lib/course-operations/webinar-proximity";
 
 type ViewMode = "cards" | "list" | "calendar" | "payments";
 
@@ -71,8 +71,8 @@ export function CourseOperationsList({
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const cardCourses = useMemo(
-    () => sortByNearestWebinar(courses, todayKoreaDate),
-    [courses, todayKoreaDate],
+    () => sortByFarthestWebinar(courses),
+    [courses],
   );
 
   async function deleteCourse() {

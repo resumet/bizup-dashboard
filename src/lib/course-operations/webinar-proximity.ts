@@ -54,3 +54,19 @@ export function sortByNearestWebinar<
     })
     .map(({ course }) => course);
 }
+
+export function sortByFarthestWebinar<T extends { free_webinar_at: string }>(
+  courses: readonly T[],
+) {
+  return courses
+    .map((course, index) => ({ course, index, time: Date.parse(course.free_webinar_at) }))
+    .sort((left, right) => {
+      const leftInvalid = Number.isNaN(left.time);
+      const rightInvalid = Number.isNaN(right.time);
+      if (leftInvalid || rightInvalid) {
+        return leftInvalid === rightInvalid ? left.index - right.index : leftInvalid ? 1 : -1;
+      }
+      return right.time - left.time || left.index - right.index;
+    })
+    .map(({ course }) => course);
+}
