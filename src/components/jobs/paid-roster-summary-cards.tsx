@@ -7,7 +7,7 @@ const money = (value: number) =>
 export function PaidRosterSummaryCards({ summary }: { summary: PaidRosterSummary }) {
   return (
     <section aria-label="유료수강생 결제 요약" className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card role="group" aria-label="전체 결제자 수">
           <CardContent>
             <p className="text-sm text-muted-foreground">전체 결제자 수</p>
@@ -27,9 +27,9 @@ export function PaidRosterSummaryCards({ summary }: { summary: PaidRosterSummary
         </Card>
       </div>
       {summary.options.length > 0 ? (
-        <div className="space-y-2">
+        <div className="contents [&>h2]:hidden">
           <h2 className="text-sm font-medium text-muted-foreground">옵션별 결제자 수</h2>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="contents">
             {summary.options.map((option) => (
               <Card key={option.optionName} role="group" aria-label={`${option.optionName} 결제자 수`}>
                 <CardContent>
