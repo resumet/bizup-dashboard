@@ -7,7 +7,6 @@ import { Check, Loader2, Save } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { CoursePaymentSummary } from "@/lib/course-operations/payment-summary";
 
@@ -82,7 +81,7 @@ export function CoursePaymentSummaryTable({ summaries }: { summaries: CoursePaym
                   <TableCell className="font-medium"><Link href={`/services/course-operations/${item.id}`} className="hover:underline">{item.name}</Link></TableCell>
                   <TableCell>{formatDate(item.free_webinar_at)}</TableCell>
                   <TableCell>{item.instructor_name || "-"}</TableCell>
-                  <TableCell><Input className="h-8 w-24" value={draft.cohort} placeholder="예: 1기" onChange={(event) => updateDraft(item.id, { cohort: event.target.value })} /></TableCell>
+                  <TableCell>{item.cohort ? `${item.cohort}기` : "-"}</TableCell>
                   <TableCell className="text-right tabular-nums">{item.payment_count.toLocaleString("ko-KR")}</TableCell>
                   <TableCell className="text-right tabular-nums">{money(item.payment_amount)}</TableCell>
                   <TableCell><label className="inline-flex items-center gap-2 text-sm"><Checkbox checked={draft.novaSettled} onCheckedChange={(checked) => updateDraft(item.id, { novaSettled: checked === true })} />{draft.novaSettled ? <Badge variant="default">완료</Badge> : <Badge variant="outline">미정산</Badge>}</label></TableCell>

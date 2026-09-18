@@ -137,6 +137,11 @@ export function parseCourseOperationsInput(value: unknown): CourseOperationsInpu
   return {
     name: text(input.name, "강의명", 200),
     instructorName: text(input.instructorName, "강사명", 120),
+    cohort: (() => {
+      const value = typeof input.cohort === "string" ? input.cohort.trim() : "";
+      if (value && !/^\d{1,6}$/u.test(value)) throw new Error("기수는 숫자만 입력할 수 있습니다.");
+      return value;
+    })(),
     freeWebinarAt,
     startsAt,
     earlyBirdEvent: text(input.earlyBirdEvent, "얼리버드 이벤트", 2_000, false),

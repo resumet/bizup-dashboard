@@ -18,6 +18,7 @@ import { createClient } from "@/lib/supabase/server";
 const EMPTY_DRAFT: CourseOperationsDraft = {
   name: "",
   instructorName: "",
+  cohort: "",
   freeWebinarAt: "",
   startsAt: "",
   earlyBirdEvent: "",

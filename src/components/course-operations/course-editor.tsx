@@ -1039,6 +1039,18 @@ export function CourseOperationsEditor({
                 />
               </div>
               <div className="grid gap-2">
+                <Label htmlFor="course-cohort">기수</Label>
+                <Input
+                  id="course-cohort"
+                  className="h-10"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  value={draft.cohort}
+                  onChange={(event) => updateField("cohort", event.target.value.replace(/\D/gu, ""))}
+                />
+              </div>
+              <div className="grid gap-2">
                 <Label htmlFor="free-webinar-date">무료 웨비나 날짜</Label>
                 <Input
                   id="free-webinar-date"

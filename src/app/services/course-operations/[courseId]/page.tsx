@@ -32,7 +32,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
   const { data: course, error: courseError } = await supabase
     .from("courses")
     .select(
-      "id,name,instructor_name,banner_image_path,free_webinar_at,starts_at,landing_page_link,free_kakao_room_1_link,free_kakao_room_2_link,paid_kakao_room_link,communication_room_link,payment_link,inquiry_link,curriculum_link,free_gift_link,course_viewing_link,course_materials_link,custom_links,free_address_book_id,required_tasks,updated_at",
+      "id,name,instructor_name,cohort,banner_image_path,free_webinar_at,starts_at,landing_page_link,free_kakao_room_1_link,free_kakao_room_2_link,paid_kakao_room_link,communication_room_link,payment_link,inquiry_link,curriculum_link,free_gift_link,course_viewing_link,course_materials_link,custom_links,free_address_book_id,required_tasks,updated_at",
     )
     .eq("id", courseId)
     .maybeSingle();
@@ -80,6 +80,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
   const draft: CourseOperationsDraft = {
     name: course.name,
     instructorName: course.instructor_name,
+    cohort: course.cohort ?? "",
     freeWebinarAt: course.free_webinar_at,
     startsAt: course.starts_at,
     earlyBirdEvent: "",
