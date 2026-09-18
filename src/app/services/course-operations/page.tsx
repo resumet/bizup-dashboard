@@ -43,7 +43,7 @@ export default async function CourseOperationsPage() {
       <header className="border-b bg-background">
         <div className="mx-auto flex h-18 max-w-[1600px] items-center px-5 lg:px-8">
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/">
+            <Link href="/work">
               <ArrowLeft />서비스
             </Link>
           </Button>
