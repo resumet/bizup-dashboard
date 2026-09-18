@@ -9,7 +9,7 @@ import { getAuthenticatedUser } from "@/lib/supabase/auth";
 export default async function HomePage() {
   const user = await getAuthenticatedUser(await createClient());
   if (!user) redirect("/login");
-  return <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+  return <main className="min-h-screen">
     <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-6"><BrandHomeLink /><UserAccountMenu email={user.email ?? ""} /></header>
     <section className="mx-auto max-w-5xl px-5 py-12 sm:py-24">
       <p className="text-sm font-semibold tracking-widest text-blue-700">BIZUP WORKSPACE</p>
