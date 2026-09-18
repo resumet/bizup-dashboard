@@ -302,7 +302,7 @@ export function CourseOperationsList({
       ) : viewMode === "calendar" ? (
         <CourseListCalendar courses={courses} />
       ) : (
-        {paymentLoading ? <p className="py-12 text-center text-muted-foreground">결제내역을 불러오는 중입니다.</p> : <CoursePaymentSummaryTable summaries={loadedPaymentSummaries} />}
+        <>{paymentLoading ? <p className="py-12 text-center text-muted-foreground">결제내역을 불러오는 중입니다.</p> : <CoursePaymentSummaryTable summaries={loadedPaymentSummaries} />}</>
       )}
 
       <AlertDialog
