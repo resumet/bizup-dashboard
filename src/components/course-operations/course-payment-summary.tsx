@@ -6,7 +6,6 @@ import { Check, Loader2, Save } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -27,6 +26,8 @@ export function CoursePaymentSummaryTable({ summaries }: { summaries: CoursePaym
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const totalPaymentCount = summaries.reduce((sum, item) => sum + item.payment_count, 0);
+  const totalPaymentAmount = summaries.reduce((sum, item) => sum + item.payment_amount, 0);
 
   function updateDraft(id: string, patch: Partial<{ cohort: string; novaSettled: boolean; instructorSettled: boolean }>) {
     setDrafts((current) => {
@@ -56,12 +57,7 @@ export function CoursePaymentSummaryTable({ summaries }: { summaries: CoursePaym
   }
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader>
-        <CardTitle>전체 결제내역</CardTitle>
-        <CardDescription>결제완료 상태의 주문을 강의별로 집계합니다. 기수와 정산 상태는 이 표에서 관리할 수 있습니다.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <div className="space-y-3">
         {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
         <div className="overflow-x-auto rounded-md border">
           <Table className="min-w-[1080px]">
@@ -72,6 +68,13 @@ export function CoursePaymentSummaryTable({ summaries }: { summaries: CoursePaym
               <TableHead>강사 정산</TableHead><TableHead className="text-right">저장</TableHead>
             </TableRow></TableHeader>
             <TableBody>
+              <TableRow className="bg-muted/50 font-semibold">
+                <TableCell>전체 합계</TableCell>
+                <TableCell colSpan={3}>-</TableCell>
+                <TableCell className="text-right tabular-nums">{totalPaymentCount.toLocaleString("ko-KR")}</TableCell>
+                <TableCell className="text-right tabular-nums">{money(totalPaymentAmount)}</TableCell>
+                <TableCell colSpan={3}>-</TableCell>
+              </TableRow>
               {summaries.map((item) => {
                 const draft = drafts.get(item.id)!;
                 const saving = savingId === item.id;
@@ -91,7 +94,6 @@ export function CoursePaymentSummaryTable({ summaries }: { summaries: CoursePaym
             </TableBody>
           </Table>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
