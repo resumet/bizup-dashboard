@@ -19,7 +19,6 @@ import {
 
 import { CourseRosterSections } from "@/components/course-operations/course-roster-sections";
 import { CourseNotesCard } from "@/components/course-operations/course-notes-card";
-import { CourseScheduleCalendar } from "@/components/course-operations/course-schedule-calendar";
 import { CourseShareDialog } from "@/components/course-operations/course-share-dialog";
 import { CourseSettlementManager } from "@/components/course-settlements/course-settlement-manager";
 import { CourseCostManager } from "@/components/course-costs/course-cost-manager";
@@ -979,11 +978,6 @@ export function CourseOperationsEditor({
                     )}
                   </div>
                   <div>
-                    <p className="text-sm font-medium">16:9 가로 이미지를 권장합니다</p>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      JPG, PNG, WebP · 최대 8MB. 업로드 시 1600×900 이내
-                      WebP로 자동 최적화되며 강의 목록 카드 상단에 표시됩니다.
-                    </p>
                     <Input
                       ref={bannerInputRef}
                       id="course-banner"
@@ -1208,31 +1202,7 @@ export function CourseOperationsEditor({
             </Card>
           </div>
 
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle>강의 일정 달력</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CourseScheduleCalendar
-                courseName={draft.name || "강의명 미입력"}
-                freeWebinarDate={draft.freeWebinarAt}
-                freeWebinarTime={draft.freeWebinarTime}
-                startsDate={draft.startsAt}
-                requiredTasks={draft.requiredTasks}
-              />
-            </CardContent>
-          </Card>
         </div>
-
-        {courseId ? (
-          <CourseNotesCard
-            courseId={courseId}
-            currentUserId={currentUserId}
-            currentUserEmail={currentUserEmail}
-            initialNotes={initialNotes}
-            loadError={notesLoadError}
-          />
-        ) : null}
 
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-4">
@@ -1286,6 +1256,16 @@ export function CourseOperationsEditor({
             </Table>
           </CardContent>
         </Card>
+
+        {courseId ? (
+          <CourseNotesCard
+            courseId={courseId}
+            currentUserId={currentUserId}
+            currentUserEmail={currentUserEmail}
+            initialNotes={initialNotes}
+            loadError={notesLoadError}
+          />
+        ) : null}
 
         </TabsContent>
 
