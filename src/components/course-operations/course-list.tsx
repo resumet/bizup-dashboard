@@ -12,6 +12,7 @@ import {
   Loader2,
   Settings2,
   Trash2,
+  Users,
   CircleDollarSign,
 } from "lucide-react";
 
@@ -44,7 +45,7 @@ import type { CoursePaymentSummary } from "@/lib/course-operations/payment-summa
 import { courseBannerUrl } from "@/lib/course-operations/banner";
 import { sortByFarthestWebinar } from "@/lib/course-operations/webinar-proximity";
 
-type ViewMode = "cards" | "list" | "calendar" | "payments";
+type ViewMode = "cards" | "list" | "calendar" | "payments" | "students";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -121,6 +122,16 @@ export function CourseOperationsList({
     <>
       <div className="mb-4 flex justify-end" aria-label="강의 목록 보기 방식">
         <div className="inline-flex rounded-lg border bg-background p-1">
+          <Button
+            type="button"
+            variant={viewMode === "students" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("students")}
+            aria-pressed={viewMode === "students"}
+          >
+            <Users />
+            수강생
+          </Button>
           <Button
             type="button"
             variant={viewMode === "cards" ? "secondary" : "ghost"}
@@ -299,6 +310,8 @@ export function CourseOperationsList({
             </TableBody>
           </Table>
         </Card>
+      ) : viewMode === "students" ? (
+        <Card className="overflow-hidden"><Table><TableHeader><TableRow><TableHead>강의명</TableHead><TableHead>강사명</TableHead><TableHead className="text-right">유료수강생</TableHead><TableHead className="text-right">관리</TableHead></TableRow></TableHeader><TableBody>{courses.map((course) => <TableRow key={course.id}><TableCell className="font-medium"><Link href={`/services/course-operations/${course.id}`} className="hover:underline">{course.name}</Link></TableCell><TableCell>{course.instructor_name || "-"}</TableCell><TableCell className="text-right tabular-nums">{course.course_jobs.length.toLocaleString("ko-KR")}명</TableCell><TableCell className="text-right"><Button size="sm" variant="outline" asChild><Link href={`/services/course-operations/${course.id}?tab=paid-students`}>명단 바로가기</Link></Button></TableCell></TableRow>)}</TableBody></Table></Card>
       ) : viewMode === "calendar" ? (
         <CourseListCalendar courses={courses} />
       ) : (
