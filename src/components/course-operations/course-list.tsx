@@ -88,13 +88,13 @@ export function CourseOperationsList({
       );
       const body = (await response.json()) as { message?: string };
       if (!response.ok) {
-        throw new Error(body.message || "강의 삭제에 실패했습니다.");
+        throw new Error(body.message || "媛뺤쓽 ??젣???ㅽ뙣?덉뒿?덈떎.");
       }
       setDeleteTarget(null);
       router.refresh();
     } catch (caught) {
       setDeleteError(
-        caught instanceof Error ? caught.message : "강의 삭제에 실패했습니다.",
+        caught instanceof Error ? caught.message : "媛뺤쓽 ??젣???ㅽ뙣?덉뒿?덈떎.",
       );
     } finally {
       setDeleting(false);
@@ -112,14 +112,14 @@ export function CourseOperationsList({
     setPaymentLoading(true);
     try {
       const response = await fetch("/api/course-operations/payment-summary", { cache: "no-store" });
-      if (!response.ok) throw new Error("결제내역을 불러오지 못했습니다.");
+      if (!response.ok) throw new Error("寃곗젣?댁뿭??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
       setLoadedPaymentSummaries(await response.json());
     } finally { setPaymentLoading(false); }
   }
 
   return (
     <>
-      <div className="mb-4 flex justify-end" aria-label="강의 목록 보기 방식">
+      <div className="mb-4 flex justify-end" aria-label="媛뺤쓽 紐⑸줉 蹂닿린 諛⑹떇">
         <div className="inline-flex rounded-lg border bg-background p-1">
           <Button
             type="button"
@@ -129,7 +129,7 @@ export function CourseOperationsList({
             aria-pressed={viewMode === "cards"}
           >
             <Grid2X2 />
-            카드
+            移대뱶
           </Button>
           <Button
             type="button"
@@ -139,7 +139,7 @@ export function CourseOperationsList({
             aria-pressed={viewMode === "payments"}
           >
             <CircleDollarSign />
-            전체 결제내역
+            ?꾩껜 寃곗젣?댁뿭
           </Button>
           <Button
             type="button"
@@ -149,7 +149,7 @@ export function CourseOperationsList({
             aria-pressed={viewMode === "list"}
           >
             <List />
-            리스트
+            由ъ뒪??
           </Button>
           <Button
             type="button"
@@ -159,7 +159,7 @@ export function CourseOperationsList({
             aria-pressed={viewMode === "calendar"}
           >
             <CalendarDays />
-            캘린더
+            罹섎┛??
           </Button>
         </div>
       </div>
@@ -175,11 +175,11 @@ export function CourseOperationsList({
                 <Link
                   href={`/services/course-operations/${course.id}`}
                   className="relative -mt-4 block aspect-video overflow-hidden bg-muted"
-                  aria-label={`${course.name} 강의 배너로 상세보기`}
+                  aria-label={`${course.name} 媛뺤쓽 諛곕꼫濡??곸꽭蹂닿린`}
                 >
                   <Image
                     src={courseBannerUrl(course.id, course.updated_at)}
-                    alt={`${course.name} 배너`}
+                    alt={`${course.name} 諛곕꼫`}
                     fill
                     unoptimized
                     sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
@@ -193,7 +193,7 @@ export function CourseOperationsList({
                     <BookOpenCheck className="size-5" />
                   </span>
                   <Badge variant="secondary">
-                    옵션 {course.course_options.length}개
+                    ?듭뀡 {course.course_options.length}媛?
                   </Badge>
                 </div>
                 <CardTitle
@@ -204,20 +204,20 @@ export function CourseOperationsList({
                 </CardTitle>
                 <p
                   className="truncate text-sm text-muted-foreground"
-                  title={`${course.cohort ? `${course.cohort}기 / ` : ""}${course.instructor_name}`}
+                  title={`${course.cohort ? `${course.cohort}湲?/ ` : ""}${course.instructor_name}`}
                 >
-                  {course.cohort ? `${course.cohort}기 / ` : ""}{course.instructor_name}
+                  {course.cohort ? `${course.cohort}湲?/ ` : ""}{course.instructor_name}
                 </p>
               </CardHeader>
               <CardContent className="flex flex-1 flex-col gap-4 border-t pt-5">
                 <p className="flex items-center gap-2 text-sm">
                   <CalendarDays className="size-4 text-muted-foreground" />
-                  무료 웨비나 {formatDate(course.free_webinar_at)}
+                  臾대즺 ?⑤퉬??{formatDate(course.free_webinar_at)}
                 </p>
                 <div className="mt-auto grid grid-cols-[1fr_auto] gap-2">
                   <Button asChild>
                     <Link href={`/services/course-operations/${course.id}`}>
-                      <Settings2 />운영 정보 보기
+                      <Settings2 />?댁쁺 ?뺣낫 蹂닿린
                     </Link>
                   </Button>
                   <Button
@@ -225,7 +225,7 @@ export function CourseOperationsList({
                     className="text-destructive hover:text-destructive"
                     disabled={!canDelete}
                     onClick={() => openDeleteDialog(course)}
-                    aria-label={`${course.name} 삭제`}
+                    aria-label={`${course.name} ??젣`}
                   >
                     <Trash2 />
                   </Button>
@@ -239,12 +239,12 @@ export function CourseOperationsList({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>강의명</TableHead>
-                <TableHead>강사명</TableHead>
-                <TableHead>무료 웨비나</TableHead>
-                <TableHead>개강</TableHead>
-                <TableHead>연결 정보</TableHead>
-                <TableHead className="text-right">관리</TableHead>
+                <TableHead>媛뺤쓽紐?/TableHead>
+                <TableHead>媛뺤궗紐?/TableHead>
+                <TableHead>臾대즺 ?⑤퉬??/TableHead>
+                <TableHead>媛쒓컯</TableHead>
+                <TableHead>?곌껐 ?뺣낫</TableHead>
+                <TableHead className="text-right">愿由?/TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -264,13 +264,13 @@ export function CourseOperationsList({
                   <TableCell>
                     <div className="flex flex-wrap gap-1.5">
                       <Badge variant="outline">
-                        옵션 {course.course_options.length}개
+                        ?듭뀡 {course.course_options.length}媛?
                       </Badge>
                       <Badge variant="outline">
-                        명단 {course.course_jobs.length}개
+                        紐낅떒 {course.course_jobs.length}媛?
                       </Badge>
                       <Badge variant="outline">
-                        문자 {course.message_studio_projects.length}개
+                        臾몄옄 {course.message_studio_projects.length}媛?
                       </Badge>
                     </div>
                   </TableCell>
@@ -278,7 +278,7 @@ export function CourseOperationsList({
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" size="sm" asChild>
                         <Link href={`/services/course-operations/${course.id}`}>
-                          <Settings2 />보기
+                          <Settings2 />蹂닿린
                         </Link>
                       </Button>
                       <Button
@@ -288,7 +288,7 @@ export function CourseOperationsList({
                         disabled={!canDelete}
                         onClick={() => openDeleteDialog(course)}
                       >
-                        <Trash2 />삭제
+                        <Trash2 />??젣
                       </Button>
                     </div>
                   </TableCell>
@@ -300,7 +300,7 @@ export function CourseOperationsList({
       ) : viewMode === "calendar" ? (
         <CourseListCalendar courses={courses} />
       ) : (
-        {paymentLoading ? <p className="py-12 text-center text-muted-foreground">결제내역을 불러오는 중입니다.</p> : <CoursePaymentSummaryTable summaries={loadedPaymentSummaries} />}
+        {paymentLoading ? <p className="py-12 text-center text-muted-foreground">寃곗젣?댁뿭??遺덈윭?ㅻ뒗 以묒엯?덈떎.</p> : <CoursePaymentSummaryTable summaries={loadedPaymentSummaries} />}
       )}
 
       <AlertDialog
@@ -311,21 +311,21 @@ export function CourseOperationsList({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>강의를 삭제할까요?</AlertDialogTitle>
+            <AlertDialogTitle>媛뺤쓽瑜???젣?좉퉴??</AlertDialogTitle>
             <AlertDialogDescription>
-              &apos;{deleteTarget?.name}&apos;의 강의 정보와 옵션, 유튜브 출연
-              정보가 삭제됩니다. 연결된 수강생 명단과 문자 제작물은 삭제되지
-              않고 강의 연결만 해제됩니다. 이 작업은 되돌릴 수 없습니다.
+              &apos;{deleteTarget?.name}&apos;??媛뺤쓽 ?뺣낫? ?듭뀡, ?좏뒠釉?異쒖뿰
+              ?뺣낫媛 ??젣?⑸땲?? ?곌껐???섍컯??紐낅떒怨?臾몄옄 ?쒖옉臾쇱? ??젣?섏?
+              ?딄퀬 媛뺤쓽 ?곌껐留??댁젣?⑸땲?? ???묒뾽? ?섎룎由????놁뒿?덈떎.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {deleteError ? (
             <Alert variant="destructive">
-              <AlertTitle>강의를 삭제할 수 없습니다</AlertTitle>
+              <AlertTitle>媛뺤쓽瑜???젣?????놁뒿?덈떎</AlertTitle>
               <AlertDescription>{deleteError}</AlertDescription>
             </Alert>
           ) : null}
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>취소</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>痍⑥냼</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               disabled={deleting || !canDelete}
@@ -335,7 +335,7 @@ export function CourseOperationsList({
               }}
             >
               {deleting ? <Loader2 className="animate-spin" /> : <Trash2 />}
-              {deleting ? "삭제 중..." : "삭제"}
+              {deleting ? "??젣 以?.." : "??젣"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
