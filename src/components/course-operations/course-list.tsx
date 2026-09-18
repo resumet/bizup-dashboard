@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
-  BookOpenCheck,
   CalendarDays,
   Grid2X2,
   List,
@@ -175,7 +174,7 @@ export function CourseOperationsList({
                 </Link>
               ) : null}
               <CardHeader>
-                <div className="flex items-start justify-between gap-3">
+                <div className="hidden">
                   <span className="grid size-11 place-items-center rounded-xl bg-primary/10 text-primary">
                     <BookOpenCheck className="size-5" />
                   </span>
@@ -197,6 +196,10 @@ export function CourseOperationsList({
                 </p>
               </CardHeader>
               <CardContent className="flex flex-1 flex-col gap-4 border-t pt-5">
+                <p className="flex items-center gap-2 text-sm">
+                  <CalendarDays className="size-4 text-muted-foreground" />
+                  무료 웨비나 {formatDate(course.free_webinar_at)}
+                </p>
                 <div className="mt-auto grid grid-cols-[1fr_auto] gap-2">
                   <Button asChild>
                     <Link href={`/services/course-operations/${course.id}`}>
