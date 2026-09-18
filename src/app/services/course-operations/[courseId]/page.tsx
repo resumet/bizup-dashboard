@@ -150,7 +150,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
       <div className="mx-auto max-w-[1600px] px-5 py-8 lg:px-8">
         <CourseOperationsEditor
           courseId={courseId}
-          paidRoster={<PaidCourseRoster courseId={courseId} />}
+          paidRoster={tab === "paid-students" ? <PaidCourseRoster courseId={courseId} /> : null}
           initialDraft={draft}
           initialBannerUrl={
             course.banner_image_path
