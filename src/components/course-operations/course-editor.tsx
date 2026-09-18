@@ -109,7 +109,7 @@ function formatDiscountRate(listPrice: string, salePrice: string) {
   return rate === null ? "-" : `${rate}%`;
 }
 
-function formatCalculatedPrice(value: number | null, suffix = "??) {
+function formatCalculatedPrice(value: number | null, suffix = "원") {
   return value === null ? "-" : `${value.toLocaleString("ko-KR")}${suffix}`;
 }
 
@@ -127,17 +127,17 @@ type CourseLinkFieldKey =
   | "courseMaterialsLink";
 
 const COURSE_LINKS: Array<{ field: CourseLinkFieldKey; label: string }> = [
-  { field: "landingPageLink", label: "기본 ?�딩?�이지" },
-  { field: "freeKakaoRoom1Link", label: "무료카톡�?1�? },
-  { field: "freeKakaoRoom2Link", label: "무료카톡�?2�? },
-  { field: "paidKakaoRoomLink", label: "?�료?�강?�단?�방" },
-  { field: "communicationRoomLink", label: "?�통�? },
+  { field: "landingPageLink", label: "기본 랜딩페이지" },
+  { field: "freeKakaoRoom1Link", label: "무료카톡방 1번" },
+  { field: "freeKakaoRoom2Link", label: "무료카톡방 2번" },
+  { field: "paidKakaoRoomLink", label: "유료수강생단톡방" },
+  { field: "communicationRoomLink", label: "소통방" },
   { field: "paymentLink", label: "결제링크" },
-  { field: "inquiryLink", label: "문의?�기 링크" },
-  { field: "curriculumLink", label: "커리?�럼 보기 링크" },
-  { field: "freeGiftLink", label: "무료강의 ?�강 ?�물받기 링크" },
-  { field: "courseViewingLink", label: "강의 ?�청?�기 링크" },
-  { field: "courseMaterialsLink", label: "강의?�료 링크" },
+  { field: "inquiryLink", label: "문의하기 링크" },
+  { field: "curriculumLink", label: "커리큘럼 보기 링크" },
+  { field: "freeGiftLink", label: "무료강의 수강 선물받기 링크" },
+  { field: "courseViewingLink", label: "강의 시청하기 링크" },
+  { field: "courseMaterialsLink", label: "강의자료 링크" },
 ];
 
 function getOpenableLink(value: string) {
@@ -194,7 +194,7 @@ function CourseLinkInput({
           }}
         >
           <ExternalLink />
-          ?�기
+          열기
         </Button>
       </TableCell>
     </TableRow>
@@ -227,12 +227,12 @@ function DeferredSectionState({
   if (status === "error") {
     return (
       <div className="flex min-h-52 flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center">
-        <p className="font-medium text-destructive">?�세 ?�보�?불러?��? 못했?�니??/p>
+        <p className="font-medium text-destructive">상세 정보를 불러오지 못했습니다</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          {error || "?�시 ???�시 ?�도??주세??"}
+          {error || "잠시 후 다시 시도해 주세요."}
         </p>
         <Button type="button" variant="outline" className="mt-4" onClick={onRetry}>
-          ?�시 불러?�기
+          다시 불러오기
         </Button>
       </div>
     );
@@ -245,7 +245,7 @@ function DeferredSectionState({
     >
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="animate-spin" />
-        ?�세 ?�보�?불러?�는 중입?�다.
+        상세 정보를 불러오는 중입니다.
       </div>
     </div>
   );
@@ -270,8 +270,8 @@ function CourseCustomLinkInput({
       <TableCell className="w-[180px]">
         <Input
           className="h-10"
-          aria-label={`${index + 1}�?커스?� 링크 ?�름`}
-          placeholder="링크 ?�름"
+          aria-label={`${index + 1}번 커스텀 링크 이름`}
+          placeholder="링크 이름"
           maxLength={100}
           value={name}
           onChange={(event) => onChange(index, { name: event.target.value })}
@@ -282,7 +282,7 @@ function CourseCustomLinkInput({
           className="h-10 min-w-[320px]"
           type="url"
           inputMode="url"
-          aria-label={`${index + 1}�?커스?� 링크 주소`}
+          aria-label={`${index + 1}번 커스텀 링크 주소`}
           placeholder="https://"
           maxLength={2_000}
           value={url}
@@ -296,7 +296,7 @@ function CourseCustomLinkInput({
             variant="outline"
             size="icon"
             className="h-10 w-10"
-            aria-label={`${name || `${index + 1}�?커스?� 링크`} ?�기`}
+            aria-label={`${name || `${index + 1}번 커스텀 링크`} 열기`}
             disabled={!openableLink}
             asChild={Boolean(openableLink)}
           >
@@ -315,7 +315,7 @@ function CourseCustomLinkInput({
             variant="outline"
             size="icon"
             className="h-10 w-10 text-destructive hover:text-destructive"
-            aria-label={`${name || `${index + 1}�?커스?� 링크`} ??��`}
+            aria-label={`${name || `${index + 1}번 커스텀 링크`} 삭제`}
             onClick={() => onDelete(index)}
           >
             <Trash2 />
@@ -459,7 +459,7 @@ export function CourseOperationsEditor({
         throw new Error(
           "message" in body && body.message
             ? body.message
-            : "?�세 ?�보�?불러?��? 못했?�니??",
+            : "상세 정보를 불러오지 못했습니다.",
         );
       }
 
@@ -502,7 +502,7 @@ export function CourseOperationsEditor({
         [section]:
           reason instanceof Error
             ? reason.message
-            : "?�세 ?�보�?불러?��? 못했?�니??",
+            : "상세 정보를 불러오지 못했습니다.",
       }));
       setSectionStatuses((current) => ({
         ...current,
@@ -558,7 +558,7 @@ export function CourseOperationsEditor({
         throw new Error(
           "message" in body && body.message
             ? body.message
-            : "문자 ?�용??불러?��? 못했?�니??",
+            : "문자 내용을 불러오지 못했습니다.",
         );
       }
       const content = body as CourseMessageContentData;
@@ -577,7 +577,7 @@ export function CourseOperationsEditor({
       setError(
         reason instanceof Error
           ? reason.message
-          : "문자 ?�용??불러?��? 못했?�니??",
+          : "문자 내용을 불러오지 못했습니다.",
       );
     } finally {
       setMessageContentLoadingId("");
@@ -644,7 +644,7 @@ export function CourseOperationsEditor({
       setError(
         reason instanceof Error
           ? reason.message
-          : "배너 ?��?지�??�택?��? 못했?�니??",
+          : "배너 이미지를 선택하지 못했습니다.",
       );
     } finally {
       if (bannerInputRef.current) bannerInputRef.current.value = "";
@@ -787,7 +787,7 @@ export function CourseOperationsEditor({
       );
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.message ?? "강의 ?�보�??�?�하지 못했?�니??");
+        throw new Error(body.message ?? "강의 정보를 저장하지 못했습니다.");
       }
       if (!courseId) {
         router.push(`/services/course-operations/${body.id}`);
@@ -800,13 +800,13 @@ export function CourseOperationsEditor({
       }
       setBannerSelection(null);
       setBannerRemoved(false);
-      setNotice("강의 ?�보?� ?�결 ??��???�?�했?�니??");
+      setNotice("강의 정보와 연결 항목을 저장했습니다.");
       router.refresh();
     } catch (caught) {
       setError(
         caught instanceof Error
           ? caught.message
-          : "강의 ?�보�??�?�하지 못했?�니??",
+          : "강의 정보를 저장하지 못했습니다.",
       );
     } finally {
       setSaving(false);
@@ -823,7 +823,7 @@ export function CourseOperationsEditor({
         );
       }, 1200);
     } catch {
-      setError("문자 ?�용??복사?��? 못했?�니?? ?�시 ?�도??주세??");
+      setError("문자 내용을 복사하지 못했습니다. 다시 시도해 주세요.");
     }
   }
 
@@ -852,14 +852,14 @@ export function CourseOperationsEditor({
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <Badge variant="outline" className="mb-3 h-auto min-h-5 max-w-full whitespace-normal break-all">
-            COURSE ID · {courseId ?? "?�성 ??}
+            COURSE ID · {courseId ?? "생성 전"}
           </Badge>
           <h1 className="text-3xl font-semibold tracking-tight">
             {courseId
               ? draft.name
-                ? `${draft.cohort ? `(${draft.cohort}�? ` : ""}${draft.name}${draft.instructorName ? ` - ${draft.instructorName}` : ""}`
-                : "강의 ?�영 ?�보"
-              : "??강의 만들�?}
+                ? `${draft.cohort ? `(${draft.cohort}기) ` : ""}${draft.name}${draft.instructorName ? ` - ${draft.instructorName}` : ""}`
+                : "강의 운영 정보"
+              : "새 강의 만들기"}
           </h1>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -890,26 +890,26 @@ export function CourseOperationsEditor({
           />
           <Button className={activeTab === "webinar" ? "hidden" : "min-h-10"} onClick={saveCourse} disabled={saving}>
             {saving ? <Loader2 className="animate-spin" /> : <Save />}
-            {saving ? "?�??�? : courseId ? "변경사???�?? : "강의 만들�?}
+            {saving ? "저장 중" : courseId ? "변경사항 저장" : "강의 만들기"}
           </Button>
         </div>
       </div>
 
       {loadError ? (
         <Alert variant="destructive" className="fixed bottom-5 left-1/2 z-50 w-[min(92vw,32rem)] -translate-x-1/2 border-red-300 bg-red-50 text-red-950 shadow-lg">
-          <AlertTitle>?�결 ??��??모두 불러?��? 못했?�니??/AlertTitle>
+          <AlertTitle>연결 항목을 모두 불러오지 못했습니다</AlertTitle>
           <AlertDescription>{loadError}</AlertDescription>
         </Alert>
       ) : null}
       {error ? (
         <Alert variant="destructive" className="fixed bottom-5 left-1/2 z-50 w-[min(92vw,32rem)] -translate-x-1/2 border-red-300 bg-red-50 text-red-950 shadow-lg">
-          <AlertTitle>?�?�할 ???�습?�다</AlertTitle>
+          <AlertTitle>저장할 수 없습니다</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
       {notice ? (
         <Alert className="fixed bottom-5 left-1/2 z-50 w-[min(92vw,32rem)] -translate-x-1/2 border-sky-300 bg-sky-50 text-sky-950 shadow-lg">
-          <AlertTitle>?�???�료</AlertTitle>
+          <AlertTitle>저장 완료</AlertTitle>
           <AlertDescription>{notice}</AlertDescription>
         </Alert>
       ) : null}
@@ -921,22 +921,22 @@ export function CourseOperationsEditor({
       >
         <TabsList className="grid w-full grid-cols-2 grid-rows-5 group-data-horizontal/tabs:h-[14rem] md:grid-cols-5 md:grid-rows-2 md:group-data-horizontal/tabs:h-[5.5rem] 2xl:grid-cols-10 2xl:grid-rows-1 2xl:group-data-horizontal/tabs:h-12">
           <TabsTrigger value="information" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
-            ?�보
+            정보
           </TabsTrigger>
           <TabsTrigger value="sales" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
-            ?�매 조건
+            판매 조건
           </TabsTrigger>
           <TabsTrigger value="students" className="h-10 min-w-0 px-2 md:min-w-32 md:px-5">
-            ?�강?�명??
+            수강생명단
           </TabsTrigger>
           <TabsTrigger value="orders" disabled={!courseId} className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
-            주문 ?�역
+            주문 내역
           </TabsTrigger>
-          <TabsTrigger value="paid-students" disabled={!courseId} className="h-10 min-w-0 px-2">?�료?�강??/TabsTrigger>
+          <TabsTrigger value="paid-students" disabled={!courseId} className="h-10 min-w-0 px-2">유료수강생</TabsTrigger>
           <TabsTrigger value="messages" className="h-10 min-w-0 px-2 md:min-w-32 md:px-5">
-            ?�톡방문??
+            단톡방문자
           </TabsTrigger>
-          <TabsTrigger value="webinar" disabled={!courseId} className="h-10 min-w-0 px-2">?�이�??�비??/TabsTrigger>
+          <TabsTrigger value="webinar" disabled={!courseId} className="h-10 min-w-0 px-2">라이브 웨비나</TabsTrigger>
           <TabsTrigger value="costs" disabled={!courseId} className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             비용
           </TabsTrigger>
@@ -945,7 +945,7 @@ export function CourseOperationsEditor({
             disabled={!courseId}
             className="h-10 min-w-0 px-2 md:min-w-28 md:px-5"
           >
-            ?�산
+            정산
           </TabsTrigger>
         </TabsList>
 
@@ -954,11 +954,11 @@ export function CourseOperationsEditor({
           <>
             <Card>
             <CardHeader>
-              <CardTitle>배너 ?�정</CardTitle>
+              <CardTitle>배너 설정</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-5 md:grid-cols-2">
               <div className="grid gap-2 md:col-span-2">
-                <Label htmlFor="course-banner">강의 배너 ?��?지</Label>
+                <Label htmlFor="course-banner">강의 배너 이미지</Label>
                 <div className="grid gap-4 rounded-lg border bg-muted/20 p-4 lg:grid-cols-[minmax(0,32rem)_1fr] lg:items-center">
                   <div className="relative aspect-video overflow-hidden rounded-md border bg-muted">
                     {bannerPreviewUrl ? (
@@ -973,7 +973,7 @@ export function CourseOperationsEditor({
                     ) : (
                       <div className="flex size-full flex-col items-center justify-center gap-2 text-muted-foreground">
                         <ImagePlus className="size-8" />
-                        <span className="text-sm">?�록??배너가 ?�습?�다</span>
+                        <span className="text-sm">등록된 배너가 없습니다</span>
                       </div>
                     )}
                   </div>
@@ -993,7 +993,7 @@ export function CourseOperationsEditor({
                         onClick={() => bannerInputRef.current?.click()}
                       >
                         <ImagePlus />
-                        {bannerPreviewUrl ? "배너 교체" : "배너 ?�택"}
+                        {bannerPreviewUrl ? "배너 교체" : "배너 선택"}
                       </Button>
                       <Button
                         type="button"
@@ -1002,7 +1002,7 @@ export function CourseOperationsEditor({
                         disabled={!bannerPreviewUrl}
                         onClick={removeBanner}
                       >
-                        <Trash2 /> 배너 ??��
+                        <Trash2 /> 배너 삭제
                       </Button>
                     </div>
                   </div>
@@ -1013,22 +1013,22 @@ export function CourseOperationsEditor({
 
           <Card>
             <CardHeader>
-              <CardTitle>강의 기본 ?�보</CardTitle>
+              <CardTitle>강의 기본 정보</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-5 md:grid-cols-2">
               <div className="grid gap-2 md:col-span-2">
-                <Label htmlFor="course-name">강의�?/Label>
+                <Label htmlFor="course-name">강의명</Label>
                 <Input
                   id="course-name"
                   className="h-10"
-                  placeholder="?? AI ?�익???�널 ?�전 ?�래??
+                  placeholder="예: AI 수익화 퍼널 실전 클래스"
                   maxLength={200}
                   value={draft.name}
                   onChange={(event) => updateField("name", event.target.value)}
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="instructor-name">강사�?/Label>
+                <Label htmlFor="instructor-name">강사명</Label>
                 <Input
                   id="instructor-name"
                   className="h-10"
@@ -1052,7 +1052,7 @@ export function CourseOperationsEditor({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="free-webinar-date">무료 ?�비???�짜</Label>
+                <Label htmlFor="free-webinar-date">무료 웨비나 날짜</Label>
                 <Input
                   id="free-webinar-date"
                   className="h-10"
@@ -1065,7 +1065,7 @@ export function CourseOperationsEditor({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="free-webinar-time">무료 ?�비???�간</Label>
+                <Label htmlFor="free-webinar-time">무료 웨비나 시간</Label>
                 <Select
                   value={draft.freeWebinarTime}
                   onValueChange={(freeWebinarTime) =>
@@ -1077,7 +1077,7 @@ export function CourseOperationsEditor({
                     id="free-webinar-time"
                     className="h-10 w-full"
                   >
-                    <SelectValue placeholder="?�간 ?�택" />
+                    <SelectValue placeholder="시간 선택" />
                   </SelectTrigger>
                   <SelectContent>
                     {WEBINAR_TIME_OPTIONS.map((option) => (
@@ -1089,7 +1089,7 @@ export function CourseOperationsEditor({
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="starts-at">개강??/Label>
+                <Label htmlFor="starts-at">개강일</Label>
                 <Input
                   id="starts-at"
                   className="h-10"
@@ -1102,7 +1102,7 @@ export function CourseOperationsEditor({
                 />
               </div>
               <div className="hidden">
-                <Label htmlFor="course-materials-link">강의?�료 링크</Label>
+                <Label htmlFor="course-materials-link">강의자료 링크</Label>
                 <div className="flex gap-2">
                   <Input
                     id="course-materials-link"
@@ -1130,12 +1130,12 @@ export function CourseOperationsEditor({
                         rel="noopener noreferrer"
                       >
                         <ExternalLink />
-                        바로 ?�기
+                        바로 열기
                       </a>
                     ) : (
                       <span>
                         <ExternalLink />
-                        바로 ?�기
+                        바로 열기
                       </span>
                     )}
                   </Button>
@@ -1146,16 +1146,16 @@ export function CourseOperationsEditor({
 
             <Card className="hidden">
               <CardHeader>
-                <CardTitle className="hidden">?�수 ?�업 목록</CardTitle>
+                <CardTitle className="hidden">필수 작업 목록</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>?�목</TableHead>
-                      <TableHead className="w-[130px]">?�료 ?��?</TableHead>
-                      <TableHead className="w-[190px]">?�드?�인</TableHead>
-                      <TableHead className="w-[170px]">?��? 기간</TableHead>
+                      <TableHead>제목</TableHead>
+                      <TableHead className="w-[130px]">완료 여부</TableHead>
+                      <TableHead className="w-[190px]">데드라인</TableHead>
+                      <TableHead className="w-[170px]">남은 기간</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1188,7 +1188,7 @@ export function CourseOperationsEditor({
                               }
                             />
                             <Label htmlFor={`required-task-${task.key}`}>
-                              {task.completed ? "?�업 ?�료" : "진행 �?}
+                              {task.completed ? "작업 완료" : "진행 중"}
                             </Label>
                           </div>
                         </TableCell>
@@ -1197,7 +1197,7 @@ export function CourseOperationsEditor({
                             {formatDeadlineDate(task.dueDate)}
                           </p>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            무료 ?�비??{TASK_DEADLINE_WEEKS[task.key]}�???
+                            무료 웨비나 {TASK_DEADLINE_WEEKS[task.key]}주 전
                           </p>
                         </TableCell>
                         <TableCell>
@@ -1227,7 +1227,7 @@ export function CourseOperationsEditor({
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-4">
             <div>
-              <CardTitle>링크 관�?/CardTitle>
+              <CardTitle>링크 관리</CardTitle>
             </div>
             <Button
               type="button"
@@ -1237,16 +1237,16 @@ export function CourseOperationsEditor({
               onClick={addCustomLink}
             >
               <Plus />
-              커스?� 링크 추�?
+              커스텀 링크 추가
             </Button>
           </CardHeader>
           <CardContent className="grid gap-6 lg:grid-cols-2">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>?�름</TableHead>
+                  <TableHead>이름</TableHead>
                   <TableHead>링크</TableHead>
-                  <TableHead className="text-center">관�?/TableHead>
+                  <TableHead className="text-center">관리</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1274,9 +1274,9 @@ export function CourseOperationsEditor({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>?�름</TableHead>
+                  <TableHead>이름</TableHead>
                   <TableHead>링크</TableHead>
-                  <TableHead className="text-center">관�?/TableHead>
+                  <TableHead className="text-center">관리</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1329,18 +1329,18 @@ export function CourseOperationsEditor({
 
         <Card>
           <CardHeader>
-            <CardTitle>?�매 ?�벤??/CardTitle>
+            <CardTitle>판매 이벤트</CardTitle>
             <CardDescription>
-              기간, ?�택, ?�공 조건???�유�?�� 기록?�니??
+              기간, 혜택, 제공 조건을 자유롭게 기록합니다.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-5 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="early-bird-event">?�리버드 ?�벤??/Label>
+              <Label htmlFor="early-bird-event">얼리버드 이벤트</Label>
               <Textarea
                 id="early-bird-event"
                 className="h-32 min-h-32 max-h-32 resize-none overflow-y-auto field-sizing-fixed"
-                placeholder="?? 9??1?�까지 10만원 ?�인"
+                placeholder="예: 9월 1일까지 10만원 할인"
                 maxLength={2_000}
                 value={draft.earlyBirdEvent}
                 onChange={(event) =>
@@ -1349,11 +1349,11 @@ export function CourseOperationsEditor({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="first-50-event">?�착??50�??�벤??/Label>
+              <Label htmlFor="first-50-event">선착순 50명 이벤트</Label>
               <Textarea
                 id="first-50-event"
                 className="h-32 min-h-32 max-h-32 resize-none overflow-y-auto field-sizing-fixed"
-                placeholder="?? ?�크북과 1:1 ?�드�??�공"
+                placeholder="예: 워크북과 1:1 피드백 제공"
                 maxLength={2_000}
                 value={draft.first50Event}
                 onChange={(event) =>
@@ -1363,12 +1363,12 @@ export function CourseOperationsEditor({
             </div>
             <div className="grid gap-2 sm:col-span-2">
               <Label htmlFor="course-differentiation">
-                강의 차별?�을 ?�세?�게 기재
+                강의 차별점을 상세하게 기재
               </Label>
               <Textarea
                 id="course-differentiation"
                 className="h-48 min-h-48 resize-y field-sizing-fixed"
-                placeholder="?�른 강의?� 구분?�는 ?�징, ?�공 가치�? ?�강?�이 ?�게 ??변?��? ?�세?�게 기재??주세??"
+                placeholder="다른 강의와 구분되는 특징, 제공 가치와 수강생이 얻게 될 변화를 상세하게 기재해 주세요."
                 maxLength={10_000}
                 value={draft.courseDifferentiation}
                 onChange={(event) =>
@@ -1376,7 +1376,7 @@ export function CourseOperationsEditor({
                 }
               />
               <p className="text-right text-xs text-muted-foreground">
-                {draft.courseDifferentiation.length.toLocaleString()} / 10,000??
+                {draft.courseDifferentiation.length.toLocaleString()} / 10,000자
               </p>
             </div>
           </CardContent>
@@ -1385,7 +1385,7 @@ export function CourseOperationsEditor({
         <Card>
           <CardHeader>
             <div className="flex flex-wrap items-center gap-2">
-              <CardTitle>강의 ?�션�?가�?/CardTitle>
+              <CardTitle>강의 옵션과 가격</CardTitle>
               <Button
                 type="button"
                 variant="outline"
@@ -1407,12 +1407,12 @@ export function CourseOperationsEditor({
                 }
               >
                 <Plus />
-                ?�션 추�?
+                옵션 추가
               </Button>
             </div>
             <CardDescription>
-              ?�상가?� ?�매가�??�력?�면 ?�인금액�?12개월 무이?????��??�을
-              ?�동?�로 계산?�니??
+              정상가와 판매가를 입력하면 할인금액과 12개월 무이자 월 납부액을
+              자동으로 계산합니다.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -1420,19 +1420,19 @@ export function CourseOperationsEditor({
               <div className="space-y-2">
                 {draft.options.length > 0 ? (
                   <div className="hidden grid-cols-[minmax(120px,0.8fr)_110px_110px_64px_130px_140px_minmax(180px,1fr)_90px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground xl:grid">
-                    <span>?�션�?/span>
-                    <span>?�상가</span>
-                    <span>?�매가</span>
-                    <span>?�인??/span>
-                    <span>?�리버드 ?�인금액</span>
-                    <span>12개월 무이??/span>
-                    <span>?�톡�?주소</span>
-                    <span>?�장코드</span>
-                    <span className="sr-only">??��</span>
+                    <span>옵션명</span>
+                    <span>정상가</span>
+                    <span>판매가</span>
+                    <span>할인율</span>
+                    <span>얼리버드 할인금액</span>
+                    <span>12개월 무이자</span>
+                    <span>단톡방 주소</span>
+                    <span>입장코드</span>
+                    <span className="sr-only">삭제</span>
                   </div>
                 ) : (
                   <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-                    ?�록???�션???�습?�다. ?�션 ?�이??강의�?만들 ???�습?�다.
+                    등록된 옵션이 없습니다. 옵션 없이도 강의를 만들 수 있습니다.
                   </div>
                 )}
                 {draft.options.map((option, index) => (
@@ -1443,8 +1443,8 @@ export function CourseOperationsEditor({
                     <Input
                       id={`option-name-${index}`}
                       className="h-10 text-sm"
-                      aria-label={`${index + 1}�??�션�?}
-                      placeholder="?? 기본 과정"
+                      aria-label={`${index + 1}번 옵션명`}
+                      placeholder="예: 기본 과정"
                       value={option.name}
                       onChange={(event) =>
                         setDraft((current) => ({
@@ -1460,7 +1460,7 @@ export function CourseOperationsEditor({
                     <Input
                       id={`list-price-${index}`}
                       className="h-10 text-right"
-                      aria-label={`${index + 1}�??�션 ?�상가`}
+                      aria-label={`${index + 1}번 옵션 정상가`}
                       inputMode="numeric"
                       placeholder="0"
                       value={formatPrice(option.listPrice)}
@@ -1484,7 +1484,7 @@ export function CourseOperationsEditor({
                     <Input
                       id={`sale-price-${index}`}
                       className="h-10 text-right"
-                      aria-label={`${index + 1}�??�션 ?�매가`}
+                      aria-label={`${index + 1}번 옵션 판매가`}
                       inputMode="numeric"
                       placeholder="0"
                       value={formatPrice(option.salePrice)}
@@ -1513,10 +1513,10 @@ export function CourseOperationsEditor({
                     </Badge>
                     <div
                       className="flex h-10 items-center justify-between rounded-md border bg-muted/30 px-3 font-mono text-xs xl:justify-end"
-                      aria-label={`${index + 1}�??�션 ?�리버드 ?�인금액`}
+                      aria-label={`${index + 1}번 옵션 얼리버드 할인금액`}
                     >
                       <span className="text-muted-foreground xl:hidden">
-                        ?�리버드 ?�인
+                        얼리버드 할인
                       </span>
                       <span>
                         {formatCalculatedPrice(
@@ -1529,10 +1529,10 @@ export function CourseOperationsEditor({
                     </div>
                     <div
                       className="flex h-10 items-center justify-between rounded-md border bg-muted/30 px-3 font-mono text-xs xl:justify-end"
-                      aria-label={`${index + 1}�??�션 12개월 무이?????��???}
+                      aria-label={`${index + 1}번 옵션 12개월 무이자 월 납부액`}
                     >
                       <span className="text-muted-foreground xl:hidden">
-                        12개월 무이??
+                        12개월 무이자
                       </span>
                       <span>
                         {formatCalculatedPrice(
@@ -1540,14 +1540,14 @@ export function CourseOperationsEditor({
                             option.listPrice,
                             option.salePrice,
                           ),
-                          "????,
+                          "원/월",
                         )}
                       </span>
                     </div>
                     <Input
                       id={`group-chat-link-${index}`}
                       className="h-10"
-                      aria-label={`${index + 1}�??�션 ?�톡�?주소`}
+                      aria-label={`${index + 1}번 옵션 단톡방 주소`}
                       type="url"
                       placeholder="https://open.kakao.com/o/..."
                       value={option.groupChatLink}
@@ -1565,8 +1565,8 @@ export function CourseOperationsEditor({
                     <Input
                       id={`entry-code-${index}`}
                       className="h-10"
-                      aria-label={`${index + 1}�??�션 ?�장코드`}
-                      placeholder="4~6글??
+                      aria-label={`${index + 1}번 옵션 입장코드`}
+                      placeholder="4~6글자"
                       maxLength={6}
                       value={option.entryCode}
                       onChange={(event) =>
@@ -1585,7 +1585,7 @@ export function CourseOperationsEditor({
                       variant="ghost"
                       size="icon"
                       className="text-destructive hover:text-destructive"
-                      aria-label={`${index + 1}�??�션 ??��`}
+                      aria-label={`${index + 1}번 옵션 삭제`}
                       onClick={() =>
                         setDraft((current) => ({
                           ...current,
@@ -1620,7 +1620,7 @@ export function CourseOperationsEditor({
         <Card className="overflow-x-auto">
           <CardHeader>
             <div className="flex flex-wrap items-center gap-2">
-              <CardTitle>?�튜�?출연</CardTitle>
+              <CardTitle>유튜브 출연</CardTitle>
               <Button
                 type="button"
                 variant="outline"
@@ -1641,9 +1641,12 @@ export function CourseOperationsEditor({
                 }
               >
                 <Plus />
-                출연 추�?
+                출연 추가
               </Button>
             </div>
+            <CardDescription>
+              출연 예정 채널, 게시 완료된 영상 주소와 랜딩 UTM을 기록합니다.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <datalist id="youtube-channel-name-suggestions">
@@ -1666,18 +1669,18 @@ export function CourseOperationsEditor({
             </datalist>
             {draft.youtubeAppearances.length === 0 ? (
               <div className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
-                ?�직 ?�록???�튜�?출연 ?�보가 ?�습?�다.
+                아직 등록된 유튜브 출연 정보가 없습니다.
               </div>
             ) : (
               <div className="overflow-x-auto pb-1">
                 <div className="min-w-[1200px] space-y-2">
                   <div className="grid grid-cols-[180px_minmax(240px,1fr)_minmax(240px,1fr)_minmax(280px,1fr)_72px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
-                    <span>채널�?/span>
+                    <span>채널명</span>
                     <span>채널 주소</span>
-                    <span>게시???�상 주소</span>
-                    <span>?�딩 UTM</span>
-                    <span className="sr-only">링크 ?�기</span>
-                    <span className="sr-only">??��</span>
+                    <span>게시된 영상 주소</span>
+                    <span>랜딩 UTM</span>
+                    <span className="sr-only">링크 열기</span>
+                    <span className="sr-only">삭제</span>
                   </div>
                   {draft.youtubeAppearances.map((appearance, index) => (
                     <div
@@ -1687,8 +1690,8 @@ export function CourseOperationsEditor({
                       <Input
                         id={`channel-name-${index}`}
                         className="h-10"
-                        aria-label={`${index + 1}�??�튜�?채널�?}
-                        placeholder="채널�?
+                        aria-label={`${index + 1}번 유튜브 채널명`}
+                        placeholder="채널명"
                         list="youtube-channel-name-suggestions"
                         autoComplete="off"
                         value={appearance.channelName}
@@ -1699,7 +1702,7 @@ export function CourseOperationsEditor({
                       <Input
                         id={`channel-url-${index}`}
                         className="h-10"
-                        aria-label={`${index + 1}�??�튜�?채널 주소`}
+                        aria-label={`${index + 1}번 유튜브 채널 주소`}
                         type="url"
                         placeholder="https://youtube.com/@channel"
                         list="youtube-channel-url-suggestions"
@@ -1717,7 +1720,7 @@ export function CourseOperationsEditor({
                       <Input
                         id={`video-url-${index}`}
                         className="h-10"
-                        aria-label={`${index + 1}�?게시 ?�상 주소`}
+                        aria-label={`${index + 1}번 게시 영상 주소`}
                         type="url"
                         placeholder="https://youtube.com/watch?v=..."
                         value={appearance.videoUrl}
@@ -1739,7 +1742,7 @@ export function CourseOperationsEditor({
                       <Input
                         id={`landing-utm-${index}`}
                         className="h-10"
-                        aria-label={`${index + 1}�??�딩 UTM`}
+                        aria-label={`${index + 1}번 랜딩 UTM`}
                         placeholder="utm_source=youtube&utm_medium=..."
                         maxLength={2000}
                         autoComplete="off"
@@ -1764,10 +1767,10 @@ export function CourseOperationsEditor({
                             rel="noreferrer"
                           >
                             <ExternalLink />
-                            ?�기
+                            열기
                           </a>
                         ) : (
-                          <span>?�기</span>
+                          <span>열기</span>
                         )}
                       </Button>
                       <Button
@@ -1775,7 +1778,7 @@ export function CourseOperationsEditor({
                         variant="ghost"
                         size="icon"
                         className="text-destructive hover:text-destructive"
-                        aria-label={`${index + 1}�??�튜�?출연 ??��`}
+                        aria-label={`${index + 1}번 유튜브 출연 삭제`}
                         onClick={() =>
                           setDraft((current) => ({
                             ...current,
@@ -1799,7 +1802,7 @@ export function CourseOperationsEditor({
         <Card className="overflow-x-auto">
           <CardHeader>
             <div className="flex flex-wrap items-center gap-2">
-              <CardTitle>기존 ?�이�??�상 링크</CardTitle>
+              <CardTitle>기존 라이브 영상 링크</CardTitle>
               <Button
                 type="button"
                 variant="outline"
@@ -1815,24 +1818,27 @@ export function CourseOperationsEditor({
                 }
               >
                 <Plus />
-                ?�상 추�?
+                영상 추가
               </Button>
             </div>
+            <CardDescription>
+              이전 라이브 영상의 이름, 주소와 비고를 기록합니다.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {draft.liveVideos.length === 0 ? (
               <div className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
-                ?�직 ?�록???�이�??�상 링크가 ?�습?�다.
+                아직 등록된 라이브 영상 링크가 없습니다.
               </div>
             ) : (
               <div className="overflow-x-auto pb-1">
                 <div className="min-w-[900px] space-y-2">
                   <div className="grid grid-cols-[220px_minmax(280px,1fr)_minmax(220px,1fr)_72px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
-                    <span>?�름</span>
+                    <span>이름</span>
                     <span>주소</span>
                     <span>비고</span>
-                    <span className="sr-only">링크 ?�기</span>
-                    <span className="sr-only">??��</span>
+                    <span className="sr-only">링크 열기</span>
+                    <span className="sr-only">삭제</span>
                   </div>
                   {draft.liveVideos.map((liveVideo, index) => {
                     const openableUrl = getOpenableLink(liveVideo.videoUrl);
@@ -1844,8 +1850,8 @@ export function CourseOperationsEditor({
                         <Input
                           id={`live-video-name-${index}`}
                           className="h-10"
-                          aria-label={`${index + 1}�??�이�??�상 ?�름`}
-                          placeholder="?�상 ?�름"
+                          aria-label={`${index + 1}번 라이브 영상 이름`}
+                          placeholder="영상 이름"
                           maxLength={200}
                           value={liveVideo.name}
                           onChange={(event) =>
@@ -1855,7 +1861,7 @@ export function CourseOperationsEditor({
                         <Input
                           id={`live-video-url-${index}`}
                           className="h-10"
-                          aria-label={`${index + 1}�??�이�??�상 주소`}
+                          aria-label={`${index + 1}번 라이브 영상 주소`}
                           type="url"
                           inputMode="url"
                           placeholder="https://"
@@ -1868,7 +1874,7 @@ export function CourseOperationsEditor({
                         <Input
                           id={`live-video-note-${index}`}
                           className="h-10"
-                          aria-label={`${index + 1}�??�이�??�상 비고`}
+                          aria-label={`${index + 1}번 라이브 영상 비고`}
                           placeholder="비고"
                           maxLength={500}
                           value={liveVideo.note}
@@ -1890,10 +1896,10 @@ export function CourseOperationsEditor({
                               rel="noopener noreferrer"
                             >
                               <ExternalLink />
-                              ?�기
+                              열기
                             </a>
                           ) : (
-                            <span>?�기</span>
+                            <span>열기</span>
                           )}
                         </Button>
                         <Button
@@ -1901,7 +1907,7 @@ export function CourseOperationsEditor({
                           variant="ghost"
                           size="icon"
                           className="text-destructive hover:text-destructive"
-                          aria-label={`${index + 1}�??�이�??�상 ??��`}
+                          aria-label={`${index + 1}번 라이브 영상 삭제`}
                           onClick={() =>
                             setDraft((current) => ({
                               ...current,
@@ -1968,10 +1974,10 @@ export function CourseOperationsEditor({
                     <MessageSquareText className="size-5" />
                   </span>
                   <div>
-                    <CardTitle>?�비??문자 목록 ?�비???�결</CardTitle>
+                    <CardTitle>웨비나 문자 목록 서비스 연결</CardTitle>
                     <CardDescription className="mt-1">
-                      ??강의?�서 ?�용??문자 30�??�로?�트�??�택?�거???�결??
-                      ?�제?�니??
+                      이 강의에서 사용할 문자 30개 프로젝트를 선택하거나 연결을
+                      해제합니다.
                     </CardDescription>
                   </div>
                 </div>
@@ -1979,10 +1985,10 @@ export function CourseOperationsEditor({
               <CardContent>
                 {loadedMessageProjects.length === 0 ? (
                   <div className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
-                    ?�결 가?�한 문자 ?�작 ?�로?�트가 ?�습?�다.
+                    연결 가능한 문자 제작 프로젝트가 없습니다.
                     <Button variant="link" asChild className="ml-1">
                       <Link href="/services/message-studio">
-                        문자 ?�로?�트 만들�?
+                        문자 프로젝트 만들기
                       </Link>
                     </Button>
                   </div>
@@ -1997,7 +2003,7 @@ export function CourseOperationsEditor({
                         }
                       >
                         <SelectTrigger id="message-project-select" className="w-full">
-                          <SelectValue placeholder="?�결??문자 목록???�택?�세?? />
+                          <SelectValue placeholder="연결할 문자 목록을 선택하세요" />
                         </SelectTrigger>
                         <SelectContent>
                           {loadedMessageProjects.map((project) => {
@@ -2009,8 +2015,8 @@ export function CourseOperationsEditor({
                             return (
                               <SelectItem key={project.id} value={project.id}>
                                 {project.course_name} ·{" "}
-                                {project.instructor_name || "강사 미입??} ·{" "}
-                                {generatedCount}/30 ?�성
+                                {project.instructor_name || "강사 미입력"} ·{" "}
+                                {generatedCount}/30 생성
                               </SelectItem>
                             );
                           })}
@@ -2029,7 +2035,7 @@ export function CourseOperationsEditor({
                           }))
                         }
                       >
-                        ?�택 ?�제
+                        선택 해제
                       </Button>
                       <Button
                         type="button"
@@ -2042,12 +2048,12 @@ export function CourseOperationsEditor({
                             href={`/services/message-studio/${selectedMessageProject.id}`}
                           >
                             <ExternalLink />
-                            목록 ?�기 ({selectedMessageGeneratedCount}/30)
+                            목록 열기 ({selectedMessageGeneratedCount}/30)
                           </Link>
                         ) : (
                           <span>
                             <ExternalLink />
-                            목록 ?�기
+                            목록 열기
                           </span>
                         )}
                       </Button>
@@ -2061,15 +2067,15 @@ export function CourseOperationsEditor({
               <CardHeader>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <CardTitle>?�결??문자 ?�용</CardTitle>
+                    <CardTitle>연결된 문자 내용</CardTitle>
                     <CardDescription className="mt-1">
-                      ?�택???�비??문자 목록???�성??문구�?번호 ?�서?��?보여줍니??
+                      선택한 웨비나 문자 목록에 생성된 문구를 번호 순서대로 보여줍니다.
                     </CardDescription>
                   </div>
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     {selectedMessageProject ? (
                       <Badge variant="secondary">
-                        {selectedMessageResources.length}/30�?
+                        {selectedMessageResources.length}/30개
                       </Badge>
                     ) : null}
                     {selectedMessageProject &&
@@ -2079,13 +2085,13 @@ export function CourseOperationsEditor({
                           href={`/api/message-studio/projects/${selectedMessageProject.id}/export`}
                         >
                           <Download />
-                          ?�체 ?��? ?�운로드
+                          전체 엑셀 다운로드
                         </a>
                       </Button>
                     ) : (
                       <Button variant="outline" size="sm" disabled>
                         <Download />
-                        ?�체 ?��? ?�운로드
+                        전체 엑셀 다운로드
                       </Button>
                     )}
                   </div>
@@ -2095,15 +2101,15 @@ export function CourseOperationsEditor({
                 {messageContentLoadingId === selectedMessageProject?.id ? (
                   <div className="flex min-h-36 items-center justify-center gap-2 rounded-xl border border-dashed text-sm text-muted-foreground">
                     <Loader2 className="animate-spin" />
-                    문자 ?�용??불러?�는 중입?�다.
+                    문자 내용을 불러오는 중입니다.
                   </div>
                 ) : !selectedMessageProject ? (
                   <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-                    먼�? ?�단?�서 문자 목록???�결??주세??
+                    먼저 상단에서 문자 목록을 연결해 주세요.
                   </div>
                 ) : selectedMessageResources.length === 0 ? (
                   <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-                    ?�결??목록???�성??문자가 ?�습?�다.
+                    연결된 목록에 생성된 문자가 없습니다.
                   </div>
                 ) : (
                   <div className="grid gap-3 xl:grid-cols-2">
@@ -2114,13 +2120,13 @@ export function CourseOperationsEditor({
                       >
                         <div className="flex items-center justify-between gap-3">
                           <Badge variant="outline">
-                            {resource.position}�?
+                            {resource.position}번
                           </Badge>
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            aria-label={`${resource.position}�?문자 복사`}
+                            aria-label={`${resource.position}번 문자 복사`}
                             onClick={() =>
                               void copyMessage(
                                 resource.position,
@@ -2134,7 +2140,7 @@ export function CourseOperationsEditor({
                               <Copy />
                             )}
                             {copiedMessagePosition === resource.position
-                              ? "복사??
+                              ? "복사됨"
                               : "복사"}
                           </Button>
                         </div>
@@ -2174,7 +2180,7 @@ export function CourseOperationsEditor({
             />
           ) : (
             <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-              강의�?먼�? 만든 ???�산 ?�료�??�록?????�습?�다.
+              강의를 먼저 만든 뒤 정산 자료를 등록할 수 있습니다.
             </div>
           )}
         </TabsContent>
@@ -2184,7 +2190,7 @@ export function CourseOperationsEditor({
         <div className="flex justify-end border-t pt-6">
           <Button className="min-h-10" onClick={saveCourse} disabled={saving}>
             {saving ? <Loader2 className="animate-spin" /> : <Save />}
-            {saving ? "?�??�? : courseId ? "강의 ?�보 ?�?? : "강의 만들�?}
+            {saving ? "저장 중" : courseId ? "강의 정보 저장" : "강의 만들기"}
           </Button>
         </div>
       ) : null}
