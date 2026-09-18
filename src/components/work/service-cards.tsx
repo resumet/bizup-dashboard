@@ -21,7 +21,6 @@ const services: Service[] = [
   { title: "강의별 정산", description: "월별 비즈업 정산 엑셀을 분석하고 강사별 정산표와 최종 정산서를 작성합니다.", route: "/services/settlement-analysis", icon: HandCoins },
   { title: "자금 흐름", description: "현재 통장 잔액과 강의별 입출금, 월 고정지출을 반영해 향후 12개월 회사 자금을 예측합니다.", route: "/services/cash-flow", icon: WalletCards },
   { title: "주문결제 매출분석", description: "주문결제 엑셀을 강의·상품·광고 유입별로 분석하고 환불과 중복 구매자를 확인합니다.", route: "/services/purchase-analysis", icon: ShoppingCart },
-  { title: "플친소재 메이커", description: "강의 정보와 참고 이미지를 바탕으로 서로 다른 5개 전략의 홍보소재 생성 프롬프트를 만듭니다.", route: "/services/kakao-ad-maker", icon: Palette },
   { title: "캠페인 성과 리포트", description: "유입경로와 광고매체별 성과를 연결해 핵심 지표를 빠르게 확인합니다.", route: "#", icon: FileSpreadsheet, active: false },
 ];
 

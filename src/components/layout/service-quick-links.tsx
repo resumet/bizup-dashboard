@@ -15,7 +15,6 @@ const SERVICE_LINKS = [
   { label: "수강생 명단", href: "/services/course-roster" },
   { label: "전화세일즈", href: "/services/phone-sales-list" },
   { label: "알림톡/문자", href: "/services/message-automation" },
-  { label: "플친소재", href: "/services/kakao-ad-maker" },
   { label: "자금 흐름", href: "/services/cash-flow" },
 ] as const;
 
