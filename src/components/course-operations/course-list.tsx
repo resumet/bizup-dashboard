@@ -6,12 +6,9 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   BookOpenCheck,
-  CalendarDays,
-  FileSpreadsheet,
   Grid2X2,
   List,
   Loader2,
-  MessageSquareText,
   Settings2,
   Trash2,
   CircleDollarSign,
@@ -44,10 +41,7 @@ import {
 import type { CourseSummary } from "@/lib/course-operations/types";
 import type { CoursePaymentSummary } from "@/lib/course-operations/payment-summary";
 import { courseBannerUrl } from "@/lib/course-operations/banner";
-import {
-  formatWebinarCountdown,
-  sortByNearestWebinar,
-} from "@/lib/course-operations/webinar-proximity";
+import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 
 type ViewMode = "cards" | "list" | "calendar" | "payments";
 
@@ -196,35 +190,12 @@ export function CourseOperationsList({
                 </CardTitle>
                 <p
                   className="truncate text-sm text-muted-foreground"
-                  title={course.instructor_name}
+                  title={`${course.cohort ? `${course.cohort}기 / ` : ""}${course.instructor_name}`}
                 >
-                  {course.instructor_name}
+                  {course.cohort ? `${course.cohort}기 / ` : ""}{course.instructor_name}
                 </p>
               </CardHeader>
               <CardContent className="flex flex-1 flex-col gap-4 border-t pt-5">
-                <div className="grid gap-2 text-sm">
-                  <p className="flex items-center gap-2">
-                    <CalendarDays className="size-4 text-muted-foreground" />
-                    무료 웨비나 {formatDate(course.free_webinar_at)}{" "}
-                    {formatWebinarCountdown(
-                      course.free_webinar_at,
-                      todayKoreaDate,
-                    )}
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <CalendarDays className="size-4 text-muted-foreground" />
-                    개강 {formatDate(course.starts_at)}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline">
-                    <FileSpreadsheet />명단 {course.course_jobs.length}개
-                  </Badge>
-                  <Badge variant="outline">
-                    <MessageSquareText />문자 제작물{" "}
-                    {course.message_studio_projects.length}개
-                  </Badge>
-                </div>
                 <div className="mt-auto grid grid-cols-[1fr_auto] gap-2">
                   <Button asChild>
                     <Link href={`/services/course-operations/${course.id}`}>
