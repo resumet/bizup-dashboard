@@ -144,7 +144,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
             </Link>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
-          <span className="truncate font-semibold">{course.name}</span>
+          <span className="truncate font-semibold">{course.cohort ? `(${course.cohort}기) ` : ""}{course.name}{course.instructor_name ? ` - ${course.instructor_name}` : ""}</span>
         </div>
       </header>
       <div className="mx-auto max-w-[1600px] px-5 py-8 lg:px-8">

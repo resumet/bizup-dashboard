@@ -845,11 +845,12 @@ export function CourseOperationsEditor({
             COURSE ID · {courseId ?? "생성 전"}
           </Badge>
           <h1 className="text-3xl font-semibold tracking-tight">
-            {courseId ? draft.name || "강의 운영 정보" : "새 강의 만들기"}
+            {courseId
+              ? draft.name
+                ? `${draft.cohort ? `(${draft.cohort}기) ` : ""}${draft.name}${draft.instructorName ? ` - ${draft.instructorName}` : ""}`
+                : "강의 운영 정보"
+              : "새 강의 만들기"}
           </h1>
-          <p className="mt-2 text-muted-foreground">
-            강의를 기준으로 일정, 가격, 수강생 명단과 문자 제작물을 연결합니다.
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <CourseShareDialog
