@@ -7,7 +7,6 @@ import { Check, Loader2, Save } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { CoursePaymentSummary } from "@/lib/course-operations/payment-summary";
 
@@ -26,7 +25,6 @@ export function CoursePaymentSummaryTable({ summaries }: { summaries: CoursePaym
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [bankBalance, setBankBalance] = useState("");
   const totalPaymentCount = summaries.reduce((sum, item) => sum + item.payment_count, 0);
   const totalPaymentAmount = summaries.reduce((sum, item) => sum + item.payment_amount, 0);
   const novaReceivable = summaries.reduce((sum, item) => {
@@ -37,13 +35,9 @@ export function CoursePaymentSummaryTable({ summaries }: { summaries: CoursePaym
     const draft = drafts.get(item.id);
     return sum + (!draft?.instructorSettled ? Math.max(0, (item.payment_amount - 45_000_000) / 2) : 0);
   }, 0);
-  const balanceValue = Number(bankBalance.replace(/,/g, "")) || 0;
+  const balanceValue = 164_912_453;
   const netProfit = balanceValue + novaReceivable - instructorPayable;
 
-  function updateBankBalance(value: string) {
-    const digits = value.replace(/[^0-9]/g, "");
-    setBankBalance(digits ? Number(digits).toLocaleString("ko-KR") : "");
-  }
 
   function updateDraft(id: string, patch: Partial<{ cohort: string; novaSettled: boolean; instructorSettled: boolean }>) {
     setDrafts((current) => {
@@ -113,7 +107,7 @@ export function CoursePaymentSummaryTable({ summaries }: { summaries: CoursePaym
         <div className="grid gap-3 rounded-md border bg-muted/20 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <div><p className="text-sm text-muted-foreground">노바에서 받을 돈</p><p className="mt-1 text-lg font-semibold tabular-nums">{money(novaReceivable)}</p></div>
           <div><p className="text-sm text-muted-foreground">강사에게 줄 돈</p><p className="mt-1 text-lg font-semibold tabular-nums">{money(instructorPayable)}</p></div>
-          <label className="grid gap-1 text-sm text-muted-foreground">현재 통장 잔액<Input inputMode="numeric" value={bankBalance} onChange={(event) => updateBankBalance(event.target.value)} placeholder="0" className="bg-background text-base font-semibold text-foreground tabular-nums" /></label>
+          <div><p className="text-sm text-muted-foreground">현재 통장 잔액</p><p className="mt-1 text-lg font-semibold tabular-nums">{money(balanceValue)}</p></div>
           <div><p className="text-sm text-muted-foreground">현재까지 순이익</p><p className="mt-1 text-lg font-semibold tabular-nums">{money(netProfit)}</p></div>
         </div>
     </div>
