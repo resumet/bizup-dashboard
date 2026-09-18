@@ -1223,7 +1223,7 @@ export function CourseOperationsEditor({
           </>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div>
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-4">
             <div>
@@ -1240,8 +1240,8 @@ export function CourseOperationsEditor({
               커스텀 링크 추가
             </Button>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <Table className="min-w-[720px]">
+          <CardContent className="grid gap-6 lg:grid-cols-2">
+            <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>이름</TableHead>
@@ -1250,7 +1250,7 @@ export function CourseOperationsEditor({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {COURSE_LINKS.map((item) => (
+                {COURSE_LINKS.filter((_, index) => index % 2 === 0).map((item) => (
                   <CourseLinkInput
                     key={item.field}
                     field={item.field}
@@ -1259,10 +1259,40 @@ export function CourseOperationsEditor({
                     onChange={updateField}
                   />
                 ))}
-                {draft.customLinks.map((link, index) => (
+                {draft.customLinks.filter((_, index) => (COURSE_LINKS.length + index) % 2 === 0).map((link, index) => (
                   <CourseCustomLinkInput
                     key={index}
-                    index={index}
+                    index={draft.customLinks.findIndex((candidate) => candidate === link)}
+                    name={link.name}
+                    url={link.url}
+                    onChange={updateCustomLink}
+                    onDelete={deleteCustomLink}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>이름</TableHead>
+                  <TableHead>링크</TableHead>
+                  <TableHead className="text-center">관리</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {COURSE_LINKS.filter((_, index) => index % 2 === 1).map((item) => (
+                  <CourseLinkInput
+                    key={item.field}
+                    field={item.field}
+                    label={item.label}
+                    value={draft[item.field]}
+                    onChange={updateField}
+                  />
+                ))}
+                {draft.customLinks.filter((_, index) => (COURSE_LINKS.length + index) % 2 === 1).map((link, index) => (
+                  <CourseCustomLinkInput
+                    key={index}
+                    index={draft.customLinks.findIndex((candidate) => candidate === link)}
                     name={link.name}
                     url={link.url}
                     onChange={updateCustomLink}
@@ -1274,6 +1304,8 @@ export function CourseOperationsEditor({
           </CardContent>
         </Card>
 
+        </div>
+
         {courseId ? (
           <CourseNotesCard
             courseId={courseId}
@@ -1283,8 +1315,6 @@ export function CourseOperationsEditor({
             loadError={notesLoadError}
           />
         ) : null}
-        </div>
-
         </TabsContent>
 
         <TabsContent value="sales" className="mt-0 space-y-6">
