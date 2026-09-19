@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowRightLeft, Check, CheckCircle2, Clock3, History, Loader2, Plus, RotateCcw, UsersRound } from "lucide-react";
+import { ArrowRightLeft, Check, CheckCircle2, Clock3, EllipsisVertical, History, Loader2, Plus, RotateCcw, UsersRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -53,6 +54,9 @@ export function HrTaskBoard({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [transferTaskId, setTransferTaskId] = useState<string | null>(null);
+  const [nextAssigneeId, setNextAssigneeId] = useState("");
+  const [transferError, setTransferError] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [review, setReview] = useState<Review>(initialReview);
@@ -64,6 +68,10 @@ export function HrTaskBoard({
   const carriedCount = openTasks.filter((task) => isCarriedTask(task, today)).length;
   const completedCount = visibleTasks.filter((task) => task.status === "done").length;
   const myOpenCount = openTasks.filter((task) => task.assignee_id === userId).length;
+  const transferTask = transferTaskId ? tasks.find((task) => task.id === transferTaskId) ?? null : null;
+  const activeTransferTargets = transferTask
+    ? people.filter((person) => person.active && person.id !== transferTask.assignee_id)
+    : [];
 
   async function createTask() {
     if (!title.trim() || busy) return;
@@ -109,7 +117,7 @@ export function HrTaskBoard({
   async function transfer(task: WorkTask, nextAssigneeId: string) {
     if (nextAssigneeId === task.assignee_id) return;
     setBusy(task.id);
-    setError("");
+    setTransferError("");
     try {
       const updated = await readJson<WorkTask>(await fetch(`/api/hr/tasks/${task.id}`, {
         method: "PATCH",
@@ -122,8 +130,10 @@ export function HrTaskBoard({
         delete next[task.id];
         return next;
       });
+      setTransferTaskId(null);
+      setNextAssigneeId("");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "담당자를 이관하지 못했습니다.");
+      setTransferError(reason instanceof Error ? reason.message : "담당자를 이관하지 못했습니다.");
     } finally {
       setBusy("");
     }
@@ -204,7 +214,7 @@ export function HrTaskBoard({
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">{initials(person.name)}</span>
-                <div className="min-w-0"><CardTitle className="truncate text-base">{person.name}{person.id === userId ? <span className="ml-1 text-xs font-normal text-blue-700">나</span> : null}</CardTitle><p className="truncate text-xs text-muted-foreground">{person.email || "이메일 없음"}</p></div>
+                <div className="min-w-0"><CardTitle className="truncate text-base">{person.name}{person.id === userId ? <span className="ml-1 text-xs font-normal text-blue-700">나</span> : null}</CardTitle></div>
               </div>
               <div className="flex shrink-0 gap-1.5"><Badge variant={employeeOpen ? "default" : "secondary"}>진행 {employeeOpen}</Badge><Badge variant="outline">완료 {employeeDone}</Badge></div>
             </div>
@@ -219,12 +229,15 @@ export function HrTaskBoard({
                     {task.description ? <p className="mt-1.5 break-words text-xs leading-5 text-muted-foreground">{task.description}</p> : null}
                     {isCarriedTask(task, today) ? <p className="mt-1.5 text-[11px] text-amber-700">{task.planned_date}에서 이월</p> : null}
                   </div>
-                  <div className="flex shrink-0 gap-1">
-                    <Button size="icon-sm" variant="ghost" aria-label={`${task.title} 이력`} onClick={() => void toggleHistory(task.id)} disabled={busy === `history-${task.id}`}>{busy === `history-${task.id}` ? <Loader2 className="animate-spin" /> : <History />}</Button>
-                    {canChange ? <Button size="sm" variant={task.status === "done" ? "outline" : "default"} onClick={() => void changeStatus(task)} disabled={busy === task.id}>{task.status === "done" ? "취소" : "완료"}</Button> : null}
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild><Button size="icon-sm" variant="ghost" aria-label={`${task.title} 업무 메뉴`} disabled={busy === task.id || busy === `history-${task.id}`}>{busy === task.id || busy === `history-${task.id}` ? <Loader2 className="animate-spin" /> : <EllipsisVertical />}</Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-36">
+                      <DropdownMenuItem disabled={!canChange} onSelect={() => void changeStatus(task)}><CheckCircle2 />{task.status === "done" ? "완료 취소" : "완료"}</DropdownMenuItem>
+                      <DropdownMenuItem disabled={!canChange || task.status === "done" || !people.some((target) => target.active && target.id !== task.assignee_id)} onSelect={() => { setTransferTaskId(task.id); setNextAssigneeId(""); setTransferError(""); }}><ArrowRightLeft />이관</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => void toggleHistory(task.id)}><History />히스토리</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-                {canChange && task.status !== "done" ? <div className="mt-3 flex items-center gap-2 border-t pt-3"><ArrowRightLeft className="size-4 shrink-0 text-muted-foreground" /><Select value={task.assignee_id} onValueChange={(value) => void transfer(task, value)} disabled={busy === task.id}><SelectTrigger className="h-8 flex-1"><SelectValue /></SelectTrigger><SelectContent>{people.map((target) => <SelectItem key={target.id} value={target.id}>{target.name}</SelectItem>)}</SelectContent></Select></div> : null}
                 {events[task.id] ? <div className="mt-3 space-y-2 border-t pt-3">{events[task.id].map((event) => <div key={event.id} className="text-[11px] leading-4 text-muted-foreground"><span className="font-medium text-foreground">{historyText(event)}</span> · {peopleById.get(event.actor_id)?.name ?? "사용자"} · {new Date(event.created_at).toLocaleString("ko-KR")}</div>)}</div> : null}
               </div>;
             }) : <div className="flex min-h-28 items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">오늘 업무가 없습니다.</div>}
@@ -242,6 +255,17 @@ export function HrTaskBoard({
           <div className="grid gap-2"><Label htmlFor="task-description">설명</Label><Textarea id="task-description" value={description} maxLength={5000} onChange={(event) => setDescription(event.target.value)} placeholder="필요한 세부 내용을 입력하세요" rows={5} /></div>
           <div className="grid gap-2"><Label>최초 담당자</Label><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{peopleById.get(userId)?.name ?? "현재 사용자"}</div></div>
           <DialogFooter className="mt-1"><DialogClose asChild><Button type="button" variant="outline">취소</Button></DialogClose><Button type="submit" disabled={!title.trim() || busy === "create"}>{busy === "create" ? <Loader2 className="animate-spin" /> : <Plus />}업무 추가</Button></DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={Boolean(transferTask)} onOpenChange={(open) => { if (!open) { setTransferTaskId(null); setNextAssigneeId(""); setTransferError(""); } }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle>담당자 이관</DialogTitle><DialogDescription>{transferTask ? `“${transferTask.title}” 업무를 이관할 활성 사용자를 선택해 주세요.` : "업무를 이관할 사용자를 선택해 주세요."}</DialogDescription></DialogHeader>
+        <form className="grid gap-4" onSubmit={(event) => { event.preventDefault(); if (transferTask && nextAssigneeId) void transfer(transferTask, nextAssigneeId); }}>
+          {transferError ? <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{transferError}</p> : null}
+          <div className="grid gap-2"><Label>새 담당자</Label><Select value={nextAssigneeId} onValueChange={setNextAssigneeId}><SelectTrigger><SelectValue placeholder="활성 사용자 선택" /></SelectTrigger><SelectContent>{activeTransferTargets.map((person) => <SelectItem key={person.id} value={person.id}>{person.name}</SelectItem>)}</SelectContent></Select>{!activeTransferTargets.length ? <p className="text-xs text-muted-foreground">이관할 수 있는 활성 사용자가 없습니다.</p> : null}</div>
+          <DialogFooter><DialogClose asChild><Button type="button" variant="outline">취소</Button></DialogClose><Button type="submit" disabled={!nextAssigneeId || busy === transferTask?.id}>{busy === transferTask?.id ? <Loader2 className="animate-spin" /> : <ArrowRightLeft />}이관</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

@@ -3,6 +3,7 @@ import "server-only";
 import type { User } from "@supabase/supabase-js";
 
 import { getAccountRole, type AccountRole } from "@/lib/admin/access";
+import { resolveUserDisplayNames } from "@/lib/admin/user-names";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type MembershipRow = {
@@ -22,6 +23,7 @@ export type AdminUserRow = {
   createdAt: string;
   email: string;
   emailConfirmedAt: string | null;
+  displayName: string;
   id: string;
   lastSignInAt: string | null;
   providers: string[];
@@ -93,6 +95,12 @@ export async function loadAdminUsers(): Promise<AdminUserRow[]> {
     ]),
   );
   const membershipsByUser = new Map<string, MembershipRow[]>();
+  const displayNames = resolveUserDisplayNames(users.map((user) => ({
+    id: user.id,
+    email: user.email,
+    createdAt: user.created_at,
+    metadata: user.user_metadata as Record<string, unknown>,
+  })));
 
   for (const membership of membershipResult.data as MembershipRow[]) {
     const memberships = membershipsByUser.get(membership.user_id) ?? [];
@@ -111,6 +119,7 @@ export async function loadAdminUsers(): Promise<AdminUserRow[]> {
       createdAt: user.created_at,
       email: user.email ?? "이메일 없음",
       emailConfirmedAt: user.email_confirmed_at ?? null,
+      displayName: displayNames.get(user.id) ?? "사용자",
       id: user.id,
       lastSignInAt: user.last_sign_in_at ?? null,
       providers: getProviders(user),

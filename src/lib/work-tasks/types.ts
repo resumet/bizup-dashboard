@@ -2,8 +2,8 @@ export type WorkTaskStatus = "open" | "done" | "cancelled";
 
 export type WorkTaskPerson = {
   id: string;
-  email: string;
   name: string;
+  active: boolean;
 };
 
 export type WorkTask = {

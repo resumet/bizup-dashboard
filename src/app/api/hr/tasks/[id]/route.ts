@@ -65,6 +65,12 @@ export async function PATCH(
       const { data: member } = await admin.from("workspace_members").select("user_id")
         .eq("workspace_id", workspaceId).eq("user_id", assigneeId).maybeSingle();
       if (!member) return Response.json({ message: "담당자를 찾을 수 없습니다." }, { status: 400 });
+      const { data: targetResult, error: targetError } = await admin.auth.admin.getUserById(assigneeId);
+      const target = targetResult.user;
+      const isBanned = target?.banned_until && new Date(target.banned_until).getTime() > Date.now();
+      if (targetError || !target?.email_confirmed_at || isBanned) {
+        return Response.json({ message: "활성화된 사용자만 담당자로 선택할 수 있습니다." }, { status: 400 });
+      }
       const command = await admin.rpc("transfer_work_task_with_event", {
         p_task_id: id,
         p_workspace_id: workspaceId,

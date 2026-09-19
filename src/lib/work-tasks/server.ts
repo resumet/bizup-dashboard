@@ -1,6 +1,9 @@
 import "server-only";
 
+import type { User } from "@supabase/supabase-js";
+
 import { hasAdminAccess } from "@/lib/admin/access";
+import { resolveUserDisplayNames } from "@/lib/admin/user-names";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -30,20 +33,28 @@ export async function loadWorkspacePeople(workspaceId: string) {
   if (error) throw new Error(`직원 목록 조회 실패: ${error.message}`);
 
   const wanted = new Set((memberships ?? []).map((item) => item.user_id));
-  const people: WorkTaskPerson[] = [];
+  const accounts: User[] = [];
   for (let page = 1; ; page += 1) {
     const { data, error: userError } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
     if (userError) throw new Error(`직원 계정 조회 실패: ${userError.message}`);
     for (const account of data.users) {
       if (!wanted.has(account.id)) continue;
-      const metadata = account.user_metadata as Record<string, unknown>;
-      const name = typeof metadata.full_name === "string" && metadata.full_name.trim()
-        ? metadata.full_name.trim()
-        : account.email ?? "이름 없음";
-      people.push({ id: account.id, email: account.email ?? "", name });
+      accounts.push(account);
     }
     if (data.users.length < 1000) break;
   }
+  const displayNames = resolveUserDisplayNames(accounts.map((account) => ({
+    id: account.id,
+    email: account.email,
+    createdAt: account.created_at,
+    metadata: account.user_metadata as Record<string, unknown>,
+  })));
+  const now = Date.now();
+  const people: WorkTaskPerson[] = accounts.map((account) => ({
+    id: account.id,
+    name: displayNames.get(account.id) ?? "사용자",
+    active: Boolean(account.email_confirmed_at) && (!account.banned_until || new Date(account.banned_until).getTime() <= now),
+  }));
   return people.sort((left, right) => left.name.localeCompare(right.name, "ko"));
 }
 

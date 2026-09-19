@@ -11,6 +11,7 @@ import {
 
 import { AdminManagementButton } from "@/components/admin/admin-management-button";
 import { UserRoleSelect } from "@/components/admin/user-role-select";
+import { UserNameEditor } from "@/components/admin/user-name-editor";
 import { CommonLinksManager } from "@/components/admin/common-links-manager";
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
@@ -98,6 +99,7 @@ export default async function AdminUsersPage({
     ? sortedUsers.filter((user) =>
         [
           user.email,
+          user.displayName,
           user.id,
           ...user.providers,
           accountRoleLabel(user.accessRole),
@@ -143,10 +145,10 @@ export default async function AdminUsersPage({
         <section>
           <Badge variant="secondary" className="mb-3">최고관리자 전용</Badge>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            사용자 계정과 권한
+            사용자 계정과 정보 설정하기
           </h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            등록된 계정의 권한과 인증 상태, 최근 로그인 기록을 관리합니다.
+            등록된 계정의 이름과 권한, 인증 상태, 최근 로그인 기록을 관리합니다.
           </p>
         </section>
 
@@ -197,7 +199,7 @@ export default async function AdminUsersPage({
                       name="q"
                       defaultValue={query}
                       className="pl-9"
-                      placeholder="이메일, 역할, 워크스페이스 검색"
+                      placeholder="이름, 이메일, 역할, 워크스페이스 검색"
                       aria-label="사용자 계정 검색"
                     />
                   </div>
@@ -213,7 +215,8 @@ export default async function AdminUsersPage({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="px-5">계정</TableHead>
+                      <TableHead className="px-5">이름</TableHead>
+                      <TableHead>계정</TableHead>
                       <TableHead>권한</TableHead>
                       <TableHead>인증</TableHead>
                       <TableHead>워크스페이스</TableHead>
@@ -228,6 +231,9 @@ export default async function AdminUsersPage({
                         return (
                           <TableRow key={user.id}>
                             <TableCell className="px-5 py-4">
+                              <UserNameEditor userId={user.id} initialName={user.displayName} />
+                            </TableCell>
+                            <TableCell className="py-4">
                               <div className="flex items-center gap-2">
                                 <span className="font-medium">{user.email}</span>
                                 <Badge variant={isSuperAdmin ? "default" : "secondary"}>
@@ -287,7 +293,7 @@ export default async function AdminUsersPage({
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                        <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
                           {query ? "검색 조건에 맞는 계정이 없습니다." : "등록된 계정이 없습니다."}
                         </TableCell>
                       </TableRow>
