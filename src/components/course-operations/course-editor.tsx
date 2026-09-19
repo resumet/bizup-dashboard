@@ -362,7 +362,7 @@ export function CourseOperationsEditor({
   notesLoadError?: string;
   loadError?: string;
   deferDetailSections?: boolean;
-  initialTab?: "information" | "costs" | "settlement" | "orders" | "webinar" | "paid-students";
+  initialTab?: "information" | "students" | "costs" | "settlement" | "orders" | "webinar" | "paid-students";
   paidRoster?: ReactNode;
 }) {
   const router = useRouter();
@@ -526,6 +526,8 @@ export function CourseOperationsEditor({
   useEffect(() => {
     if (activeTab === "information") {
       void loadDetailSection("videos");
+    } else if (activeTab === "students") {
+      void loadDetailSection("students");
     }
     // loadDetailSection is intentionally recreated with the editor state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -919,15 +921,15 @@ export function CourseOperationsEditor({
         onValueChange={changeTab}
         className="gap-6"
       >
-        <TabsList className="grid w-full grid-cols-2 grid-rows-5 group-data-horizontal/tabs:h-[14rem] md:grid-cols-5 md:grid-rows-2 md:group-data-horizontal/tabs:h-[5.5rem] 2xl:grid-cols-10 2xl:grid-rows-1 2xl:group-data-horizontal/tabs:h-12">
+        <TabsList className="grid w-full grid-cols-2 grid-rows-4 group-data-horizontal/tabs:h-[11rem] md:grid-cols-4 md:grid-rows-2 md:group-data-horizontal/tabs:h-[5.5rem] 2xl:grid-cols-8 2xl:grid-rows-1 2xl:group-data-horizontal/tabs:h-12">
           <TabsTrigger value="information" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             정보
           </TabsTrigger>
           <TabsTrigger value="sales" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             판매 조건
           </TabsTrigger>
-          <TabsTrigger value="students" className="hidden">
-            수강생명단
+          <TabsTrigger value="students" className="h-10 min-w-0 px-2 md:min-w-32 md:px-5">
+            기존 수강생명단
           </TabsTrigger>
           <TabsTrigger value="orders" disabled={!courseId} className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             주문 내역
