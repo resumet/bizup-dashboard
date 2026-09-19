@@ -6,6 +6,7 @@ import { ArrowRightLeft, CalendarDays, Check, CheckCircle2, Clock3, EllipsisVert
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -220,10 +221,19 @@ export function HrTaskBoard({
     const canChange = isAdmin || task.assignee_id === userId;
     return <div key={task.id} className={`rounded-xl border bg-background p-3 ${task.status === "done" ? "opacity-65" : ""}`}>
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-1.5"><strong className={`break-words text-sm ${task.status === "done" ? "line-through" : ""}`}>{task.title}</strong>{isCarriedTask(task, today) ? <Badge variant="secondary">이월</Badge> : null}{task.status === "done" ? <Badge className="bg-emerald-600">완료</Badge> : null}</div>
-          {task.description ? <p className="mt-1.5 break-words text-xs leading-5 text-muted-foreground">{task.description}</p> : null}
-          {task.planned_date < today ? <p className="mt-1.5 text-[11px] text-amber-700">{task.planned_date}에서 이월</p> : null}
+        <div className="flex min-w-0 flex-1 items-start gap-2.5">
+          <Checkbox
+            className="mt-0.5 size-5"
+            checked={task.status === "done"}
+            disabled={!canChange || busy === task.id}
+            onCheckedChange={() => void changeStatus(task)}
+            aria-label={`${task.title} ${task.status === "done" ? "완료 취소" : "완료"}`}
+          />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5"><strong className={`break-words text-sm ${task.status === "done" ? "line-through" : ""}`}>{task.title}</strong>{isCarriedTask(task, today) ? <Badge variant="secondary">이월</Badge> : null}{task.status === "done" ? <Badge className="bg-emerald-600">완료</Badge> : null}</div>
+            {task.description ? <p className="mt-1.5 break-words text-xs leading-5 text-muted-foreground">{task.description}</p> : null}
+            {task.planned_date < today ? <p className="mt-1.5 text-[11px] text-amber-700">{task.planned_date}에서 이월</p> : null}
+          </div>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button size="icon-sm" variant="ghost" aria-label={`${task.title} 업무 메뉴`} disabled={busy === task.id || busy === `history-${task.id}`}>{busy === task.id || busy === `history-${task.id}` ? <Loader2 className="animate-spin" /> : <EllipsisVertical />}</Button></DropdownMenuTrigger>
