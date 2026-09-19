@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getHolidayPreset } from "@hyunbinseo/holidays-kr";
 
 import { toKoreaDate } from "@/lib/course-operations/schedule";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -65,6 +66,17 @@ export function reduceCourseScheduleDraftEvents(events: CourseScheduleDraftEvent
   );
 }
 
+export async function loadKoreanHolidays(years: number[]) {
+  const entries = await Promise.all(years.map(async (year) => {
+    try {
+      return Object.entries(await getHolidayPreset(String(year)));
+    } catch {
+      return [];
+    }
+  }));
+  return Object.fromEntries(entries.flat()) as Record<string, string[]>;
+}
+
 async function loadDrafts(client: SupabaseClient, workspaceId: string) {
   const { data, error } = await client
     .from("audit_logs")
@@ -82,13 +94,16 @@ export async function loadCourseSchedulePlanner(
   workspaceId: string,
 ): Promise<CourseSchedulePlannerData> {
   const admin = createAdminClient();
-  const [drafts, coursesResult] = await Promise.all([
+  const today = toKoreaDate(new Date().toISOString());
+  const currentYear = Number(today.slice(0, 4));
+  const [drafts, coursesResult, holidays] = await Promise.all([
     loadDrafts(admin, workspaceId),
     admin
       .from("courses")
       .select("id,name,instructor_name,cohort,free_webinar_at")
       .eq("workspace_id", workspaceId)
       .order("free_webinar_at", { ascending: true }),
+    loadKoreanHolidays([currentYear - 1, currentYear, currentYear + 1]),
   ]);
   if (coursesResult.error) {
     throw new Error(`확정 강의 일정 조회 실패: ${coursesResult.error.code}`);
@@ -105,7 +120,8 @@ export async function loadCourseSchedulePlanner(
   return {
     drafts,
     confirmedCourses,
-    today: toKoreaDate(new Date().toISOString()),
+    today,
+    holidays,
   };
 }
 

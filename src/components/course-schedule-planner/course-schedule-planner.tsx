@@ -133,11 +133,14 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
     }
     return map;
   }, [initialData.confirmedCourses]);
-  const sortedDrafts = useMemo(() => [...drafts].sort((a, b) => {
-    if (!a.scheduledDate && b.scheduledDate) return -1;
-    if (a.scheduledDate && !b.scheduledDate) return 1;
-    return (a.scheduledDate ?? a.createdAt).localeCompare(b.scheduledDate ?? b.createdAt);
-  }), [drafts]);
+  const unassignedDrafts = useMemo(
+    () => drafts.filter((draft) => !draft.scheduledDate).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    [drafts],
+  );
+  const assignedDrafts = useMemo(
+    () => drafts.filter((draft) => draft.scheduledDate).sort((a, b) => (a.scheduledDate ?? "").localeCompare(b.scheduledDate ?? "")),
+    [drafts],
+  );
   const scheduledCount = drafts.filter((draft) => draft.scheduledDate).length;
   const draggingDraft = draggingId ? drafts.find((draft) => draft.id === draggingId) : null;
 
@@ -244,6 +247,14 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
     }
   }
 
+  function renderDraftCard(draft: CourseScheduleDraft) {
+    const color = COLORS[draft.colorIndex % COLORS.length];
+    return <article key={draft.id} draggable onDragStart={(event) => startDrag(event, draft)} onDragEnd={() => { setDraggingId(null); setDropDate(null); }} className={`cursor-grab rounded-xl border p-3 shadow-sm transition active:cursor-grabbing ${color.card} ${draggingId === draft.id ? "opacity-50" : ""}`}>
+      <div className="flex items-start gap-2"><GripVertical className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><h3 className="break-words text-sm font-semibold">{draft.topic}</h3><p className="mt-1 text-xs text-muted-foreground">{draft.instructorName}</p></div>{busyId === draft.id ? <Loader2 className="size-4 animate-spin" /> : <div className="flex"><Button type="button" size="icon-xs" variant="ghost" aria-label={`${draft.topic} 수정`} onClick={() => openEdit(draft)}><Pencil /></Button><Button type="button" size="icon-xs" variant="ghost" className="text-destructive hover:text-destructive" aria-label={`${draft.topic} 삭제`} onClick={() => setDeleteTarget(draft)}><Trash2 /></Button></div>}</div>
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-black/5 pt-2"><span className="flex items-center gap-1.5 text-xs"><span className={`size-2 rounded-full ${color.dot}`} />{draft.scheduledDate ? shortDate(draft.scheduledDate) : "미배정"}</span>{draft.scheduledDate ? <Button type="button" size="xs" variant="ghost" onClick={() => void updateDraft(draft.id, { scheduledDate: null }, "일정 배정을 해제했습니다.")}><CalendarX2 />해제</Button> : null}</div>
+    </article>;
+  }
+
   return <main className="mx-auto max-w-[1800px] px-5 py-8 lg:px-8 lg:py-10">
     <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <div><Badge variant="outline" className="mb-3">강의 일정 시뮬레이션</Badge><h1 className="text-3xl font-semibold tracking-tight">강의 일정 플래너</h1><p className="mt-2 text-muted-foreground">예비 강의를 달력에 배치해 전체 강의 흐름을 미리 확인합니다.</p></div>
@@ -254,11 +265,7 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
     {notice ? <p role="status" className="mt-5 rounded-xl bg-sky-50 p-3 text-sm text-sky-900">{notice}</p> : null}
 
     <div className="mt-6 grid items-start gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
-      <aside
-        className={`space-y-4 rounded-xl transition-shadow ${draggingDraft?.scheduledDate ? "ring-2 ring-sky-300 ring-offset-4" : ""}`}
-        onDragOver={(event) => { if (draggingId) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } }}
-        onDrop={(event) => void scheduleFromDrop(event, null)}
-      >
+      <aside className="space-y-5">
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><Plus className="size-5 text-primary" />예비 강의 만들기</CardTitle></CardHeader>
           <CardContent>
@@ -270,18 +277,32 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
           </CardContent>
         </Card>
 
-        <div className="flex items-center justify-between px-1"><h2 className="font-semibold">예비 강의 카드</h2><span className="text-xs text-muted-foreground">달력으로 끌어 배정</span></div>
-        {draggingDraft?.scheduledDate ? <div className="grid min-h-20 place-items-center rounded-xl border-2 border-dashed border-sky-300 bg-sky-50 text-center text-sm font-medium text-sky-900"><span><CalendarX2 className="mx-auto mb-1 size-5" />여기에 놓으면 일정 해제</span></div> : null}
-        <div className="space-y-3">
-          {sortedDrafts.map((draft) => {
-            const color = COLORS[draft.colorIndex % COLORS.length];
-            return <article key={draft.id} draggable onDragStart={(event) => startDrag(event, draft)} onDragEnd={() => { setDraggingId(null); setDropDate(null); }} className={`cursor-grab rounded-xl border p-3 shadow-sm transition active:cursor-grabbing ${color.card} ${draggingId === draft.id ? "opacity-50" : ""}`}>
-              <div className="flex items-start gap-2"><GripVertical className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><h3 className="break-words text-sm font-semibold">{draft.topic}</h3><p className="mt-1 text-xs text-muted-foreground">{draft.instructorName}</p></div>{busyId === draft.id ? <Loader2 className="size-4 animate-spin" /> : <div className="flex"><Button type="button" size="icon-xs" variant="ghost" aria-label={`${draft.topic} 수정`} onClick={() => openEdit(draft)}><Pencil /></Button><Button type="button" size="icon-xs" variant="ghost" className="text-destructive hover:text-destructive" aria-label={`${draft.topic} 삭제`} onClick={() => setDeleteTarget(draft)}><Trash2 /></Button></div>}</div>
-              <div className="mt-3 flex items-center justify-between gap-2 border-t border-black/5 pt-2"><span className="flex items-center gap-1.5 text-xs"><span className={`size-2 rounded-full ${color.dot}`} />{draft.scheduledDate ? shortDate(draft.scheduledDate) : "미배정"}</span>{draft.scheduledDate ? <Button type="button" size="xs" variant="ghost" onClick={() => void updateDraft(draft.id, { scheduledDate: null }, "일정 배정을 해제했습니다.")}><CalendarX2 />해제</Button> : null}</div>
-            </article>;
-          })}
-          {!drafts.length ? <div className="grid min-h-32 place-items-center rounded-xl border border-dashed text-muted-foreground"><span className="text-center text-sm"><CalendarClock className="mx-auto mb-2 size-5" />첫 예비 강의를 만들어 주세요.</span></div> : null}
-        </div>
+        <section
+          className={`space-y-3 rounded-xl border border-dashed p-3 transition ${draggingDraft?.scheduledDate ? "border-sky-400 bg-sky-50/70 ring-2 ring-sky-200" : "border-border"}`}
+          onDragOver={(event) => { if (draggingId) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } }}
+          onDrop={(event) => void scheduleFromDrop(event, null)}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2"><h2 className="font-semibold">미배정</h2><Badge variant="secondary">{unassignedDrafts.length}</Badge></div>
+            <span className="text-xs text-muted-foreground">달력으로 끌어 배정</span>
+          </div>
+          {draggingDraft?.scheduledDate ? <div className="grid min-h-20 place-items-center rounded-lg border-2 border-dashed border-sky-300 bg-sky-50 text-center text-sm font-medium text-sky-900"><span><CalendarX2 className="mx-auto mb-1 size-5" />여기에 놓으면 일정 해제</span></div> : null}
+          <div className="space-y-3">
+            {unassignedDrafts.map(renderDraftCard)}
+            {!unassignedDrafts.length && !draggingDraft?.scheduledDate ? <div className="grid min-h-24 place-items-center rounded-lg bg-muted/30 text-muted-foreground"><span className="text-center text-sm"><CalendarClock className="mx-auto mb-2 size-5" />{drafts.length ? "모든 예비 강의가 배정되었습니다." : "첫 예비 강의를 만들어 주세요."}</span></div> : null}
+          </div>
+        </section>
+
+        <section className="space-y-3 rounded-xl border p-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2"><h2 className="font-semibold">배정 완료</h2><Badge variant="secondary">{assignedDrafts.length}</Badge></div>
+            <span className="text-xs text-muted-foreground">날짜순</span>
+          </div>
+          <div className="space-y-3">
+            {assignedDrafts.map(renderDraftCard)}
+            {!assignedDrafts.length ? <div className="grid min-h-20 place-items-center rounded-lg bg-muted/30 text-muted-foreground"><span className="text-center text-sm"><CalendarCheck2 className="mx-auto mb-2 size-5" />배정된 예비 강의가 없습니다.</span></div> : null}
+          </div>
+        </section>
       </aside>
 
       <Card className="min-w-0">
@@ -293,12 +314,27 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
           <div className="min-w-[900px] overflow-hidden rounded-xl border">
             <div className="grid grid-cols-7 border-b bg-muted/40">{WEEKDAYS.map((day, index) => <div key={day} className={`px-2 py-2 text-center text-xs font-medium ${index === 0 ? "text-red-600" : index === 6 ? "text-blue-600" : "text-muted-foreground"}`}>{day}</div>)}</div>
             <div className="grid grid-cols-7">
-              {days.map((day) => {
+              {days.map((day, dayIndex) => {
                 const inMonth = day.startsWith(month);
                 const draftEvents = draftsByDate.get(day) ?? [];
                 const confirmedEvents = confirmedByDate.get(day) ?? [];
-                return <div key={day} onDragEnter={() => setDropDate(day)} onDragOver={(event) => { if (draggingId) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDropDate(day); } }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropDate(null); }} onDrop={(event) => void scheduleFromDrop(event, day)} className={`min-h-36 border-r border-b p-1.5 transition-colors [&:nth-child(7n)]:border-r-0 [&:nth-last-child(-n+7)]:border-b-0 ${inMonth ? "bg-background" : "bg-muted/20"} ${dropDate === day ? "bg-sky-50 ring-2 ring-inset ring-sky-300" : ""}`}>
-                  <div className={`mb-1 px-1 text-xs font-medium ${day === initialData.today ? "text-primary" : inMonth ? "text-foreground" : "text-muted-foreground/60"}`}><span className={day === initialData.today ? "inline-grid size-6 place-items-center rounded-full bg-primary text-primary-foreground" : ""}>{Number(day.slice(-2))}</span></div>
+                const holidayNames = initialData.holidays[day] ?? [];
+                const isSunday = dayIndex % 7 === 0;
+                const isSaturday = dayIndex % 7 === 6;
+                const isRedDay = isSunday || holidayNames.length > 0;
+                const dayBackground = dropDate === day
+                  ? "bg-sky-100 ring-2 ring-inset ring-sky-400"
+                  : isRedDay
+                    ? inMonth ? "bg-red-50" : "bg-red-50/50"
+                    : isSaturday
+                      ? inMonth ? "bg-sky-50" : "bg-sky-50/50"
+                      : inMonth ? "bg-background" : "bg-muted/20";
+                const dayText = isRedDay ? "text-red-600" : isSaturday ? "text-blue-600" : inMonth ? "text-foreground" : "text-muted-foreground/60";
+                return <div key={day} onDragEnter={() => setDropDate(day)} onDragOver={(event) => { if (draggingId) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDropDate(day); } }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropDate(null); }} onDrop={(event) => void scheduleFromDrop(event, day)} className={`min-h-36 border-r border-b p-1.5 transition-colors [&:nth-child(7n)]:border-r-0 [&:nth-last-child(-n+7)]:border-b-0 ${dayBackground}`}>
+                  <div className="mb-1 flex min-h-6 items-start justify-between gap-1 px-1 text-xs font-medium">
+                    <span className={day === initialData.today ? "inline-grid size-6 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground" : dayText}>{Number(day.slice(-2))}</span>
+                    {holidayNames.length ? <span className="truncate pt-0.5 text-[10px] text-red-600" title={holidayNames.join(", ")}>{holidayNames.join(" · ")}</span> : null}
+                  </div>
                   <div className="space-y-1">
                     {confirmedEvents.map((course) => <Link key={course.id} href={`/services/course-operations/${course.id}`} title={`${course.name} · ${course.instructorName}`} className="block rounded-md border border-slate-700 bg-slate-800 px-2 py-1.5 text-[11px] leading-4 text-white shadow-sm hover:bg-slate-700"><span className="flex items-center gap-1 font-semibold"><CalendarCheck2 className="size-3" />확정{course.cohort ? ` · ${course.cohort}기` : ""}</span><span className="mt-0.5 block truncate">{course.name}</span><span className="block truncate text-slate-300">{course.instructorName}</span></Link>)}
                     {draftEvents.map((draft) => { const color = COLORS[draft.colorIndex % COLORS.length]; return <div key={draft.id} draggable onDragStart={(event) => startDrag(event, draft)} onDragEnd={() => { setDraggingId(null); setDropDate(null); }} title={`${draft.topic} · ${draft.instructorName}`} className={`cursor-grab rounded-md border px-2 py-1.5 text-[11px] leading-4 shadow-sm active:cursor-grabbing ${color.event} ${draggingId === draft.id ? "opacity-45" : ""}`}><span className="flex items-center gap-1 font-semibold"><GripVertical className="size-3" />예비</span><span className="mt-0.5 block truncate">{draft.topic}</span><span className="block truncate opacity-70">{draft.instructorName}</span></div>; })}

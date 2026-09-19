@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { reduceCourseScheduleDraftEvents } from "./server";
+import { loadKoreanHolidays, reduceCourseScheduleDraftEvents } from "./server";
 
 test("예비 강의 이벤트에서 최신 일정과 삭제 상태를 복원한다", () => {
   const base = {
@@ -21,4 +21,12 @@ test("예비 강의 이벤트에서 최신 일정과 삭제 상태를 복원한�
   assert.equal(drafts.length, 1);
   assert.equal(drafts[0].id, "a");
   assert.equal(drafts[0].scheduledDate, "2026-10-08");
+});
+
+test("한국 공휴일은 설날·추석 연휴와 대체공휴일을 포함한다", async () => {
+  const holidays = await loadKoreanHolidays([2026]);
+  assert.deepEqual(holidays["2026-02-16"], ["설날 전날"]);
+  assert.deepEqual(holidays["2026-02-17"], ["설날"]);
+  assert.deepEqual(holidays["2026-02-18"], ["설날 다음 날"]);
+  assert.ok(holidays["2026-03-02"].some((name) => name.includes("대체공휴일")));
 });

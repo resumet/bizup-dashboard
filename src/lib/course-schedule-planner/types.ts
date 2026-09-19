@@ -20,6 +20,7 @@ export type CourseSchedulePlannerData = {
   drafts: CourseScheduleDraft[];
   confirmedCourses: ConfirmedCourseSchedule[];
   today: string;
+  holidays: Record<string, string[]>;
 };
 
 export type CourseScheduleDraftEvent = {
