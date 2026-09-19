@@ -38,7 +38,7 @@ import type {
 } from "@/lib/course-schedule-planner/types";
 
 const DRAG_TYPE = "application/x-bizup-course-draft";
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
 const COLORS = [
   { card: "border-rose-200 bg-rose-50", event: "border-rose-200 bg-rose-100 text-rose-950", dot: "bg-rose-500" },
   { card: "border-orange-200 bg-orange-50", event: "border-orange-200 bg-orange-100 text-orange-950", dot: "bg-orange-500" },
@@ -59,7 +59,8 @@ function dateKey(date: Date) {
 function calendarDates(month: string) {
   const [year, monthNumber] = month.split("-").map(Number);
   const first = new Date(Date.UTC(year, monthNumber - 1, 1));
-  first.setUTCDate(first.getUTCDate() - first.getUTCDay());
+  const mondayBasedDay = (first.getUTCDay() + 6) % 7;
+  first.setUTCDate(first.getUTCDate() - mondayBasedDay);
   return Array.from({ length: 42 }, (_, index) => {
     const date = new Date(first);
     date.setUTCDate(first.getUTCDate() + index);
@@ -312,15 +313,15 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <div className="min-w-[900px] overflow-hidden rounded-xl border">
-            <div className="grid grid-cols-7 border-b bg-muted/40">{WEEKDAYS.map((day, index) => <div key={day} className={`px-2 py-2 text-center text-xs font-medium ${index === 0 ? "text-red-600" : index === 6 ? "text-blue-600" : "text-muted-foreground"}`}>{day}</div>)}</div>
+            <div className="grid grid-cols-7 border-b bg-muted/40">{WEEKDAYS.map((day, index) => <div key={day} className={`px-2 py-2 text-center text-xs font-medium ${index === 6 ? "text-red-600" : index === 5 ? "text-blue-600" : "text-muted-foreground"}`}>{day}</div>)}</div>
             <div className="grid grid-cols-7">
               {days.map((day, dayIndex) => {
                 const inMonth = day.startsWith(month);
                 const draftEvents = draftsByDate.get(day) ?? [];
                 const confirmedEvents = confirmedByDate.get(day) ?? [];
                 const holidayNames = initialData.holidays[day] ?? [];
-                const isSunday = dayIndex % 7 === 0;
-                const isSaturday = dayIndex % 7 === 6;
+                const isSunday = dayIndex % 7 === 6;
+                const isSaturday = dayIndex % 7 === 5;
                 const isRedDay = isSunday || holidayNames.length > 0;
                 const dayBackground = dropDate === day
                   ? "bg-sky-100 ring-2 ring-inset ring-sky-400"
