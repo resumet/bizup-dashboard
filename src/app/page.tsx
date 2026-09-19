@@ -18,7 +18,7 @@ export default async function HomePage() {
       <div className="mt-10 grid gap-5 sm:grid-cols-2">
         {[
           { href: "/work", name: "업무관리", description: "강의 운영, 수강생 명단, 알림톡·문자와 정산 등 기존 업무 도구를 사용합니다.", icon: BriefcaseBusiness, color: "bg-blue-50 text-blue-700" },
-          { href: "/hr", name: "HR", description: "출퇴근을 기록하고 업무와 이관, 휴가, 하루의 업무정리를 관리합니다.", icon: UsersRound, color: "bg-emerald-50 text-emerald-700" },
+          { href: "/hr", name: "HR", description: "오늘의 업무를 기록하고 완료 여부와 담당자 이관 내역을 관리합니다.", icon: UsersRound, color: "bg-emerald-50 text-emerald-700" },
         ].map(({ href, name, description, icon: Icon, color }) => <Link key={href} href={href} className="group rounded-2xl border bg-white p-7 shadow-sm transition hover:border-blue-400 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600 sm:p-9">
           <span className={`inline-flex rounded-xl p-3 ${color}`}><Icon className="size-7" /></span>
           <h2 className="mt-6 text-2xl font-semibold">{name}</h2><p className="mt-3 min-h-14 leading-7 text-muted-foreground">{description}</p>

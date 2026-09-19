@@ -3,8 +3,7 @@ create or replace function public.create_work_task_with_event(
   p_title text,
   p_description text,
   p_planned_date date,
-  p_creator_id uuid,
-  p_assignee_id uuid
+  p_creator_id uuid
 ) returns jsonb
 language plpgsql
 security definer
@@ -20,17 +19,10 @@ begin
     raise exception 'CREATOR_NOT_IN_WORKSPACE';
   end if;
 
-  if not exists (
-    select 1 from public.workspace_members
-    where workspace_id = p_workspace_id and user_id = p_assignee_id
-  ) then
-    raise exception 'ASSIGNEE_NOT_IN_WORKSPACE';
-  end if;
-
   insert into public.work_tasks (
     workspace_id, title, description, planned_date, creator_id, assignee_id
   ) values (
-    p_workspace_id, p_title, p_description, p_planned_date, p_creator_id, p_assignee_id
+    p_workspace_id, p_title, p_description, p_planned_date, p_creator_id, p_creator_id
   ) returning * into created_task;
 
   insert into public.work_task_events (
@@ -39,7 +31,7 @@ begin
     created_task.id,
     p_creator_id,
     'created',
-    p_assignee_id,
+    p_creator_id,
     jsonb_build_object('title', p_title, 'plannedDate', p_planned_date)
   );
 
@@ -151,9 +143,9 @@ begin
 end;
 $$;
 
-revoke all on function public.create_work_task_with_event(uuid, text, text, date, uuid, uuid) from public, anon, authenticated;
+revoke all on function public.create_work_task_with_event(uuid, text, text, date, uuid) from public, anon, authenticated;
 revoke all on function public.set_work_task_status_with_event(uuid, uuid, uuid, text, boolean) from public, anon, authenticated;
 revoke all on function public.transfer_work_task_with_event(uuid, uuid, uuid, uuid, text, boolean) from public, anon, authenticated;
-grant execute on function public.create_work_task_with_event(uuid, text, text, date, uuid, uuid) to service_role;
+grant execute on function public.create_work_task_with_event(uuid, text, text, date, uuid) to service_role;
 grant execute on function public.set_work_task_status_with_event(uuid, uuid, uuid, text, boolean) to service_role;
 grant execute on function public.transfer_work_task_with_event(uuid, uuid, uuid, uuid, text, boolean) to service_role;

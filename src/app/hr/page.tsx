@@ -8,6 +8,7 @@ export default async function Page() {
   let query = admin.from("work_tasks").select("*")
     .eq("workspace_id", workspaceId)
     .neq("status", "cancelled")
+    .lte("planned_date", today)
     .order("status")
     .order("planned_date")
     .order("created_at", { ascending: false });

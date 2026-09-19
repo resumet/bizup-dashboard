@@ -33,8 +33,8 @@ test("새 HR 업무 명령은 변경과 히스토리를 한 트랜잭션에 저�
     ]) await db.exec(await readFile(migration, "utf8"));
 
     const created = await db.query<{ task: { id: string; assignee_id: string; status: string } }>(
-      "select public.create_work_task_with_event($1,$2,$3,$4,$5,$6) task",
-      [workspaceId, "고객 명단 정리", "오후까지 완료", "2026-09-19", creatorId, creatorId],
+      "select public.create_work_task_with_event($1,$2,$3,$4,$5) task",
+      [workspaceId, "고객 명단 정리", "오후까지 완료", "2026-09-19", creatorId],
     );
     const task = created.rows[0].task;
     assert.equal(task.assignee_id, creatorId);
