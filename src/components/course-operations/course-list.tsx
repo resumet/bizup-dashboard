@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/table";
 import type { CourseSummary } from "@/lib/course-operations/types";
 import type { CoursePaymentSummary } from "@/lib/course-operations/payment-summary";
+import type { CoursePaidStudentSummary } from "@/lib/course-operations/paid-student-summary";
 import { courseBannerUrl } from "@/lib/course-operations/banner";
 import { sortByFarthestWebinar } from "@/lib/course-operations/webinar-proximity";
 
@@ -57,12 +58,10 @@ function formatDate(value: string) {
 
 export function CourseOperationsList({
   courses,
-  todayKoreaDate,
   canDelete,
   paymentSummaries = [],
 }: {
   courses: CourseSummary[];
-  todayKoreaDate: string;
   canDelete: boolean;
   paymentSummaries?: CoursePaymentSummary[];
 }) {
@@ -73,9 +72,16 @@ export function CourseOperationsList({
   const [deleteError, setDeleteError] = useState("");
   const [loadedPaymentSummaries, setLoadedPaymentSummaries] = useState(paymentSummaries);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paidStudentSummaries, setPaidStudentSummaries] = useState<CoursePaidStudentSummary[] | null>(null);
+  const [paidStudentLoading, setPaidStudentLoading] = useState(false);
+  const [paidStudentError, setPaidStudentError] = useState("");
   const cardCourses = useMemo(
     () => sortByFarthestWebinar(courses),
     [courses],
+  );
+  const paidStudentCounts = useMemo(
+    () => new Map((paidStudentSummaries ?? []).map((summary) => [summary.course_id, summary.paid_student_count])),
+    [paidStudentSummaries],
   );
 
   async function deleteCourse() {
@@ -118,29 +124,35 @@ export function CourseOperationsList({
     } finally { setPaymentLoading(false); }
   }
 
+  async function openPaidStudents() {
+    setViewMode("students");
+    if (paidStudentSummaries || paidStudentLoading) return;
+    setPaidStudentLoading(true);
+    setPaidStudentError("");
+    try {
+      const response = await fetch("/api/course-operations/paid-student-summary", { cache: "no-store" });
+      if (!response.ok) throw new Error("유료수강생 인원을 불러오지 못했습니다.");
+      setPaidStudentSummaries(await response.json());
+    } catch (caught) {
+      setPaidStudentError(caught instanceof Error ? caught.message : "유료수강생 인원을 불러오지 못했습니다.");
+    } finally {
+      setPaidStudentLoading(false);
+    }
+  }
+
   return (
     <>
-      <div className="mb-4 flex justify-end" aria-label="강의 목록 보기 방식">
-        <div className="inline-flex rounded-lg border bg-background p-1">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="inline-flex self-start rounded-lg border bg-background p-1" aria-label="강의 운영 자료">
           <Button
             type="button"
             variant={viewMode === "students" ? "secondary" : "ghost"}
             size="sm"
-            onClick={() => setViewMode("students")}
+            onClick={() => void openPaidStudents()}
             aria-pressed={viewMode === "students"}
           >
             <Users />
-            수강생
-          </Button>
-          <Button
-            type="button"
-            variant={viewMode === "cards" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("cards")}
-            aria-pressed={viewMode === "cards"}
-          >
-            <Grid2X2 />
-            카드
+            유료수강생
           </Button>
           <Button
             type="button"
@@ -151,6 +163,18 @@ export function CourseOperationsList({
           >
             <CircleDollarSign />
             전체 결제내역
+          </Button>
+        </div>
+        <div className="inline-flex self-start rounded-lg border bg-background p-1 sm:self-auto" aria-label="강의 목록 보기 방식">
+          <Button
+            type="button"
+            variant={viewMode === "cards" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("cards")}
+            aria-pressed={viewMode === "cards"}
+          >
+            <Grid2X2 />
+            카드
           </Button>
           <Button
             type="button"
@@ -311,7 +335,18 @@ export function CourseOperationsList({
           </Table>
         </Card>
       ) : viewMode === "students" ? (
-        <Card className="overflow-hidden"><Table><TableHeader><TableRow><TableHead>강의명</TableHead><TableHead>강사명</TableHead><TableHead className="text-right">유료수강생</TableHead><TableHead className="text-right">관리</TableHead></TableRow></TableHeader><TableBody>{courses.map((course) => <TableRow key={course.id}><TableCell className="font-medium"><Link href={`/services/course-operations/${course.id}`} className="hover:underline">{course.name}</Link></TableCell><TableCell>{course.instructor_name || "-"}</TableCell><TableCell className="text-right tabular-nums">{course.course_jobs.length.toLocaleString("ko-KR")}명</TableCell><TableCell className="text-right"><Button size="sm" variant="outline" asChild><Link href={`/services/course-operations/${course.id}?tab=paid-students`}>명단 바로가기</Link></Button></TableCell></TableRow>)}</TableBody></Table></Card>
+        paidStudentLoading ? (
+          <p className="py-12 text-center text-muted-foreground">유료수강생 인원을 불러오는 중입니다.</p>
+        ) : paidStudentError ? (
+          <Alert variant="destructive"><AlertTitle>유료수강생 인원을 불러오지 못했습니다</AlertTitle><AlertDescription>{paidStudentError}</AlertDescription></Alert>
+        ) : (
+          <Card className="overflow-hidden">
+            <Table>
+              <TableHeader><TableRow><TableHead>강의명</TableHead><TableHead>기수</TableHead><TableHead>강사명</TableHead><TableHead className="text-right">유료수강생</TableHead><TableHead className="text-right">관리</TableHead></TableRow></TableHeader>
+              <TableBody>{courses.map((course) => <TableRow key={course.id}><TableCell className="font-medium"><Link href={`/services/course-operations/${course.id}`} className="hover:underline">{course.name}</Link></TableCell><TableCell>{course.cohort ? `${course.cohort}기` : "-"}</TableCell><TableCell>{course.instructor_name || "-"}</TableCell><TableCell className="text-right tabular-nums">{(paidStudentCounts.get(course.id) ?? 0).toLocaleString("ko-KR")}명</TableCell><TableCell className="text-right"><Button size="sm" variant="outline" asChild><Link href={`/services/course-operations/${course.id}?tab=paid-students`}>명단 바로가기</Link></Button></TableCell></TableRow>)}</TableBody>
+            </Table>
+          </Card>
+        )
       ) : viewMode === "calendar" ? (
         <CourseListCalendar courses={courses} />
       ) : (
