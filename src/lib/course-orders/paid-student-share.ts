@@ -20,6 +20,8 @@ export function paidRosterStudents(rows: RosterRow[]): OrderStudent[] {
       paymentMethod: row.values.paymentMethod ?? "",
       amount: Number.isFinite(amount) ? amount : 0,
       memo: row.memo,
+      originalPayerName: row.values.hasDifferentStudent ? row.values.customerName : "",
+      originalPayerPhone: row.values.hasDifferentStudent ? row.normalizedPhone : "",
       alternateStudentName: row.values.hasDifferentStudent ? recipient.name : "",
       alternateStudentPhone: row.values.hasDifferentStudent ? recipient.phone : "",
     };

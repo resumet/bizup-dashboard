@@ -48,13 +48,14 @@ test("연결된 실제 수강생을 공개하고 결제자의 연락처나 이�
   assert.equal(students[0].name, "실제학생");
   assert.equal(students[0].phone, "01099998888");
   assert.equal(students[0].email, "");
+  assert.equal(students[0].originalPayerName, "김학생");
+  assert.equal(students[0].originalPayerPhone, "01012345678");
   assert.equal(students[0].alternateStudentName, "실제학생");
   assert.equal(students[0].alternateStudentPhone, "01099998888");
-  assert.ok(!JSON.stringify(students).includes("01012345678"));
   const masked = maskOrderStudentsForPublic(students);
   const plain = maskOrderStudentsForPublic(students, false);
-  assert.equal(masked[0].memo, "private memo · 대신 수강: 실**생 / 010-****-8888");
-  assert.equal(plain[0].memo, "private memo · 대신 수강: 실제학생 / 010-9999-8888");
+  assert.equal(masked[0].memo, "private memo · 원결제자: 김*생 / 010-****-5678 · 대신 수강: 실**생 / 010-****-8888");
+  assert.equal(plain[0].memo, "private memo · 원결제자: 김학생 / 010-1234-5678 · 대신 수강: 실제학생 / 010-9999-8888");
   const invalid = paidRosterStudents([{ ...row, values: { ...row.values, hasDifferentStudent: true } }]);
   assert.equal(invalid[0].phone, "");
 });

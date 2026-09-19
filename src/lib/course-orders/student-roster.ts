@@ -12,6 +12,8 @@ export type OrderStudent = {
   rs?: string;
   paymentId?: string;
   memo?: string;
+  originalPayerName?: string;
+  originalPayerPhone?: string;
   alternateStudentName?: string;
   alternateStudentPhone?: string;
 };
@@ -55,15 +57,26 @@ export function maskOrderStudentName(value: string) {
 
 function publicStudentMemo(student: OrderStudent, masked: boolean) {
   const parts = [student.memo?.trim() ?? ""];
+  const originalPayerName = student.originalPayerName?.trim() ?? "";
+  const originalPayerPhone = student.originalPayerPhone?.trim() ?? "";
   const alternateName = student.alternateStudentName?.trim() ?? "";
   const alternatePhone = student.alternateStudentPhone?.trim() ?? "";
   if (alternateName || alternatePhone) {
+    const payerName = originalPayerName
+      ? masked ? maskOrderStudentName(originalPayerName) : originalPayerName
+      : "";
+    const payerPhone = originalPayerPhone
+      ? masked ? maskOrderStudentPhone(originalPayerPhone) : formatOrderStudentPhone(originalPayerPhone)
+      : "";
     const name = alternateName
       ? masked ? maskOrderStudentName(alternateName) : alternateName
       : "";
     const phone = alternatePhone
       ? masked ? maskOrderStudentPhone(alternatePhone) : formatOrderStudentPhone(alternatePhone)
       : "";
+    if (payerName || payerPhone) {
+      parts.push(`원결제자: ${[payerName, payerPhone].filter(Boolean).join(" / ")}`);
+    }
     parts.push(`대신 수강: ${[name, phone].filter(Boolean).join(" / ")}`);
   }
   return parts.filter(Boolean).join(" · ");
