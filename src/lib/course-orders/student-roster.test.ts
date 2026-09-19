@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createOrderStudentCsv, createOrderStudentRoster, normalizeOrderStudentPhone, formatOrderStudentPhone, maskOrderStudentEmail, maskOrderStudentName, maskOrderStudentPhone, maskOrderStudentsForPublic, summarizeOrderStudents } from "./student-roster";
+import { createOrderStudentCsv, createOrderStudentRoster, normalizeOrderStudentPhone, formatOrderStudentPhone, maskOrderStudentEmail, maskOrderStudentName, maskOrderStudentPhone, maskOrderStudentsForPublic, summarizeCashPayments, summarizeOrderStudents } from "./student-roster";
 import type { SavedCourseOrder } from "./types";
 
 const order: SavedCourseOrder = {
@@ -100,6 +100,16 @@ test("트래킹 유입구분별 인원은 같은 사람의 중복 결제를 제�
     { inflowType: "", people: 1, count: 1 },
     { inflowType: "광고 유입", people: 1, count: 2 },
   ]);
+});
+
+test("현금결제 항목만 건수와 금액을 집계한다", () => {
+  const students = createOrderStudentRoster([
+    { ...order, id: "cash", paymentMethod: "현금결제", paymentAmount: 300000 },
+    { ...order, id: "cash-card", paymentMethod: "현금결제 / 신용카드", paymentAmount: 200000 },
+    { ...order, id: "transfer", paymentMethod: "계좌이체", paymentAmount: 100000 },
+  ]);
+  assert.deepEqual(summarizeCashPayments(students), { count: 2, amount: 500000 });
+  assert.deepEqual(summarizeCashPayments([{ ...students[0], paymentMethod: "신용카드" }]), { count: 0, amount: 0 });
 });
 
 test("공개 명단 CSV에 트래킹 유입구분을 포함하고 엑셀 수식 실행을 막는다", () => {

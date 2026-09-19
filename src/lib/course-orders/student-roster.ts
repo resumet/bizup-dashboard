@@ -146,6 +146,19 @@ export function summarizeOrderStudents(students: OrderStudent[]) {
   };
 }
 
+export function summarizeCashPayments(students: OrderStudent[]) {
+  const cashPayments = students.filter((student) =>
+    (student.paymentMethod ?? "")
+      .normalize("NFKC")
+      .split("/")
+      .some((method) => method.trim() === "현금결제"),
+  );
+  return {
+    count: cashPayments.length,
+    amount: cashPayments.reduce((sum, student) => sum + Math.round(student.amount * 100), 0) / 100,
+  };
+}
+
 export function createOrderStudentRoster(orders: SavedCourseOrder[]): OrderStudent[] {
   return orders
     .filter((order) => order.status.normalize("NFKC").trim() === "결제완료")

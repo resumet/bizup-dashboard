@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   createOrderStudentCsv,
+  summarizeCashPayments,
   type OrderStudent,
 } from "@/lib/course-orders/student-roster";
 import type { summarizeOrderStudents } from "@/lib/course-orders/student-roster";
@@ -76,6 +77,7 @@ export function PublicCourseStudentRoster({ courseName, students, summary }: { c
     .map((item) => ({ label: item.optionName || "옵션 없음", people: item.people })), [summary.options]);
   const inflowChartItems = useMemo(() => summary.inflowTypes
     .map((item) => ({ label: item.inflowType || "RS 없음", people: item.people })), [summary.inflowTypes]);
+  const cashPayments = useMemo(() => summarizeCashPayments(students), [students]);
   const filtered = useMemo(() => {
     const keyword = query.normalize("NFKC").trim().toLocaleLowerCase("ko-KR");
     return students.filter((student) => {
@@ -107,7 +109,7 @@ export function PublicCourseStudentRoster({ courseName, students, summary }: { c
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className={`grid gap-3 sm:grid-cols-2 ${cashPayments.count ? "xl:grid-cols-4" : "xl:grid-cols-3"}`}>
         <div className="rounded-xl border bg-card p-5">
           <p className="text-sm text-muted-foreground">저장된 유료수강생 명단</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums">{summary.count.toLocaleString("ko-KR")}건</p>
@@ -120,6 +122,11 @@ export function PublicCourseStudentRoster({ courseName, students, summary }: { c
           <p className="text-sm text-muted-foreground">전체 결제금액</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums">{WON_FORMATTER.format(summary.amount)}</p>
         </div>
+        {cashPayments.count ? <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+          <p className="text-sm text-amber-800">현금결제</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums text-amber-950">{WON_FORMATTER.format(cashPayments.amount)}</p>
+          <p className="mt-1 text-xs text-amber-700">{cashPayments.count.toLocaleString("ko-KR")}건</p>
+        </div> : null}
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
