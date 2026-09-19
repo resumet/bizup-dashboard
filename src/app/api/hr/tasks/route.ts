@@ -1,5 +1,9 @@
 import { koreaDate, requireWorkTaskContext } from "@/lib/work-tasks/server";
 
+function isMissingCommand(error: { code?: string; message?: string } | null) {
+  return error?.code === "PGRST202" || error?.message?.includes("schema cache");
+}
+
 export async function POST(request: Request) {
   try {
     const { admin, user, workspaceId, isAdmin } = await requireWorkTaskContext();
@@ -22,7 +26,7 @@ export async function POST(request: Request) {
       .maybeSingle();
     if (!assignee) return Response.json({ message: "담당자를 찾을 수 없습니다." }, { status: 400 });
 
-    const { data: task, error } = await admin.rpc("create_work_task_with_event", {
+    const command = await admin.rpc("create_work_task_with_event", {
       p_workspace_id: workspaceId,
       p_title: title,
       p_description: description,
@@ -30,7 +34,29 @@ export async function POST(request: Request) {
       p_creator_id: user.id,
       p_assignee_id: assigneeId,
     });
+    if (!command.error) return Response.json(command.data, { status: 201 });
+    if (!isMissingCommand(command.error)) throw command.error;
+
+    const { data: task, error } = await admin.from("work_tasks").insert({
+      workspace_id: workspaceId,
+      title,
+      description,
+      planned_date: plannedDate,
+      creator_id: user.id,
+      assignee_id: assigneeId,
+    }).select("*").single();
     if (error) throw error;
+    const { error: eventError } = await admin.from("work_task_events").insert({
+      task_id: task.id,
+      actor_id: user.id,
+      event_type: "created",
+      to_assignee_id: assigneeId,
+      metadata: { title, plannedDate },
+    });
+    if (eventError) {
+      await admin.from("work_tasks").delete().eq("id", task.id);
+      throw eventError;
+    }
     return Response.json(task, { status: 201 });
   } catch (error) {
     return Response.json({ message: error instanceof Error ? error.message : "업무를 만들지 못했습니다." }, { status: 400 });

@@ -11,13 +11,17 @@ export async function POST() {
       .eq("status", "open")
       .lte("planned_date", today);
     if (countError) throw countError;
+    const checkedOutAt = new Date().toISOString();
     const { data, error } = await admin.from("work_daily_reviews").upsert({
       workspace_id: workspaceId,
       user_id: user.id,
       work_date: today,
       incomplete_count: count ?? 0,
-      checked_out_at: new Date().toISOString(),
+      checked_out_at: checkedOutAt,
     }, { onConflict: "workspace_id,user_id,work_date" }).select("*").single();
+    if (error?.code === "PGRST205") {
+      return Response.json({ checked_out_at: checkedOutAt, incomplete_count: count ?? 0 });
+    }
     if (error) throw error;
     return Response.json(data);
   } catch (error) {

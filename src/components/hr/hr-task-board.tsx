@@ -86,7 +86,9 @@ export function HrTaskBoard({
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "transfer", assigneeId: nextAssigneeId }),
       }));
-      setTasks((current) => current.map((item) => item.id === task.id ? updated : item));
+      setTasks((current) => isAdmin
+        ? current.map((item) => item.id === task.id ? updated : item)
+        : current.filter((item) => item.id !== task.id));
       setEvents((current) => { const next = { ...current }; delete next[task.id]; return next; });
     } catch (reason) { setError(reason instanceof Error ? reason.message : "담당자를 이관하지 못했습니다."); }
     finally { setBusy(""); }

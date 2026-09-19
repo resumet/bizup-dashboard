@@ -1,5 +1,9 @@
 import { requireWorkTaskContext } from "@/lib/work-tasks/server";
 
+function isMissingCommand(error: { code?: string; message?: string } | null) {
+  return error?.code === "PGRST202" || error?.message?.includes("schema cache");
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -27,14 +31,29 @@ export async function PATCH(
       if (status !== "open" && status !== "done") {
         return Response.json({ message: "업무 상태를 확인해 주세요." }, { status: 400 });
       }
-      const { data, error } = await admin.rpc("set_work_task_status_with_event", {
+      const command = await admin.rpc("set_work_task_status_with_event", {
         p_task_id: id,
         p_workspace_id: workspaceId,
         p_actor_id: user.id,
         p_status: status,
         p_is_admin: isAdmin,
       });
+      if (!command.error) return Response.json(command.data);
+      if (!isMissingCommand(command.error)) throw command.error;
+
+      const { data, error } = await admin.from("work_tasks").update({
+        status,
+        completed_at: status === "done" ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      }).eq("id", id).select("*").single();
       if (error) throw error;
+      const { error: eventError } = await admin.from("work_task_events").insert({
+        task_id: id,
+        actor_id: user.id,
+        event_type: status === "done" ? "completed" : "reopened",
+        metadata: {},
+      });
+      if (eventError) throw eventError;
       return Response.json(data);
     }
 
@@ -46,7 +65,7 @@ export async function PATCH(
       const { data: member } = await admin.from("workspace_members").select("user_id")
         .eq("workspace_id", workspaceId).eq("user_id", assigneeId).maybeSingle();
       if (!member) return Response.json({ message: "담당자를 찾을 수 없습니다." }, { status: 400 });
-      const { data, error } = await admin.rpc("transfer_work_task_with_event", {
+      const command = await admin.rpc("transfer_work_task_with_event", {
         p_task_id: id,
         p_workspace_id: workspaceId,
         p_actor_id: user.id,
@@ -54,7 +73,23 @@ export async function PATCH(
         p_note: typeof body.note === "string" ? body.note.trim() : "",
         p_is_admin: isAdmin,
       });
+      if (!command.error) return Response.json(command.data);
+      if (!isMissingCommand(command.error)) throw command.error;
+
+      const { data, error } = await admin.from("work_tasks").update({
+        assignee_id: assigneeId,
+        updated_at: new Date().toISOString(),
+      }).eq("id", id).select("*").single();
       if (error) throw error;
+      const { error: eventError } = await admin.from("work_task_events").insert({
+        task_id: id,
+        actor_id: user.id,
+        event_type: "transferred",
+        from_assignee_id: task.assignee_id,
+        to_assignee_id: assigneeId,
+        metadata: { note: typeof body.note === "string" ? body.note.trim() : "" },
+      });
+      if (eventError) throw eventError;
       return Response.json(data);
     }
 
