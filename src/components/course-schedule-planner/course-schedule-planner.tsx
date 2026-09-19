@@ -306,7 +306,7 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
         </section>
       </aside>
 
-      <Card className="min-w-0">
+      <Card className="min-w-0 xl:sticky xl:top-4 xl:self-start">
         <CardHeader className="flex flex-row items-center justify-between gap-3">
           <div><CardTitle className="flex items-center gap-2"><CalendarDays className="size-5 text-primary" />{monthTitle(month)}</CardTitle><p className="mt-1 text-xs text-muted-foreground">색상 카드는 예비 강의, 진한 카드는 확정된 무료 웨비나입니다.</p></div>
           <div className="flex shrink-0 items-center gap-1"><Button type="button" size="sm" variant="outline" onClick={() => setMonth(initialData.today.slice(0, 7))}>오늘</Button><Button type="button" size="icon-sm" variant="ghost" aria-label="이전 달" onClick={() => setMonth((current) => shiftMonth(current, -1))}><ChevronLeft /></Button><Button type="button" size="icon-sm" variant="ghost" aria-label="다음 달" onClick={() => setMonth((current) => shiftMonth(current, 1))}><ChevronRight /></Button></div>
