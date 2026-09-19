@@ -17,9 +17,10 @@ test("공유는 저장된 명단의 수정·수동추가 정보를 사용하고 
   assert.equal(students[0].amount, 3490000);
   assert.equal(students[0].inflowType, "RS 파트너");
   assert.equal(students[0].paymentMethod, "카드");
+  assert.equal(students[0].memo, "private memo");
   assert.equal(summarizeOrderStudents(students).amount, 3490000);
   assert.ok(!JSON.stringify(students).includes("secret-payment-id"));
-  assert.ok(!JSON.stringify(students).includes("private memo"));
+  assert.ok(JSON.stringify(students).includes("private memo"));
 });
 
 test("별표 선택은 서버 전달값과 CSV에 일관되게 반영되며 해제해도 결제ID는 공개하지 않는다", () => {
@@ -36,6 +37,7 @@ test("별표 선택은 서버 전달값과 CSV에 일관되게 반영되며 해�
   const plainCsv = createOrderStudentCsv(plain, false, "RS");
   assert.ok(maskedCsv.includes("김*생") && !maskedCsv.includes("김학생"));
   assert.ok(plainCsv.includes("김학생") && plainCsv.includes("010-1234-5678"));
+  assert.ok(plainCsv.includes("private memo"));
   assert.ok(plainCsv.includes('"RS"') && plainCsv.includes('"결제방법"'));
   assert.ok(!plainCsv.includes("secret-payment-id"));
   assert.ok(createOrderStudentCsv([{ ...plain[0], name: '=HYPERLINK("example")' }], false).includes('"\'=HYPERLINK'));
@@ -46,7 +48,13 @@ test("연결된 실제 수강생을 공개하고 결제자의 연락처나 이�
   assert.equal(students[0].name, "실제학생");
   assert.equal(students[0].phone, "01099998888");
   assert.equal(students[0].email, "");
+  assert.equal(students[0].alternateStudentName, "실제학생");
+  assert.equal(students[0].alternateStudentPhone, "01099998888");
   assert.ok(!JSON.stringify(students).includes("01012345678"));
+  const masked = maskOrderStudentsForPublic(students);
+  const plain = maskOrderStudentsForPublic(students, false);
+  assert.equal(masked[0].memo, "private memo · 대신 수강: 실**생 / 010-****-8888");
+  assert.equal(plain[0].memo, "private memo · 대신 수강: 실제학생 / 010-9999-8888");
   const invalid = paidRosterStudents([{ ...row, values: { ...row.values, hasDifferentStudent: true } }]);
   assert.equal(invalid[0].phone, "");
 });

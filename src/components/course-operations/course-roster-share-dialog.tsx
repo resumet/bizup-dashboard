@@ -155,7 +155,7 @@ export function CourseRosterShareDialog({
                     </Button>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">공개 페이지는 저장된 유료수강생 명단과 전체 결제금액을 반영합니다. 수동 추가·정보 수정도 함께 반영됩니다.</p>
+                <p className="text-xs text-muted-foreground">공개 페이지는 저장된 유료수강생 명단과 전체 결제금액을 반영합니다. 수동 추가·정보 수정·비고·대신 수강자 정보도 함께 반영됩니다.</p>
                 <Button type="button" variant="outline" asChild>
                   <a href={url} target="_blank" rel="noreferrer"><ExternalLink />공개 페이지 열기</a>
                 </Button>

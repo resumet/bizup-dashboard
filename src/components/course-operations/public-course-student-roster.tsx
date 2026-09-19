@@ -12,7 +12,6 @@ import {
 } from "@/lib/course-orders/student-roster";
 import type { summarizeOrderStudents } from "@/lib/course-orders/student-roster";
 
-const PAGE_SIZE = 50;
 const CHART_COLORS = ["#2563eb", "#7c3aed", "#db2777", "#ea580c", "#16a34a", "#0891b2", "#4f46e5", "#ca8a04"];
 const WON_FORMATTER = new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW", maximumFractionDigits: 0 });
 
@@ -71,7 +70,6 @@ export function PublicCourseStudentRoster({ courseName, students, summary }: { c
   const [query, setQuery] = useState("");
   const [option, setOption] = useState("");
   const [inflowType, setInflowType] = useState("");
-  const [page, setPage] = useState(1);
   const inflowTypes = useMemo(() => [...new Set(students.map((student) => student.inflowType))].sort((a, b) => a.localeCompare(b, "ko-KR")), [students]);
   const optionChartItems = useMemo(() => [...summary.options]
     .sort((a, b) => b.people - a.people || a.optionName.localeCompare(b.optionName, "ko-KR"))
@@ -84,13 +82,17 @@ export function PublicCourseStudentRoster({ courseName, students, summary }: { c
       if (option && student.optionName !== option) return false;
       if (inflowType && student.inflowType !== inflowType) return false;
       if (!keyword) return true;
-      return [student.name, student.phone, student.email, student.optionName, student.inflowType]
-        .some((value) => value.normalize("NFKC").toLocaleLowerCase("ko-KR").includes(keyword));
+      const phoneKeyword = /^[+\d\s().*-]+$/u.test(keyword)
+        ? keyword.replace(/\D/gu, "")
+        : "";
+      return [student.name, student.phone, student.email, student.memo ?? ""]
+        .some((value) => {
+          const normalized = value.normalize("NFKC").toLocaleLowerCase("ko-KR");
+          return normalized.includes(keyword)
+            || Boolean(phoneKeyword && normalized.replace(/\D/gu, "").includes(phoneKeyword));
+        });
     });
   }, [inflowType, option, query, students]);
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const currentPage = Math.min(page, pageCount);
-  const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   function downloadCsv() {
     const blob = new Blob([createOrderStudentCsv(filtered, false, "RS")], { type: "text/csv;charset=utf-8" });
@@ -140,13 +142,13 @@ export function PublicCourseStudentRoster({ courseName, students, summary }: { c
           <label className="relative">
             <span className="sr-only">수강생 검색</span>
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="pl-9" placeholder="이름·전화번호 뒷자리·이메일 도메인 검색" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} />
+            <Input className="pl-9" placeholder="이름·전화번호·이메일·비고 검색" value={query} onChange={(event) => setQuery(event.target.value)} />
           </label>
-          <select aria-label="옵션 필터" className="h-10 rounded-lg border border-input bg-background px-3 text-sm" value={option} onChange={(event) => { setOption(event.target.value); setPage(1); }}>
+          <select aria-label="옵션 필터" className="h-10 rounded-lg border border-input bg-background px-3 text-sm" value={option} onChange={(event) => setOption(event.target.value)}>
             <option value="">전체 옵션</option>
             {summary.options.map((item) => <option key={item.optionName} value={item.optionName}>{item.optionName || "옵션 없음"}</option>)}
           </select>
-          <select aria-label="RS 필터" className="h-10 rounded-lg border border-input bg-background px-3 text-sm" value={inflowType} onChange={(event) => { setInflowType(event.target.value); setPage(1); }}>
+          <select aria-label="RS 필터" className="h-10 rounded-lg border border-input bg-background px-3 text-sm" value={inflowType} onChange={(event) => setInflowType(event.target.value)}>
             <option value="">전체 RS</option>
             {inflowTypes.map((item) => <option key={item} value={item}>{item || "RS 없음"}</option>)}
           </select>
@@ -157,30 +159,27 @@ export function PublicCourseStudentRoster({ courseName, students, summary }: { c
         <div className="overflow-x-auto">
           <Table aria-label="공유 수강생 명단">
             <TableHeader><TableRow>
-              <TableHead>번호</TableHead><TableHead>이름</TableHead><TableHead>전화번호</TableHead><TableHead>이메일</TableHead><TableHead>옵션명</TableHead><TableHead>RS</TableHead><TableHead>결제방법</TableHead><TableHead className="text-right">결제금액</TableHead>
+              <TableHead>번호</TableHead><TableHead>이름</TableHead><TableHead>전화번호</TableHead><TableHead>이메일</TableHead><TableHead>옵션명</TableHead><TableHead>RS</TableHead><TableHead>결제방법</TableHead><TableHead className="text-right">결제금액</TableHead><TableHead className="min-w-64">비고</TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {visible.map((student, index) => (
+              {filtered.map((student, index) => (
                 <TableRow key={student.orderId}>
-                  <TableCell className="tabular-nums">{(currentPage - 1) * PAGE_SIZE + index + 1}</TableCell>
+                  <TableCell className="tabular-nums">{index + 1}</TableCell>
                   <TableCell className="font-medium">{student.name || "—"}</TableCell>
                   <TableCell className="whitespace-nowrap">{student.phone}</TableCell>
                   <TableCell>{student.email || "—"}</TableCell>
                   <TableCell>{student.optionName || "—"}</TableCell>
                   <TableCell>{student.inflowType || "—"}</TableCell><TableCell>{student.paymentMethod || "—"}</TableCell>
                   <TableCell className="whitespace-nowrap text-right font-medium tabular-nums">{WON_FORMATTER.format(student.amount)}</TableCell>
+                  <TableCell className="whitespace-normal text-muted-foreground">{student.memo || "—"}</TableCell>
                 </TableRow>
               ))}
-              {!visible.length ? <TableRow><TableCell colSpan={8} className="h-28 text-center text-muted-foreground">조건에 맞는 수강생이 없습니다.</TableCell></TableRow> : null}
+              {!filtered.length ? <TableRow><TableCell colSpan={9} className="h-28 text-center text-muted-foreground">조건에 맞는 수강생이 없습니다.</TableCell></TableRow> : null}
             </TableBody>
           </Table>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t p-4 text-sm">
-          <span>조회 {filtered.length.toLocaleString("ko-KR")}건 · {currentPage} / {pageCount}페이지</span>
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>이전</Button>
-            <Button type="button" variant="outline" size="sm" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>다음</Button>
-          </div>
+        <div className="border-t p-4 text-sm text-muted-foreground">
+          전체 {students.length.toLocaleString("ko-KR")}건 · 조회 {filtered.length.toLocaleString("ko-KR")}건
         </div>
       </div>
     </div>

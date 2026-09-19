@@ -19,6 +19,9 @@ export function paidRosterStudents(rows: RosterRow[]): OrderStudent[] {
       inflowType: row.values.rs ?? row.values.source ?? "",
       paymentMethod: row.values.paymentMethod ?? "",
       amount: Number.isFinite(amount) ? amount : 0,
+      memo: row.memo,
+      alternateStudentName: row.values.hasDifferentStudent ? recipient.name : "",
+      alternateStudentPhone: row.values.hasDifferentStudent ? recipient.phone : "",
     };
   });
 }

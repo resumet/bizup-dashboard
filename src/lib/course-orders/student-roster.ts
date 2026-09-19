@@ -11,6 +11,9 @@ export type OrderStudent = {
   paymentMethod?: string;
   rs?: string;
   paymentId?: string;
+  memo?: string;
+  alternateStudentName?: string;
+  alternateStudentPhone?: string;
 };
 
 export function normalizeOrderStudentPhone(value: string) {
@@ -50,6 +53,22 @@ export function maskOrderStudentName(value: string) {
   return `${characters[0]}${"*".repeat(characters.length - 2)}${characters.at(-1)}`;
 }
 
+function publicStudentMemo(student: OrderStudent, masked: boolean) {
+  const parts = [student.memo?.trim() ?? ""];
+  const alternateName = student.alternateStudentName?.trim() ?? "";
+  const alternatePhone = student.alternateStudentPhone?.trim() ?? "";
+  if (alternateName || alternatePhone) {
+    const name = alternateName
+      ? masked ? maskOrderStudentName(alternateName) : alternateName
+      : "";
+    const phone = alternatePhone
+      ? masked ? maskOrderStudentPhone(alternatePhone) : formatOrderStudentPhone(alternatePhone)
+      : "";
+    parts.push(`대신 수강: ${[name, phone].filter(Boolean).join(" / ")}`);
+  }
+  return parts.filter(Boolean).join(" · ");
+}
+
 export function maskOrderStudentsForPublic(students: OrderStudent[], masked = true) {
   return students.map((student) => ({
     orderId: student.orderId,
@@ -60,6 +79,7 @@ export function maskOrderStudentsForPublic(students: OrderStudent[], masked = tr
     name: masked ? maskOrderStudentName(student.name) : student.name,
     phone: masked ? maskOrderStudentPhone(student.phone) : formatOrderStudentPhone(student.phone),
     email: masked ? maskOrderStudentEmail(student.email) : student.email,
+    memo: publicStudentMemo(student, masked),
   }));
 }
 
@@ -70,7 +90,7 @@ function csvCell(value: string | number) {
 }
 
 export function createOrderStudentCsv(students: OrderStudent[], masked = true, sourceLabel = "트래킹 유입구분") {
-  const headers = ["번호", "이름", "전화번호", "이메일", "옵션명", sourceLabel, "결제금액", "결제방법"];
+  const headers = ["번호", "이름", "전화번호", "이메일", "옵션명", sourceLabel, "결제금액", "결제방법", "비고"];
   const rows = students.map((student, index) => [
     index + 1,
     masked ? maskOrderStudentName(student.name) : student.name,
@@ -80,6 +100,7 @@ export function createOrderStudentCsv(students: OrderStudent[], masked = true, s
     student.inflowType,
     student.amount,
     student.paymentMethod ?? "",
+    student.memo ?? "",
   ]);
   return `\uFEFF${[headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n")}`;
 }
