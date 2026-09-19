@@ -274,12 +274,13 @@ export function HrTaskBoard({
         const carriedTasks = employeeTasks.filter((task) => task.planned_date < today);
         const employeeOpen = employeeTasks.filter((task) => task.status === "open").length;
         const employeeDone = employeeTasks.length - employeeOpen;
-        return <Card key={person.id} className="overflow-hidden">
-          <CardHeader className="border-b bg-muted/30 px-4 py-4">
+        const isCurrentUser = person.id === userId;
+        return <Card key={person.id} className={`overflow-hidden ${isCurrentUser ? "border-sky-200 bg-sky-50/70" : ""}`}>
+          <CardHeader className={`border-b px-4 py-4 ${isCurrentUser ? "border-sky-200 bg-sky-100/70" : "bg-muted/30"}`}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">{initials(person.name)}</span>
-                <div className="min-w-0"><CardTitle className="truncate text-base">{person.name}{person.id === userId ? <span className="ml-1 text-xs font-normal text-blue-700">나</span> : null}</CardTitle></div>
+                <div className="min-w-0"><CardTitle className="truncate text-base">{person.name}{isCurrentUser ? <span className="ml-1 text-xs font-normal text-blue-700">나</span> : null}</CardTitle></div>
               </div>
               <div className="flex shrink-0 gap-1.5"><Badge variant={employeeOpen ? "default" : "secondary"}>진행 {employeeOpen}</Badge><Badge variant="outline">완료 {employeeDone}</Badge></div>
             </div>
