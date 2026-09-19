@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowRightLeft, CalendarDays, Check, CheckCircle2, Clock3, EllipsisVertical, History, Inbox, Loader2, Pencil, Plus, RotateCcw, UsersRound } from "lucide-react";
+import { ArrowRightLeft, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronUp, Clock3, EllipsisVertical, History, Inbox, Loader2, Pencil, Plus, RotateCcw, Trash2, UsersRound } from "lucide-react";
 
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,14 +41,14 @@ export function HrTaskBoard({
   initialTasks,
   people,
   userId,
-  isAdmin,
+  isSuperAdmin,
   today,
   initialReview,
 }: {
   initialTasks: WorkTask[];
   people: WorkTaskPerson[];
   userId: string;
-  isAdmin: boolean;
+  isSuperAdmin: boolean;
   today: string;
   initialReview: Review;
 }) {
@@ -64,6 +65,9 @@ export function HrTaskBoard({
   const [editError, setEditError] = useState("");
   const [historyTaskId, setHistoryTaskId] = useState<string | null>(null);
   const [historyError, setHistoryError] = useState("");
+  const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+  const [expandedPeople, setExpandedPeople] = useState<Set<string>>(() => new Set());
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [review, setReview] = useState<Review>(initialReview);
@@ -81,6 +85,7 @@ export function HrTaskBoard({
     : [];
   const editingTask = editTaskId ? tasks.find((task) => task.id === editTaskId) ?? null : null;
   const historyTask = historyTaskId ? tasks.find((task) => task.id === historyTaskId) ?? null : null;
+  const deleteTask = deleteTaskId ? tasks.find((task) => task.id === deleteTaskId) ?? null : null;
 
   async function createTask() {
     if (!title.trim() || busy) return;
@@ -176,6 +181,37 @@ export function HrTaskBoard({
     }
   }
 
+  async function deleteSelectedTask(task: WorkTask) {
+    if (busy) return;
+    setBusy(task.id);
+    setDeleteError("");
+    try {
+      const response = await fetch(`/api/hr/tasks/${task.id}`, { method: "DELETE" });
+      if (!response.ok) await readJson(response);
+      setTasks((current) => current.filter((item) => item.id !== task.id));
+      setEvents((current) => {
+        const next = { ...current };
+        delete next[task.id];
+        return next;
+      });
+      setDeleteTaskId(null);
+      setReview(null);
+    } catch (reason) {
+      setDeleteError(reason instanceof Error ? reason.message : "업무를 삭제하지 못했습니다.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  function togglePersonTasks(personId: string) {
+    setExpandedPeople((current) => {
+      const next = new Set(current);
+      if (next.has(personId)) next.delete(personId);
+      else next.add(personId);
+      return next;
+    });
+  }
+
   async function openHistory(taskId: string) {
     setHistoryTaskId(taskId);
     setHistoryError("");
@@ -218,7 +254,7 @@ export function HrTaskBoard({
   }
 
   function renderTask(task: WorkTask) {
-    const canChange = isAdmin || task.assignee_id === userId;
+    const canChange = isSuperAdmin || task.assignee_id === userId;
     return <div key={task.id} className={`rounded-xl border bg-background p-3 ${task.status === "done" ? "opacity-65" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-start gap-2.5">
@@ -238,9 +274,12 @@ export function HrTaskBoard({
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button size="icon-sm" variant="ghost" aria-label={`${task.title} 업무 메뉴`} disabled={busy === task.id || busy === `history-${task.id}`}>{busy === task.id || busy === `history-${task.id}` ? <Loader2 className="animate-spin" /> : <EllipsisVertical />}</Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-36">
-            <DropdownMenuItem disabled={!canChange} onSelect={() => openEditDialog(task)}><Pencil />수정</DropdownMenuItem>
-            <DropdownMenuItem disabled={!canChange} onSelect={() => void changeStatus(task)}><CheckCircle2 />{task.status === "done" ? "완료 취소" : "완료"}</DropdownMenuItem>
-            <DropdownMenuItem disabled={!canChange || task.status === "done" || !people.some((target) => target.active && target.id !== task.assignee_id)} onSelect={() => { setTransferTaskId(task.id); setNextAssigneeId(""); setTransferError(""); }}><ArrowRightLeft />이관</DropdownMenuItem>
+            {canChange ? <>
+              <DropdownMenuItem onSelect={() => openEditDialog(task)}><Pencil />수정</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void changeStatus(task)}><CheckCircle2 />{task.status === "done" ? "완료 취소" : "완료"}</DropdownMenuItem>
+              <DropdownMenuItem disabled={task.status === "done" || !people.some((target) => target.active && target.id !== task.assignee_id)} onSelect={() => { setTransferTaskId(task.id); setNextAssigneeId(""); setTransferError(""); }}><ArrowRightLeft />이관</DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => { setDeleteTaskId(task.id); setDeleteError(""); }}><Trash2 />삭제</DropdownMenuItem>
+            </> : null}
             <DropdownMenuItem onSelect={() => void openHistory(task.id)}><History />히스토리</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -281,6 +320,12 @@ export function HrTaskBoard({
         const employeeOpen = employeeTasks.filter((task) => task.status === "open").length;
         const employeeDone = employeeTasks.length - employeeOpen;
         const isCurrentUser = person.id === userId;
+        const isExpanded = expandedPeople.has(person.id);
+        const visibleLimit = isExpanded ? employeeTasks.length : 5;
+        const shownTodayTasks = todayTasks.slice(0, visibleLimit);
+        const shownCarriedTasks = carriedTasks.slice(0, Math.max(0, visibleLimit - shownTodayTasks.length));
+        const hasMore = employeeTasks.length > 5;
+        const hiddenCount = employeeTasks.length - shownTodayTasks.length - shownCarriedTasks.length;
         return <Card key={person.id} className={`overflow-hidden ${isCurrentUser ? "border-sky-200 bg-sky-50/70" : ""}`}>
           <CardHeader className={`border-b px-4 py-4 ${isCurrentUser ? "border-sky-200 bg-sky-100/70" : "bg-muted/30"}`}>
             <div className="flex items-center justify-between gap-3">
@@ -294,12 +339,13 @@ export function HrTaskBoard({
           <CardContent className="space-y-5 p-3">
             <section className="space-y-2.5">
               <div className="flex items-center justify-between px-1"><h3 className="flex items-center gap-2 text-base font-semibold"><CalendarDays className="size-5 text-blue-700" />오늘 업무</h3><Badge variant="outline">{todayTasks.length}</Badge></div>
-              {todayTasks.length ? <div className="space-y-2.5">{todayTasks.map(renderTask)}</div> : <div className="grid min-h-20 place-items-center rounded-xl border border-dashed text-muted-foreground"><Inbox className="size-5" aria-hidden="true" /><span className="sr-only">오늘 업무가 없습니다.</span></div>}
+              {todayTasks.length ? <div className="space-y-2.5">{shownTodayTasks.map(renderTask)}</div> : <div className="grid min-h-20 place-items-center rounded-xl border border-dashed text-muted-foreground"><Inbox className="size-5" aria-hidden="true" /><span className="sr-only">오늘 업무가 없습니다.</span></div>}
             </section>
             <section className="space-y-2.5 border-t pt-4">
               <div className="flex items-center justify-between px-1"><h3 className="flex items-center gap-2 text-base font-semibold"><RotateCcw className="size-5 text-amber-700" />어제 못해서 넘어온 업무</h3><Badge variant="outline">{carriedTasks.length}</Badge></div>
-              {carriedTasks.length ? <div className="space-y-2.5">{carriedTasks.map(renderTask)}</div> : <div className="grid min-h-14 place-items-center text-muted-foreground"><CheckCircle2 className="size-5" aria-hidden="true" /><span className="sr-only">이월 업무가 없습니다.</span></div>}
+              {shownCarriedTasks.length ? <div className="space-y-2.5">{shownCarriedTasks.map(renderTask)}</div> : !carriedTasks.length ? <div className="grid min-h-14 place-items-center text-muted-foreground"><CheckCircle2 className="size-5" aria-hidden="true" /><span className="sr-only">이월 업무가 없습니다.</span></div> : null}
             </section>
+            {hasMore ? <Button type="button" variant="outline" className="w-full" aria-expanded={isExpanded} onClick={() => togglePersonTasks(person.id)}>{isExpanded ? <ChevronUp /> : <ChevronDown />}{isExpanded ? "접기" : `${hiddenCount}개 더보기`}</Button> : null}
           </CardContent>
         </Card>;
       })}
@@ -360,5 +406,13 @@ export function HrTaskBoard({
         </form>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={Boolean(deleteTask)} onOpenChange={(open) => { if (!open && busy !== deleteTask?.id) { setDeleteTaskId(null); setDeleteError(""); } }}>
+      <AlertDialogContent>
+        <AlertDialogHeader><AlertDialogTitle>업무를 삭제할까요?</AlertDialogTitle><AlertDialogDescription>‘{deleteTask?.title}’ 업무가 목록에서 제거됩니다.</AlertDialogDescription></AlertDialogHeader>
+        {deleteError ? <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{deleteError}</p> : null}
+        <AlertDialogFooter><AlertDialogCancel disabled={busy === deleteTask?.id}>취소</AlertDialogCancel><AlertDialogAction variant="destructive" disabled={busy === deleteTask?.id} onClick={(event) => { event.preventDefault(); if (deleteTask) void deleteSelectedTask(deleteTask); }}>{busy === deleteTask?.id ? <Loader2 className="animate-spin" /> : <Trash2 />}{busy === deleteTask?.id ? "삭제 중…" : "삭제"}</AlertDialogAction></AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>;
 }

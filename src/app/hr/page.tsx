@@ -3,7 +3,7 @@ import { koreaDate, loadWorkspacePeople, requireWorkTaskContext } from "@/lib/wo
 import type { WorkTask } from "@/lib/work-tasks/types";
 
 export default async function Page() {
-  const { admin, user, workspaceId, isAdmin } = await requireWorkTaskContext();
+  const { admin, user, workspaceId, isSuperAdmin } = await requireWorkTaskContext();
   const today = koreaDate();
   const query = admin.from("work_tasks").select("*")
     .eq("workspace_id", workspaceId)
@@ -23,7 +23,7 @@ export default async function Page() {
     initialTasks={(taskResult.data ?? []) as WorkTask[]}
     people={people}
     userId={user.id}
-    isAdmin={isAdmin}
+    isSuperAdmin={isSuperAdmin}
     today={today}
     initialReview={reviewResult.data}
   />;

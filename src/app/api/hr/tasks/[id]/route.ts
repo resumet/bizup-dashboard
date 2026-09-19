@@ -9,7 +9,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { admin, user, workspaceId, isAdmin } = await requireWorkTaskContext();
+    const { admin, user, workspaceId, isSuperAdmin } = await requireWorkTaskContext();
     const { id } = await params;
     const body = await request.json() as Record<string, unknown>;
     const { data: task, error: taskError } = await admin
@@ -22,7 +22,7 @@ export async function PATCH(
     if (!task) return Response.json({ message: "업무를 찾을 수 없습니다." }, { status: 404 });
 
     const isAssignee = task.assignee_id === user.id;
-    if (!isAdmin && !isAssignee) {
+    if (!isSuperAdmin && !isAssignee) {
       return Response.json({ message: "담당자만 업무를 변경할 수 있습니다." }, { status: 403 });
     }
 
@@ -38,7 +38,7 @@ export async function PATCH(
         p_actor_id: user.id,
         p_title: title,
         p_description: description,
-        p_is_admin: isAdmin,
+        p_is_admin: isSuperAdmin,
       });
       if (!command.error) return Response.json(command.data);
       if (!isMissingCommand(command.error)) throw command.error;
@@ -74,7 +74,7 @@ export async function PATCH(
         p_workspace_id: workspaceId,
         p_actor_id: user.id,
         p_status: status,
-        p_is_admin: isAdmin,
+        p_is_admin: isSuperAdmin,
       });
       if (!command.error) return Response.json(command.data);
       if (!isMissingCommand(command.error)) throw command.error;
@@ -115,7 +115,7 @@ export async function PATCH(
         p_actor_id: user.id,
         p_assignee_id: assigneeId,
         p_note: typeof body.note === "string" ? body.note.trim() : "",
-        p_is_admin: isAdmin,
+        p_is_admin: isSuperAdmin,
       });
       if (!command.error) return Response.json(command.data);
       if (!isMissingCommand(command.error)) throw command.error;
@@ -140,5 +140,38 @@ export async function PATCH(
     return Response.json({ message: "지원하지 않는 변경입니다." }, { status: 400 });
   } catch (error) {
     return Response.json({ message: error instanceof Error ? error.message : "업무를 변경하지 못했습니다." }, { status: 400 });
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { admin, user, workspaceId, isSuperAdmin } = await requireWorkTaskContext();
+    const { id } = await params;
+    const { data: task, error: taskError } = await admin
+      .from("work_tasks")
+      .select("id,assignee_id")
+      .eq("id", id)
+      .eq("workspace_id", workspaceId)
+      .maybeSingle();
+    if (taskError) throw taskError;
+    if (!task) return Response.json({ message: "업무를 찾을 수 없습니다." }, { status: 404 });
+    if (!isSuperAdmin && task.assignee_id !== user.id) {
+      return Response.json({ message: "담당자만 업무를 삭제할 수 있습니다." }, { status: 403 });
+    }
+    const { error } = await admin
+      .from("work_tasks")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("workspace_id", workspaceId);
+    if (error) throw error;
+    return new Response(null, { status: 204 });
+  } catch (error) {
+    return Response.json(
+      { message: error instanceof Error ? error.message : "업무를 삭제하지 못했습니다." },
+      { status: 400 },
+    );
   }
 }

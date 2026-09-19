@@ -2,7 +2,7 @@ import "server-only";
 
 import type { User } from "@supabase/supabase-js";
 
-import { hasAdminAccess } from "@/lib/admin/access";
+import { isSuperAdminEmail } from "@/lib/admin/access";
 import { resolveUserDisplayNames } from "@/lib/admin/user-names";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
@@ -19,7 +19,8 @@ export async function requireWorkTaskContext() {
     admin: createAdminClient(),
     user,
     workspaceId: membership.workspace_id,
-    isAdmin: hasAdminAccess(user.email, membership.role),
+    isSuperAdmin:
+      isSuperAdminEmail(user.email) || membership.role === "super_admin",
   };
 }
 
