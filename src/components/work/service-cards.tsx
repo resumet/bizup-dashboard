@@ -1,8 +1,8 @@
 import Link from "next/link";
 import {
-  ArrowLeftRight, ArrowRight, BookOpenCheck, Calculator, ChartNoAxesCombined,
+  ArrowLeftRight, ArrowRight, BookOpenCheck, Calculator, CalendarRange, ChartNoAxesCombined,
   CirclePlay, ContactRound, FileCheck2, FileDown, FileSpreadsheet, HandCoins,
-  MessageSquareText, Palette, PhoneCall, ShoppingCart, Users, WalletCards,
+  MessageSquareText, PhoneCall, ShoppingCart, Users, WalletCards,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ type Service = { title: string; description: string; route: string; icon: Lucide
 
 const services: Service[] = [
   { title: "강의 운영 자동화", description: "강의 ID를 기준으로 일정, 옵션, 수강생 명단과 문자 제작물을 연결합니다.", route: "/services/course-operations", icon: BookOpenCheck },
+  { title: "강의 일정 플래너", description: "예비 강의 카드를 달력에 배치해 확정된 웨비나와 전체 강의 일정을 한눈에 확인합니다.", route: "/services/course-schedule-planner", icon: CalendarRange },
   { title: "라이브 웨비나 대시보드", description: "강의별 라이브 참여 인원, 결제와 매출을 모아 보고 단계별 전환율과 광고 효율을 비교합니다.", route: "/services/course-webinars", icon: ChartNoAxesCombined },
   { title: "수강생 명단 분석", description: "엑셀 신청자 명단을 분류·분석하고 알림톡 발송과 맞춤 다운로드까지 관리합니다.", route: "/services/course-roster", icon: Users },
   { title: "주소록 매니저", description: "Excel 또는 CSV로 주소록을 만들고 연락처를 검색·수정·업데이트합니다.", route: "/services/address-books", icon: ContactRound },
