@@ -61,6 +61,8 @@ export function HrTaskBoard({
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editError, setEditError] = useState("");
+  const [historyTaskId, setHistoryTaskId] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [review, setReview] = useState<Review>(initialReview);
@@ -77,6 +79,7 @@ export function HrTaskBoard({
     ? people.filter((person) => person.active && person.id !== transferTask.assignee_id)
     : [];
   const editingTask = editTaskId ? tasks.find((task) => task.id === editTaskId) ?? null : null;
+  const historyTask = historyTaskId ? tasks.find((task) => task.id === historyTaskId) ?? null : null;
 
   async function createTask() {
     if (!title.trim() || busy) return;
@@ -172,22 +175,16 @@ export function HrTaskBoard({
     }
   }
 
-  async function toggleHistory(taskId: string) {
-    if (events[taskId]) {
-      setEvents((current) => {
-        const next = { ...current };
-        delete next[taskId];
-        return next;
-      });
-      return;
-    }
+  async function openHistory(taskId: string) {
+    setHistoryTaskId(taskId);
+    setHistoryError("");
+    if (events[taskId]) return;
     setBusy(`history-${taskId}`);
-    setError("");
     try {
       const history = await readJson<WorkTaskEvent[]>(await fetch(`/api/hr/tasks/${taskId}/events`, { cache: "no-store" }));
       setEvents((current) => ({ ...current, [taskId]: history }));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "이력을 불러오지 못했습니다.");
+      setHistoryError(reason instanceof Error ? reason.message : "히스토리를 불러오지 못했습니다.");
     } finally {
       setBusy("");
     }
@@ -234,11 +231,10 @@ export function HrTaskBoard({
             <DropdownMenuItem disabled={!canChange} onSelect={() => openEditDialog(task)}><Pencil />수정</DropdownMenuItem>
             <DropdownMenuItem disabled={!canChange} onSelect={() => void changeStatus(task)}><CheckCircle2 />{task.status === "done" ? "완료 취소" : "완료"}</DropdownMenuItem>
             <DropdownMenuItem disabled={!canChange || task.status === "done" || !people.some((target) => target.active && target.id !== task.assignee_id)} onSelect={() => { setTransferTaskId(task.id); setNextAssigneeId(""); setTransferError(""); }}><ArrowRightLeft />이관</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => void toggleHistory(task.id)}><History />히스토리</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => void openHistory(task.id)}><History />히스토리</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      {events[task.id] ? <div className="mt-3 space-y-2 border-t pt-3">{events[task.id].map((event) => <div key={event.id} className="text-[11px] leading-4 text-muted-foreground"><span className="font-medium text-foreground">{historyText(event)}</span> · {peopleById.get(event.actor_id)?.name ?? "사용자"} · {new Date(event.created_at).toLocaleString("ko-KR")}</div>)}</div> : null}
     </div>;
   }
 
@@ -321,6 +317,26 @@ export function HrTaskBoard({
           <div className="grid gap-2"><Label htmlFor="edit-task-description">설명</Label><Textarea id="edit-task-description" value={editDescription} maxLength={5000} onChange={(event) => setEditDescription(event.target.value)} rows={5} /></div>
           <DialogFooter><DialogClose asChild><Button type="button" variant="outline">취소</Button></DialogClose><Button type="submit" disabled={!editTitle.trim() || busy === editingTask?.id || (editingTask ? editTitle.trim() === editingTask.title && editDescription.trim() === editingTask.description : true)}>{busy === editingTask?.id ? <Loader2 className="animate-spin" /> : <Pencil />}수정 저장</Button></DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={Boolean(historyTask)} onOpenChange={(open) => { if (!open) { setHistoryTaskId(null); setHistoryError(""); } }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader><DialogTitle>업무 히스토리</DialogTitle><DialogDescription className="break-words">{historyTask?.title}</DialogDescription></DialogHeader>
+        <div className="max-h-[60vh] overflow-y-auto pr-1">
+          {busy === `history-${historyTask?.id}` ? <div className="grid min-h-32 place-items-center text-muted-foreground"><Loader2 className="size-5 animate-spin" /><span className="sr-only">히스토리를 불러오는 중입니다.</span></div> : null}
+          {historyError ? <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{historyError}</p> : null}
+          {historyTask && busy !== `history-${historyTask.id}` && !historyError ? <div className="space-y-3">
+            {(events[historyTask.id] ?? []).map((event) => <div key={event.id} className="rounded-xl border p-3">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 rounded-full bg-slate-100 p-2 text-slate-700"><History className="size-4" /></span>
+                <div className="min-w-0"><p className="text-sm font-medium">{historyText(event)}</p><p className="mt-1 text-xs text-muted-foreground">{peopleById.get(event.actor_id)?.name ?? "사용자"} · {new Date(event.created_at).toLocaleString("ko-KR")}</p></div>
+              </div>
+            </div>)}
+            {!events[historyTask.id]?.length ? <div className="grid min-h-24 place-items-center text-muted-foreground"><History className="size-5" /><span className="sr-only">히스토리가 없습니다.</span></div> : null}
+          </div> : null}
+        </div>
+        <DialogFooter><DialogClose asChild><Button type="button" variant="outline">닫기</Button></DialogClose></DialogFooter>
       </DialogContent>
     </Dialog>
 
