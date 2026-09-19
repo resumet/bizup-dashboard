@@ -30,6 +30,7 @@ test("새 HR 업무 명령은 변경과 히스토리를 한 트랜잭션에 저�
       "supabase/migrations/202609190002_work_tasks.sql",
       "supabase/migrations/202609190003_work_task_reviews_and_security.sql",
       "supabase/migrations/202609190004_work_task_atomic_commands.sql",
+      "supabase/migrations/202609190005_work_task_edit_command.sql",
     ]) await db.exec(await readFile(migration, "utf8"));
 
     const created = await db.query<{ task: { id: string; assignee_id: string; status: string } }>(
@@ -39,6 +40,13 @@ test("새 HR 업무 명령은 변경과 히스토리를 한 트랜잭션에 저�
     const task = created.rows[0].task;
     assert.equal(task.assignee_id, creatorId);
     assert.equal(task.status, "open");
+
+    const edited = await db.query<{ task: { title: string; description: string } }>(
+      "select public.edit_work_task_with_event($1,$2,$3,$4,$5,$6) task",
+      [task.id, workspaceId, creatorId, "고객 명단 최종 정리", "오늘 오후까지 완료", false],
+    );
+    assert.equal(edited.rows[0].task.title, "고객 명단 최종 정리");
+    assert.equal(edited.rows[0].task.description, "오늘 오후까지 완료");
 
     const transferred = await db.query<{ task: { assignee_id: string } }>(
       "select public.transfer_work_task_with_event($1,$2,$3,$4,$5,$6) task",
@@ -59,10 +67,10 @@ test("새 HR 업무 명령은 변경과 히스토리를 한 트랜잭션에 저�
       from_assignee_id: string | null;
       to_assignee_id: string | null;
     }>("select event_type,actor_id,from_assignee_id,to_assignee_id from public.work_task_events order by id");
-    assert.deepEqual(events.rows.map((event) => event.event_type), ["created", "transferred", "completed"]);
-    assert.equal(events.rows[1].actor_id, creatorId);
-    assert.equal(events.rows[1].from_assignee_id, creatorId);
-    assert.equal(events.rows[1].to_assignee_id, teammateId);
+    assert.deepEqual(events.rows.map((event) => event.event_type), ["created", "edited", "transferred", "completed"]);
+    assert.equal(events.rows[2].actor_id, creatorId);
+    assert.equal(events.rows[2].from_assignee_id, creatorId);
+    assert.equal(events.rows[2].to_assignee_id, teammateId);
 
     await assert.rejects(
       db.query(
@@ -71,7 +79,7 @@ test("새 HR 업무 명령은 변경과 히스토리를 한 트랜잭션에 저�
       ),
       /ASSIGNEE_NOT_IN_WORKSPACE/,
     );
-    assert.equal((await db.query("select * from public.work_task_events")).rows.length, 3);
+    assert.equal((await db.query("select * from public.work_task_events")).rows.length, 4);
   } finally {
     await db.close();
   }

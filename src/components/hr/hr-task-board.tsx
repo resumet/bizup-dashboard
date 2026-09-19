@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowRightLeft, Check, CheckCircle2, Clock3, EllipsisVertical, History, Loader2, Plus, RotateCcw, UsersRound } from "lucide-react";
+import { ArrowRightLeft, CalendarDays, Check, CheckCircle2, Clock3, EllipsisVertical, History, Inbox, Loader2, Pencil, Plus, RotateCcw, UsersRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,10 @@ export function HrTaskBoard({
   const [transferTaskId, setTransferTaskId] = useState<string | null>(null);
   const [nextAssigneeId, setNextAssigneeId] = useState("");
   const [transferError, setTransferError] = useState("");
+  const [editTaskId, setEditTaskId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editError, setEditError] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [review, setReview] = useState<Review>(initialReview);
@@ -72,6 +76,7 @@ export function HrTaskBoard({
   const activeTransferTargets = transferTask
     ? people.filter((person) => person.active && person.id !== transferTask.assignee_id)
     : [];
+  const editingTask = editTaskId ? tasks.find((task) => task.id === editTaskId) ?? null : null;
 
   async function createTask() {
     if (!title.trim() || busy) return;
@@ -109,6 +114,34 @@ export function HrTaskBoard({
       setReview(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "업무 상태를 저장하지 못했습니다.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function saveTaskEdits(task: WorkTask) {
+    const nextTitle = editTitle.trim();
+    const nextDescription = editDescription.trim();
+    if (!nextTitle || nextTitle.length > 200 || nextDescription.length > 5000 || busy) return;
+    setBusy(task.id);
+    setEditError("");
+    try {
+      const updated = await readJson<WorkTask>(await fetch(`/api/hr/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "edit", title: nextTitle, description: nextDescription }),
+      }));
+      setTasks((current) => current.map((item) => item.id === task.id ? updated : item));
+      setEvents((current) => {
+        const next = { ...current };
+        delete next[task.id];
+        return next;
+      });
+      setEditTaskId(null);
+      setEditTitle("");
+      setEditDescription("");
+    } catch (reason) {
+      setEditError(reason instanceof Error ? reason.message : "업무를 수정하지 못했습니다.");
     } finally {
       setBusy("");
     }
@@ -179,6 +212,36 @@ export function HrTaskBoard({
     return `${from} → ${to}`;
   }
 
+  function openEditDialog(task: WorkTask) {
+    setEditTaskId(task.id);
+    setEditTitle(task.title);
+    setEditDescription(task.description);
+    setEditError("");
+  }
+
+  function renderTask(task: WorkTask) {
+    const canChange = isAdmin || task.assignee_id === userId;
+    return <div key={task.id} className={`rounded-xl border bg-background p-3 ${task.status === "done" ? "opacity-65" : ""}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5"><strong className={`break-words text-sm ${task.status === "done" ? "line-through" : ""}`}>{task.title}</strong>{isCarriedTask(task, today) ? <Badge variant="secondary">이월</Badge> : null}{task.status === "done" ? <Badge className="bg-emerald-600">완료</Badge> : null}</div>
+          {task.description ? <p className="mt-1.5 break-words text-xs leading-5 text-muted-foreground">{task.description}</p> : null}
+          {task.planned_date < today ? <p className="mt-1.5 text-[11px] text-amber-700">{task.planned_date}에서 이월</p> : null}
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild><Button size="icon-sm" variant="ghost" aria-label={`${task.title} 업무 메뉴`} disabled={busy === task.id || busy === `history-${task.id}`}>{busy === task.id || busy === `history-${task.id}` ? <Loader2 className="animate-spin" /> : <EllipsisVertical />}</Button></DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-36">
+            <DropdownMenuItem disabled={!canChange} onSelect={() => openEditDialog(task)}><Pencil />수정</DropdownMenuItem>
+            <DropdownMenuItem disabled={!canChange} onSelect={() => void changeStatus(task)}><CheckCircle2 />{task.status === "done" ? "완료 취소" : "완료"}</DropdownMenuItem>
+            <DropdownMenuItem disabled={!canChange || task.status === "done" || !people.some((target) => target.active && target.id !== task.assignee_id)} onSelect={() => { setTransferTaskId(task.id); setNextAssigneeId(""); setTransferError(""); }}><ArrowRightLeft />이관</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => void toggleHistory(task.id)}><History />히스토리</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      {events[task.id] ? <div className="mt-3 space-y-2 border-t pt-3">{events[task.id].map((event) => <div key={event.id} className="text-[11px] leading-4 text-muted-foreground"><span className="font-medium text-foreground">{historyText(event)}</span> · {peopleById.get(event.actor_id)?.name ?? "사용자"} · {new Date(event.created_at).toLocaleString("ko-KR")}</div>)}</div> : null}
+    </div>;
+  }
+
   return <div className="mx-auto max-w-[1600px] space-y-6 px-5 py-8 lg:px-8 lg:py-10">
     <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
       <div>
@@ -207,6 +270,8 @@ export function HrTaskBoard({
     <section aria-label="직원별 업무 현황" className="grid items-start gap-4 lg:grid-cols-2 2xl:grid-cols-3">
       {people.map((person) => {
         const employeeTasks = visibleTasks.filter((task) => task.assignee_id === person.id);
+        const todayTasks = employeeTasks.filter((task) => task.planned_date === today);
+        const carriedTasks = employeeTasks.filter((task) => task.planned_date < today);
         const employeeOpen = employeeTasks.filter((task) => task.status === "open").length;
         const employeeDone = employeeTasks.length - employeeOpen;
         return <Card key={person.id} className="overflow-hidden">
@@ -219,28 +284,15 @@ export function HrTaskBoard({
               <div className="flex shrink-0 gap-1.5"><Badge variant={employeeOpen ? "default" : "secondary"}>진행 {employeeOpen}</Badge><Badge variant="outline">완료 {employeeDone}</Badge></div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-3 p-3">
-            {employeeTasks.length ? employeeTasks.map((task) => {
-              const canChange = isAdmin || task.assignee_id === userId;
-              return <div key={task.id} className={`rounded-xl border bg-background p-3 ${task.status === "done" ? "opacity-65" : ""}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-1.5"><strong className={`break-words text-sm ${task.status === "done" ? "line-through" : ""}`}>{task.title}</strong>{isCarriedTask(task, today) ? <Badge variant="secondary">이월</Badge> : null}{task.status === "done" ? <Badge className="bg-emerald-600">완료</Badge> : null}</div>
-                    {task.description ? <p className="mt-1.5 break-words text-xs leading-5 text-muted-foreground">{task.description}</p> : null}
-                    {isCarriedTask(task, today) ? <p className="mt-1.5 text-[11px] text-amber-700">{task.planned_date}에서 이월</p> : null}
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild><Button size="icon-sm" variant="ghost" aria-label={`${task.title} 업무 메뉴`} disabled={busy === task.id || busy === `history-${task.id}`}>{busy === task.id || busy === `history-${task.id}` ? <Loader2 className="animate-spin" /> : <EllipsisVertical />}</Button></DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-36">
-                      <DropdownMenuItem disabled={!canChange} onSelect={() => void changeStatus(task)}><CheckCircle2 />{task.status === "done" ? "완료 취소" : "완료"}</DropdownMenuItem>
-                      <DropdownMenuItem disabled={!canChange || task.status === "done" || !people.some((target) => target.active && target.id !== task.assignee_id)} onSelect={() => { setTransferTaskId(task.id); setNextAssigneeId(""); setTransferError(""); }}><ArrowRightLeft />이관</DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => void toggleHistory(task.id)}><History />히스토리</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                {events[task.id] ? <div className="mt-3 space-y-2 border-t pt-3">{events[task.id].map((event) => <div key={event.id} className="text-[11px] leading-4 text-muted-foreground"><span className="font-medium text-foreground">{historyText(event)}</span> · {peopleById.get(event.actor_id)?.name ?? "사용자"} · {new Date(event.created_at).toLocaleString("ko-KR")}</div>)}</div> : null}
-              </div>;
-            }) : <div className="flex min-h-28 items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">오늘 업무가 없습니다.</div>}
+          <CardContent className="space-y-5 p-3">
+            <section className="space-y-2.5">
+              <div className="flex items-center justify-between px-1"><h3 className="flex items-center gap-2 text-base font-semibold"><CalendarDays className="size-5 text-blue-700" />오늘 업무</h3><Badge variant="outline">{todayTasks.length}</Badge></div>
+              {todayTasks.length ? <div className="space-y-2.5">{todayTasks.map(renderTask)}</div> : <div className="grid min-h-20 place-items-center rounded-xl border border-dashed text-muted-foreground"><Inbox className="size-5" aria-hidden="true" /><span className="sr-only">오늘 업무가 없습니다.</span></div>}
+            </section>
+            <section className="space-y-2.5 border-t pt-4">
+              <div className="flex items-center justify-between px-1"><h3 className="flex items-center gap-2 text-base font-semibold"><RotateCcw className="size-5 text-amber-700" />어제 못해서 넘어온 업무</h3><Badge variant="outline">{carriedTasks.length}</Badge></div>
+              {carriedTasks.length ? <div className="space-y-2.5">{carriedTasks.map(renderTask)}</div> : <div className="grid min-h-14 place-items-center text-muted-foreground"><CheckCircle2 className="size-5" aria-hidden="true" /><span className="sr-only">이월 업무가 없습니다.</span></div>}
+            </section>
           </CardContent>
         </Card>;
       })}
@@ -255,6 +307,18 @@ export function HrTaskBoard({
           <div className="grid gap-2"><Label htmlFor="task-description">설명</Label><Textarea id="task-description" value={description} maxLength={5000} onChange={(event) => setDescription(event.target.value)} placeholder="필요한 세부 내용을 입력하세요" rows={5} /></div>
           <div className="grid gap-2"><Label>최초 담당자</Label><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{peopleById.get(userId)?.name ?? "현재 사용자"}</div></div>
           <DialogFooter className="mt-1"><DialogClose asChild><Button type="button" variant="outline">취소</Button></DialogClose><Button type="submit" disabled={!title.trim() || busy === "create"}>{busy === "create" ? <Loader2 className="animate-spin" /> : <Plus />}업무 추가</Button></DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={Boolean(editingTask)} onOpenChange={(open) => { if (!open) { setEditTaskId(null); setEditTitle(""); setEditDescription(""); setEditError(""); } }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader><DialogTitle>업무 수정</DialogTitle><DialogDescription>업무 제목과 설명을 변경합니다. 수정 내용은 히스토리에 기록됩니다.</DialogDescription></DialogHeader>
+        <form className="grid gap-4" onSubmit={(event) => { event.preventDefault(); if (editingTask) void saveTaskEdits(editingTask); }}>
+          {editError ? <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{editError}</p> : null}
+          <div className="grid gap-2"><Label htmlFor="edit-task-title">업무</Label><Input id="edit-task-title" autoFocus value={editTitle} maxLength={200} onChange={(event) => setEditTitle(event.target.value)} /></div>
+          <div className="grid gap-2"><Label htmlFor="edit-task-description">설명</Label><Textarea id="edit-task-description" value={editDescription} maxLength={5000} onChange={(event) => setEditDescription(event.target.value)} rows={5} /></div>
+          <DialogFooter><DialogClose asChild><Button type="button" variant="outline">취소</Button></DialogClose><Button type="submit" disabled={!editTitle.trim() || busy === editingTask?.id || (editingTask ? editTitle.trim() === editingTask.title && editDescription.trim() === editingTask.description : true)}>{busy === editingTask?.id ? <Loader2 className="animate-spin" /> : <Pencil />}수정 저장</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

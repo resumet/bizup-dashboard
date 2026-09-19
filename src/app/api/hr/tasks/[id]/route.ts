@@ -26,6 +26,44 @@ export async function PATCH(
       return Response.json({ message: "담당자만 업무를 변경할 수 있습니다." }, { status: 403 });
     }
 
+    if (body.action === "edit") {
+      const title = typeof body.title === "string" ? body.title.trim() : "";
+      const description = typeof body.description === "string" ? body.description.trim() : "";
+      if (!title || title.length > 200 || description.length > 5000) {
+        return Response.json({ message: "업무 제목과 설명을 확인해 주세요." }, { status: 400 });
+      }
+      const command = await admin.rpc("edit_work_task_with_event", {
+        p_task_id: id,
+        p_workspace_id: workspaceId,
+        p_actor_id: user.id,
+        p_title: title,
+        p_description: description,
+        p_is_admin: isAdmin,
+      });
+      if (!command.error) return Response.json(command.data);
+      if (!isMissingCommand(command.error)) throw command.error;
+
+      const { data, error } = await admin.from("work_tasks").update({
+        title,
+        description,
+        updated_at: new Date().toISOString(),
+      }).eq("id", id).select("*").single();
+      if (error) throw error;
+      const { error: eventError } = await admin.from("work_task_events").insert({
+        task_id: id,
+        actor_id: user.id,
+        event_type: "edited",
+        metadata: {
+          previousTitle: task.title,
+          title,
+          previousDescription: task.description,
+          description,
+        },
+      });
+      if (eventError) throw eventError;
+      return Response.json(data);
+    }
+
     if (body.action === "status") {
       const status = body.status;
       if (status !== "open" && status !== "done") {
