@@ -9,6 +9,7 @@ import {
   CalendarX2,
   ChevronLeft,
   ChevronRight,
+  EllipsisVertical,
   GripVertical,
   Loader2,
   Pencil,
@@ -30,6 +31,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -292,10 +299,9 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
   function renderDraftCard(draft: CourseScheduleDraft) {
     const color = COLORS[draft.colorIndex % COLORS.length];
     return <article key={draft.id} draggable onDragStart={(event) => startDrag(event, draft)} onDragEnd={() => { setDraggingId(null); setDropDate(null); }} className={`cursor-grab rounded-xl border p-3 shadow-sm transition active:cursor-grabbing ${color.card} ${draggingId === draft.id ? "opacity-50" : ""}`}>
-      <div className="flex items-start gap-2"><GripVertical className="mt-0.5 size-5 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><div className="mb-1.5"><Badge variant={draft.courseSize === "large" ? "default" : "secondary"}>{COURSE_SIZE_LABELS[draft.courseSize]}</Badge></div><h3 className="break-words text-base font-semibold">{draft.topic}</h3><p className="mt-1 text-sm text-muted-foreground">{draft.instructorName}</p></div>{busyId === draft.id ? <Loader2 className="size-4 animate-spin" /> : <div className="flex"><Button type="button" size="icon-xs" variant="ghost" aria-label={`${draft.topic} 수정`} onClick={() => openEdit(draft)}><Pencil /></Button><Button type="button" size="icon-xs" variant="ghost" className="text-destructive hover:text-destructive" aria-label={`${draft.topic} 삭제`} onClick={() => setDeleteTarget(draft)}><Trash2 /></Button></div>}</div>
+      <div className="flex items-start gap-2"><GripVertical className="mt-0.5 size-5 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><div className="mb-1.5"><Badge variant={draft.courseSize === "large" ? "default" : "secondary"}>{COURSE_SIZE_LABELS[draft.courseSize]}</Badge></div><h3 className="break-words text-base font-semibold">{draft.topic}</h3><p className="mt-1 text-sm text-muted-foreground">{draft.instructorName}</p></div>{busyId === draft.id ? <Loader2 className="size-4 animate-spin" /> : <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon-xs" variant="ghost" aria-label={`${draft.topic} 작업 메뉴`}><EllipsisVertical /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="min-w-44"><DropdownMenuItem asChild><Link href={`/services/course-operations/new?draftId=${draft.id}`} draggable={false}><CalendarCheck2 />정규 강의 만들기</Link></DropdownMenuItem><DropdownMenuItem onSelect={() => openEdit(draft)}><Pencil />수정</DropdownMenuItem>{draft.scheduledDate ? <DropdownMenuItem onSelect={() => void updateDraft(draft.id, { scheduledDate: null }, "일정 배정을 해제했습니다.")}><CalendarX2 />일정 해제</DropdownMenuItem> : null}<DropdownMenuItem variant="destructive" onSelect={() => setDeleteTarget(draft)}><Trash2 />삭제</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}</div>
       {draft.memo ? <p className="mt-3 line-clamp-3 whitespace-pre-wrap rounded-md bg-white/55 px-2.5 py-2 text-sm text-foreground/80">{draft.memo}</p> : null}
-      <Button type="button" size="xs" variant="outline" className="mt-3" asChild><Link href={`/services/course-operations/new?draftId=${draft.id}`} draggable={false} onClick={(event) => event.stopPropagation()}><CalendarCheck2 />정규 강의 만들기</Link></Button>
-      <div className="mt-3 flex items-center justify-between gap-2 border-t border-black/5 pt-2"><span className="flex items-center gap-1.5 text-sm"><span className={`size-2.5 rounded-full ${color.dot}`} />{draft.scheduledDate ? shortDate(draft.scheduledDate) : "미배정"}</span>{draft.scheduledDate ? <Button type="button" size="xs" variant="ghost" className="text-sm" onClick={() => void updateDraft(draft.id, { scheduledDate: null }, "일정 배정을 해제했습니다.")}><CalendarX2 />해제</Button> : null}</div>
+      <div className="mt-3 border-t border-black/5 pt-2"><span className="flex items-center gap-1.5 text-sm"><span className={`size-2.5 rounded-full ${color.dot}`} />{draft.scheduledDate ? shortDate(draft.scheduledDate) : "미배정"}</span></div>
     </article>;
   }
 
