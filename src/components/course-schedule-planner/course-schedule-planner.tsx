@@ -98,6 +98,11 @@ function shortDate(value: string) {
   return `${Number(month)}월 ${Number(day)}일`;
 }
 
+function fullDate(value: string) {
+  const [year, month, day] = value.split("-");
+  return `${year}년 ${Number(month)}월 ${Number(day)}일`;
+}
+
 async function responseData<T>(response: Response): Promise<T> {
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.message ?? "요청을 처리하지 못했습니다.");
@@ -131,6 +136,7 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
   const [editMemo, setEditMemo] = useState("");
   const [editCourseSize, setEditCourseSize] = useState<CourseScheduleDraftSize>("large");
   const [deleteTarget, setDeleteTarget] = useState<CourseScheduleDraft | null>(null);
+  const [assignmentDate, setAssignmentDate] = useState<string | null>(null);
 
   const days = useMemo(() => calendarDates(month), [month]);
   const draftsByDate = useMemo(() => {
@@ -213,6 +219,17 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
       draft.id,
       { scheduledDate },
       scheduledDate ? `${shortDate(scheduledDate)}로 일정을 배정했습니다.` : "일정 배정을 해제했습니다.",
+    );
+  }
+
+  async function assignDraft(draft: CourseScheduleDraft) {
+    if (!assignmentDate || busyId) return;
+    const scheduledDate = assignmentDate;
+    setAssignmentDate(null);
+    await updateDraft(
+      draft.id,
+      { scheduledDate },
+      `${shortDate(scheduledDate)}로 일정을 배정했습니다.`,
     );
   }
 
@@ -359,7 +376,7 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
 
       <Card className="min-w-0 xl:sticky xl:top-4 xl:self-start">
         <CardHeader className="flex flex-row items-center justify-between gap-3">
-          <div><CardTitle className="flex items-center gap-2 text-xl"><CalendarDays className="size-6 text-primary" />{monthTitle(month)}</CardTitle><p className="mt-1 text-sm text-muted-foreground">색상 카드는 예비 강의, 진한 카드는 확정된 무료 웨비나입니다.</p></div>
+          <div><CardTitle className="flex items-center gap-2 text-xl"><CalendarDays className="size-6 text-primary" />{monthTitle(month)}</CardTitle><p className="mt-1 text-sm text-muted-foreground">날짜의 빈 곳을 클릭해 미배정 강의를 선택하거나 카드를 끌어 배정할 수 있습니다.</p></div>
           <div className="flex shrink-0 items-center gap-1"><Button type="button" size="sm" variant="outline" onClick={() => setMonth(initialData.today.slice(0, 7))}>오늘</Button><Button type="button" size="icon-sm" variant="ghost" aria-label="이전 달" onClick={() => setMonth((current) => shiftMonth(current, -1))}><ChevronLeft /></Button><Button type="button" size="icon-sm" variant="ghost" aria-label="다음 달" onClick={() => setMonth((current) => shiftMonth(current, 1))}><ChevronRight /></Button></div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
@@ -382,14 +399,14 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
                       ? inMonth ? "bg-sky-50" : "bg-sky-50/50"
                       : inMonth ? "bg-background" : "bg-muted/20";
                 const dayText = isRedDay ? "text-red-600" : isSaturday ? "text-blue-600" : inMonth ? "text-foreground" : "text-muted-foreground/60";
-                return <div key={day} onDragEnter={() => setDropDate(day)} onDragOver={(event) => { if (draggingId) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDropDate(day); } }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropDate(null); }} onDrop={(event) => void scheduleFromDrop(event, day)} className={`min-h-36 border-r border-b p-1.5 transition-colors [&:nth-child(7n)]:border-r-0 [&:nth-last-child(-n+7)]:border-b-0 ${dayBackground}`}>
+                return <div key={day} onClick={() => { if (!draggingId) setAssignmentDate(day); }} onDragEnter={() => setDropDate(day)} onDragOver={(event) => { if (draggingId) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDropDate(day); } }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropDate(null); }} onDrop={(event) => void scheduleFromDrop(event, day)} className={`min-h-36 cursor-pointer border-r border-b p-1.5 transition-colors [&:nth-child(7n)]:border-r-0 [&:nth-last-child(-n+7)]:border-b-0 ${dayBackground}`}>
                   <div className="mb-1 flex min-h-7 items-start justify-between gap-1 px-1 text-sm font-semibold">
                     <span className={day === initialData.today ? "inline-grid size-7 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground" : dayText}>{Number(day.slice(-2))}</span>
                     {holidayNames.length ? <span className="truncate pt-0.5 text-xs text-red-600" title={holidayNames.join(", ")}>{holidayNames.join(" · ")}</span> : null}
                   </div>
                   <div className="space-y-1">
-                    {confirmedEvents.map((course) => <Link key={course.id} href={`/services/course-operations/${course.id}`} draggable={false} title={`${course.name} · ${course.instructorName}`} className="block select-none rounded-md border border-slate-700 bg-slate-800 px-2 py-2 text-[13px] leading-5 text-white shadow-sm hover:bg-slate-700"><span className="flex items-center gap-1 font-semibold"><CalendarCheck2 className="size-3.5" />확정{course.cohort ? ` · ${course.cohort}기` : ""}</span><span className="mt-0.5 block truncate font-medium">{course.name}</span><span className="block truncate text-slate-300">{course.instructorName}</span></Link>)}
-                    {draftEvents.map((draft) => { const color = COLORS[draft.colorIndex % COLORS.length]; return <div key={draft.id} draggable onDragStart={(event) => startDrag(event, draft)} onDragEnd={() => { setDraggingId(null); setDropDate(null); }} onDoubleClick={() => openEdit(draft)} title={`${COURSE_SIZE_LABELS[draft.courseSize]} · ${draft.topic} · ${draft.instructorName}${draft.memo ? ` · ${draft.memo}` : ""} (더블클릭하여 수정)`} className={`cursor-grab rounded-md border px-2 py-2 text-[13px] leading-5 shadow-sm active:cursor-grabbing ${color.event} ${draggingId === draft.id ? "opacity-45" : ""}`}><span className="flex items-center gap-1 font-semibold"><GripVertical className="size-3.5" />{COURSE_SIZE_LABELS[draft.courseSize]}</span><span className="mt-0.5 block truncate font-medium">{draft.topic}</span><span className="block truncate opacity-70">{draft.instructorName}</span>{draft.memo ? <span className="mt-1 block line-clamp-2 whitespace-pre-wrap border-t border-black/10 pt-1 text-xs opacity-75">{draft.memo}</span> : null}</div>; })}
+                    {confirmedEvents.map((course) => <Link key={course.id} href={`/services/course-operations/${course.id}`} draggable={false} onClick={(event) => event.stopPropagation()} title={`${course.name} · ${course.instructorName}`} className="block select-none rounded-md border border-slate-700 bg-slate-800 px-2 py-2 text-[13px] leading-5 text-white shadow-sm hover:bg-slate-700"><span className="flex items-center gap-1 font-semibold"><CalendarCheck2 className="size-3.5" />확정{course.cohort ? ` · ${course.cohort}기` : ""}</span><span className="mt-0.5 block truncate font-medium">{course.name}</span><span className="block truncate text-slate-300">{course.instructorName}</span></Link>)}
+                    {draftEvents.map((draft) => { const color = COLORS[draft.colorIndex % COLORS.length]; return <div key={draft.id} draggable onClick={(event) => event.stopPropagation()} onDragStart={(event) => startDrag(event, draft)} onDragEnd={() => { setDraggingId(null); setDropDate(null); }} onDoubleClick={() => openEdit(draft)} title={`${COURSE_SIZE_LABELS[draft.courseSize]} · ${draft.topic} · ${draft.instructorName}${draft.memo ? ` · ${draft.memo}` : ""} (더블클릭하여 수정)`} className={`cursor-grab rounded-md border px-2 py-2 text-[13px] leading-5 shadow-sm active:cursor-grabbing ${color.event} ${draggingId === draft.id ? "opacity-45" : ""}`}><span className="flex items-center gap-1 font-semibold"><GripVertical className="size-3.5" />{COURSE_SIZE_LABELS[draft.courseSize]}</span><span className="mt-0.5 block truncate font-medium">{draft.topic}</span><span className="block truncate opacity-70">{draft.instructorName}</span>{draft.memo ? <span className="mt-1 block line-clamp-2 whitespace-pre-wrap border-t border-black/10 pt-1 text-xs opacity-75">{draft.memo}</span> : null}</div>; })}
                   </div>
                 </div>;
               })}
@@ -398,6 +415,14 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
         </CardContent>
       </Card>
     </div>
+
+    <Dialog open={Boolean(assignmentDate)} onOpenChange={(open) => { if (!open && !busyId) setAssignmentDate(null); }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader><DialogTitle>{assignmentDate ? fullDate(assignmentDate) : "날짜"}에 강의 배정</DialogTitle><DialogDescription>미배정 예비 강의를 선택하면 이 날짜에 바로 배정됩니다.</DialogDescription></DialogHeader>
+        {unassignedDrafts.length ? <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">{unassignedDrafts.map((draft) => { const color = COLORS[draft.colorIndex % COLORS.length]; return <Button key={draft.id} type="button" variant="outline" className={`h-auto w-full justify-start whitespace-normal border-l-4 p-3 text-left ${color.card}`} disabled={Boolean(busyId)} onClick={() => void assignDraft(draft)}><span className="min-w-0 flex-1"><span className="flex flex-wrap items-center gap-2"><Badge variant={draft.courseSize === "large" ? "default" : "secondary"}>{COURSE_SIZE_LABELS[draft.courseSize]}</Badge><span className="font-semibold">{draft.topic}</span></span><span className="mt-1 block text-sm font-normal text-muted-foreground">{draft.instructorName}</span>{draft.memo ? <span className="mt-2 block line-clamp-2 whitespace-pre-wrap text-sm font-normal text-foreground/70">{draft.memo}</span> : null}</span></Button>; })}</div> : <div className="grid min-h-32 place-items-center rounded-lg bg-muted/40 text-center text-sm text-muted-foreground"><span><CalendarCheck2 className="mx-auto mb-2 size-5" />배정할 미배정 예비 강의가 없습니다.</span></div>}
+        <DialogFooter><DialogClose asChild><Button type="button" variant="outline" disabled={Boolean(busyId)}>닫기</Button></DialogClose></DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <Dialog open={Boolean(editing)} onOpenChange={(open) => { if (!open) setEditing(null); }}>
       <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>예비 강의 수정</DialogTitle><DialogDescription>강사명, 강의주제, 메모와 강의 규모를 수정합니다.</DialogDescription></DialogHeader><form className="space-y-4" onSubmit={(event) => void saveEdit(event)}><div className="space-y-1.5"><Label htmlFor="edit-instructor">강사명</Label><Input id="edit-instructor" autoFocus value={editInstructor} maxLength={100} onChange={(event) => setEditInstructor(event.target.value)} /></div><div className="space-y-1.5"><Label htmlFor="edit-topic">강의주제</Label><Input id="edit-topic" value={editTopic} maxLength={200} onChange={(event) => setEditTopic(event.target.value)} /></div><div className="space-y-1.5"><Label htmlFor="edit-memo">메모</Label><Textarea id="edit-memo" value={editMemo} maxLength={5_000} onChange={(event) => setEditMemo(event.target.value)} placeholder="정규 강의로 만들 때 강의 메모에 자동으로 추가됩니다." className="min-h-28 resize-y" /><div className="flex items-center justify-between gap-3"><Button type="button" size="xs" variant="ghost" className="text-destructive hover:text-destructive" disabled={!editMemo || busyId === editing?.id} onClick={() => void deleteMemo()}><Trash2 />메모 삭제</Button><p className="text-xs text-muted-foreground">{Array.from(editMemo).length.toLocaleString("ko-KR")} / 5,000자</p></div></div><div className="space-y-1.5"><Label htmlFor="edit-course-size">강의 규모</Label><Select value={editCourseSize} onValueChange={(value) => setEditCourseSize(value as CourseScheduleDraftSize)}><SelectTrigger id="edit-course-size"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="large">대형강의</SelectItem><SelectItem value="small">소형강의</SelectItem></SelectContent></Select></div><DialogFooter className="sm:justify-between"><Button type="button" variant="outline" asChild><Link href={editing ? `/services/course-operations/new?draftId=${editing.id}` : "/services/course-operations/new"}><CalendarCheck2 />정규 강의 만들기</Link></Button><div className="flex gap-2"><DialogClose asChild><Button type="button" variant="outline">취소</Button></DialogClose><Button type="submit" disabled={!editInstructor.trim() || !editTopic.trim() || busyId === editing?.id}>{busyId === editing?.id ? <Loader2 className="animate-spin" /> : <Pencil />}수정 저장</Button></div></DialogFooter></form></DialogContent>
