@@ -251,8 +251,8 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
   function renderDraftCard(draft: CourseScheduleDraft) {
     const color = COLORS[draft.colorIndex % COLORS.length];
     return <article key={draft.id} draggable onDragStart={(event) => startDrag(event, draft)} onDragEnd={() => { setDraggingId(null); setDropDate(null); }} className={`cursor-grab rounded-xl border p-3 shadow-sm transition active:cursor-grabbing ${color.card} ${draggingId === draft.id ? "opacity-50" : ""}`}>
-      <div className="flex items-start gap-2"><GripVertical className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><h3 className="break-words text-sm font-semibold">{draft.topic}</h3><p className="mt-1 text-xs text-muted-foreground">{draft.instructorName}</p></div>{busyId === draft.id ? <Loader2 className="size-4 animate-spin" /> : <div className="flex"><Button type="button" size="icon-xs" variant="ghost" aria-label={`${draft.topic} 수정`} onClick={() => openEdit(draft)}><Pencil /></Button><Button type="button" size="icon-xs" variant="ghost" className="text-destructive hover:text-destructive" aria-label={`${draft.topic} 삭제`} onClick={() => setDeleteTarget(draft)}><Trash2 /></Button></div>}</div>
-      <div className="mt-3 flex items-center justify-between gap-2 border-t border-black/5 pt-2"><span className="flex items-center gap-1.5 text-xs"><span className={`size-2 rounded-full ${color.dot}`} />{draft.scheduledDate ? shortDate(draft.scheduledDate) : "미배정"}</span>{draft.scheduledDate ? <Button type="button" size="xs" variant="ghost" onClick={() => void updateDraft(draft.id, { scheduledDate: null }, "일정 배정을 해제했습니다.")}><CalendarX2 />해제</Button> : null}</div>
+      <div className="flex items-start gap-2"><GripVertical className="mt-0.5 size-5 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><h3 className="break-words text-base font-semibold">{draft.topic}</h3><p className="mt-1 text-sm text-muted-foreground">{draft.instructorName}</p></div>{busyId === draft.id ? <Loader2 className="size-4 animate-spin" /> : <div className="flex"><Button type="button" size="icon-xs" variant="ghost" aria-label={`${draft.topic} 수정`} onClick={() => openEdit(draft)}><Pencil /></Button><Button type="button" size="icon-xs" variant="ghost" className="text-destructive hover:text-destructive" aria-label={`${draft.topic} 삭제`} onClick={() => setDeleteTarget(draft)}><Trash2 /></Button></div>}</div>
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-black/5 pt-2"><span className="flex items-center gap-1.5 text-sm"><span className={`size-2.5 rounded-full ${color.dot}`} />{draft.scheduledDate ? shortDate(draft.scheduledDate) : "미배정"}</span>{draft.scheduledDate ? <Button type="button" size="xs" variant="ghost" className="text-sm" onClick={() => void updateDraft(draft.id, { scheduledDate: null }, "일정 배정을 해제했습니다.")}><CalendarX2 />해제</Button> : null}</div>
     </article>;
   }
 
@@ -285,7 +285,7 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
         >
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2"><h2 className="font-semibold">미배정</h2><Badge variant="secondary">{unassignedDrafts.length}</Badge></div>
-            <span className="text-xs text-muted-foreground">달력으로 끌어 배정</span>
+            <span className="text-sm text-muted-foreground">달력으로 끌어 배정</span>
           </div>
           {draggingDraft?.scheduledDate ? <div className="grid min-h-20 place-items-center rounded-lg border-2 border-dashed border-sky-300 bg-sky-50 text-center text-sm font-medium text-sky-900"><span><CalendarX2 className="mx-auto mb-1 size-5" />여기에 놓으면 일정 해제</span></div> : null}
           <div className="space-y-3">
@@ -297,7 +297,7 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
         <section className="space-y-3 rounded-xl border p-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2"><h2 className="font-semibold">배정 완료</h2><Badge variant="secondary">{assignedDrafts.length}</Badge></div>
-            <span className="text-xs text-muted-foreground">날짜순</span>
+            <span className="text-sm text-muted-foreground">날짜순</span>
           </div>
           <div className="space-y-3">
             {assignedDrafts.map(renderDraftCard)}
@@ -308,12 +308,12 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
 
       <Card className="min-w-0 xl:sticky xl:top-4 xl:self-start">
         <CardHeader className="flex flex-row items-center justify-between gap-3">
-          <div><CardTitle className="flex items-center gap-2"><CalendarDays className="size-5 text-primary" />{monthTitle(month)}</CardTitle><p className="mt-1 text-xs text-muted-foreground">색상 카드는 예비 강의, 진한 카드는 확정된 무료 웨비나입니다.</p></div>
+          <div><CardTitle className="flex items-center gap-2 text-xl"><CalendarDays className="size-6 text-primary" />{monthTitle(month)}</CardTitle><p className="mt-1 text-sm text-muted-foreground">색상 카드는 예비 강의, 진한 카드는 확정된 무료 웨비나입니다.</p></div>
           <div className="flex shrink-0 items-center gap-1"><Button type="button" size="sm" variant="outline" onClick={() => setMonth(initialData.today.slice(0, 7))}>오늘</Button><Button type="button" size="icon-sm" variant="ghost" aria-label="이전 달" onClick={() => setMonth((current) => shiftMonth(current, -1))}><ChevronLeft /></Button><Button type="button" size="icon-sm" variant="ghost" aria-label="다음 달" onClick={() => setMonth((current) => shiftMonth(current, 1))}><ChevronRight /></Button></div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <div className="min-w-[900px] overflow-hidden rounded-xl border">
-            <div className="grid grid-cols-7 border-b bg-muted/40">{WEEKDAYS.map((day, index) => <div key={day} className={`px-2 py-2 text-center text-xs font-medium ${index === 6 ? "text-red-600" : index === 5 ? "text-blue-600" : "text-muted-foreground"}`}>{day}</div>)}</div>
+            <div className="grid grid-cols-7 border-b bg-muted/40">{WEEKDAYS.map((day, index) => <div key={day} className={`px-2 py-2.5 text-center text-sm font-semibold ${index === 6 ? "text-red-600" : index === 5 ? "text-blue-600" : "text-muted-foreground"}`}>{day}</div>)}</div>
             <div className="grid grid-cols-7">
               {days.map((day, dayIndex) => {
                 const inMonth = day.startsWith(month);
@@ -332,13 +332,13 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
                       : inMonth ? "bg-background" : "bg-muted/20";
                 const dayText = isRedDay ? "text-red-600" : isSaturday ? "text-blue-600" : inMonth ? "text-foreground" : "text-muted-foreground/60";
                 return <div key={day} onDragEnter={() => setDropDate(day)} onDragOver={(event) => { if (draggingId) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDropDate(day); } }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropDate(null); }} onDrop={(event) => void scheduleFromDrop(event, day)} className={`min-h-36 border-r border-b p-1.5 transition-colors [&:nth-child(7n)]:border-r-0 [&:nth-last-child(-n+7)]:border-b-0 ${dayBackground}`}>
-                  <div className="mb-1 flex min-h-6 items-start justify-between gap-1 px-1 text-xs font-medium">
-                    <span className={day === initialData.today ? "inline-grid size-6 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground" : dayText}>{Number(day.slice(-2))}</span>
-                    {holidayNames.length ? <span className="truncate pt-0.5 text-[10px] text-red-600" title={holidayNames.join(", ")}>{holidayNames.join(" · ")}</span> : null}
+                  <div className="mb-1 flex min-h-7 items-start justify-between gap-1 px-1 text-sm font-semibold">
+                    <span className={day === initialData.today ? "inline-grid size-7 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground" : dayText}>{Number(day.slice(-2))}</span>
+                    {holidayNames.length ? <span className="truncate pt-0.5 text-xs text-red-600" title={holidayNames.join(", ")}>{holidayNames.join(" · ")}</span> : null}
                   </div>
                   <div className="space-y-1">
-                    {confirmedEvents.map((course) => <Link key={course.id} href={`/services/course-operations/${course.id}`} draggable={false} title={`${course.name} · ${course.instructorName}`} className="block select-none rounded-md border border-slate-700 bg-slate-800 px-2 py-1.5 text-[11px] leading-4 text-white shadow-sm hover:bg-slate-700"><span className="flex items-center gap-1 font-semibold"><CalendarCheck2 className="size-3" />확정{course.cohort ? ` · ${course.cohort}기` : ""}</span><span className="mt-0.5 block truncate">{course.name}</span><span className="block truncate text-slate-300">{course.instructorName}</span></Link>)}
-                    {draftEvents.map((draft) => { const color = COLORS[draft.colorIndex % COLORS.length]; return <div key={draft.id} draggable onDragStart={(event) => startDrag(event, draft)} onDragEnd={() => { setDraggingId(null); setDropDate(null); }} title={`${draft.topic} · ${draft.instructorName}`} className={`cursor-grab rounded-md border px-2 py-1.5 text-[11px] leading-4 shadow-sm active:cursor-grabbing ${color.event} ${draggingId === draft.id ? "opacity-45" : ""}`}><span className="flex items-center gap-1 font-semibold"><GripVertical className="size-3" />예비</span><span className="mt-0.5 block truncate">{draft.topic}</span><span className="block truncate opacity-70">{draft.instructorName}</span></div>; })}
+                    {confirmedEvents.map((course) => <Link key={course.id} href={`/services/course-operations/${course.id}`} draggable={false} title={`${course.name} · ${course.instructorName}`} className="block select-none rounded-md border border-slate-700 bg-slate-800 px-2 py-2 text-[13px] leading-5 text-white shadow-sm hover:bg-slate-700"><span className="flex items-center gap-1 font-semibold"><CalendarCheck2 className="size-3.5" />확정{course.cohort ? ` · ${course.cohort}기` : ""}</span><span className="mt-0.5 block truncate font-medium">{course.name}</span><span className="block truncate text-slate-300">{course.instructorName}</span></Link>)}
+                    {draftEvents.map((draft) => { const color = COLORS[draft.colorIndex % COLORS.length]; return <div key={draft.id} draggable onDragStart={(event) => startDrag(event, draft)} onDragEnd={() => { setDraggingId(null); setDropDate(null); }} title={`${draft.topic} · ${draft.instructorName}`} className={`cursor-grab rounded-md border px-2 py-2 text-[13px] leading-5 shadow-sm active:cursor-grabbing ${color.event} ${draggingId === draft.id ? "opacity-45" : ""}`}><span className="flex items-center gap-1 font-semibold"><GripVertical className="size-3.5" />예비</span><span className="mt-0.5 block truncate font-medium">{draft.topic}</span><span className="block truncate opacity-70">{draft.instructorName}</span></div>; })}
                   </div>
                 </div>;
               })}
