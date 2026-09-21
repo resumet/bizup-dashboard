@@ -135,6 +135,24 @@ export async function PATCH(request: Request) {
     const body = await request.json() as Record<string, unknown>;
     const action = text(body.action, 40);
     const id = text(body.id, 50);
+
+    if (action === "reset_year") {
+      if (!isAdmin) return Response.json({ message: "관리자만 전체 휴가 정보를 리셋할 수 있습니다." }, { status: 403 });
+      const year = Number(body.year);
+      if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+        return Response.json({ message: "리셋할 연도를 확인해 주세요." }, { status: 400 });
+      }
+      const { data, error } = await admin.rpc("reset_hr_leave_year", {
+        p_workspace_id: workspaceId,
+        p_actor_id: user.id,
+        p_year: year,
+        p_is_admin: true,
+      });
+      if (error) throw error;
+      await audit(workspaceId, user.id, "hr_leave.year_reset", String(year), data as object);
+      return Response.json(data);
+    }
+
     if (!UUID.test(id)) return Response.json({ message: "처리할 기록을 확인해 주세요." }, { status: 400 });
 
     if (action === "review_request") {

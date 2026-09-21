@@ -28,6 +28,7 @@ test("휴가 DB가 기본 부여·사용 신청·추가휴가를 서로 분리�
         ('${workspaceId}', '${employeeId}', 'user');
     `);
     await db.exec(await readFile("supabase/migrations/202609210002_hr_leave_management.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations/202609220001_hr_leave_year_reset.sql", "utf8"));
     await db.query(
       `insert into public.hr_leave_profiles
         (workspace_id,user_id,employment_start_date,created_by,updated_by)
@@ -67,6 +68,21 @@ test("휴가 DB가 기본 부여·사용 신청·추가휴가를 서로 분리�
       ),
       /hr_leave_support_records_check/,
     );
+
+    const reset = await db.query<{ result: { deletedGrants: number; deletedRequests: number; deletedSupportRecords: number } }>(
+      "select public.reset_hr_leave_year($1,$2,2026,true) result",
+      [workspaceId, adminId],
+    );
+    assert.deepEqual(reset.rows[0].result, {
+      deletedGrants: 1,
+      deletedRequests: 1,
+      deletedSupportRecords: 1,
+      year: 2026,
+    });
+    assert.equal((await db.query("select * from public.hr_leave_profiles")).rows.length, 1);
+    assert.equal((await db.query("select * from public.hr_annual_leave_grants")).rows.length, 0);
+    assert.equal((await db.query("select * from public.hr_leave_requests")).rows.length, 0);
+    assert.equal((await db.query("select * from public.hr_leave_support_records")).rows.length, 0);
   } finally {
     await db.close();
   }

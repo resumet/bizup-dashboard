@@ -15,6 +15,7 @@ import {
   Plus,
   ShieldCheck,
   Sun,
+  Trash2,
   Umbrella,
   X,
 } from "lucide-react";
@@ -30,6 +31,7 @@ import type {
   HrSupportUnit,
 } from "@/lib/hr-leave/types";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -107,6 +109,7 @@ export function HrLeaveDashboard({ initialData }: { initialData: HrLeaveDashboar
   const peopleById = useMemo(() => new Map(initialData.people.map((person) => [person.id, person])), [initialData.people]);
   const [requestOpen, setRequestOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
   const [leaveDate, setLeaveDate] = useState(initialData.today);
   const [leaveUnit, setLeaveUnit] = useState<HrLeaveUnit>("full");
   const [leaveReason, setLeaveReason] = useState("");
@@ -176,6 +179,16 @@ export function HrLeaveDashboard({ initialData }: { initialData: HrLeaveDashboar
     }
   }
 
+  async function resetYear() {
+    const reset = await mutate(
+      { action: "reset_year", year: initialData.year },
+      "PATCH",
+      "reset-year",
+      `${initialData.year}년 전체 휴가 정보를 리셋했습니다.`,
+    );
+    if (reset) setResetOpen(false);
+  }
+
   return <div className="mx-auto max-w-[1600px] space-y-6 px-5 py-8 lg:px-8 lg:py-10">
     <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
       <div><Badge variant="outline">매년 1월 1일 초기화</Badge><h1 className="mt-3 text-3xl font-semibold tracking-tight">휴가 관리</h1><p className="mt-2 text-muted-foreground">기본 휴가와 지원근무로 적립한 추가휴가를 분리해 기록합니다.</p></div>
@@ -183,6 +196,7 @@ export function HrLeaveDashboard({ initialData }: { initialData: HrLeaveDashboar
         {initialData.year > currentYear - 5 ? <Button variant="outline" asChild><Link href={`/hr/leave?year=${initialData.year - 1}`}><ChevronLeft />{initialData.year - 1}년</Link></Button> : <Button variant="outline" disabled><ChevronLeft />이전 연도</Button>}
         <Badge variant="secondary" className="h-9 px-4 text-sm">{initialData.year}년</Badge>
         {initialData.year < currentYear + 1 ? <Button variant="outline" asChild><Link href={`/hr/leave?year=${initialData.year + 1}`}>{initialData.year + 1}년<ChevronRight /></Link></Button> : <Button variant="outline" disabled>다음 연도<ChevronRight /></Button>}
+        {initialData.isAdmin ? <Button variant="destructive" onClick={() => setResetOpen(true)}><Trash2 />전체 휴가 리셋</Button> : null}
         {isCurrentYear ? <><Button variant="outline" onClick={() => { setError(""); setSupportOpen(true); }}><Moon />지원근무 기록</Button><Button onClick={() => { setError(""); setRequestOpen(true); }}><Plus />휴가 신청</Button></> : null}
       </div>
     </div>
@@ -224,6 +238,13 @@ export function HrLeaveDashboard({ initialData }: { initialData: HrLeaveDashboar
     <Dialog open={requestOpen} onOpenChange={(open) => { if (!busy) setRequestOpen(open); }}><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>휴가 신청</DialogTitle><DialogDescription>승인 대기 신청도 신청 가능 잔여량에서 미리 차감됩니다.</DialogDescription></DialogHeader><form className="grid gap-4" onSubmit={(event) => void submitLeave(event)}><div className="grid gap-2"><Label htmlFor="leave-date">휴가 날짜</Label><Input id="leave-date" type="date" min={initialData.today} max={`${initialData.year}-12-31`} value={leaveDate} onChange={(event) => setLeaveDate(event.target.value)} /></div><div className="grid gap-2"><Label>사용 단위</Label><Select value={leaveUnit} onValueChange={(value) => setLeaveUnit(value as HrLeaveUnit)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="full">종일 · 1개</SelectItem><SelectItem value="am">오전 반차 · 0.5개</SelectItem><SelectItem value="pm">오후 반차 · 0.5개</SelectItem></SelectContent></Select></div><div className="grid gap-2"><Label htmlFor="leave-reason">메모</Label><Textarea id="leave-reason" maxLength={1000} value={leaveReason} onChange={(event) => setLeaveReason(event.target.value)} placeholder="선택 입력" /></div><DialogFooter><DialogClose asChild><Button type="button" variant="outline">취소</Button></DialogClose><Button type="submit" disabled={!leaveDate || busy === "request"}>{busy === "request" ? <Loader2 className="animate-spin" /> : <Umbrella />}신청</Button></DialogFooter></form></DialogContent></Dialog>
 
     <Dialog open={supportOpen} onOpenChange={(open) => { if (!busy) setSupportOpen(open); }}><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>지원근무 기록</DialogTitle><DialogDescription>관리자 승인 후 기존 기본 휴가와 별도의 추가휴가로 적립됩니다.</DialogDescription></DialogHeader><form className="grid gap-4" onSubmit={(event) => void submitSupport(event)}><div className="grid gap-2"><Label htmlFor="support-date">지원 날짜</Label><Input id="support-date" type="date" min={`${initialData.year}-01-01`} max={initialData.today} value={supportDate} onChange={(event) => setSupportDate(event.target.value)} /></div><div className="grid gap-2"><Label>지원 종류</Label><Select value={supportType} onValueChange={(value) => { const type = value as HrSupportType; setSupportType(type); if (type === "night_webinar") setSupportUnit("half"); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="night_webinar">야간 웨비나 지원 · 0.5개</SelectItem><SelectItem value="weekend_holiday">주말·휴일 지원</SelectItem></SelectContent></Select></div>{supportType === "weekend_holiday" ? <div className="grid gap-2"><Label>지원 시간</Label><Select value={supportUnit} onValueChange={(value) => setSupportUnit(value as HrSupportUnit)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="half">반나절 · 0.5개</SelectItem><SelectItem value="full">종일 · 1개</SelectItem></SelectContent></Select></div> : null}<div className="grid gap-2"><Label htmlFor="support-note">업무 메모</Label><Textarea id="support-note" maxLength={1000} value={supportNote} onChange={(event) => setSupportNote(event.target.value)} placeholder="지원한 웨비나나 업무를 적어 주세요" /></div><DialogFooter><DialogClose asChild><Button type="button" variant="outline">취소</Button></DialogClose><Button type="submit" disabled={!supportDate || busy === "support"}>{busy === "support" ? <Loader2 className="animate-spin" /> : <Moon />}기록</Button></DialogFooter></form></DialogContent></Dialog>
+
+    <AlertDialog open={resetOpen} onOpenChange={(open) => { if (busy !== "reset-year") setResetOpen(open); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader><AlertDialogTitle>{initialData.year}년 전체 휴가 정보를 리셋할까요?</AlertDialogTitle><AlertDialogDescription>모든 직원의 {initialData.year}년 기본휴가 부여, 휴가 신청, 추가휴가 기록이 영구 삭제됩니다. 직원별 입사일은 유지되며 이 작업은 되돌릴 수 없습니다.</AlertDialogDescription></AlertDialogHeader>
+        <AlertDialogFooter><AlertDialogCancel disabled={busy === "reset-year"}>취소</AlertDialogCancel><AlertDialogAction variant="destructive" disabled={busy === "reset-year"} onClick={(event) => { event.preventDefault(); void resetYear(); }}>{busy === "reset-year" ? <Loader2 className="animate-spin" /> : <Trash2 />}{busy === "reset-year" ? "리셋 중…" : `${initialData.year}년 전체 리셋`}</AlertDialogAction></AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>;
 }
 
