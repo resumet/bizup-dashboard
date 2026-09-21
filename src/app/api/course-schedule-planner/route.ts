@@ -34,6 +34,7 @@ export async function POST(request: Request) {
         {
           instructorName: body?.instructorName,
           topic: body?.topic,
+          memo: body?.memo,
           courseSize: body?.courseSize,
         },
       ),

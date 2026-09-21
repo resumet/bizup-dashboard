@@ -328,6 +328,7 @@ function CourseCustomLinkInput({
 
 export function CourseOperationsEditor({
   courseId,
+  sourceScheduleDraftId,
   initialDraft,
   initialBannerUrl = "",
   rosterJobs = [],
@@ -347,6 +348,7 @@ export function CourseOperationsEditor({
   paidRoster,
 }: {
   courseId?: string;
+  sourceScheduleDraftId?: string;
   initialDraft: CourseOperationsDraft;
   initialBannerUrl?: string;
   rosterJobs?: LinkableRosterJob[];
@@ -755,6 +757,7 @@ export function CourseOperationsEditor({
     try {
       const payload = {
         ...draft,
+        ...(sourceScheduleDraftId ? { sourceScheduleDraftId } : {}),
         freeWebinarAt: koreaDateTimeToIso(
           draft.freeWebinarAt,
           draft.freeWebinarTime,

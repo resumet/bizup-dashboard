@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -163,6 +164,7 @@ function getInitialMonth(events: CourseCalendarEvent[]) {
 }
 
 export function CourseListCalendar({ courses }: { courses: CourseSummary[] }) {
+  const router = useRouter();
   const events = buildEvents(courses);
   const [month, setMonth] = useState(() => getInitialMonth(events));
   const [selectedEvent, setSelectedEvent] =
@@ -265,8 +267,14 @@ export function CourseListCalendar({ courses }: { courses: CourseSummary[] }) {
                         <button
                           type="button"
                           key={event.id}
-                          title={event.label}
+                          title={`${event.label} (더블클릭하여 강의 수정)`}
                           onClick={() => setSelectedEvent(event)}
+                          onDoubleClick={() => {
+                            setSelectedEvent(null);
+                            router.push(
+                              `/services/course-operations/${event.courseId}`,
+                            );
+                          }}
                           className={cn(
                             "block w-full rounded px-2 py-1.5 text-left text-sm font-medium leading-5 transition-colors",
                             color.event,

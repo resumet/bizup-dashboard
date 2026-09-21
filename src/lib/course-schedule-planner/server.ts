@@ -4,19 +4,34 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getHolidayPreset } from "@hyunbinseo/holidays-kr";
 
 import { toKoreaDate } from "@/lib/course-operations/schedule";
+import { COURSE_NOTE_MAX_LENGTH } from "@/lib/course-operations/notes";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type {
   ConfirmedCourseSchedule,
   CourseScheduleDraft,
-  CourseScheduleDraftEvent,
   CourseScheduleDraftSize,
   CourseSchedulePlannerData,
 } from "./types";
 
 const ENTITY_TYPE = "course_schedule_draft";
-const UPSERT_EVENT = "course_schedule_draft.upserted";
-const DELETE_EVENT = "course_schedule_draft.deleted";
+const CREATED_EVENT = "course_schedule_draft.created";
+const UPDATED_EVENT = "course_schedule_draft.updated";
+const DELETED_EVENT = "course_schedule_draft.deleted";
 const COLOR_COUNT = 10;
+const DRAFT_COLUMNS =
+  "id,instructor_name,topic,memo,course_size,color_index,scheduled_date,created_at,updated_at";
+
+type CourseScheduleDraftRow = {
+  id: string;
+  instructor_name: string;
+  topic: string;
+  memo: string;
+  course_size: string;
+  color_index: number;
+  scheduled_date: string | null;
+  created_at: string;
+  updated_at: string;
+};
 
 function text(value: unknown, maxLength: number) {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
@@ -34,43 +49,20 @@ export function parseCourseSize(value: unknown): CourseScheduleDraftSize {
   throw new Error("강의 규모를 선택해 주세요.");
 }
 
-function draftFromMetadata(id: string, metadata: unknown): CourseScheduleDraft | null {
-  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
-  const source = metadata as Record<string, unknown>;
-  const instructorName = text(source.instructorName, 100);
-  const topic = text(source.topic, 200);
-  if (!instructorName || !topic) return null;
-  const createdAt = text(source.createdAt, 40);
-  const updatedAt = text(source.updatedAt, 40);
+export function toCourseScheduleDraft(
+  row: CourseScheduleDraftRow,
+): CourseScheduleDraft {
   return {
-    id,
-    instructorName,
-    topic,
-    courseSize: source.courseSize === "small" ? "small" : "large",
-    colorIndex: Number.isInteger(source.colorIndex)
-      ? Math.max(0, Number(source.colorIndex)) % COLOR_COUNT
-      : 0,
-    scheduledDate: dateOrNull(source.scheduledDate),
-    createdAt,
-    updatedAt,
+    id: row.id,
+    instructorName: row.instructor_name,
+    topic: row.topic,
+    memo: row.memo,
+    courseSize: row.course_size === "small" ? "small" : "large",
+    colorIndex: row.color_index,
+    scheduledDate: row.scheduled_date,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
-}
-
-export function reduceCourseScheduleDraftEvents(events: CourseScheduleDraftEvent[]) {
-  const drafts = new Map<string, CourseScheduleDraft>();
-  for (const event of events) {
-    if (!event.entity_id) continue;
-    if (event.event_type === DELETE_EVENT) {
-      drafts.delete(event.entity_id);
-      continue;
-    }
-    if (event.event_type !== UPSERT_EVENT) continue;
-    const draft = draftFromMetadata(event.entity_id, event.metadata);
-    if (draft) drafts.set(event.entity_id, draft);
-  }
-  return [...drafts.values()].sort((a, b) =>
-    a.createdAt.localeCompare(b.createdAt),
-  );
 }
 
 export async function loadKoreanHolidays(years: number[]) {
@@ -86,15 +78,18 @@ export async function loadKoreanHolidays(years: number[]) {
 
 async function loadDrafts(client: SupabaseClient, workspaceId: string) {
   const { data, error } = await client
-    .from("audit_logs")
-    .select("entity_id,event_type,metadata,created_at")
+    .from("course_schedule_drafts")
+    .select(DRAFT_COLUMNS)
     .eq("workspace_id", workspaceId)
-    .eq("entity_type", ENTITY_TYPE)
-    .in("event_type", [UPSERT_EVENT, DELETE_EVENT])
-    .order("created_at", { ascending: true })
-    .order("id", { ascending: true });
-  if (error) throw new Error(`예비 강의 조회 실패: ${error.code}`);
-  return reduceCourseScheduleDraftEvents((data ?? []) as CourseScheduleDraftEvent[]);
+    .order("created_at", { ascending: true });
+  if (error) {
+    throw new Error(
+      error.code === "PGRST205" || error.code === "42P01"
+        ? "예비 강의 DB 마이그레이션을 먼저 적용해 주세요."
+        : `예비 강의 조회 실패: ${error.code}`,
+    );
+  }
+  return ((data ?? []) as CourseScheduleDraftRow[]).map(toCourseScheduleDraft);
 }
 
 export async function loadCourseSchedulePlanner(
@@ -132,7 +127,7 @@ export async function loadCourseSchedulePlanner(
   };
 }
 
-async function appendEvent(
+async function appendAuditEvent(
   client: SupabaseClient,
   workspaceId: string,
   actorId: string,
@@ -148,7 +143,9 @@ async function appendEvent(
     entity_id: entityId,
     metadata,
   });
-  if (error) throw new Error(`예비 강의 저장 실패: ${error.code}`);
+  if (error) {
+    console.error(`예비 강의 감사 로그 저장 실패: ${error.code}`);
+  }
 }
 
 export function parseDraftText(value: unknown, field: "강사명" | "강의주제") {
@@ -156,6 +153,18 @@ export function parseDraftText(value: unknown, field: "강사명" | "강의주�
   const parsed = text(value, maxLength);
   if (!parsed) throw new Error(`${field}을 입력해 주세요.`);
   return parsed;
+}
+
+export function parseDraftMemo(value: unknown) {
+  if (value === undefined || value === null) return "";
+  if (typeof value !== "string") throw new Error("메모 내용을 확인해 주세요.");
+  const memo = value.trim();
+  if (Array.from(memo).length > COURSE_NOTE_MAX_LENGTH) {
+    throw new Error(
+      `메모는 최대 ${COURSE_NOTE_MAX_LENGTH.toLocaleString("ko-KR")}자까지 입력할 수 있습니다.`,
+    );
+  }
+  return memo;
 }
 
 export function parseScheduledDate(value: unknown) {
@@ -168,7 +177,12 @@ export function parseScheduledDate(value: unknown) {
 export async function createCourseScheduleDraft(
   workspaceId: string,
   actorId: string,
-  input: { instructorName: unknown; topic: unknown; courseSize: unknown },
+  input: {
+    instructorName: unknown;
+    topic: unknown;
+    memo?: unknown;
+    courseSize: unknown;
+  },
 ) {
   const admin = createAdminClient();
   const current = await loadDrafts(admin, workspaceId);
@@ -177,6 +191,7 @@ export async function createCourseScheduleDraft(
     id: crypto.randomUUID(),
     instructorName: parseDraftText(input.instructorName, "강사명"),
     topic: parseDraftText(input.topic, "강의주제"),
+    memo: parseDraftMemo(input.memo),
     courseSize: parseCourseSize(input.courseSize),
     colorIndex: current.length
       ? (Math.max(...current.map((item) => item.colorIndex)) + 1) % COLOR_COUNT
@@ -185,15 +200,49 @@ export async function createCourseScheduleDraft(
     createdAt: now,
     updatedAt: now,
   };
-  await appendEvent(admin, workspaceId, actorId, UPSERT_EVENT, draft.id, draft);
-  return draft;
+  const { data, error } = await admin
+    .from("course_schedule_drafts")
+    .insert({
+      id: draft.id,
+      workspace_id: workspaceId,
+      instructor_name: draft.instructorName,
+      topic: draft.topic,
+      memo: draft.memo,
+      course_size: draft.courseSize,
+      color_index: draft.colorIndex,
+      scheduled_date: draft.scheduledDate,
+      created_by: actorId,
+      created_at: draft.createdAt,
+      updated_at: draft.updatedAt,
+    })
+    .select(DRAFT_COLUMNS)
+    .single();
+  if (error || !data) {
+    throw new Error(`예비 강의 저장 실패: ${error?.code ?? "UNKNOWN"}`);
+  }
+  const created = toCourseScheduleDraft(data as CourseScheduleDraftRow);
+  await appendAuditEvent(
+    admin,
+    workspaceId,
+    actorId,
+    CREATED_EVENT,
+    created.id,
+    created,
+  );
+  return created;
 }
 
 export async function updateCourseScheduleDraft(
   workspaceId: string,
   actorId: string,
   draftId: string,
-  patch: { instructorName?: unknown; topic?: unknown; courseSize?: unknown; scheduledDate?: unknown },
+  patch: {
+    instructorName?: unknown;
+    topic?: unknown;
+    memo?: unknown;
+    courseSize?: unknown;
+    scheduledDate?: unknown;
+  },
 ) {
   const admin = createAdminClient();
   const current = (await loadDrafts(admin, workspaceId)).find((draft) => draft.id === draftId);
@@ -206,6 +255,9 @@ export async function updateCourseScheduleDraft(
     ...(Object.hasOwn(patch, "topic")
       ? { topic: parseDraftText(patch.topic, "강의주제") }
       : {}),
+    ...(Object.hasOwn(patch, "memo")
+      ? { memo: parseDraftMemo(patch.memo) }
+      : {}),
     ...(Object.hasOwn(patch, "courseSize")
       ? { courseSize: parseCourseSize(patch.courseSize) }
       : {}),
@@ -214,8 +266,51 @@ export async function updateCourseScheduleDraft(
       : {}),
     updatedAt: new Date().toISOString(),
   };
-  await appendEvent(admin, workspaceId, actorId, UPSERT_EVENT, draft.id, draft);
-  return draft;
+  const { data, error } = await admin
+    .from("course_schedule_drafts")
+    .update({
+      instructor_name: draft.instructorName,
+      topic: draft.topic,
+      memo: draft.memo,
+      course_size: draft.courseSize,
+      color_index: draft.colorIndex,
+      scheduled_date: draft.scheduledDate,
+      updated_at: draft.updatedAt,
+    })
+    .eq("workspace_id", workspaceId)
+    .eq("id", draftId)
+    .select(DRAFT_COLUMNS)
+    .maybeSingle();
+  if (error || !data) {
+    throw new Error(
+      error ? `예비 강의 수정 실패: ${error.code}` : "예비 강의를 찾을 수 없습니다.",
+    );
+  }
+  const updated = toCourseScheduleDraft(data as CourseScheduleDraftRow);
+  await appendAuditEvent(
+    admin,
+    workspaceId,
+    actorId,
+    UPDATED_EVENT,
+    updated.id,
+    updated,
+  );
+  return updated;
+}
+
+export async function loadCourseScheduleDraft(
+  workspaceId: string,
+  draftId: string,
+) {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("course_schedule_drafts")
+    .select(DRAFT_COLUMNS)
+    .eq("workspace_id", workspaceId)
+    .eq("id", draftId)
+    .maybeSingle();
+  if (error) throw new Error(`예비 강의 조회 실패: ${error.code}`);
+  return data ? toCourseScheduleDraft(data as CourseScheduleDraftRow) : null;
 }
 
 export async function deleteCourseScheduleDraft(
@@ -224,7 +319,26 @@ export async function deleteCourseScheduleDraft(
   draftId: string,
 ) {
   const admin = createAdminClient();
-  const current = (await loadDrafts(admin, workspaceId)).find((draft) => draft.id === draftId);
+  const current = await loadCourseScheduleDraft(workspaceId, draftId);
   if (!current) throw new Error("예비 강의를 찾을 수 없습니다.");
-  await appendEvent(admin, workspaceId, actorId, DELETE_EVENT, draftId, current);
+  const { data, error } = await admin
+    .from("course_schedule_drafts")
+    .delete()
+    .eq("workspace_id", workspaceId)
+    .eq("id", draftId)
+    .select("id")
+    .maybeSingle();
+  if (error || !data) {
+    throw new Error(
+      error ? `예비 강의 삭제 실패: ${error.code}` : "예비 강의를 찾을 수 없습니다.",
+    );
+  }
+  await appendAuditEvent(
+    admin,
+    workspaceId,
+    actorId,
+    DELETED_EVENT,
+    draftId,
+    current,
+  );
 }

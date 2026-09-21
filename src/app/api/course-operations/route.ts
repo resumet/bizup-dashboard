@@ -15,6 +15,10 @@ import {
 } from "@/lib/course-operations/banner-server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import {
+  deleteCourseScheduleDraft,
+  loadCourseScheduleDraft,
+} from "@/lib/course-schedule-planner/server";
 
 export const runtime = "nodejs";
 
@@ -29,6 +33,26 @@ export async function POST(request: Request) {
       readCourseOperationsRequest(request),
     ]);
     const { body, banner } = requestData;
+    const bodyRecord =
+      typeof body === "object" && body !== null
+        ? (body as Record<string, unknown>)
+        : {};
+    const sourceScheduleDraftId =
+      typeof bodyRecord.sourceScheduleDraftId === "string"
+        ? bodyRecord.sourceScheduleDraftId.trim()
+        : "";
+    const sourceScheduleDraft = sourceScheduleDraftId
+      ? await loadCourseScheduleDraft(
+          membership.workspace_id,
+          sourceScheduleDraftId,
+        )
+      : null;
+    if (sourceScheduleDraftId && !sourceScheduleDraft) {
+      throw new Error("전환할 예비 강의를 찾을 수 없습니다.");
+    }
+    if (sourceScheduleDraft?.memo && !user.email) {
+      throw new Error("메모 작성자 이메일 정보를 확인할 수 없습니다.");
+    }
     const input = parseCourseOperationsInput(body);
     await assertLinkableItems(membership.workspace_id, input, null);
 
@@ -84,14 +108,37 @@ export async function POST(request: Request) {
 
     await replaceCourseChildren(course.id, input);
     await replaceCourseLinks(membership.workspace_id, course.id, input);
+    if (sourceScheduleDraft?.memo) {
+      const { error: noteError } = await admin.from("course_notes").insert({
+        course_id: course.id,
+        content: sourceScheduleDraft.memo,
+        created_by: user.id,
+        author_email: user.email,
+      });
+      if (noteError) {
+        throw new Error(`예비 강의 메모 이전 실패: ${noteError.code}`);
+      }
+    }
     await admin.from("audit_logs").insert({
       workspace_id: membership.workspace_id,
       actor_id: user.id,
       event_type: "course_operations.course_created",
       entity_type: "course",
       entity_id: course.id,
-      metadata: { name: input.name },
+      metadata: {
+        name: input.name,
+        ...(sourceScheduleDraft
+          ? { source_schedule_draft_id: sourceScheduleDraft.id }
+          : {}),
+      },
     });
+    if (sourceScheduleDraft) {
+      await deleteCourseScheduleDraft(
+        membership.workspace_id,
+        user.id,
+        sourceScheduleDraft.id,
+      );
+    }
     invalidateCourseOperationsList();
     return Response.json({ id: course.id }, { status: 201 });
   } catch (error) {

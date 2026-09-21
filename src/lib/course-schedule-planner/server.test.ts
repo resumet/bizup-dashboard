@@ -1,45 +1,44 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { loadKoreanHolidays, reduceCourseScheduleDraftEvents } from "./server";
+import {
+  loadKoreanHolidays,
+  parseDraftMemo,
+  toCourseScheduleDraft,
+} from "./server";
 
-test("예비 강의 이벤트에서 최신 일정과 삭제 상태를 복원한다", () => {
-  const base = {
+test("예비 강의 DB 행을 화면 데이터로 변환한다", () => {
+  const draft = toCourseScheduleDraft({
+    id: "4f226db8-202a-4b6b-acad-56e61da3f631",
+    instructor_name: "김강사",
+    topic: "첫 강의",
+    memo: "초기 메모",
+    course_size: "small",
+    color_index: 2,
+    scheduled_date: "2026-10-08",
+    created_at: "2026-09-19T00:00:00.000Z",
+    updated_at: "2026-09-20T00:00:00.000Z",
+  });
+  assert.deepEqual(draft, {
+    id: "4f226db8-202a-4b6b-acad-56e61da3f631",
     instructorName: "김강사",
     topic: "첫 강의",
+    memo: "초기 메모",
     courseSize: "small",
     colorIndex: 2,
-    scheduledDate: null,
+    scheduledDate: "2026-10-08",
     createdAt: "2026-09-19T00:00:00.000Z",
-    updatedAt: "2026-09-19T00:00:00.000Z",
-  };
-  const drafts = reduceCourseScheduleDraftEvents([
-    { entity_id: "a", event_type: "course_schedule_draft.upserted", metadata: base, created_at: base.createdAt },
-    { entity_id: "a", event_type: "course_schedule_draft.upserted", metadata: { ...base, scheduledDate: "2026-10-08", updatedAt: "2026-09-20T00:00:00.000Z" }, created_at: "2026-09-20T00:00:00.000Z" },
-    { entity_id: "b", event_type: "course_schedule_draft.upserted", metadata: { ...base, topic: "삭제 강의" }, created_at: base.createdAt },
-    { entity_id: "b", event_type: "course_schedule_draft.deleted", metadata: {}, created_at: "2026-09-21T00:00:00.000Z" },
-  ]);
-  assert.equal(drafts.length, 1);
-  assert.equal(drafts[0].id, "a");
-  assert.equal(drafts[0].scheduledDate, "2026-10-08");
-  assert.equal(drafts[0].courseSize, "small");
+    updatedAt: "2026-09-20T00:00:00.000Z",
+  });
 });
 
-test("기존 예비 강의에는 대형강의 구분을 기본 적용한다", () => {
-  const [draft] = reduceCourseScheduleDraftEvents([{
-    entity_id: "legacy",
-    event_type: "course_schedule_draft.upserted",
-    metadata: {
-      instructorName: "기존 강사",
-      topic: "기존 강의",
-      colorIndex: 0,
-      scheduledDate: null,
-      createdAt: "2026-09-19T00:00:00.000Z",
-      updatedAt: "2026-09-19T00:00:00.000Z",
-    },
-    created_at: "2026-09-19T00:00:00.000Z",
-  }]);
-  assert.equal(draft.courseSize, "large");
+test("예비 강의 메모는 공백을 정리하고 비우거나 수정할 수 있다", () => {
+  assert.equal(parseDraftMemo("  다음 기수 검토  "), "다음 기수 검토");
+  assert.equal(parseDraftMemo("   "), "");
+  assert.throws(
+    () => parseDraftMemo("가".repeat(5_001)),
+    /최대 5,000자/u,
+  );
 });
 
 test("한국 공휴일은 설날·추석 연휴와 대체공휴일을 포함한다", async () => {

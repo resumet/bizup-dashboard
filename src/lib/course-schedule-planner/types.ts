@@ -4,6 +4,7 @@ export type CourseScheduleDraft = {
   id: string;
   instructorName: string;
   topic: string;
+  memo: string;
   courseSize: CourseScheduleDraftSize;
   colorIndex: number;
   scheduledDate: string | null;
@@ -24,11 +25,4 @@ export type CourseSchedulePlannerData = {
   confirmedCourses: ConfirmedCourseSchedule[];
   today: string;
   holidays: Record<string, string[]>;
-};
-
-export type CourseScheduleDraftEvent = {
-  entity_id: string | null;
-  event_type: string;
-  metadata: unknown;
-  created_at: string;
 };
