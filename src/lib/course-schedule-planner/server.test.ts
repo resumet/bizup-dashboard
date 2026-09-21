@@ -7,6 +7,7 @@ test("예비 강의 이벤트에서 최신 일정과 삭제 상태를 복원한�
   const base = {
     instructorName: "김강사",
     topic: "첫 강의",
+    courseSize: "small",
     colorIndex: 2,
     scheduledDate: null,
     createdAt: "2026-09-19T00:00:00.000Z",
@@ -21,6 +22,24 @@ test("예비 강의 이벤트에서 최신 일정과 삭제 상태를 복원한�
   assert.equal(drafts.length, 1);
   assert.equal(drafts[0].id, "a");
   assert.equal(drafts[0].scheduledDate, "2026-10-08");
+  assert.equal(drafts[0].courseSize, "small");
+});
+
+test("기존 예비 강의에는 대형강의 구분을 기본 적용한다", () => {
+  const [draft] = reduceCourseScheduleDraftEvents([{
+    entity_id: "legacy",
+    event_type: "course_schedule_draft.upserted",
+    metadata: {
+      instructorName: "기존 강사",
+      topic: "기존 강의",
+      colorIndex: 0,
+      scheduledDate: null,
+      createdAt: "2026-09-19T00:00:00.000Z",
+      updatedAt: "2026-09-19T00:00:00.000Z",
+    },
+    created_at: "2026-09-19T00:00:00.000Z",
+  }]);
+  assert.equal(draft.courseSize, "large");
 });
 
 test("한국 공휴일은 설날·추석 연휴와 대체공휴일을 포함한다", async () => {

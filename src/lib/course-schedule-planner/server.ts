@@ -9,6 +9,7 @@ import type {
   ConfirmedCourseSchedule,
   CourseScheduleDraft,
   CourseScheduleDraftEvent,
+  CourseScheduleDraftSize,
   CourseSchedulePlannerData,
 } from "./types";
 
@@ -28,6 +29,11 @@ function dateOrNull(value: unknown): string | null {
   return Number.isNaN(parsed.getTime()) ? null : value;
 }
 
+export function parseCourseSize(value: unknown): CourseScheduleDraftSize {
+  if (value === "large" || value === "small") return value;
+  throw new Error("강의 규모를 선택해 주세요.");
+}
+
 function draftFromMetadata(id: string, metadata: unknown): CourseScheduleDraft | null {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
   const source = metadata as Record<string, unknown>;
@@ -40,6 +46,7 @@ function draftFromMetadata(id: string, metadata: unknown): CourseScheduleDraft |
     id,
     instructorName,
     topic,
+    courseSize: source.courseSize === "small" ? "small" : "large",
     colorIndex: Number.isInteger(source.colorIndex)
       ? Math.max(0, Number(source.colorIndex)) % COLOR_COUNT
       : 0,
@@ -161,7 +168,7 @@ export function parseScheduledDate(value: unknown) {
 export async function createCourseScheduleDraft(
   workspaceId: string,
   actorId: string,
-  input: { instructorName: unknown; topic: unknown },
+  input: { instructorName: unknown; topic: unknown; courseSize: unknown },
 ) {
   const admin = createAdminClient();
   const current = await loadDrafts(admin, workspaceId);
@@ -170,6 +177,7 @@ export async function createCourseScheduleDraft(
     id: crypto.randomUUID(),
     instructorName: parseDraftText(input.instructorName, "강사명"),
     topic: parseDraftText(input.topic, "강의주제"),
+    courseSize: parseCourseSize(input.courseSize),
     colorIndex: current.length
       ? (Math.max(...current.map((item) => item.colorIndex)) + 1) % COLOR_COUNT
       : 0,
@@ -185,7 +193,7 @@ export async function updateCourseScheduleDraft(
   workspaceId: string,
   actorId: string,
   draftId: string,
-  patch: { instructorName?: unknown; topic?: unknown; scheduledDate?: unknown },
+  patch: { instructorName?: unknown; topic?: unknown; courseSize?: unknown; scheduledDate?: unknown },
 ) {
   const admin = createAdminClient();
   const current = (await loadDrafts(admin, workspaceId)).find((draft) => draft.id === draftId);
@@ -197,6 +205,9 @@ export async function updateCourseScheduleDraft(
       : {}),
     ...(Object.hasOwn(patch, "topic")
       ? { topic: parseDraftText(patch.topic, "강의주제") }
+      : {}),
+    ...(Object.hasOwn(patch, "courseSize")
+      ? { courseSize: parseCourseSize(patch.courseSize) }
       : {}),
     ...(Object.hasOwn(patch, "scheduledDate")
       ? { scheduledDate: parseScheduledDate(patch.scheduledDate) }

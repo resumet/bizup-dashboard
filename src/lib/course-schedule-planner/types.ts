@@ -1,7 +1,10 @@
+export type CourseScheduleDraftSize = "large" | "small";
+
 export type CourseScheduleDraft = {
   id: string;
   instructorName: string;
   topic: string;
+  courseSize: CourseScheduleDraftSize;
   colorIndex: number;
   scheduledDate: string | null;
   createdAt: string;

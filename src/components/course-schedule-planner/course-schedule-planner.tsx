@@ -32,13 +32,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type {
   CourseScheduleDraft,
+  CourseScheduleDraftSize,
   CourseSchedulePlannerData,
 } from "@/lib/course-schedule-planner/types";
 
 const DRAG_TYPE = "application/x-bizup-course-draft";
 const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
+const COURSE_SIZE_LABELS: Record<CourseScheduleDraftSize, string> = {
+  large: "대형강의",
+  small: "소형강의",
+};
 const COLORS = [
   { card: "border-rose-200 bg-rose-50", event: "border-rose-200 bg-rose-100 text-rose-950", dot: "bg-rose-500" },
   { card: "border-orange-200 bg-orange-50", event: "border-orange-200 bg-orange-100 text-orange-950", dot: "bg-orange-500" },
@@ -103,6 +109,7 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
   const [month, setMonth] = useState(() => initialMonth(initialData));
   const [instructorName, setInstructorName] = useState("");
   const [topic, setTopic] = useState("");
+  const [courseSize, setCourseSize] = useState<CourseScheduleDraftSize>("large");
   const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -112,6 +119,7 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
   const [editing, setEditing] = useState<CourseScheduleDraft | null>(null);
   const [editInstructor, setEditInstructor] = useState("");
   const [editTopic, setEditTopic] = useState("");
+  const [editCourseSize, setEditCourseSize] = useState<CourseScheduleDraftSize>("large");
   const [deleteTarget, setDeleteTarget] = useState<CourseScheduleDraft | null>(null);
 
   const days = useMemo(() => calendarDates(month), [month]);
@@ -143,6 +151,8 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
     [drafts],
   );
   const scheduledCount = drafts.filter((draft) => draft.scheduledDate).length;
+  const largeCourseCount = drafts.filter((draft) => draft.courseSize === "large").length;
+  const smallCourseCount = drafts.length - largeCourseCount;
   const draggingDraft = draggingId ? drafts.find((draft) => draft.id === draggingId) : null;
 
   function startDrag(event: DragEvent<HTMLElement>, draft: CourseScheduleDraft) {
@@ -157,7 +167,7 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
     return event.dataTransfer.getData(DRAG_TYPE) || event.dataTransfer.getData("text/plain") || draggingId;
   }
 
-  async function updateDraft(id: string, patch: Partial<Pick<CourseScheduleDraft, "instructorName" | "topic" | "scheduledDate">>, successMessage: string) {
+  async function updateDraft(id: string, patch: Partial<Pick<CourseScheduleDraft, "instructorName" | "topic" | "courseSize" | "scheduledDate">>, successMessage: string) {
     const previous = drafts.find((draft) => draft.id === id);
     if (!previous || busyId) return;
     setBusyId(id);
@@ -204,11 +214,12 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
       const created = await responseData<CourseScheduleDraft>(await fetch("/api/course-schedule-planner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instructorName, topic }),
+        body: JSON.stringify({ instructorName, topic, courseSize }),
       }));
       setDrafts((current) => [...current, created]);
       setInstructorName("");
       setTopic("");
+      setCourseSize("large");
       setNotice("예비 강의 카드를 만들었습니다.");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "예비 강의를 만들지 못했습니다.");
@@ -221,12 +232,17 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
     setEditing(draft);
     setEditInstructor(draft.instructorName);
     setEditTopic(draft.topic);
+    setEditCourseSize(draft.courseSize);
   }
 
   async function saveEdit(event: FormEvent) {
     event.preventDefault();
     if (!editing || !editInstructor.trim() || !editTopic.trim()) return;
-    await updateDraft(editing.id, { instructorName: editInstructor, topic: editTopic }, "예비 강의 정보를 수정했습니다.");
+    await updateDraft(
+      editing.id,
+      { instructorName: editInstructor, topic: editTopic, courseSize: editCourseSize },
+      "예비 강의 정보를 수정했습니다.",
+    );
     setEditing(null);
   }
 
@@ -251,7 +267,7 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
   function renderDraftCard(draft: CourseScheduleDraft) {
     const color = COLORS[draft.colorIndex % COLORS.length];
     return <article key={draft.id} draggable onDragStart={(event) => startDrag(event, draft)} onDragEnd={() => { setDraggingId(null); setDropDate(null); }} className={`cursor-grab rounded-xl border p-3 shadow-sm transition active:cursor-grabbing ${color.card} ${draggingId === draft.id ? "opacity-50" : ""}`}>
-      <div className="flex items-start gap-2"><GripVertical className="mt-0.5 size-5 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><h3 className="break-words text-base font-semibold">{draft.topic}</h3><p className="mt-1 text-sm text-muted-foreground">{draft.instructorName}</p></div>{busyId === draft.id ? <Loader2 className="size-4 animate-spin" /> : <div className="flex"><Button type="button" size="icon-xs" variant="ghost" aria-label={`${draft.topic} 수정`} onClick={() => openEdit(draft)}><Pencil /></Button><Button type="button" size="icon-xs" variant="ghost" className="text-destructive hover:text-destructive" aria-label={`${draft.topic} 삭제`} onClick={() => setDeleteTarget(draft)}><Trash2 /></Button></div>}</div>
+      <div className="flex items-start gap-2"><GripVertical className="mt-0.5 size-5 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><div className="mb-1.5"><Badge variant={draft.courseSize === "large" ? "default" : "secondary"}>{COURSE_SIZE_LABELS[draft.courseSize]}</Badge></div><h3 className="break-words text-base font-semibold">{draft.topic}</h3><p className="mt-1 text-sm text-muted-foreground">{draft.instructorName}</p></div>{busyId === draft.id ? <Loader2 className="size-4 animate-spin" /> : <div className="flex"><Button type="button" size="icon-xs" variant="ghost" aria-label={`${draft.topic} 수정`} onClick={() => openEdit(draft)}><Pencil /></Button><Button type="button" size="icon-xs" variant="ghost" className="text-destructive hover:text-destructive" aria-label={`${draft.topic} 삭제`} onClick={() => setDeleteTarget(draft)}><Trash2 /></Button></div>}</div>
       <div className="mt-3 flex items-center justify-between gap-2 border-t border-black/5 pt-2"><span className="flex items-center gap-1.5 text-sm"><span className={`size-2.5 rounded-full ${color.dot}`} />{draft.scheduledDate ? shortDate(draft.scheduledDate) : "미배정"}</span>{draft.scheduledDate ? <Button type="button" size="xs" variant="ghost" className="text-sm" onClick={() => void updateDraft(draft.id, { scheduledDate: null }, "일정 배정을 해제했습니다.")}><CalendarX2 />해제</Button> : null}</div>
     </article>;
   }
@@ -259,7 +275,7 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
   return <main className="mx-auto max-w-[1800px] px-5 py-8 lg:px-8 lg:py-10">
     <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <div><Badge variant="outline" className="mb-3">강의 일정 시뮬레이션</Badge><h1 className="text-3xl font-semibold tracking-tight">강의 일정 플래너</h1><p className="mt-2 text-muted-foreground">예비 강의를 달력에 배치해 전체 강의 흐름을 미리 확인합니다.</p></div>
-      <div className="flex flex-wrap gap-2"><Badge variant="secondary">예비 강의 {drafts.length}개</Badge><Badge variant="secondary">일정 배정 {scheduledCount}개</Badge><Badge variant="outline">확정 강의 {initialData.confirmedCourses.length}개</Badge></div>
+      <div className="flex flex-wrap gap-2"><Badge variant="secondary">예비 강의 {drafts.length}개</Badge><Badge variant="outline">대형 {largeCourseCount}개</Badge><Badge variant="outline">소형 {smallCourseCount}개</Badge><Badge variant="secondary">일정 배정 {scheduledCount}개</Badge><Badge variant="outline">확정 강의 {initialData.confirmedCourses.length}개</Badge></div>
     </div>
 
     {error ? <p role="alert" className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
@@ -273,6 +289,7 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
             <form className="space-y-3" onSubmit={(event) => void createDraft(event)}>
               <div className="space-y-1.5"><Label htmlFor="draft-instructor">강사명</Label><Input id="draft-instructor" value={instructorName} maxLength={100} onChange={(event) => setInstructorName(event.target.value)} placeholder="예: 김해준" /></div>
               <div className="space-y-1.5"><Label htmlFor="draft-topic">강의주제</Label><Input id="draft-topic" value={topic} maxLength={200} onChange={(event) => setTopic(event.target.value)} placeholder="예: 광고중개 부업" /></div>
+              <div className="space-y-1.5"><Label htmlFor="draft-course-size">강의 규모</Label><Select value={courseSize} onValueChange={(value) => setCourseSize(value as CourseScheduleDraftSize)}><SelectTrigger id="draft-course-size"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="large">대형강의</SelectItem><SelectItem value="small">소형강의</SelectItem></SelectContent></Select></div>
               <Button className="w-full" type="submit" disabled={creating || !instructorName.trim() || !topic.trim()}>{creating ? <Loader2 className="animate-spin" /> : <Plus />}{creating ? "만드는 중…" : "카드 만들기"}</Button>
             </form>
           </CardContent>
@@ -338,7 +355,7 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
                   </div>
                   <div className="space-y-1">
                     {confirmedEvents.map((course) => <Link key={course.id} href={`/services/course-operations/${course.id}`} draggable={false} title={`${course.name} · ${course.instructorName}`} className="block select-none rounded-md border border-slate-700 bg-slate-800 px-2 py-2 text-[13px] leading-5 text-white shadow-sm hover:bg-slate-700"><span className="flex items-center gap-1 font-semibold"><CalendarCheck2 className="size-3.5" />확정{course.cohort ? ` · ${course.cohort}기` : ""}</span><span className="mt-0.5 block truncate font-medium">{course.name}</span><span className="block truncate text-slate-300">{course.instructorName}</span></Link>)}
-                    {draftEvents.map((draft) => { const color = COLORS[draft.colorIndex % COLORS.length]; return <div key={draft.id} draggable onDragStart={(event) => startDrag(event, draft)} onDragEnd={() => { setDraggingId(null); setDropDate(null); }} title={`${draft.topic} · ${draft.instructorName}`} className={`cursor-grab rounded-md border px-2 py-2 text-[13px] leading-5 shadow-sm active:cursor-grabbing ${color.event} ${draggingId === draft.id ? "opacity-45" : ""}`}><span className="flex items-center gap-1 font-semibold"><GripVertical className="size-3.5" />예비</span><span className="mt-0.5 block truncate font-medium">{draft.topic}</span><span className="block truncate opacity-70">{draft.instructorName}</span></div>; })}
+                    {draftEvents.map((draft) => { const color = COLORS[draft.colorIndex % COLORS.length]; return <div key={draft.id} draggable onDragStart={(event) => startDrag(event, draft)} onDragEnd={() => { setDraggingId(null); setDropDate(null); }} title={`${COURSE_SIZE_LABELS[draft.courseSize]} · ${draft.topic} · ${draft.instructorName}`} className={`cursor-grab rounded-md border px-2 py-2 text-[13px] leading-5 shadow-sm active:cursor-grabbing ${color.event} ${draggingId === draft.id ? "opacity-45" : ""}`}><span className="flex items-center gap-1 font-semibold"><GripVertical className="size-3.5" />{COURSE_SIZE_LABELS[draft.courseSize]}</span><span className="mt-0.5 block truncate font-medium">{draft.topic}</span><span className="block truncate opacity-70">{draft.instructorName}</span></div>; })}
                   </div>
                 </div>;
               })}
@@ -349,7 +366,7 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
     </div>
 
     <Dialog open={Boolean(editing)} onOpenChange={(open) => { if (!open) setEditing(null); }}>
-      <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>예비 강의 수정</DialogTitle><DialogDescription>강사명과 강의주제를 수정합니다.</DialogDescription></DialogHeader><form className="space-y-4" onSubmit={(event) => void saveEdit(event)}><div className="space-y-1.5"><Label htmlFor="edit-instructor">강사명</Label><Input id="edit-instructor" autoFocus value={editInstructor} maxLength={100} onChange={(event) => setEditInstructor(event.target.value)} /></div><div className="space-y-1.5"><Label htmlFor="edit-topic">강의주제</Label><Input id="edit-topic" value={editTopic} maxLength={200} onChange={(event) => setEditTopic(event.target.value)} /></div><DialogFooter><DialogClose asChild><Button type="button" variant="outline">취소</Button></DialogClose><Button type="submit" disabled={!editInstructor.trim() || !editTopic.trim() || busyId === editing?.id}>{busyId === editing?.id ? <Loader2 className="animate-spin" /> : <Pencil />}수정 저장</Button></DialogFooter></form></DialogContent>
+      <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>예비 강의 수정</DialogTitle><DialogDescription>강사명, 강의주제와 강의 규모를 수정합니다.</DialogDescription></DialogHeader><form className="space-y-4" onSubmit={(event) => void saveEdit(event)}><div className="space-y-1.5"><Label htmlFor="edit-instructor">강사명</Label><Input id="edit-instructor" autoFocus value={editInstructor} maxLength={100} onChange={(event) => setEditInstructor(event.target.value)} /></div><div className="space-y-1.5"><Label htmlFor="edit-topic">강의주제</Label><Input id="edit-topic" value={editTopic} maxLength={200} onChange={(event) => setEditTopic(event.target.value)} /></div><div className="space-y-1.5"><Label htmlFor="edit-course-size">강의 규모</Label><Select value={editCourseSize} onValueChange={(value) => setEditCourseSize(value as CourseScheduleDraftSize)}><SelectTrigger id="edit-course-size"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="large">대형강의</SelectItem><SelectItem value="small">소형강의</SelectItem></SelectContent></Select></div><DialogFooter><DialogClose asChild><Button type="button" variant="outline">취소</Button></DialogClose><Button type="submit" disabled={!editInstructor.trim() || !editTopic.trim() || busyId === editing?.id}>{busyId === editing?.id ? <Loader2 className="animate-spin" /> : <Pencil />}수정 저장</Button></DialogFooter></form></DialogContent>
     </Dialog>
 
     <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => { if (!open && !busyId) setDeleteTarget(null); }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>예비 강의를 삭제할까요?</AlertDialogTitle><AlertDialogDescription>‘{deleteTarget?.topic}’ 카드와 배정한 일정이 함께 제거됩니다.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={Boolean(busyId)}>취소</AlertDialogCancel><AlertDialogAction variant="destructive" disabled={Boolean(busyId)} onClick={(event) => { event.preventDefault(); void deleteDraft(); }}>{busyId === deleteTarget?.id ? <Loader2 className="animate-spin" /> : <Trash2 />}삭제</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
