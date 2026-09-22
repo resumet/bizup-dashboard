@@ -215,6 +215,7 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
   }
 
   async function saveChanges() {
+    if (!changeCount || !window.confirm("비용을 저장하면 이 강의의 기존 정산 결과와 확정 내역이 모두 삭제됩니다. 원본 엑셀과 증빙은 유지됩니다. 저장할까요?")) return;
     setBusy(true);
     setError("");
     setNotice("");
@@ -224,11 +225,11 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           creates: drafts.filter((draft) => !draft.id).map((draft) => draft.value),
-          updates: drafts.filter((draft) => draft.id).map((draft) => ({ id: draft.id, version: draft.value.version, input: draft.value })),
+          updates: drafts.filter((draft) => draft.id && dirtyKeys.has(draft.key)).map((draft) => ({ id: draft.id, version: draft.value.version, input: draft.value })),
           deletes: deleted,
         }),
       });
-      resetFromServer(body, `비용 ${body.costs.length}건을 저장했습니다.`);
+      resetFromServer(body, `비용 ${body.costs.length}건을 저장했습니다. 기존 정산 결과를 초기화했습니다. 정산 탭에서 엑셀을 다시 검증·저장해 주세요.`);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "비용 변경사항을 저장하지 못했습니다.");
     } finally {
@@ -239,13 +240,13 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
   if (loading) return <div className="flex min-h-64 items-center justify-center rounded-xl border border-dashed"><Loader2 className="mr-2 animate-spin"/>비용을 불러오는 중입니다.</div>;
 
   return <div className="space-y-6">
-    {locked ? <Alert><AlertTriangle/><AlertTitle>정산 확정으로 잠김</AlertTitle><AlertDescription>정산 탭에서 확정을 취소한 후 비용을 변경할 수 있습니다.</AlertDescription></Alert> : null}
+    {locked ? <Alert><AlertTriangle/><AlertTitle>정산 확정됨</AlertTitle><AlertDescription>비용 변경사항을 저장하면 기존 정산 결과와 확정 내역이 삭제됩니다.</AlertDescription></Alert> : null}
     {error ? <Alert variant="destructive"><AlertTitle>처리할 수 없습니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
     {notice ? <Alert><AlertTitle>저장 완료</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert> : null}
     <div className="flex flex-wrap items-center justify-end gap-3">
       {changeCount ? <span className="text-sm text-muted-foreground">저장하지 않은 변경 {changeCount}건</span> : null}
-      <Button type="button" variant="outline" disabled={locked || busy || changeCount === 0} onClick={resetAllInputs}><RotateCcw/>전체 입력 내용 초기화</Button>
-      <Button type="button" disabled={locked || busy} onClick={() => void saveChanges()}>{busy ? <Loader2 className="animate-spin"/> : <Save/>}비용 변경사항 저장</Button>
+      <Button type="button" variant="outline" disabled={busy || changeCount === 0} onClick={resetAllInputs}><RotateCcw/>전체 입력 내용 초기화</Button>
+      <Button type="button" disabled={busy || changeCount === 0} onClick={() => void saveChanges()}>{busy ? <Loader2 className="animate-spin"/> : <Save/>}비용 변경사항 저장</Button>
     </div>
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
       {[["총비용",summary.total],["강사 부담 합계",summary.instructor],["회사 부담 합계",summary.company],["공급가액 합계",summary.supply],["부가세 합계",summary.vat]].map(([label,value]) => <Card key={String(label)}><CardContent className="p-5"><p className="text-sm text-muted-foreground">{label}</p><p className="mt-2 text-xl font-semibold tabular-nums">{money(Number(value))}</p></CardContent></Card>)}
@@ -255,8 +256,8 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
       const hasPaidItem = items.some((draft) => draft.value.status === "PAID");
       return <Card key={burden.value}>
         <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>{burden.label}</CardTitle><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={locked || busy || items.length === 0} onClick={() => setSectionPaid(burden.value)}><CheckCircle2/>전체 지급완료</Button><Button type="button" variant="outline" disabled={locked || busy || !hasPaidItem} onClick={() => setSectionDateToday(burden.value)}><CalendarDays/>정산일 오늘로</Button><Button type="button" variant="outline" disabled={locked || busy} onClick={() => addDraft(burden.value)}><Plus/>기타 비용 추가</Button></div></div>
-          <div className="flex flex-wrap gap-2">{COURSE_COST_DEFAULT_CATEGORIES[burden.value].map(([code,name]) => <Button type="button" key={code} size="sm" variant="secondary" disabled={locked || busy} onClick={() => addDraft(burden.value, code, name)}>{name} 등록</Button>)}</div>
+          <div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>{burden.label}</CardTitle><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={busy || items.length === 0} onClick={() => setSectionPaid(burden.value)}><CheckCircle2/>전체 지급완료</Button><Button type="button" variant="outline" disabled={busy || !hasPaidItem} onClick={() => setSectionDateToday(burden.value)}><CalendarDays/>정산일 오늘로</Button><Button type="button" variant="outline" disabled={busy} onClick={() => addDraft(burden.value)}><Plus/>기타 비용 추가</Button></div></div>
+          <div className="flex flex-wrap gap-2">{COURSE_COST_DEFAULT_CATEGORIES[burden.value].map(([code,name]) => <Button type="button" key={code} size="sm" variant="secondary" disabled={busy} onClick={() => addDraft(burden.value, code, name)}>{name} 등록</Button>)}</div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className={`${COST_ROW_GRID} hidden border-b px-3 pb-2 text-xs font-medium text-muted-foreground xl:grid`}><span>이름</span><span>담당자</span><span>정산금액</span><span>비용상태</span><span>정산일</span><span className="sr-only">관리</span></div>
@@ -267,7 +268,7 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
     })}
     <div className="flex flex-wrap items-center justify-end gap-3 border-t pt-6">
       {changeCount ? <span className="text-sm text-muted-foreground">저장하지 않은 변경 {changeCount}건</span> : null}
-      <Button type="button" size="lg" disabled={locked || busy} onClick={() => void saveChanges()}>{busy ? <Loader2 className="animate-spin"/> : <Save/>}비용 변경사항 저장</Button>
+      <Button type="button" size="lg" disabled={busy || changeCount === 0} onClick={() => void saveChanges()}>{busy ? <Loader2 className="animate-spin"/> : <Save/>}비용 변경사항 저장</Button>
     </div>
   </div>;
 }
@@ -303,7 +304,7 @@ function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onBusy,
       <Paperclip className="size-4"/>{draft.attachments.length ? <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-blue-600 text-[10px] text-white">{draft.attachments.length}</span> : null}
       <Input type="file" multiple className="sr-only" disabled={attachmentDisabled} accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx" onChange={(event) => { void upload(event.target.files); event.currentTarget.value = ""; }}/>
     </Label>
-    <Button type="button" size="icon" variant="outline" className="size-10 shrink-0 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-300" title="비용 삭제" aria-label={`${draft.value.name || "새 비용"} 삭제`} disabled={locked || busy} onClick={onDelete}><Trash2/></Button>
+    <Button type="button" size="icon" variant="outline" className="size-10 shrink-0 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-300" title="비용 삭제" aria-label={`${draft.value.name || "새 비용"} 삭제`} disabled={busy} onClick={onDelete}><Trash2/></Button>
   </div>;
 
   return <div>

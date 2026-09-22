@@ -71,7 +71,6 @@ function databaseValues(value: unknown) {
 export async function PUT(request: Request, { params }: Context) {
   try {
     const { admin, courseId, workspaceId, user, locked } = await context(params);
-    if (locked) throw new Error("정산이 확정되어 비용을 변경할 수 없습니다.");
     const body = await request.json() as { creates?: unknown; updates?: unknown; deletes?: unknown };
     const rawCreates = Array.isArray(body.creates) ? body.creates : [];
     const rawUpdates = Array.isArray(body.updates) ? body.updates : [];
@@ -99,9 +98,9 @@ export async function PUT(request: Request, { params }: Context) {
       return { id, version };
     });
     if (!creates.length && !updates.length && !deletes.length) {
-      return Response.json({ costs: await loadCourseCosts(admin, courseId), locked: false });
+      return Response.json({ costs: await loadCourseCosts(admin, courseId), locked });
     }
-    const { error } = await admin.rpc("save_course_cost_changes", {
+    const { error } = await admin.rpc("save_course_cost_changes_and_reset_settlement", {
       p_course_id: courseId,
       p_actor_id: user.id,
       p_changes: { creates, updates, deletes },
