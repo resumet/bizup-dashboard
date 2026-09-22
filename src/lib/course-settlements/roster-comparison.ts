@@ -1,5 +1,5 @@
 import type { SavedCourseOrder } from "@/lib/course-orders/types";
-import { isUnpaidVirtualAccount } from "@/lib/course-orders/filter";
+import { isExcludedVirtualAccountOrder } from "@/lib/course-orders/filter";
 import type { MonthlyAnalysis } from "./engine";
 
 export type ComparisonEntry = {
@@ -24,7 +24,7 @@ function contacts(rows: ComparisonEntry[], field: "phone" | "email") {
   return new Set(rows.map(row => field === "phone" ? row.phone.replace(/\D/g, "") : row.email.trim().toLowerCase()).filter(Boolean));
 }
 export function compareSettlementRoster(orders: SavedCourseOrder[], months: MonthlyAnalysis[], instructor: string): ComparisonGroup[] {
-  const eligible = orders.filter(row => !isUnpaidVirtualAccount(row));
+  const eligible = orders.filter(row => !isExcludedVirtualAccountOrder(row));
   // Saved split orders contain several IDs and one combined amount. Join their IDs
   // into a component, but add that amount only once, never once per ID.
   const parents = new Map<string, string>();

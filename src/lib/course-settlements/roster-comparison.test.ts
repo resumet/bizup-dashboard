@@ -60,7 +60,17 @@ test("분할결제의 여러 ID는 금액을 중복 합산하지 않는다", () 
   assert.equal(result.status,"matched");
   assert.equal(result.orderTotal.net,200);
 });
-test("가상계좌 입금대기만 정산 비교에서 제외한다", () => {
+test("가상계좌 입금대기는 정산 비교에서 제외한다", () => {
   const result=compareSettlementRoster([order({paymentId:"pending",paymentMethod:"가상 계좌",status:"입금 대기"}),order({paymentId:"paid",paymentMethod:"가상계좌"}),order({paymentId:"card",status:"입금대기"})],[],"강사");
   assert.deepEqual(result.map(row=>row.paymentId).sort(),["card","paid"]);
+});
+
+test("가상계좌 전액환불만 제외하고 카드 전액환불과 가상계좌 부분환불은 유지한다", () => {
+  const result = compareSettlementRoster([
+    order({ paymentId: "excluded", paymentMethod: "가상 계좌", status: "전액 환불", refundAmount: 100, currentAmount: 0 }),
+    order({ paymentId: "card", paymentMethod: "카드", status: "전액환불", refundAmount: 100, currentAmount: 0 }),
+    order({ paymentId: "partial", paymentMethod: "가상계좌", status: "부분환불", refundAmount: 50, currentAmount: 50 }),
+    order({ paymentId: "paid", paymentMethod: "가상계좌", status: "결제완료" }),
+  ], [], "강사");
+  assert.deepEqual(result.map(row => row.paymentId).sort(), ["card", "paid", "partial"]);
 });

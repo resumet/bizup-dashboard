@@ -1,5 +1,5 @@
 import type { CourseOrder, CourseOrderPreview } from "./types";
-import { isUnpaidVirtualAccount } from "./filter";
+import { isExcludedVirtualAccountOrder } from "./filter";
 
 export const COURSE_ORDER_HEADERS = [
   "주문항목명", "회원명", "휴대전화번호", "이메일", "결제금액", "환불금액",
@@ -112,7 +112,7 @@ function mergeSplitPayments(rows: CourseOrder[]): CourseOrder[] {
     const parts = [...payments.values()];
     const join = (field: keyof CourseOrder) => [...new Set(parts.map((part) => String(part[field] ?? "")).filter(Boolean))].sort().join(" / ");
     const sum = (field: "paymentAmount" | "refundAmount" | "currentAmount") => {
-      const total = parts.reduce((value, part) => value + (isUnpaidVirtualAccount(part) ? 0 : Math.round(part[field] * 100)), 0) / 100;
+      const total = parts.reduce((value, part) => value + (isExcludedVirtualAccountOrder(part) ? 0 : Math.round(part[field] * 100)), 0) / 100;
       if (Math.abs(total) > 1e12) throw new Error("분할결제 합산 금액이 저장 가능한 범위를 초과했습니다.");
       return total;
     };
