@@ -106,17 +106,21 @@ test("가상계좌 입금대기는 합계에서 제외하고 분할결제의 완
   assert.equal(summarizeCourseOrders([{...ordinary[0], paymentMethod:"카드"}]).paymentAmount, 200);
 });
 
-test("가상계좌 전액환불은 정산 합계와 분할결제 합산에서 제외한다", () => {
+test("가상계좌 전액환불은 환불금액이 0일 때만 합계와 분할결제에서 제외한다", () => {
   const refunded = { 결제ID: "refunded", 주문상태: "전액환불", 결제방법: "가상계좌", 결제금액: 200, 환불금액: 200, "현 결제금액": 0 };
   const rows = parseCourseOrders(matrix(refunded));
   assert.equal(rows[0].refundAmount, 200);
-  assert.deepEqual(summarizeCourseOrders(rows), { count: 1, paymentAmount: 0, refundAmount: 0, currentAmount: 0 });
+  assert.deepEqual(summarizeCourseOrders(rows), { count: 1, paymentAmount: 200, refundAmount: 200, currentAmount: 0 });
+  assert.deepEqual(summarizeCourseOrders([{ ...rows[0], refundAmount: 0 }]), { count: 1, paymentAmount: 0, refundAmount: 0, currentAmount: 0 });
   assert.equal(summarizeCourseOrders([{ ...rows[0], paymentMethod: "카드" }]).refundAmount, 200);
   assert.equal(summarizeCourseOrders([{ ...rows[0], status: "부분환불", refundAmount: 50, currentAmount: 150 }]).currentAmount, 150);
   const [merged] = parseCourseOrders(splitMatrix([refunded, { 결제ID: "paid", 주문상태: "결제완료", 결제방법: "카드", 결제금액: 100, 환불금액: 0, "현 결제금액": 100 }]));
-  assert.equal(merged.paymentAmount, 100);
-  assert.equal(merged.refundAmount, 0);
+  assert.equal(merged.paymentAmount, 300);
+  assert.equal(merged.refundAmount, 200);
   assert.equal(merged.currentAmount, 100);
+  const [ignored] = parseCourseOrders(splitMatrix([{ ...refunded, 환불금액: 0 }]));
+  assert.equal(ignored.paymentAmount, 0);
+  assert.equal(ignored.refundAmount, 0);
 });
 
 test("선택한 항목의 옵션을 제외한 최단 강의명을 고르고 동일 길이는 가나다순으로 정한다", () => {

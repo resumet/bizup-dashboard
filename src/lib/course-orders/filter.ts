@@ -1,9 +1,9 @@
 import type { CourseOrder, CourseOrderFilters } from "./types";
 
-export function isExcludedVirtualAccountOrder(order: Pick<CourseOrder, "status" | "paymentMethod">) {
+export function isExcludedVirtualAccountOrder(order: Pick<CourseOrder, "status" | "paymentMethod" | "refundAmount">) {
   const tokens = (value: string) => value.normalize("NFKC").split("/").map(part => part.replace(/\s/gu, ""));
   return tokens(order.paymentMethod).every(method => method === "가상계좌") &&
-    tokens(order.status).every(status => ["입금대기", "입급대기", "전액환불"].includes(status));
+    tokens(order.status).every(status => ["입금대기", "입급대기"].includes(status) || (status === "전액환불" && order.refundAmount === 0));
 }
 
 export function isAwaitingDeposit(order: Pick<CourseOrder, "status">) {

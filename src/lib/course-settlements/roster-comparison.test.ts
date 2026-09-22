@@ -65,12 +65,14 @@ test("가상계좌 입금대기는 정산 비교에서 제외한다", () => {
   assert.deepEqual(result.map(row=>row.paymentId).sort(),["card","paid"]);
 });
 
-test("가상계좌 전액환불만 제외하고 카드 전액환불과 가상계좌 부분환불은 유지한다", () => {
+test("가상계좌 전액환불 중 환불금액 0만 제외하고 실제 환불 거래는 포함한다", () => {
   const result = compareSettlementRoster([
-    order({ paymentId: "excluded", paymentMethod: "가상 계좌", status: "전액 환불", refundAmount: 100, currentAmount: 0 }),
+    order({ paymentId: "excluded", paymentMethod: "가상 계좌", status: "전액 환불", refundAmount: 0, currentAmount: 0 }),
+    order({ paymentId: "refunded", paymentMethod: "가상계좌", status: "전액환불", refundAmount: 100, currentAmount: 0 }),
     order({ paymentId: "card", paymentMethod: "카드", status: "전액환불", refundAmount: 100, currentAmount: 0 }),
     order({ paymentId: "partial", paymentMethod: "가상계좌", status: "부분환불", refundAmount: 50, currentAmount: 50 }),
     order({ paymentId: "paid", paymentMethod: "가상계좌", status: "결제완료" }),
   ], [], "강사");
-  assert.deepEqual(result.map(row => row.paymentId).sort(), ["card", "paid", "partial"]);
+  assert.deepEqual(result.map(row => row.paymentId).sort(), ["card", "paid", "partial", "refunded"]);
+  assert.deepEqual(result.find(row => row.paymentId === "refunded")?.orderTotal, { payment: 100, refund: 100, net: 0 });
 });
