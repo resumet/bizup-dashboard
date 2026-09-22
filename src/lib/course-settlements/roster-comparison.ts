@@ -52,9 +52,9 @@ export function compareSettlementRoster(orders: SavedCourseOrder[], months: Mont
   for (const month of months) {
     const details = month.detailsByInstructor[instructor];
     if (!details) continue;
-    for (const row of details.toss) add("settlements", { paymentId: row.buyerId ?? "", name: row.buyer, phone: "", email: "", source: `${month.periodLabel} · ${month.fileName}`, description: ["토스", row.date, row.status, row.paymentMethod].filter(Boolean).join(" · "), payment: Math.max(row.amount, 0), refund: Math.max(-row.amount, 0), net: row.amount });
+    for (const row of details.toss) add("settlements", { paymentId: row.orderNumber ?? "", name: row.buyer, phone: "", email: "", source: `${month.periodLabel} · ${month.fileName}`, description: ["토스", row.date, row.status, row.paymentMethod].filter(Boolean).join(" · "), payment: Math.max(row.amount, 0), refund: Math.max(-row.amount, 0), net: row.amount });
     // Cash cancellations are already signed in the settlement engine.
-    for (const row of details.cash) add("settlements", { paymentId: "", name: row.buyer, phone: row.phone, email: row.email, source: `${month.periodLabel} · ${month.fileName}`, description: ["무통장 · 구매자 ID 없음", row.date, row.lectureName].filter(Boolean).join(" · "), payment: row.paymentAmount, refund: -row.cancellationAmount, net: row.paymentAmount + row.cancellationAmount });
+    for (const row of details.cash) add("settlements", { paymentId: "", name: row.buyer, phone: row.phone, email: row.email, source: `${month.periodLabel} · ${month.fileName}`, description: ["무통장 · 주문번호 없음", row.date, row.lectureName].filter(Boolean).join(" · "), payment: row.paymentAmount, refund: -row.cancellationAmount, net: row.paymentAmount + row.cancellationAmount });
   }
   const rank: Record<ComparisonStatus, number> = { "orders-only": 0, "settlement-only": 1, different: 2, review: 3, matched: 4 };
   return [...groups.values()].map(group => {

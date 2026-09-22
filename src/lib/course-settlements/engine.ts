@@ -54,7 +54,7 @@ export type MonthlyAnalysis = {
 };
 
 export type InstructorSourceDetails = {
-  toss: Array<{ buyerId?: string; date: string; paymentMethod: string; status: string; agency: string; buyer: string; amount: number; pgFee: number; supplyAmount: number; vat: number; acquiringStatus: string }>;
+  toss: Array<{ orderNumber?: string; date: string; paymentMethod: string; status: string; agency: string; buyer: string; amount: number; pgFee: number; supplyAmount: number; vat: number; acquiringStatus: string }>;
   cash: Array<{ date: string; buyer: string; email: string; phone: string; paymentAmount: number; cancellationAmount: number; lectureName: string }>;
   service: Array<{ serviceName: string; date: string; otherCost: number; total: number; note: string }>;
 };
@@ -442,7 +442,7 @@ export function analyzeWorkbook(input: WorkbookInput): MonthlyAnalysis {
   });
   const detailsByInstructor = Object.fromEntries(instructorResults.map(({ instructor }) => [instructor, {
     toss: tossRows.filter((row) => matchesInstructor(row[19], instructor)).map((row) => ({
-      date: displayValue(row[1]), paymentMethod: displayValue(row[5]), status: displayValue(row[6]), agency: displayValue(row[7]), buyer: displayValue(row[8]), buyerId: displayValue(row[9]).trim(),
+      date: displayValue(row[1]), paymentMethod: displayValue(row[5]), status: displayValue(row[6]), agency: displayValue(row[7]), buyer: displayValue(row[8]), orderNumber: displayValue(row[4]).trim(),
       amount: roundWon(parseAmount(row[10])), pgFee: roundWon(parseAmount(row[11])), supplyAmount: roundWon(parseAmount(row[12])), vat: roundWon(parseAmount(row[13])), acquiringStatus: displayValue(row[15]),
     })),
     cash: cashRows.filter((row) => matchesInstructor(row[8], instructor)).map((row) => ({

@@ -13,7 +13,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
   try {
     const order = (memberName, currentAmount = 100) => ({ id: memberName, memberName, currentAmount, paymentAmount: currentAmount, refundAmount: 0, phone: '', email: '', productName: '강의', optionName: '기본반', status: '결제완료', paymentMethod: '카드', orderId: '', paymentId: memberName });
     const orders = ['일치', '주문전용', '금액차이'].map(name => order(name));
-    const months = [{ fileName: '9월.xlsx', periodLabel: '2026년 9월', detailsByInstructor: { 강사: { toss: [['일치', 100], ['정산전용', 100], ['금액차이', 90]].map(([buyer, amount]) => ({ buyer, buyerId: buyer, amount, date: '2026-09-22', status: '승인', paymentMethod: '카드' })), cash: [], service: [] } } }];
+    const months = [{ fileName: '9월.xlsx', periodLabel: '2026년 9월', detailsByInstructor: { 강사: { toss: [['일치', 100], ['정산전용', 100], ['금액차이', 90]].map(([buyer, amount]) => ({ buyer, orderNumber: buyer, amount, date: '2026-09-22', status: '승인', paymentMethod: '카드' })), cash: [], service: [] } } }];
     const bundle = await esbuild.build({ stdin: { contents: `import React from 'react';import {createRoot} from 'react-dom/client';import {RosterComparisonButton} from './src/components/course-settlements/roster-comparison-button';createRoot(document.getElementById('root')).render(<RosterComparisonButton courseId="test-course" courseName="검증 강의"/>);`, resolveDir: process.cwd(), loader: 'tsx' }, bundle: true, write: false, platform: 'browser', jsx: 'automatic' });
     const css = await postcss([tailwind()]).process(await fs.readFile('src/app/globals.css', 'utf8'), { from: path.resolve('src/app/globals.css') });
     let forbidden = false;

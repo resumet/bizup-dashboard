@@ -13,9 +13,9 @@ export async function loadComparisonMonths(admin: SupabaseClient, settlementId: 
     if (error) throw new Error("정산 원본 목록을 조회하지 못했습니다.");
     for (const upload of data ?? []) {
       const snapshot = upload.analysis_snapshot as MonthlyAnalysis | null;
-      const hasIds = snapshot?.detailsByInstructor && Object.values(snapshot.detailsByInstructor).every(detail => detail.toss.every(row => typeof row.buyerId === "string"));
+      const hasIds = snapshot?.detailsByInstructor && Object.values(snapshot.detailsByInstructor).every(detail => detail.toss.every(row => typeof row.orderNumber === "string"));
       if (hasIds) { months.push(snapshot!); continue; }
-      if (!upload.storage_path) throw new Error(`${upload.original_filename}: 구매자 ID 확인에 필요한 원본 엑셀이 없습니다. 다시 업로드해 주세요.`);
+      if (!upload.storage_path) throw new Error(`${upload.original_filename}: 주문번호 확인에 필요한 원본 엑셀이 없습니다. 다시 업로드해 주세요.`);
       const file = await admin.storage.from("course-settlement-files").download(upload.storage_path);
       if (file.error || !file.data) throw new Error(`${upload.original_filename}: 정산 원본을 읽지 못했습니다.`);
       const sheets = await readXlsxFile(Buffer.from(await file.data.arrayBuffer())) as unknown as WorkbookInput["sheets"];

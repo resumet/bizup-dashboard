@@ -6,7 +6,7 @@ import { compareSettlementRoster } from "./roster-comparison";
 import { comparisonWindowHtml } from "./roster-comparison-window";
 
 const order = (overrides: Partial<SavedCourseOrder> = {}): SavedCourseOrder => ({ id: "order", updatedAt: "", productName: "강의", optionName: "", memberName: "홍길동", phone: "010-1234-5678", email: "", paymentAmount: 100, refundAmount: 0, currentAmount: 100, status: "결제완료", paymentMethod: "카드", rs: "", adMedia: "", inflowType: "", paymentId: "홍길동", refundDate: "", orderId: "", ...overrides });
-const toss = (buyer: string, amount: number): InstructorSourceDetails["toss"][number] => ({ buyerId: buyer.replace(/\s/g, ""), buyer, amount, date: "2026-09-01", paymentMethod: "카드", status: amount < 0 ? "취소" : "승인", agency: "", pgFee: 0, supplyAmount: 0, vat: 0, acquiringStatus: "" });
+const toss = (buyer: string, amount: number): InstructorSourceDetails["toss"][number] => ({ orderNumber: buyer.replace(/\s/g, ""), buyer, amount, date: "2026-09-01", paymentMethod: "카드", status: amount < 0 ? "취소" : "승인", agency: "", pgFee: 0, supplyAmount: 0, vat: 0, acquiringStatus: "" });
 const month = (details: Partial<InstructorSourceDetails>): MonthlyAnalysis => ({ fileName: "9월.xlsx", fileSize: 1, inputOrder: 0, periodLabel: "9월", periodYear: 2026, periodMonth: 9, summaryTitle: "", hasCashSheet: true, instructorResults: [], totals: {} as MonthlyAnalysis["totals"], comparisons: [], allMatched: true, detailsByInstructor: { 강사: { toss: [], cash: [], service: [], ...details } } });
 
 test("양방향 ID 누락과 금액 차이 및 원본 중복 보존", () => {
@@ -50,13 +50,13 @@ test("다른 강사·부가서비스는 명단에서 제외하고 빈 상태와 
 });
 
 test("동명이인도 ID가 다르면 분리하고 다른 이름도 ID가 같으면 연결", () => {
-  const result = compareSettlementRoster([order({paymentId:"A"}),order({paymentId:"B"})], [month({toss:[{...toss("다른이름",100),buyerId:"A"},{...toss("홍길동",90),buyerId:"B"}]})], "강사");
+  const result = compareSettlementRoster([order({paymentId:"A"}),order({paymentId:"B"})], [month({toss:[{...toss("다른이름",100),orderNumber:"A"},{...toss("홍길동",90),orderNumber:"B"}]})], "강사");
   assert.equal(result.length,2);
   assert.equal(result.find(row=>row.paymentId==="A")?.status,"matched");
   assert.equal(result.find(row=>row.paymentId==="B")?.status,"different");
 });
 test("분할결제의 여러 ID는 금액을 중복 합산하지 않는다", () => {
-  const [result] = compareSettlementRoster([order({paymentId:"001 / 002",paymentAmount:200,currentAmount:200})],[month({toss:[{...toss("홍길동",100),buyerId:"001"},{...toss("홍길동",100),buyerId:"002"}]})],"강사");
+  const [result] = compareSettlementRoster([order({paymentId:"001 / 002",paymentAmount:200,currentAmount:200})],[month({toss:[{...toss("홍길동",100),orderNumber:"001"},{...toss("홍길동",100),orderNumber:"002"}]})],"강사");
   assert.equal(result.status,"matched");
   assert.equal(result.orderTotal.net,200);
 });
