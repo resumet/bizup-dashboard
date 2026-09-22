@@ -191,7 +191,7 @@ export function HrLeaveDashboard({ initialData }: { initialData: HrLeaveDashboar
 
   return <div className="mx-auto max-w-[1600px] space-y-6 px-5 py-8 lg:px-8 lg:py-10">
     <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
-      <div><Badge variant="outline">매년 1월 1일 초기화</Badge><h1 className="mt-3 text-3xl font-semibold tracking-tight">휴가 관리</h1><p className="mt-2 text-muted-foreground">기본 휴가와 지원근무로 적립한 추가휴가를 분리해 기록합니다.</p></div>
+      <div><Badge variant="outline">매년 1월 1일 초기화</Badge><h1 className="mt-3 text-3xl font-semibold tracking-tight">근태관리</h1><p className="mt-2 text-muted-foreground">기본 휴가와 지원근무로 적립한 추가휴가를 분리해 기록합니다.</p></div>
       <div className="flex flex-wrap items-center gap-2">
         {initialData.year > currentYear - 5 ? <Button variant="outline" asChild><Link href={`/hr/leave?year=${initialData.year - 1}`}><ChevronLeft />{initialData.year - 1}년</Link></Button> : <Button variant="outline" disabled><ChevronLeft />이전 연도</Button>}
         <Badge variant="secondary" className="h-9 px-4 text-sm">{initialData.year}년</Badge>

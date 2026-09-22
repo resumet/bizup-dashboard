@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { SettlementStatement } from "@/components/course-settlements/settlement-statement";
+import { RosterComparisonButton } from "@/components/course-settlements/roster-comparison-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -600,6 +601,8 @@ export function CourseSettlementManager({
           </section>
 
           <InstructorSettlementSection
+            courseId={courseId}
+            courseName={courseName}
             instructor={instructor}
             analysis={analysis}
             targetInstructor={targetInstructor}
@@ -638,11 +641,15 @@ export function CourseSettlementManager({
 }
 
 function InstructorSettlementSection({
+  courseId,
+  courseName,
   instructor,
   analysis,
   targetInstructor,
   onPrint,
 }: {
+  courseId: string;
+  courseName: string;
   instructor: AggregatedInstructorSettlement | null;
   analysis: SettlementAnalysis;
   targetInstructor: string;
@@ -674,9 +681,17 @@ function InstructorSettlementSection({
             전체 엑셀에서 강사명이 일치하는 거래만 추출한 결과입니다.
           </p>
         </div>
-        <Button variant="outline" onClick={onPrint}>
-          <Printer /> 정산표 인쇄/PDF
-        </Button>
+        <div className="flex flex-wrap items-start gap-2">
+          <RosterComparisonButton
+            courseId={courseId}
+            courseName={courseName}
+            instructor={instructor.instructor}
+            months={analysis.monthlyAnalyses}
+          />
+          <Button variant="outline" onClick={onPrint}>
+            <Printer /> 정산표 인쇄/PDF
+          </Button>
+        </div>
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Metric label="누적 총매출" value={instructor.totalSales} />
