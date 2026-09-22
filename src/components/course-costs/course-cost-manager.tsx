@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AlertTriangle, CalendarDays, CheckCircle2, ExternalLink, Loader2, Paperclip, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -240,7 +240,7 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
   if (loading) return <div className="flex min-h-64 items-center justify-center rounded-xl border border-dashed"><Loader2 className="mr-2 animate-spin"/>비용을 불러오는 중입니다.</div>;
 
   return <div className="space-y-6">
-    {locked ? <Alert><AlertTriangle/><AlertTitle>정산 확정됨</AlertTitle><AlertDescription>비용 변경사항을 저장하면 기존 정산 결과와 확정 내역이 삭제됩니다.</AlertDescription></Alert> : null}
+    {locked ? <Alert><AlertTriangle/><AlertTitle>정산 확정됨</AlertTitle><AlertDescription>비용 변경사항을 저장하면 기존 정산 결과와 확정 내역이 삭제됩니다. 증빙은 추가할 수 있으며, 삭제는 정산 확정 취소 후 가능합니다.</AlertDescription></Alert> : null}
     {error ? <Alert variant="destructive"><AlertTitle>처리할 수 없습니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
     {notice ? <Alert><AlertTitle>저장 완료</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert> : null}
     <div className="flex flex-wrap items-center justify-end gap-3">
@@ -284,9 +284,12 @@ function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onBusy,
   onError: (value: string) => void;
   onApply: (body: CostResponse, message: string) => void;
 }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   async function upload(files: FileList | null) {
     if (!draft.id || !files?.length) return;
     onBusy(true);
+    onError("");
     try {
       const form = new FormData();
       Array.from(files).forEach((file) => form.append("files", file));
@@ -298,18 +301,32 @@ function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onBusy,
     }
   }
 
-  const attachmentDisabled = locked || busy || !draft.id;
   const actions = <div className="flex h-10 items-center justify-start gap-2 pl-4">
-    <Label title={draft.id ? "증빙 첨부" : "비용을 먼저 저장한 후 증빙을 첨부할 수 있습니다."} aria-label="증빙 첨부" className={`relative inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300 ${attachmentDisabled ? "pointer-events-none cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-blue-100"}`}>
+    <Button
+      type="button"
+      size="icon"
+      variant="outline"
+      title={draft.id ? (locked ? "확정된 정산서에 증빙 추가" : "증빙 첨부") : "비용을 먼저 저장한 후 증빙을 첨부할 수 있습니다."}
+      aria-label="증빙 첨부"
+      className="relative size-10 shrink-0 border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300"
+      disabled={busy}
+      onClick={() => {
+        if (!draft.id) {
+          onError("비용을 먼저 저장한 후 증빙을 첨부해 주세요.");
+          return;
+        }
+        fileInputRef.current?.click();
+      }}
+    >
       <Paperclip className="size-4"/>{draft.attachments.length ? <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-blue-600 text-[10px] text-white">{draft.attachments.length}</span> : null}
-      <Input type="file" multiple className="sr-only" disabled={attachmentDisabled} accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx" onChange={(event) => { void upload(event.target.files); event.currentTarget.value = ""; }}/>
-    </Label>
+    </Button>
+    <Input ref={fileInputRef} type="file" multiple className="sr-only" disabled={busy || !draft.id} accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx" onChange={(event) => { void upload(event.target.files); event.currentTarget.value = ""; }}/>
     <Button type="button" size="icon" variant="outline" className="size-10 shrink-0 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-300" title="비용 삭제" aria-label={`${draft.value.name || "새 비용"} 삭제`} disabled={busy} onClick={onDelete}><Trash2/></Button>
   </div>;
 
   return <div>
     <CompactCostFields value={draft.value} showLabels={false} actions={actions} onChange={onChange}/>
-    {draft.attachments.length ? <div className="mt-2 flex flex-wrap items-center gap-2">{draft.attachments.map((file) => <span key={file.id} className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs"><Paperclip className="size-3"/>{file.url ? <a href={file.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">{file.originalName}<ExternalLink className="size-3"/></a> : file.originalName}<button type="button" disabled={locked || busy} aria-label={`${file.originalName} 삭제`} onClick={() => void request(`/api/course-operations/${courseId}/costs/${draft.id}/attachments/${file.id}`, { method: "DELETE" }).then((body) => onApply(body, "증빙을 삭제했습니다."), (reason: unknown) => onError(reason instanceof Error ? reason.message : "증빙을 삭제하지 못했습니다."))}>×</button></span>)}</div> : null}
+    {draft.attachments.length ? <div className="mt-2 flex flex-wrap items-center gap-2">{draft.attachments.map((file) => <span key={file.id} className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs"><Paperclip className="size-3"/>{file.url ? <a href={file.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">{file.originalName}<ExternalLink className="size-3"/></a> : file.originalName}<button type="button" disabled={locked || busy} title={locked ? "정산 확정 취소 후 삭제할 수 있습니다." : "증빙 삭제"} aria-label={`${file.originalName} 삭제`} onClick={() => void request(`/api/course-operations/${courseId}/costs/${draft.id}/attachments/${file.id}`, { method: "DELETE" }).then((body) => onApply(body, "증빙을 삭제했습니다."), (reason: unknown) => onError(reason instanceof Error ? reason.message : "증빙을 삭제하지 못했습니다."))}>×</button></span>)}</div> : null}
   </div>;
 }
 

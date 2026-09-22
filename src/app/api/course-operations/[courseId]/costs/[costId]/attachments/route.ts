@@ -15,8 +15,7 @@ export async function POST(request: Request, { params }: Context) {
   if (!user) return Response.json({ message: "로그인이 필요합니다." }, { status: 401 });
   try {
     const { courseId, costId } = await params;
-    const { admin, workspaceId, locked } = await authorizeCourseCosts(courseId, user.id);
-    if (locked) throw new Error("정산이 확정되어 증빙을 변경할 수 없습니다.");
+    const { admin, workspaceId, locked, confirmedSettlementId } = await authorizeCourseCosts(courseId, user.id);
     const { data: cost } = await admin.from("course_costs").select("id").eq("id", costId).eq("course_id", courseId).is("deleted_at", null).maybeSingle();
     if (!cost) throw new Error("비용을 찾을 수 없습니다.");
     const files = (await request.formData()).getAll("files").filter((item): item is File => item instanceof File);
@@ -36,6 +35,40 @@ export async function POST(request: Request, { params }: Context) {
         const { error } = await admin.from("course_cost_attachments").insert({ id, course_cost_id: costId, storage_path: path, original_name: file.name, mime_type: mimeType, file_size: file.size, uploaded_by: user.id });
         if (error) throw new Error(`증빙 기록 실패: ${error.code}`);
       }
+      const costs = await loadCourseCosts(admin, courseId);
+      const updatedCost = costs.find((item) => item.id === costId);
+      if (!updatedCost) throw new Error("첨부한 비용을 다시 불러오지 못했습니다.");
+
+      let syncedToConfirmedSettlement = false;
+      if (confirmedSettlementId) {
+        const { data: snapshot, error: snapshotError } = await admin
+          .from("settlement_cost_snapshots")
+          .select("id,cost_snapshot")
+          .eq("settlement_id", confirmedSettlementId)
+          .eq("course_cost_id", costId)
+          .maybeSingle();
+        if (snapshotError) throw new Error(`확정 정산 증빙 조회 실패: ${snapshotError.code}`);
+        if (snapshot) {
+          const previous = typeof snapshot.cost_snapshot === "object" && snapshot.cost_snapshot !== null
+            ? snapshot.cost_snapshot
+            : {};
+          const { error: updateError } = await admin
+            .from("settlement_cost_snapshots")
+            .update({ cost_snapshot: { ...previous, attachments: updatedCost.attachments } })
+            .eq("id", snapshot.id);
+          if (updateError) throw new Error(`확정 정산 증빙 반영 실패: ${updateError.code}`);
+          syncedToConfirmedSettlement = true;
+        }
+      }
+
+      await admin.from("course_cost_audit_logs").insert({
+        course_cost_id: costId,
+        course_id: courseId,
+        actor_id: user.id,
+        action: "ATTACHMENT_ADDED",
+        after_data: { file_count: files.length, settlement_snapshot_updated: syncedToConfirmedSettlement },
+      });
+      return Response.json({ costs, locked });
     } catch (error) {
       if (uploaded.length) {
         await admin.storage.from("course-cost-evidence").remove(uploaded);
@@ -43,7 +76,5 @@ export async function POST(request: Request, { params }: Context) {
       }
       throw error;
     }
-    await admin.from("course_cost_audit_logs").insert({ course_cost_id: costId, course_id: courseId, actor_id: user.id, action: "ATTACHMENT_ADDED", after_data: { file_count: files.length } });
-    return Response.json({ costs: await loadCourseCosts(admin, courseId), locked: false });
   } catch (error) { return courseCostError(error); }
 }

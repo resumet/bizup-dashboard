@@ -7,6 +7,13 @@ test("정산서를 저장할 때 비용 정보는 보존하고 첨부 객체는 
   const draft = sanitizeSettlementStatementDraft(
     {
       lectureName: "테스트 강의",
+      recipientCompanyName: "테스트 컴퍼니",
+      recipientBusinessNumber: "123-45-67890",
+      recipientRepresentative: "홍길동",
+      recipientContact: "contact@example.com",
+      issuerBusinessNumber: "987-65-43210",
+      issuerRepresentative: "김비즈",
+      issuerContact: "bizup@example.com",
       instructorRatioPercent: 55.5,
       costs: [
         {
@@ -33,6 +40,13 @@ test("정산서를 저장할 때 비용 정보는 보존하고 첨부 객체는 
   assert.equal(draft.costs[0].note, "유지할 메모");
   assert.deepEqual(draft.costs[0].attachments, []);
   assert.equal(draft.instructorRatioPercent, 55.5);
+  assert.equal(draft.recipientCompanyName, "테스트 컴퍼니");
+  assert.equal(draft.recipientBusinessNumber, "123-45-67890");
+  assert.equal(draft.recipientRepresentative, "홍길동");
+  assert.equal(draft.recipientContact, "contact@example.com");
+  assert.equal(draft.issuerBusinessNumber, "987-65-43210");
+  assert.equal(draft.issuerRepresentative, "김비즈");
+  assert.equal(draft.issuerContact, "bizup@example.com");
 });
 
 test("잘못된 정산서 값은 허용 범위로 정리한다", () => {

@@ -11,7 +11,15 @@ export async function authorizeCourseCosts(courseId: string, userId: string) {
   const { data: membership } = await admin.from("workspace_members").select("role").eq("workspace_id", course.workspace_id).eq("user_id", userId).maybeSingle();
   if (!membership) throw new Error("비용을 관리할 권한이 없습니다.");
   const { data: confirmed } = await admin.from("course_settlement_projects").select("id").eq("course_id", courseId).eq("status", "정산확정").maybeSingle();
-  return { admin, course, workspaceId: course.workspace_id as string, role: membership.role as string, locked: Boolean(confirmed) };
+  const confirmedSettlementId = typeof confirmed?.id === "string" ? confirmed.id : null;
+  return {
+    admin,
+    course,
+    workspaceId: course.workspace_id as string,
+    role: membership.role as string,
+    locked: Boolean(confirmedSettlementId),
+    confirmedSettlementId,
+  };
 }
 
 export async function loadCourseCosts(

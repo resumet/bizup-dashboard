@@ -11,6 +11,13 @@ export type SettlementStatementDraft = {
   coursePeriod: string;
   settlementPeriod: string;
   manager: string;
+  recipientCompanyName: string;
+  recipientBusinessNumber: string;
+  recipientRepresentative: string;
+  recipientContact: string;
+  issuerBusinessNumber: string;
+  issuerRepresentative: string;
+  issuerContact: string;
   status: "작성중" | "검토대기" | "정산확정";
   instructorRatioPercent: number;
   costs: SettlementCost[];
@@ -37,6 +44,13 @@ export function createSettlementStatementDraft(
     coursePeriod: "",
     settlementPeriod: "",
     manager: "",
+    recipientCompanyName: "",
+    recipientBusinessNumber: "",
+    recipientRepresentative: "",
+    recipientContact: "",
+    issuerBusinessNumber: "",
+    issuerRepresentative: "",
+    issuerContact: "",
     status: "작성중",
     instructorRatioPercent: 50,
     costs: createDefaultSettlementCosts(),
@@ -99,6 +113,13 @@ export function sanitizeSettlementStatementDraft(
     coursePeriod: stringValue(input.coursePeriod, 200),
     settlementPeriod: stringValue(input.settlementPeriod, 200),
     manager: stringValue(input.manager, 100),
+    recipientCompanyName: stringValue(input.recipientCompanyName, 200),
+    recipientBusinessNumber: stringValue(input.recipientBusinessNumber, 30),
+    recipientRepresentative: stringValue(input.recipientRepresentative, 100),
+    recipientContact: stringValue(input.recipientContact, 200),
+    issuerBusinessNumber: stringValue(input.issuerBusinessNumber, 30),
+    issuerRepresentative: stringValue(input.issuerRepresentative, 100),
+    issuerContact: stringValue(input.issuerContact, 200),
     status,
     instructorRatioPercent: Number.isFinite(ratio)
       ? Math.min(100, Math.max(0, ratio))
