@@ -8,7 +8,7 @@ import type { MonthlyAnalysis } from "@/lib/course-settlements/engine";
 import { compareSettlementRoster } from "@/lib/course-settlements/roster-comparison";
 import { comparisonWindowHtml } from "@/lib/course-settlements/roster-comparison-window";
 
-export function RosterComparisonButton({ courseId, courseName, instructor, months }: { courseId: string; courseName: string; instructor: string; months: MonthlyAnalysis[] }) {
+export function RosterComparisonButton({ courseId, courseName }: { courseId: string; courseName: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const inFlight = useRef(false);
@@ -23,11 +23,11 @@ export function RosterComparisonButton({ courseId, courseName, instructor, month
     inFlight.current = true;
     setBusy(true);
     try {
-      const response = await fetch(`/api/course-operations/${encodeURIComponent(courseId)}/orders`, { cache: "no-store", signal: AbortSignal.timeout(60000) });
-      const data = await response.json() as CourseOrdersResponse & { message?: string };
+      const response = await fetch(`/api/course-operations/${encodeURIComponent(courseId)}/orders/settlement-comparison`, { cache: "no-store", signal: AbortSignal.timeout(60000) });
+      const data = await response.json() as CourseOrdersResponse & { months: MonthlyAnalysis[]; instructor: string; message?: string };
       if (!response.ok) throw new Error(data.message ?? "주문내역을 불러오지 못했습니다.");
       if (popup.closed) return;
-      const html = comparisonWindowHtml(courseName, instructor, compareSettlementRoster(data.orders, months, instructor));
+      const html = comparisonWindowHtml(courseName, data.instructor, compareSettlementRoster(data.orders, data.months, data.instructor));
       popup.document.open(); popup.document.write(html); popup.document.close();
       popup.focus();
     } catch (caught) {

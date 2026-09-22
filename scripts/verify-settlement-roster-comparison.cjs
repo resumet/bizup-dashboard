@@ -11,16 +11,16 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
 (async () => {
   let server, browser;
   try {
-    const order = (memberName, currentAmount = 100) => ({ id: memberName, memberName, currentAmount, paymentAmount: currentAmount, refundAmount: 0, phone: '', email: '', productName: '강의', optionName: '기본반', status: '결제완료', paymentMethod: '카드', orderId: '', paymentId: '' });
+    const order = (memberName, currentAmount = 100) => ({ id: memberName, memberName, currentAmount, paymentAmount: currentAmount, refundAmount: 0, phone: '', email: '', productName: '강의', optionName: '기본반', status: '결제완료', paymentMethod: '카드', orderId: '', paymentId: memberName });
     const orders = ['일치', '주문전용', '금액차이'].map(name => order(name));
-    const months = [{ fileName: '9월.xlsx', periodLabel: '2026년 9월', detailsByInstructor: { 강사: { toss: [['일치', 100], ['정산전용', 100], ['금액차이', 90]].map(([buyer, amount]) => ({ buyer, amount, date: '2026-09-22', status: '승인', paymentMethod: '카드' })), cash: [], service: [] } } }];
-    const bundle = await esbuild.build({ stdin: { contents: `import React from 'react';import {createRoot} from 'react-dom/client';import {RosterComparisonButton} from './src/components/course-settlements/roster-comparison-button';createRoot(document.getElementById('root')).render(<RosterComparisonButton courseId="test-course" courseName="검증 강의" instructor="강사" months={${JSON.stringify(months)}}/>);`, resolveDir: process.cwd(), loader: 'tsx' }, bundle: true, write: false, platform: 'browser', jsx: 'automatic' });
+    const months = [{ fileName: '9월.xlsx', periodLabel: '2026년 9월', detailsByInstructor: { 강사: { toss: [['일치', 100], ['정산전용', 100], ['금액차이', 90]].map(([buyer, amount]) => ({ buyer, buyerId: buyer, amount, date: '2026-09-22', status: '승인', paymentMethod: '카드' })), cash: [], service: [] } } }];
+    const bundle = await esbuild.build({ stdin: { contents: `import React from 'react';import {createRoot} from 'react-dom/client';import {RosterComparisonButton} from './src/components/course-settlements/roster-comparison-button';createRoot(document.getElementById('root')).render(<RosterComparisonButton courseId="test-course" courseName="검증 강의"/>);`, resolveDir: process.cwd(), loader: 'tsx' }, bundle: true, write: false, platform: 'browser', jsx: 'automatic' });
     const css = await postcss([tailwind()]).process(await fs.readFile('src/app/globals.css', 'utf8'), { from: path.resolve('src/app/globals.css') });
     let forbidden = false;
     server = http.createServer((req, res) => {
       if (req.url === '/bundle.js') { res.setHeader('Content-Type', 'text/javascript'); res.end(bundle.outputFiles[0].text); }
       else if (req.url === '/style.css') { res.setHeader('Content-Type', 'text/css'); res.end(css.css); }
-      else if (req.url === '/api/course-operations/test-course/orders') { res.setHeader('Content-Type', 'application/json'); res.statusCode = forbidden ? 403 : 200; res.end(JSON.stringify(forbidden ? { message: '주문 내역을 관리할 권한이 없습니다.' } : { orders, imports: [] })); }
+      else if (req.url === '/api/course-operations/test-course/orders/settlement-comparison') { res.setHeader('Content-Type', 'application/json'); res.statusCode = forbidden ? 403 : 200; res.end(JSON.stringify(forbidden ? { message: '주문 내역을 관리할 권한이 없습니다.' } : { orders, months, instructor: '강사', imports: [] })); }
       else { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end('<!doctype html><html><head><link rel="stylesheet" href="/style.css"></head><body><div id="root"></div><script src="/bundle.js"></script></body></html>'); }
     });
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -44,9 +44,9 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
     assert.equal(await popup.locator('tr.different .changed').count(), 4);
     await popup.getByLabel('원본 전체 펼치기').check();
     assert.ok(await popup.locator('details[open]').count() > 0);
-    await popup.getByLabel('이름·연락처·원본 검색').fill('없는사람');
+    await popup.getByLabel('ID·이름·연락처 검색').fill('없는사람');
     await popup.getByText('해당하는 내역이 없습니다.').waitFor();
-    await popup.getByLabel('이름·연락처·원본 검색').fill('');
+    await popup.getByLabel('ID·이름·연락처 검색').fill('');
     await popup.getByLabel('비교 상태').selectOption('all');
     await popup.getByLabel('차이만 보기').uncheck();
     await fs.mkdir('.cache/settlement-comparison', { recursive: true });

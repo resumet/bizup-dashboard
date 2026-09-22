@@ -685,8 +685,6 @@ function InstructorSettlementSection({
           <RosterComparisonButton
             courseId={courseId}
             courseName={courseName}
-            instructor={instructor.instructor}
-            months={analysis.monthlyAnalyses}
           />
           <Button variant="outline" onClick={onPrint}>
             <Printer /> 정산표 인쇄/PDF

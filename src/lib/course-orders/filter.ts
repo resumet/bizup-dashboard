@@ -1,5 +1,11 @@
 import type { CourseOrder, CourseOrderFilters } from "./types";
 
+export function isUnpaidVirtualAccount(order: Pick<CourseOrder, "status" | "paymentMethod">) {
+  const tokens = (value: string) => value.normalize("NFKC").split("/").map(part => part.replace(/\s/gu, ""));
+  return tokens(order.paymentMethod).every(method => method === "가상계좌") &&
+    tokens(order.status).every(status => ["입금대기", "입급대기"].includes(status));
+}
+
 export function isAwaitingDeposit(order: Pick<CourseOrder, "status">) {
   // Split payments can combine statuses, e.g. "결제완료 / 입금대기".
   return order.status.normalize("NFKC").split("/").some((status) => status.replace(/\s/gu, "") === "입금대기");
@@ -26,9 +32,9 @@ export function filterCourseOrders<T extends CourseOrder>(rows: T[], filters: Co
 export function summarizeCourseOrders(rows: CourseOrder[]) {
   return rows.reduce((sum, row) => ({
     count: sum.count + 1,
-    paymentAmount: sum.paymentAmount + row.paymentAmount,
-    refundAmount: sum.refundAmount + row.refundAmount,
-    currentAmount: sum.currentAmount + row.currentAmount,
+    paymentAmount: sum.paymentAmount + (isUnpaidVirtualAccount(row) ? 0 : row.paymentAmount),
+    refundAmount: sum.refundAmount + (isUnpaidVirtualAccount(row) ? 0 : row.refundAmount),
+    currentAmount: sum.currentAmount + (isUnpaidVirtualAccount(row) ? 0 : row.currentAmount),
   }), { count: 0, paymentAmount: 0, refundAmount: 0, currentAmount: 0 });
 }
 

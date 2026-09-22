@@ -153,6 +153,16 @@ test("회사·강사·공동 부담 비용을 원본 PDF 계산 순서로 반영
   }, { target: 950_000, distribution: 850_000, instructorBase: 425_000, companyBase: 425_000, supply: 405_000, vat: 40_500, instructorFinal: 445_500, companyFinal: 415_000 });
 });
 
+test("토스 J열 구매자 ID를 이름과 별개로 보존한다", () => {
+  const input = workbook();
+  input.sheets[0].data[1][8] = "동명이인";
+  input.sheets[0].data[1][9] = "001-ID";
+  input.sheets[0].data[2][8] = "동명이인";
+  input.sheets[0].data[2][9] = "002-ID";
+  const rows = analyzeWorkbook(input).detailsByInstructor["김강사"].toss;
+  assert.deepEqual(rows.slice(0, 2).map(row => row.buyerId), ["001-ID", "002-ID"]);
+});
+
 test("강사별 매출은 비즈업_요약 시트에 적힌 강사명만 집계한다", () => {
   const input = workbook();
   const toss = input.sheets.find((item) => item.sheet === "비즈업_토스")!;
