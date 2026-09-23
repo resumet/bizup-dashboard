@@ -19,9 +19,10 @@ const SERVICE_LINKS = [
 ] as const;
 
 const COURSE_OPERATIONS_ROUTE = "/services/course-operations";
+const YOUTUBE_CHANNELS_ROUTE = "/services/youtube-channels";
 const STANDALONE_SERVICE_ROUTES = [
   "/services/ad-performance",
-  "/services/youtube-channels",
+  YOUTUBE_CHANNELS_ROUTE,
 ] as const;
 
 function matchesRoute(pathname: string, route: string) {
@@ -37,6 +38,7 @@ export function ServiceQuickLinks({
 }) {
   const pathname = usePathname();
   const hiddenRouteSet = new Set(hiddenRoutes);
+  const isYoutubeChannels = matchesRoute(pathname, YOUTUBE_CHANNELS_ROUTE);
   const isStandaloneService = STANDALONE_SERVICE_ROUTES.some((route) =>
     matchesRoute(pathname, route),
   );
@@ -53,31 +55,37 @@ export function ServiceQuickLinks({
       <div className="mx-auto flex min-h-14 max-w-[1600px] items-center gap-3 px-5 lg:px-8">
         <BrandHomeLink showName={false} />
         <div className="h-5 w-px shrink-0 bg-border" />
-        <nav
-          className="flex min-w-0 flex-1 gap-1 overflow-x-auto py-2"
-          aria-label="서비스 바로가기"
-        >
-          {showCourseShortcuts ? <CourseShortcutsMenu /> : null}
-          {visibleServiceLinks.map((service) => {
-            const current = pathname.startsWith(service.href);
-            return (
-              <Button
-                key={service.href}
-                variant={current ? "secondary" : "ghost"}
-                size="sm"
-                className="shrink-0"
-                asChild
-              >
-                <Link
-                  href={service.href}
-                  aria-current={current ? "page" : undefined}
+        {isYoutubeChannels ? (
+          <span className="min-w-0 flex-1 truncate font-semibold">
+            유튜브 채널 관리
+          </span>
+        ) : (
+          <nav
+            className="flex min-w-0 flex-1 gap-1 overflow-x-auto py-2"
+            aria-label="서비스 바로가기"
+          >
+            {showCourseShortcuts ? <CourseShortcutsMenu /> : null}
+            {visibleServiceLinks.map((service) => {
+              const current = pathname.startsWith(service.href);
+              return (
+                <Button
+                  key={service.href}
+                  variant={current ? "secondary" : "ghost"}
+                  size="sm"
+                  className="shrink-0"
+                  asChild
                 >
-                  {service.label}
-                </Link>
-              </Button>
-            );
-          })}
-        </nav>
+                  <Link
+                    href={service.href}
+                    aria-current={current ? "page" : undefined}
+                  >
+                    {service.label}
+                  </Link>
+                </Button>
+              );
+            })}
+          </nav>
+        )}
         <UserAccountMenu email={email} />
       </div>
     </header>
