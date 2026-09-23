@@ -18,8 +18,24 @@ const SERVICE_LINKS = [
   { label: "자금 흐름", href: "/services/cash-flow" },
 ] as const;
 
-export function ServiceQuickLinks({ email }: { email: string }) {
+const AD_PERFORMANCE_ROUTE = "/services/ad-performance";
+const COURSE_OPERATIONS_ROUTE = "/services/course-operations";
+
+export function ServiceQuickLinks({
+  email,
+  hiddenRoutes,
+}: {
+  email: string;
+  hiddenRoutes: string[];
+}) {
   const pathname = usePathname();
+  const hiddenRouteSet = new Set(hiddenRoutes);
+  const isAdPerformance = pathname.startsWith(AD_PERFORMANCE_ROUTE);
+  const visibleServiceLinks = SERVICE_LINKS.filter(
+    (service) => service.href === "/work" || !hiddenRouteSet.has(service.href),
+  );
+  const showCourseShortcuts =
+    !isAdPerformance && !hiddenRouteSet.has(COURSE_OPERATIONS_ROUTE);
 
   return (
     <header className="border-b bg-background">
@@ -30,8 +46,10 @@ export function ServiceQuickLinks({ email }: { email: string }) {
           className="flex min-w-0 flex-1 gap-1 overflow-x-auto py-2"
           aria-label="서비스 바로가기"
         >
-          <CourseShortcutsMenu />
-          {SERVICE_LINKS.map((service) => {
+          {showCourseShortcuts ? <CourseShortcutsMenu /> : null}
+          {visibleServiceLinks.map((service) => {
+            if (isAdPerformance && service.href !== "/work") return null;
+
             const current = pathname.startsWith(service.href);
             return (
               <Button

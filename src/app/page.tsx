@@ -11,7 +11,7 @@ export default async function HomePage() {
   const user = await getAuthenticatedUser(await createClient());
   if (!user) redirect("/login");
   return <main className="min-h-screen">
-    <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-6"><BrandHomeLink /><div className="flex items-center gap-2"><AdminManagementButton email={user.email ?? ""} /><UserAccountMenu email={user.email ?? ""} /></div></header>
+    <header className="border-b bg-background"><div className="mx-auto flex min-h-16 max-w-[1600px] items-center justify-between px-5 py-4 lg:px-8"><BrandHomeLink /><div className="flex items-center gap-2"><AdminManagementButton email={user.email ?? ""} /><UserAccountMenu email={user.email ?? ""} /></div></div></header>
     <section className="mx-auto max-w-[1600px] px-5 py-8 lg:px-8 lg:py-12">
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {[

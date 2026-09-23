@@ -4,11 +4,15 @@ import { UserAccountMenu } from "@/components/auth/user-account-menu";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { CourseShortcutsMenu } from "@/components/layout/course-shortcuts-menu";
 import { WorkServiceCards } from "@/components/work/service-cards";
+import { WorkServiceCardSettingsButton } from "@/components/work/service-card-settings-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
+import { isSuperAdminEmail } from "@/lib/admin/access";
+import { DEFAULT_WORK_SERVICE_CARD_SETTINGS } from "@/lib/work/service-card-settings";
+import { loadWorkServiceCardSettings } from "@/lib/work/service-card-settings-storage";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -17,6 +21,7 @@ export default async function DashboardPage() {
   if (!currentUser) redirect("/login");
 
   const email = currentUser.email ?? "이메일 정보 없음";
+  const cardSettings=await loadWorkServiceCardSettings().catch(()=>DEFAULT_WORK_SERVICE_CARD_SETTINGS);
 
   return (
     <main className="min-h-screen">
@@ -28,6 +33,7 @@ export default async function DashboardPage() {
             <Button variant="ghost" size="icon" aria-label="알림">
               <Bell />
             </Button>
+            {isSuperAdminEmail(email) ? <WorkServiceCardSettingsButton hiddenRoutes={cardSettings.hiddenRoutes} /> : null}
             <UserAccountMenu email={email} />
           </div>
         </div>
@@ -55,7 +61,7 @@ export default async function DashboardPage() {
             />
           </div>
         </section>
-        <WorkServiceCards userId={currentUser.id} />
+        <WorkServiceCards hiddenRoutes={cardSettings.hiddenRoutes} />
       </div>
     </main>
   );
