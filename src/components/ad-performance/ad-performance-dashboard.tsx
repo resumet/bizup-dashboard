@@ -49,11 +49,22 @@ function organicTotal(metric: AdPerformanceDailyMetric) {
 }
 
 function CountInput({ value, label, onChange, money = false }: { value: number; label: string; onChange: (value: number) => void; money?: boolean }) {
-  return <Input className="min-w-24 text-right tabular-nums" inputMode="numeric" aria-label={label} value={value ? number.format(value) : ""} placeholder="0" onChange={(event) => onChange(parseCount(event.target.value))} title={money && value ? won.format(value) : undefined} />;
+  return <Input className={`h-8 min-w-0 px-1.5 text-right text-xs tabular-nums md:text-xs ${money ? "w-24" : "w-[84px]"}`} inputMode="numeric" aria-label={label} value={value ? number.format(value) : ""} placeholder="0" onChange={(event) => onChange(parseCount(event.target.value))} title={money ? won.format(value) : number.format(value)} />;
 }
 
 function SummaryCard({ label, value, detail, negative = false }: { label: string; value: string; detail: string; negative?: boolean }) {
   return <Card className={negative ? "border-destructive/40" : undefined}><CardHeader className="gap-2"><CardDescription>{label}</CardDescription><CardTitle className={`text-2xl tabular-nums ${negative ? "text-destructive" : ""}`}>{value}</CardTitle><p className="text-xs text-muted-foreground">{detail}</p></CardHeader></Card>;
+}
+
+function ConversionCard({ label, google, meta, detail }: { label: string; google: number | null; meta: number | null; detail: string }) {
+  return <Card><CardHeader className="gap-2">
+    <CardDescription>{label}</CardDescription>
+    <table aria-label={label} className="w-full table-fixed text-center">
+      <thead><tr><th scope="col" className="border-r pb-1 text-sm font-medium text-muted-foreground">Google</th><th scope="col" className="pb-1 text-sm font-medium text-muted-foreground">Meta</th></tr></thead>
+      <tbody><tr><td className="border-r px-1 text-xl font-semibold tabular-nums">{rate(google)}</td><td className="px-1 text-xl font-semibold tabular-nums">{rate(meta)}</td></tr></tbody>
+    </table>
+    <p className="text-xs text-muted-foreground">{detail}</p>
+  </CardHeader></Card>;
 }
 
 function rate(value: number | null) {
@@ -210,8 +221,8 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
         <SummaryCard label="랜딩접수 DB(오가닉)" value={`${number.format(summary.organicLandingLeads)}건`} detail="등록된 오가닉 전 채널 합계" />
         <SummaryCard label="DB 총합" value={`${number.format(summary.totalDatabaseLeads)}건`} detail="광고 랜딩 DB + 오가닉 랜딩 DB" />
         <SummaryCard label="어드민 누적 DB" value={`${number.format(summary.adminCumulativeLeads)}건`} detail="가장 최근 날짜에 직접 입력한 누적값" />
-        <SummaryCard label="광고클릭전환율" value={`G ${rate(summary.googleClickConversionRate)} · M ${rate(summary.metaClickConversionRate)}`} detail="광고클릭수 ÷ 광고노출수" />
-        <SummaryCard label="랜딩전환율" value={`G ${rate(summary.googleLandingConversionRate)} · M ${rate(summary.metaLandingConversionRate)}`} detail="광고접수 DB ÷ 광고클릭수" />
+        <ConversionCard label="광고클릭전환율" google={summary.googleClickConversionRate} meta={summary.metaClickConversionRate} detail="광고클릭수 ÷ 광고노출수" />
+        <ConversionCard label="랜딩전환율" google={summary.googleLandingConversionRate} meta={summary.metaLandingConversionRate} detail="광고접수 DB ÷ 광고클릭수" />
       </section>
 
       <Card className="mt-6">
@@ -228,19 +239,23 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
           <div className="flex flex-wrap items-end gap-2"><div className="space-y-1"><Label htmlFor="new-ad-date">기록 날짜</Label><Input id="new-ad-date" type="date" min={startDate || undefined} value={newMetricDate} onChange={(event) => setNewMetricDate(event.target.value)} /></div><Button type="button" variant="outline" onClick={addMetric}><Plus />날짜 추가</Button></div>
         </CardHeader>
         <CardContent className="overflow-x-auto px-0 sm:px-6">
-          <Table style={{ minWidth: `${2_550 + channels.length * 130}px` }}>
+          <Table className="w-max text-xs [&_td]:px-1 [&_td]:py-1 [&_th]:h-8 [&_th]:px-1 [&_th]:py-1">
             <TableHeader>
               <TableRow>
-                <TableHead rowSpan={2} className="sticky left-0 z-20 min-w-32 bg-background px-4">날짜</TableHead>
+                <TableHead rowSpan={2} className="sticky left-0 z-20 min-w-[88px] bg-background px-1">날짜</TableHead>
                 <TableHead colSpan={2} className="border-l text-center">광고 노출</TableHead><TableHead colSpan={2} className="border-l text-center">광고 클릭</TableHead><TableHead colSpan={2} className="border-l text-center">광고접수 DB</TableHead><TableHead colSpan={2} className="border-l text-center">광고 집행비용</TableHead><TableHead colSpan={2} className="border-l text-center">랜딩페이지접수 DB</TableHead>
+                <TableHead rowSpan={2} className="border-l bg-muted/40 text-center">랜딩 DB(광고)<br />총합</TableHead>
                 <TableHead colSpan={organicColumnCount} className="border-l text-center">오가닉 채널 DB</TableHead>
-                <TableHead colSpan={7} className="border-l bg-muted/40 text-center">자동 계산</TableHead>
-                <TableHead rowSpan={2} className="border-l text-center">어드민 누적 DB</TableHead><TableHead rowSpan={2} className="w-16" />
+                <TableHead rowSpan={2} className="border-l bg-muted/40 text-center">랜딩 DB(오가닉)<br />총합</TableHead>
+                <TableHead rowSpan={2} className="border-l bg-muted/40 text-center">DB 총합</TableHead>
+                <TableHead colSpan={2} className="border-l bg-muted/40 text-center">클릭전환</TableHead>
+                <TableHead colSpan={2} className="border-l bg-muted/40 text-center">랜딩전환</TableHead>
+                <TableHead rowSpan={2} className="border-l text-center">어드민<br />누적 DB</TableHead><TableHead rowSpan={2} className="w-9" />
               </TableRow>
               <TableRow>
                 {Array.from({ length: 5 }).flatMap((_, index) => [<TableHead key={`${index}-g`} className="border-l text-center">Google</TableHead>, <TableHead key={`${index}-m`} className="text-center">Meta</TableHead>])}
-                {channels.length ? channels.map((channel, index) => <TableHead key={channel.id} className={`${index === 0 ? "border-l " : ""}min-w-32 text-center`}>{channel.name}</TableHead>) : <TableHead className="border-l text-center text-muted-foreground">채널 없음</TableHead>}
-                <TableHead className="border-l bg-muted/40 text-center">랜딩 DB(광고)</TableHead><TableHead className="bg-muted/40 text-center">랜딩 DB(오가닉)</TableHead><TableHead className="bg-muted/40 text-center">DB 총합</TableHead><TableHead className="bg-muted/40 text-center">클릭전환 G</TableHead><TableHead className="bg-muted/40 text-center">클릭전환 M</TableHead><TableHead className="bg-muted/40 text-center">랜딩전환 G</TableHead><TableHead className="bg-muted/40 text-center">랜딩전환 M</TableHead>
+                {channels.length ? channels.map((channel, index) => <TableHead key={channel.id} className={`${index === 0 ? "border-l " : ""}w-[80px] max-w-[104px] whitespace-normal break-words text-center`}>{channel.name}</TableHead>) : <TableHead className="border-l text-center text-muted-foreground">채널 없음</TableHead>}
+                <TableHead className="border-l bg-muted/40 text-center">Google</TableHead><TableHead className="bg-muted/40 text-center">Meta</TableHead><TableHead className="border-l bg-muted/40 text-center">Google</TableHead><TableHead className="bg-muted/40 text-center">Meta</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -248,17 +263,18 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
                 const paidLanding = metric.googleLandingLeads + metric.metaLandingLeads;
                 const organicLanding = organicTotal(metric);
                 return <TableRow key={metric.metricDate}>
-                  <TableCell className="sticky left-0 z-10 bg-background px-4 font-medium tabular-nums">{metric.metricDate}</TableCell>
+                  <TableCell className="sticky left-0 z-10 bg-background px-1 font-medium tabular-nums">{metric.metricDate}</TableCell>
                   <TableCell className="border-l"><CountInput label={`${metric.metricDate} Google 광고 노출`} value={metric.googleImpressions} onChange={(value) => updateMetric(metric.metricDate, "googleImpressions", value)} /></TableCell><TableCell><CountInput label={`${metric.metricDate} Meta 광고 노출`} value={metric.metaImpressions} onChange={(value) => updateMetric(metric.metricDate, "metaImpressions", value)} /></TableCell>
                   <TableCell className="border-l"><CountInput label={`${metric.metricDate} Google 광고 클릭`} value={metric.googleClicks} onChange={(value) => updateMetric(metric.metricDate, "googleClicks", value)} /></TableCell><TableCell><CountInput label={`${metric.metricDate} Meta 광고 클릭`} value={metric.metaClicks} onChange={(value) => updateMetric(metric.metricDate, "metaClicks", value)} /></TableCell>
                   <TableCell className="border-l"><CountInput label={`${metric.metricDate} Google 광고접수 DB`} value={metric.googleAdLeads} onChange={(value) => updateMetric(metric.metricDate, "googleAdLeads", value)} /></TableCell><TableCell><CountInput label={`${metric.metricDate} Meta 광고접수 DB`} value={metric.metaAdLeads} onChange={(value) => updateMetric(metric.metricDate, "metaAdLeads", value)} /></TableCell>
                   <TableCell className="border-l"><CountInput money label={`${metric.metricDate} Google 광고 집행비용`} value={metric.googleSpend} onChange={(value) => updateMetric(metric.metricDate, "googleSpend", value)} /></TableCell><TableCell><CountInput money label={`${metric.metricDate} Meta 광고 집행비용`} value={metric.metaSpend} onChange={(value) => updateMetric(metric.metricDate, "metaSpend", value)} /></TableCell>
                   <TableCell className="border-l"><CountInput label={`${metric.metricDate} Google 랜딩페이지접수 DB`} value={metric.googleLandingLeads} onChange={(value) => updateMetric(metric.metricDate, "googleLandingLeads", value)} /></TableCell><TableCell><CountInput label={`${metric.metricDate} Meta 랜딩페이지접수 DB`} value={metric.metaLandingLeads} onChange={(value) => updateMetric(metric.metricDate, "metaLandingLeads", value)} /></TableCell>
+                  <TableCell className="border-l bg-muted/30 text-right font-medium tabular-nums">{number.format(paidLanding)}</TableCell>
                   {channels.length ? channels.map((channel, index) => <TableCell key={channel.id} className={index === 0 ? "border-l" : undefined}><CountInput label={`${metric.metricDate} ${channel.name} DB 유입량`} value={metric.organicLeads[channel.id] ?? 0} onChange={(value) => updateOrganicMetric(metric.metricDate, channel.id, value)} /></TableCell>) : <TableCell className="border-l text-center text-muted-foreground">-</TableCell>}
-                  <TableCell className="border-l bg-muted/30 text-right font-medium tabular-nums">{number.format(paidLanding)}</TableCell><TableCell className="bg-muted/30 text-right font-medium tabular-nums">{number.format(organicLanding)}</TableCell><TableCell className="bg-muted/30 text-right font-semibold tabular-nums">{number.format(paidLanding + organicLanding)}</TableCell>
-                  <TableCell className="bg-muted/30 text-right tabular-nums">{rate(ratio(metric.googleClicks, metric.googleImpressions))}</TableCell><TableCell className="bg-muted/30 text-right tabular-nums">{rate(ratio(metric.metaClicks, metric.metaImpressions))}</TableCell><TableCell className="bg-muted/30 text-right tabular-nums">{rate(ratio(metric.googleAdLeads, metric.googleClicks))}</TableCell><TableCell className="bg-muted/30 text-right tabular-nums">{rate(ratio(metric.metaAdLeads, metric.metaClicks))}</TableCell>
+                  <TableCell className="border-l bg-muted/30 text-right font-medium tabular-nums">{number.format(organicLanding)}</TableCell><TableCell className="border-l bg-muted/30 text-right font-semibold tabular-nums">{number.format(paidLanding + organicLanding)}</TableCell>
+                  <TableCell className="border-l bg-muted/30 text-right tabular-nums">{rate(ratio(metric.googleClicks, metric.googleImpressions))}</TableCell><TableCell className="bg-muted/30 text-right tabular-nums">{rate(ratio(metric.metaClicks, metric.metaImpressions))}</TableCell><TableCell className="border-l bg-muted/30 text-right tabular-nums">{rate(ratio(metric.googleAdLeads, metric.googleClicks))}</TableCell><TableCell className="bg-muted/30 text-right tabular-nums">{rate(ratio(metric.metaAdLeads, metric.metaClicks))}</TableCell>
                   <TableCell className="border-l"><CountInput label={`${metric.metricDate} 어드민 누적 DB`} value={metric.adminCumulativeLeads} onChange={(value) => updateMetric(metric.metricDate, "adminCumulativeLeads", value)} /></TableCell>
-                  <TableCell><Button type="button" size="icon" variant="ghost" aria-label={`${metric.metricDate} 삭제`} disabled={saving} onClick={() => void removeMetric(metric.metricDate)}><Trash2 className="text-destructive" /></Button></TableCell>
+                  <TableCell><Button type="button" size="icon" variant="ghost" className="size-8" aria-label={`${metric.metricDate} 삭제`} disabled={saving} onClick={() => void removeMetric(metric.metricDate)}><Trash2 className="text-destructive" /></Button></TableCell>
                 </TableRow>;
               })}
               {!metrics.length ? <TableRow><TableCell colSpan={20 + organicColumnCount} className="h-28 text-center text-muted-foreground">기록 날짜를 추가해 광고성과 입력을 시작하세요.</TableCell></TableRow> : null}
