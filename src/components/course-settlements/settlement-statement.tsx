@@ -13,7 +13,8 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { Textarea } from "@/components/ui/textarea";
 import type { CourseCost, CourseCostBurden } from "@/lib/course-costs/types";
 import { calculateCostSettlement, roundWon, type AggregatedInstructorSettlement, type MonthlyAnalysis, type SettlementCost } from "@/lib/course-settlements/engine";
-import { escapePrintHtml, printHtmlDocument } from "@/lib/course-settlements/print";
+import { escapePrintHtml } from "@/lib/course-settlements/print";
+import { printStatementWithStudents } from "@/lib/course-settlements/print-students";
 import { createSettlementStatementDraft, type SettlementStatementDraft } from "@/lib/course-settlements/statement";
 
 const ISSUER = "주식회사 비즈업클래스";
@@ -129,6 +130,7 @@ export function SettlementStatement({ instructor, monthlyAnalyses, courseId, cou
   const confirmed = Boolean(draft.confirmedAt);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [printing, setPrinting] = useState(false);
   const settlementCosts = useMemo(() => appliedCourseCosts.map(toSettlementCost), [appliedCourseCosts]);
   const calculation = useMemo(() => calculateCostSettlement({
     totalSales: instructor.totalSales,
@@ -199,7 +201,7 @@ export function SettlementStatement({ instructor, monthlyAnalyses, courseId, cou
     URL.revokeObjectURL(url);
   }
 
-  function printStatement() {
+  async function printStatement() {
     if (!draft.lectureName.trim() || !draft.coursePeriod.trim() || !draft.settlementPeriod.trim() || !draft.manager.trim()) {
       setError("PDF 출력 전에 강의명, 강의기간, 정산기간, 담당자를 모두 입력해 주세요.");
       return;
@@ -211,8 +213,10 @@ export function SettlementStatement({ instructor, monthlyAnalyses, courseId, cou
     const flow = calculationRows.map((row) => `<tr${row.emphasized ? ' class="highlight"' : ""}><td class="code">${row.code}</td><th>${row.label}</th><td class="number">${currency(row.value)}</td><td class="formula">${escapePrintHtml(row.formula)}</td></tr>`).join("");
     const body = `<header class="document-header"><div><p class="eyebrow">BIZUP CLASS · SETTLEMENT</p><h1>${escapePrintHtml(draft.lectureName)} 최종 정산서</h1><p class="meta">강의기간 ${escapePrintHtml(draft.coursePeriod)} · 정산기간 ${escapePrintHtml(draft.settlementPeriod)} · 발행일 ${escapePrintHtml(draft.issueDate)} · 담당자 ${escapePrintHtml(draft.manager)}</p></div><div class="document-status">${escapePrintHtml(draft.status)}</div></header>${companyInformation}<h2>정산 요약</h2>${primarySummary}${countSummary}<h2>비용 상세</h2>${costs}<h2>최종 정산 계산</h2><p class="section-description">항목 코드를 기준으로 각 계산식의 연결 관계를 확인할 수 있습니다.</p><table class="calculation-table"><thead><tr><th class="code">코드</th><th>항목</th><th class="number">금액</th><th>계산식</th></tr></thead><tbody>${flow}</tbody></table>`;
     setError("");
-    try { printHtmlDocument(`${draft.lectureName.replace(/[\\/:*?"<>|]/gu, "_")}_최종_정산서`, body); }
+    setPrinting(true);
+    try { await printStatementWithStudents(`${draft.lectureName.replace(/[\\/:*?"<>|]/gu, "_")}_최종_정산서`, body, courseId); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "정산서 인쇄 창을 열지 못했습니다. 다시 시도해 주세요."); }
+    finally { setPrinting(false); }
   }
 
   const inputFields: Array<{ label: string; key: keyof SettlementStatementDraft; placeholder: string; required?: boolean }> = [
@@ -264,7 +268,7 @@ export function SettlementStatement({ instructor, monthlyAnalyses, courseId, cou
         <div className="flex flex-wrap justify-end gap-2 border-t pt-5">
           {!confirmed ? <Button variant="outline" onClick={() => void run(() => onSave(draft), "정산 정보를 저장했습니다.")} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Save />}정산 정보 저장</Button> : null}
           <Button variant="outline" onClick={downloadDraft}><Download />JSON 저장</Button>
-          <Button variant="outline" onClick={printStatement}><Printer />정산서 인쇄/PDF</Button>
+          <Button variant="outline" disabled={printing} onClick={() => void printStatement()}>{printing ? <Loader2 className="animate-spin" /> : <Printer />}정산서 인쇄/PDF</Button>
           {confirmed ? <Button variant="outline" disabled={busy} onClick={() => void onReopen()}>{busy ? <Loader2 className="animate-spin" /> : null}정산 확정 취소</Button> : <Button disabled={busy} onClick={() => void run(() => onConfirm(draft), "정산서를 확정했습니다.")}>{busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}정산 확정</Button>}
         </div>
       </CardContent></Card>
