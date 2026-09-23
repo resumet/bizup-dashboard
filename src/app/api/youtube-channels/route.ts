@@ -93,3 +93,20 @@ export async function POST(request: Request) {
     return NextResponse.json({batchId:batch.id},{status:202});
   } catch(error) { return failure(error); }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const {admin,workspaceId} = await context();
+    const channelId = new URL(request.url).searchParams.get("channelId");
+    if (!channelId?.trim() || channelId.length > 128) return NextResponse.json({error:"잘못된 채널입니다."},{status:400});
+    const result = await admin.from("youtube_analyzed_channels")
+      .delete()
+      .eq("workspace_id",workspaceId)
+      .eq("channel_id",channelId)
+      .select("channel_id")
+      .maybeSingle();
+    if (result.error) throw result.error;
+    if (!result.data) return NextResponse.json({error:"삭제할 채널을 찾을 수 없습니다."},{status:404});
+    return NextResponse.json({deleted:result.data.channel_id});
+  } catch(error) { return failure(error); }
+}

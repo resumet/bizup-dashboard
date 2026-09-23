@@ -13,6 +13,8 @@ Entry point: `/services/youtube-channels`, also linked from the main page.
 
 - Existing workspace membership controls access. Current channel and video tables expose SELECT only to members through RLS. Creation and updates use server-only service credentials.
 - The list is cumulative and ordered by the time a channel was first analyzed. A new channel is appended; analyzing an existing channel updates that channel in place without changing its first-seen position.
+- A member can delete one channel from the cumulative list after confirmation. Its current video collection is removed by the database cascade; analyzing it again creates a new entry at the bottom.
+- The main page shows the analyzed channel registry only. URL entry, validation, and request progress live in the `채널 추가` dialog.
 - Every request fetches fresh API data. Different URLs for the same channel share one collection within that request.
 - Every uploads-playlist page is fetched, video details are requested in groups of at most 50, and only public videos are counted.
 - A channel and its current full-precision video collection are replaced atomically. An older overlapping job cannot overwrite a collection started later.

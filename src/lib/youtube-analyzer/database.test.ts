@@ -69,8 +69,17 @@ test("channels accumulate in first-seen order and reanalysis updates only the ma
     await db.query(save,[secondBatch,JSON.stringify({id:"channel-a",name:"Stale"}),JSON.stringify({count:0}),"[]","2098-01-15","[]"]);
     assert.equal((await db.query<{channel:{name:string} }>("select channel from youtube_analyzed_channels where channel_id='channel-a'")).rows[0].channel.name,"Updated");
 
+    // Deleting one current channel cascades only its videos. Analyzing it again
+    // creates a new entry at the bottom of the cumulative list.
+    const removedPosition=channels.rows[1].position;
+    await db.query("delete from youtube_analyzed_channels where workspace_id=$1 and channel_id='channel-b'",[workspace]);
+    assert.equal((await db.query("select * from youtube_channel_videos where channel_id='channel-b'")).rows.length,0);
+    assert.equal((await db.query("select * from youtube_analyzed_channels where channel_id='channel-a'")).rows.length,1);
+    await db.query(save,[thirdBatch,JSON.stringify({id:"channel-b",name:"Re-added"}),JSON.stringify({count:1}),"[]","2101-03-01",JSON.stringify([{id:"readded-video",publishedAt:"2101-03-01",views:40}])]);
+    assert.ok((await db.query<{position:number}>("select position from youtube_analyzed_channels where channel_id='channel-b'")).rows[0].position>removedPosition);
+
     // Channel and video replacement are one transaction.
-    await assert.rejects(db.query(save,[thirdBatch,'{"id":"broken"}',"{}","[]","2101-04-01",'[{"id":"x","publishedAt":"invalid"}]']));
+    await assert.rejects(db.query(save,[thirdBatch,'{"id":"broken"}',"{}","[]","2102-04-01",'[{"id":"x","publishedAt":"invalid"}]']));
     assert.equal((await db.query("select * from youtube_analyzed_channels where channel_id='broken'")).rows.length,0);
 
     await db.exec(`set role authenticated; select set_config('test.user','${user}',false)`);
