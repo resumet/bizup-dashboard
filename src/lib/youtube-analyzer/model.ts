@@ -25,6 +25,25 @@ export function inputs(text: string) {
   });
 }
 export type Video = { id: string; title: string; publishedAt: string; views: number; likes: number | null; comments: number | null };
+export type YoutubeTitleFormula = {
+  summary: string;
+  signals: string[];
+  formulas: Array<{
+    name: string;
+    template: string;
+    whyItWorks: string;
+    example: string;
+  }>;
+  cautions: string[];
+};
+export function topVideoGroups(videos: Video[]) {
+  const top = (metric: "views" | "likes" | "comments") =>
+    [...videos]
+      .filter(video => (video[metric] ?? 0) > 0)
+      .sort((left,right) => (right[metric] ?? 0) - (left[metric] ?? 0) || right.publishedAt.localeCompare(left.publishedAt) || left.id.localeCompare(right.id))
+      .slice(0,Math.min(7,videos.length));
+  return { views:top("views"), likes:top("likes"), comments:top("comments") };
+}
 export type Channel = { id: string; name: string; url: string; thumbnail: string | null; reported: number; subscribers: number | null; playlist: string };
 export function calculate(videos: Video[]) {
   const recent = [...videos].sort((a,b) => b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id));

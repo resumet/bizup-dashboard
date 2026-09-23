@@ -3,10 +3,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ExternalLink, LoaderCircle, Play, RefreshCw, TvMinimalPlay } from "lucide-react";
+import { ArrowLeft, ExternalLink, LoaderCircle, Play, RefreshCw, Sparkles, TvMinimalPlay } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { inputs, parseSource, errorMessages, type Analysis, type AnalysisRequest, type Batch, type Video } from "@/lib/youtube-analyzer/model";
+import { inputs, parseSource, errorMessages, type Analysis, type AnalysisRequest, type Batch, type Video, type YoutubeTitleFormula } from "@/lib/youtube-analyzer/model";
 
 const number = (n: number | null | undefined) => n == null ? "-" : Math.round(n).toLocaleString("ko-KR");
 const date = (s: string) => new Date(s).toLocaleString("ko-KR");
@@ -36,6 +36,10 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   const [detail,setDetail] = useState<Analysis | null>(null);
   const [videos,setVideos] = useState<Video[] | null>(null);
   const [detailError,setDetailError] = useState("");
+  const [formula,setFormula] = useState<YoutubeTitleFormula | null>(null);
+  const [formulaError,setFormulaError] = useState("");
+  const [generatingFormula,setGeneratingFormula] = useState(false);
+  const formulaVersion = useRef(0);
   const urls = inputs(text);
   const invalid = urls.flatMap(url => { try { parseSource(url); return []; } catch (e) { return [{url,message:errorMessages[e instanceof Error ? e.message : ""] ?? errorMessages.INVALID_URL}]; } });
 
@@ -77,7 +81,17 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     window.history.pushState(null,"",id ? `?batchId=${id}` : window.location.pathname);
     setLoading(true); setBatchId(id); setBatch(null); setRequests([]); setRuns([]);
   }
-  function openDetail(run: Analysis) { setVideos(null); setDetailError(""); setDetail(run); }
+  function openDetail(run: Analysis) { formulaVersion.current++; setVideos(null); setDetailError(""); setFormula(null); setFormulaError(""); setGeneratingFormula(false); setDetail(run); }
+  async function createTitleFormula() {
+    if(!detail || !videos || videos.length < 3 || generatingFormula) return;
+    const version=++formulaVersion.current;
+    setGeneratingFormula(true); setFormulaError("");
+    try {
+      const data=await api("/title-formula",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({channelTitle:detail.channel.name,videos})});
+      if(version===formulaVersion.current) setFormula(data.formula);
+    } catch(e) { if(version===formulaVersion.current) setFormulaError(e instanceof Error ? e.message : "제목 공식을 만들지 못했습니다."); }
+    finally { if(version===formulaVersion.current) setGeneratingFormula(false); }
+  }
   async function loadMore() {
     const version=viewVersion.current;
     setLoadingMore(true);
@@ -120,6 +134,35 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
       </tr>)}</tbody></table></div>}
       {!batchId && hasMore && <Button variant="outline" disabled={loadingMore} onClick={loadMore}>{loadingMore ? <LoaderCircle className="size-4 animate-spin"/> : null}더 불러오기</Button>}
     </section>
-    <Dialog open={!!detail} onOpenChange={open=>{if(!open) setDetail(null);}}><DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl"><DialogHeader><DialogTitle>{detail?.channel.name}</DialogTitle><DialogDescription>최근 영상 {Math.min(detail?.metrics.count ?? 0,30)}개 · {detail ? date(detail.completed_at) : ""}</DialogDescription></DialogHeader>{detailError ? <p role="alert" className="text-red-700">{detailError}</p> : videos===null ? <p>영상을 불러오는 중입니다.</p> : !videos.length ? <p>공개 영상이 없습니다.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[540px] text-sm"><thead><tr>{["영상","게시일","조회수","좋아요","댓글"].map(h=><th key={h} className="border-b p-2 text-left">{h}</th>)}</tr></thead><tbody>{videos.map(video=><tr key={video.id}><td className="max-w-96 border-b p-2"><a className="text-blue-700 hover:underline" href={`https://www.youtube.com/watch?v=${video.id}`} target="_blank" rel="noreferrer">{video.title}</a></td><td className="whitespace-nowrap border-b p-2">{new Date(video.publishedAt).toLocaleDateString("ko-KR")}</td>{[video.views,video.likes,video.comments].map((v,i)=><td key={i} className="border-b p-2 text-right tabular-nums">{number(v)}</td>)}</tr>)}</tbody></table></div>}</DialogContent></Dialog>
+    <Dialog open={!!detail} onOpenChange={open=>{if(!open) {formulaVersion.current++;setGeneratingFormula(false);setDetail(null);}}}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
+        <DialogHeader>
+          <div className="flex flex-wrap items-start justify-between gap-3 pr-8">
+            <div className="space-y-2">
+              <DialogTitle>{detail?.channel.name}</DialogTitle>
+              <DialogDescription>최근 영상 {Math.min(detail?.metrics.count ?? 0,30)}개 · {detail ? date(detail.completed_at) : ""}</DialogDescription>
+            </div>
+            <Button onClick={createTitleFormula} disabled={!videos || videos.length<3 || generatingFormula}>
+              {generatingFormula ? <LoaderCircle className="size-4 animate-spin"/> : <Sparkles className="size-4"/>}
+              {generatingFormula ? "분석 중" : "후킹 제목 공식 만들기"}
+            </Button>
+          </div>
+        </DialogHeader>
+        {formulaError && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{formulaError}</p>}
+        {formula && <section className="space-y-4 rounded-lg border border-violet-200 bg-violet-50/60 p-4 text-violet-950">
+          <div className="flex items-center gap-2"><Sparkles className="size-5"/><h3 className="font-semibold">이 채널의 후킹 제목 공식</h3></div>
+          <p className="leading-6">{formula.summary}</p>
+          <ul className="flex flex-wrap gap-2">{formula.signals.map(signal=><li key={signal} className="rounded-full border border-violet-300 bg-white px-2.5 py-1 text-xs">{signal}</li>)}</ul>
+          <div className="grid gap-3 md:grid-cols-2">{formula.formulas.map((item,index)=><article key={`${item.name}-${index}`} className="space-y-2 rounded-md border bg-background p-3 text-foreground">
+            <h4 className="font-semibold">{index+1}. {item.name}</h4>
+            <p className="rounded bg-muted px-3 py-2 font-medium text-violet-700">{item.template}</p>
+            <p className="text-sm leading-6 text-muted-foreground">{item.whyItWorks}</p>
+            <p className="text-sm"><span className="font-medium">예시</span> · {item.example}</p>
+          </article>)}</div>
+          {formula.cautions.length>0 && <p className="text-xs leading-5 text-muted-foreground">참고: {formula.cautions.join(" · ")}</p>}
+        </section>}
+        {detailError ? <p role="alert" className="text-red-700">{detailError}</p> : videos===null ? <p>영상을 불러오는 중입니다.</p> : !videos.length ? <p>공개 영상이 없습니다.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[540px] text-sm"><thead><tr>{["영상","게시일","조회수","좋아요","댓글"].map(h=><th key={h} className="border-b p-2 text-left">{h}</th>)}</tr></thead><tbody>{videos.map(video=><tr key={video.id}><td className="max-w-96 border-b p-2"><a className="text-blue-700 hover:underline" href={`https://www.youtube.com/watch?v=${video.id}`} target="_blank" rel="noreferrer">{video.title}</a></td><td className="whitespace-nowrap border-b p-2">{new Date(video.publishedAt).toLocaleDateString("ko-KR")}</td>{[video.views,video.likes,video.comments].map((v,i)=><td key={i} className="border-b p-2 text-right tabular-nums">{number(v)}</td>)}</tr>)}</tbody></table></div>}
+      </DialogContent>
+    </Dialog>
   </main>;
 }
