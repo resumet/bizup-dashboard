@@ -49,7 +49,7 @@ function organicTotal(metric: AdPerformanceDailyMetric) {
 }
 
 function CountInput({ value, label, onChange, money = false }: { value: number; label: string; onChange: (value: number) => void; money?: boolean }) {
-  return <Input className={`h-8 min-w-0 px-1.5 text-right text-xs tabular-nums md:text-xs ${money ? "w-24" : "w-[84px]"}`} inputMode="numeric" aria-label={label} value={value ? number.format(value) : ""} placeholder="0" onChange={(event) => onChange(parseCount(event.target.value))} title={money ? won.format(value) : number.format(value)} />;
+  return <Input className={`h-8 min-w-0 px-1 text-right tabular-nums ${money ? "w-[104px]" : "w-[88px]"}`} inputMode="numeric" aria-label={label} value={value ? number.format(value) : ""} placeholder="0" onChange={(event) => onChange(parseCount(event.target.value))} title={money ? won.format(value) : number.format(value)} />;
 }
 
 function SummaryCard({ label, value, detail, negative = false }: { label: string; value: string; detail: string; negative?: boolean }) {
@@ -239,14 +239,12 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
           <div className="flex flex-wrap items-end gap-2"><div className="space-y-1"><Label htmlFor="new-ad-date">기록 날짜</Label><Input id="new-ad-date" type="date" min={startDate || undefined} value={newMetricDate} onChange={(event) => setNewMetricDate(event.target.value)} /></div><Button type="button" variant="outline" onClick={addMetric}><Plus />날짜 추가</Button></div>
         </CardHeader>
         <CardContent className="overflow-x-auto px-0 sm:px-6">
-          <Table className="w-max text-xs [&_td]:px-1 [&_td]:py-1 [&_th]:h-8 [&_th]:px-1 [&_th]:py-1">
+          <Table className="w-max [&_td]:px-1 [&_td]:py-1 [&_th]:h-8 [&_th]:px-1 [&_th]:py-1">
             <TableHeader>
               <TableRow>
                 <TableHead rowSpan={2} className="sticky left-0 z-20 min-w-[88px] bg-background px-1">날짜</TableHead>
-                <TableHead colSpan={2} className="border-l text-center">광고 노출</TableHead><TableHead colSpan={2} className="border-l text-center">광고 클릭</TableHead><TableHead colSpan={2} className="border-l text-center">광고접수 DB</TableHead><TableHead colSpan={2} className="border-l text-center">광고 집행비용</TableHead><TableHead colSpan={2} className="border-l text-center">랜딩페이지접수 DB</TableHead>
-                <TableHead rowSpan={2} className="border-l bg-muted/40 text-center">랜딩 DB(광고)<br />총합</TableHead>
-                <TableHead colSpan={organicColumnCount} className="border-l text-center">오가닉 채널 DB</TableHead>
-                <TableHead rowSpan={2} className="border-l bg-muted/40 text-center">랜딩 DB(오가닉)<br />총합</TableHead>
+                <TableHead colSpan={2} className="border-l text-center">광고 노출</TableHead><TableHead colSpan={2} className="border-l text-center">광고 클릭</TableHead><TableHead colSpan={2} className="border-l text-center">광고접수 DB</TableHead><TableHead colSpan={2} className="border-l text-center">광고 집행비용</TableHead><TableHead colSpan={3} className="border-l text-center">랜딩페이지접수 DB</TableHead>
+                <TableHead colSpan={organicColumnCount + 1} className="border-l text-center">오가닉 채널 DB</TableHead>
                 <TableHead rowSpan={2} className="border-l bg-muted/40 text-center">DB 총합</TableHead>
                 <TableHead colSpan={2} className="border-l bg-muted/40 text-center">클릭전환</TableHead>
                 <TableHead colSpan={2} className="border-l bg-muted/40 text-center">랜딩전환</TableHead>
@@ -254,7 +252,9 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
               </TableRow>
               <TableRow>
                 {Array.from({ length: 5 }).flatMap((_, index) => [<TableHead key={`${index}-g`} className="border-l text-center">Google</TableHead>, <TableHead key={`${index}-m`} className="text-center">Meta</TableHead>])}
+                <TableHead className="border-l bg-muted/40 text-center">총합</TableHead>
                 {channels.length ? channels.map((channel, index) => <TableHead key={channel.id} className={`${index === 0 ? "border-l " : ""}w-[80px] max-w-[104px] whitespace-normal break-words text-center`}>{channel.name}</TableHead>) : <TableHead className="border-l text-center text-muted-foreground">채널 없음</TableHead>}
+                <TableHead className="border-l bg-muted/40 text-center">총합</TableHead>
                 <TableHead className="border-l bg-muted/40 text-center">Google</TableHead><TableHead className="bg-muted/40 text-center">Meta</TableHead><TableHead className="border-l bg-muted/40 text-center">Google</TableHead><TableHead className="bg-muted/40 text-center">Meta</TableHead>
               </TableRow>
             </TableHeader>

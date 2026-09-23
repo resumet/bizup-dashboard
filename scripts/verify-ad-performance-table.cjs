@@ -35,9 +35,14 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
       assert.equal(await cardTable.locator('td').count(), 2);
     }
     assert.deepEqual(await page.getByRole('table', { name: '랜딩전환율', exact: true }).locator('td').allTextContents(), ['10%', '10%']);
-    assert.ok(headers[headers.indexOf('랜딩페이지접수 DB') + 1].includes('랜딩 DB(광고)'));
-    assert.ok(headers[headers.indexOf('오가닉 채널 DB') + 1].includes('랜딩 DB(오가닉)'));
-    assert.equal(headers[headers.findIndex(header => header.includes('랜딩 DB(오가닉)')) + 1], 'DB 총합');
+    assert.equal(await page.getByRole('columnheader', { name: '랜딩페이지접수 DB', exact: true }).getAttribute('colspan'), '3');
+    assert.deepEqual((await page.locator('table[data-slot="table"] thead tr').nth(1).locator('th').allTextContents()).slice(8, 11), ['Google', 'Meta', '총합']);
+    const standardTextSize = await page.evaluate(() => `${parseFloat(getComputedStyle(document.documentElement).fontSize) * 0.875}px`);
+    assert.equal(await page.locator('table[data-slot="table"]').evaluate(el => getComputedStyle(el).fontSize), standardTextSize);
+    assert.equal(await page.getByLabel('2026-09-23 Google 광고 노출', { exact: true }).evaluate(el => getComputedStyle(el).fontSize), standardTextSize);
+    assert.equal(await page.getByRole('columnheader', { name: '오가닉 채널 DB', exact: true }).getAttribute('colspan'), '3');
+    assert.deepEqual((await page.locator('table[data-slot="table"] thead tr').nth(1).locator('th').allTextContents()).slice(11, 14), ['네이버 블로그', '유튜브', '총합']);
+    assert.equal(headers[headers.indexOf('오가닉 채널 DB') + 1], 'DB 총합');
     assert.equal(await page.getByRole('columnheader', { name: 'DB 총합', exact: true }).getAttribute('rowspan'), '2');
     for (const label of ['클릭전환', '랜딩전환']) {
       assert.equal(await page.getByRole('columnheader', { name: label, exact: true }).getAttribute('colspan'), '2');
