@@ -1,5 +1,20 @@
 import type { AdPerformanceDailyMetric, AdPerformanceSummary } from "./types";
 
+export function calculateDailyAdSpend(metrics: AdPerformanceDailyMetric[]) {
+  let cumulativeSpend = 0;
+  return [...metrics].sort((a, b) => a.metricDate.localeCompare(b.metricDate)).map((metric) => {
+    const totalSpend = metric.googleSpend + metric.metaSpend;
+    cumulativeSpend += totalSpend;
+    return {
+      ...metric, totalSpend, cumulativeSpend,
+      googleAdLeadCost: unitCost(metric.googleSpend, metric.googleAdLeads),
+      metaAdLeadCost: unitCost(metric.metaSpend, metric.metaAdLeads),
+      googleLandingLeadCost: unitCost(metric.googleSpend, metric.googleLandingLeads),
+      metaLandingLeadCost: unitCost(metric.metaSpend, metric.metaLandingLeads),
+    };
+  });
+}
+
 function ratio(numerator: number, denominator: number) {
   return denominator > 0 ? numerator / denominator * 100 : null;
 }
@@ -20,6 +35,8 @@ export function summarizeAdPerformance(
     result.googleAdLeads += metric.googleAdLeads;
     result.metaAdLeads += metric.metaAdLeads;
     result.spend += metric.googleSpend + metric.metaSpend;
+    result.googleSpend += metric.googleSpend;
+    result.metaSpend += metric.metaSpend;
     result.paidLandingLeads += metric.googleLandingLeads + metric.metaLandingLeads;
     result.organicLandingLeads += Object.values(metric.organicLeads).reduce((sum, value) => sum + value, 0);
     return result;
@@ -31,6 +48,8 @@ export function summarizeAdPerformance(
     googleAdLeads: 0,
     metaAdLeads: 0,
     spend: 0,
+    googleSpend: 0,
+    metaSpend: 0,
     paidLandingLeads: 0,
     organicLandingLeads: 0,
   });

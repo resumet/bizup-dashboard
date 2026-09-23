@@ -62,6 +62,8 @@ export type AdPerformanceSummary = {
   clicks: number;
   adLeads: number;
   spend: number;
+  googleSpend: number;
+  metaSpend: number;
   googleImpressions: number;
   metaImpressions: number;
   googleClicks: number;
