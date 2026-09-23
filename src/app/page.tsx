@@ -15,7 +15,7 @@ export default async function HomePage() {
     <section className="mx-auto max-w-[1600px] px-5 py-8 lg:px-8 lg:py-12">
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {[
-          { href: "/work", name: "대시보드", description: "강의 운영, 수강생 명단, 알림톡·문자와 정산 등 기존 업무 도구를 사용합니다.", icon: LayoutDashboard, color: "bg-blue-50 text-blue-700" },
+          { href: "/work", name: "강의관리", description: "강의 운영, 수강생 명단, 알림톡·문자와 정산 등 기존 업무 도구를 사용합니다.", icon: LayoutDashboard, color: "bg-blue-50 text-blue-700" },
           { href: "/hr", name: "업무관리", description: "오늘의 업무와 진행 상황, 담당자 이관 내역을 관리합니다.", icon: BriefcaseBusiness, color: "bg-emerald-50 text-emerald-700" },
           { href: "/hr/leave", name: "근태관리", description: "휴가 신청과 부여 현황, 임직원 정보를 확인합니다.", icon: CalendarDays, color: "bg-rose-50 text-rose-700" },
           { href: "/services/ad-performance", name: "광고성과", description: "Google·Meta 광고의 날짜별 노출, 클릭, 접수 DB와 집행비를 기록합니다.", icon: BarChart3, color: "bg-violet-50 text-violet-700" },

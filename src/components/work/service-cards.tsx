@@ -1,12 +1,17 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   ArrowLeftRight, ArrowRight, BookOpenCheck, Calculator, CalendarRange, ChartNoAxesCombined,
   CirclePlay, ContactRound, FileCheck2, FileDown, FileSpreadsheet, HandCoins,
-  MessageSquareText, PhoneCall, ShoppingCart, Users, WalletCards,
+  MessageSquareText, PhoneCall, Settings2, ShoppingCart, Users, WalletCards,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type Service = { title: string; description: string; route: string; icon: LucideIcon; active?: boolean; iconClass?: string };
 
@@ -55,16 +60,71 @@ function ServiceCard({ service }: { service: Service }) {
   );
 }
 
-export function WorkServiceCards() {
+const allRoutes = new Set([...services,...quickTools].map(service=>service.route));
+
+function readHiddenRoutes(userId: string) {
+  try {
+    const value=JSON.parse(window.localStorage.getItem(`bizup-work-hidden-cards:${userId}`) ?? "[]");
+    return new Set<string>(Array.isArray(value) ? value.filter(route=>typeof route==="string" && allRoutes.has(route)) : []);
+  } catch { return new Set<string>(); }
+}
+
+export function WorkServiceCards({userId}:{userId:string}) {
+  const [hiddenRoutes,setHiddenRoutes]=useState<Set<string>>(new Set());
+  const [draftHidden,setDraftHidden]=useState<Set<string>>(new Set());
+  const [settingsOpen,setSettingsOpen]=useState(false);
+  const [saveError,setSaveError]=useState("");
+
+  useEffect(()=>{
+    const timer=window.setTimeout(()=>setHiddenRoutes(readHiddenRoutes(userId)),0);
+    return ()=>window.clearTimeout(timer);
+  },[userId]);
+
+  const visibleServices=services.filter(service=>!hiddenRoutes.has(service.route));
+  const visibleTools=quickTools.filter(service=>!hiddenRoutes.has(service.route));
+
+  function changeSettingsOpen(open:boolean) {
+    setSettingsOpen(open);
+    if(open) { setDraftHidden(new Set(hiddenRoutes)); setSaveError(""); }
+  }
+
+  function setVisible(route:string,visible:boolean) {
+    setDraftHidden(current=>{
+      const next=new Set(current);
+      if(visible) next.delete(route); else next.add(route);
+      return next;
+    });
+  }
+
+  function saveSettings() {
+    try {
+      window.localStorage.setItem(`bizup-work-hidden-cards:${userId}`,JSON.stringify([...draftHidden]));
+      setHiddenRoutes(new Set(draftHidden));
+      setSettingsOpen(false);
+    } catch { setSaveError("카드 표시 설정을 저장하지 못했습니다."); }
+  }
+
   return <>
-    <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="서비스 목록">
-      {services.map(service => <ServiceCard key={service.route} service={service} />)}
-    </section>
-    <section className="mt-10 border-t pt-6" aria-label="간편 도구">
+    <div className="mt-8 flex justify-end"><Button variant="outline" onClick={()=>changeSettingsOpen(true)}><Settings2 />설정</Button></div>
+    {visibleServices.length ? <section className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="서비스 목록">
+      {visibleServices.map(service => <ServiceCard key={service.route} service={service} />)}
+    </section> : null}
+    {visibleTools.length ? <section className="mt-10 border-t pt-6" aria-label="간편 도구">
       <h2 className="mb-4 text-xl font-semibold tracking-tight">간편 도구</h2>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {quickTools.map(service => <ServiceCard key={service.route} service={service} />)}
+        {visibleTools.map(service => <ServiceCard key={service.route} service={service} />)}
       </div>
-    </section>
+    </section> : null}
+    {!visibleServices.length && !visibleTools.length ? <p className="mt-4 rounded-lg border border-dashed p-10 text-center text-muted-foreground">표시할 카드가 없습니다. 설정에서 사용할 카드를 선택해 주세요.</p> : null}
+    <Dialog open={settingsOpen} onOpenChange={changeSettingsOpen}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader><DialogTitle>카드 표시 설정</DialogTitle><DialogDescription>강의관리 화면에 표시할 카드를 선택하세요.</DialogDescription></DialogHeader>
+        <div className="space-y-5">
+          {[{title:"서비스",items:services},{title:"간편 도구",items:quickTools}].map(group=><section key={group.title} className="space-y-2"><h3 className="font-semibold">{group.title}</h3><div className="grid gap-2 sm:grid-cols-2">{group.items.map(service=><label key={service.route} className="flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm hover:bg-muted/40"><Checkbox checked={!draftHidden.has(service.route)} onCheckedChange={checked=>setVisible(service.route,checked===true)} aria-label={`${service.title} 표시`} /><span className="min-w-0 flex-1">{service.title}</span></label>)}</div></section>)}
+        </div>
+        {saveError && <p role="alert" className="text-sm text-red-700">{saveError}</p>}
+        <DialogFooter><Button type="button" variant="ghost" className="mr-auto" onClick={()=>setDraftHidden(new Set())}>전체 표시</Button><DialogClose asChild><Button variant="outline">취소</Button></DialogClose><Button onClick={saveSettings}>저장</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
   </>;
 }

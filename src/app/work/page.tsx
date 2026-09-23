@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Bell, LayoutGrid, Search } from "lucide-react";
+import { Bell, Search } from "lucide-react";
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { CourseShortcutsMenu } from "@/components/layout/course-shortcuts-menu";
@@ -24,12 +24,6 @@ export default async function DashboardPage() {
         <div className="mx-auto flex h-18 max-w-[1600px] items-center gap-6 px-5 lg:px-8">
           <BrandHomeLink />
           <CourseShortcutsMenu />
-          <nav className="hidden items-center gap-1 md:flex">
-            <Button variant="secondary" size="sm">
-              <LayoutGrid />
-              서비스
-            </Button>
-          </nav>
           <div className="ml-auto flex items-center gap-2">
             <Button variant="ghost" size="icon" aria-label="알림">
               <Bell />
@@ -61,7 +55,7 @@ export default async function DashboardPage() {
             />
           </div>
         </section>
-        <WorkServiceCards />
+        <WorkServiceCards userId={currentUser.id} />
       </div>
     </main>
   );
