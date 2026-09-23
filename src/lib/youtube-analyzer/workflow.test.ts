@@ -28,7 +28,7 @@ test("workflow paginates all uploads, deduplicates channels per batch, and recol
     }
     assert.equal(url.hostname,"supabase.test");
     const body=init?.body ? JSON.parse(String(init.body)) : null;
-    if(url.pathname.endsWith("save_youtube_analysis")) {
+    if(url.pathname.endsWith("save_youtube_channel")) {
       saved.push(body);
       for(const row of requests.values()) if(row.resolved_channel_id===channelId) row.status="completed";
       return Response.json("run-id");

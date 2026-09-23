@@ -21,7 +21,7 @@ async function save(batchId: string, channel: Channel, started: string, videos: 
   const warnings = [];
   if (!videos.length) warnings.push("공개 영상이 없습니다.");
   if (channel.reported !== videos.length) warnings.push(`전체 영상 ${channel.reported}개 중 공개 영상 ${videos.length}개를 분석했습니다.`);
-  const { error } = await createAdminClient().rpc("save_youtube_analysis", { p_batch:batchId, p_channel:channel, p_metrics:calculate(videos), p_warnings:warnings, p_started:started, p_videos:videos });
+  const { error } = await createAdminClient().rpc("save_youtube_channel", { p_batch:batchId, p_channel:channel, p_metrics:calculate(videos), p_warnings:warnings, p_started:started, p_videos:videos });
   if (error) throw new Error("SAVE_ERROR");
 }
 async function batchState(batchId: string, count: number, finish = false) {
