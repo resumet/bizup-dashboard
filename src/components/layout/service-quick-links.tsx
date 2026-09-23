@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { AdminManagementButton } from "@/components/admin/admin-management-button";
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { CourseShortcutsMenu } from "@/components/layout/course-shortcuts-menu";
@@ -52,7 +51,6 @@ export function ServiceQuickLinks({ email }: { email: string }) {
             );
           })}
         </nav>
-        <AdminManagementButton email={email} />
         <UserAccountMenu email={email} />
       </div>
     </header>

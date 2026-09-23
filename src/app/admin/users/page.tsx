@@ -9,7 +9,6 @@ import {
   UsersRound,
 } from "lucide-react";
 
-import { AdminManagementButton } from "@/components/admin/admin-management-button";
 import { UserRoleSelect } from "@/components/admin/user-role-select";
 import { UserNameEditor } from "@/components/admin/user-name-editor";
 import { CommonLinksManager } from "@/components/admin/common-links-manager";
@@ -132,9 +131,6 @@ export default async function AdminUsersPage({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <AdminManagementButton
-              email={currentUser.email ?? SUPER_ADMIN_EMAIL}
-            />
             <UserAccountMenu email={currentUser.email ?? SUPER_ADMIN_EMAIL} />
           </div>
         </div>

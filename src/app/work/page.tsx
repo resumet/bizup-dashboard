@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { Bell, LayoutGrid, Search } from "lucide-react";
-import { AdminManagementButton } from "@/components/admin/admin-management-button";
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { CourseShortcutsMenu } from "@/components/layout/course-shortcuts-menu";
@@ -32,7 +31,6 @@ export default async function DashboardPage() {
             </Button>
           </nav>
           <div className="ml-auto flex items-center gap-2">
-            <AdminManagementButton email={email} />
             <Button variant="ghost" size="icon" aria-label="알림">
               <Bell />
             </Button>

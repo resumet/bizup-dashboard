@@ -16,12 +16,10 @@ export function AdminManagementButton({ email }: { email: string }) {
     >
       <Link
         href="/admin"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="관리자 화면 새 창에서 열기"
+        aria-label="관리자"
       >
         <ShieldCheck />
-        관리자 화면
+        관리자
       </Link>
     </Button>
   );

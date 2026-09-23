@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ArrowRight, BarChart3, BriefcaseBusiness, CalendarDays, LayoutDashboard, TvMinimalPlay } from "lucide-react";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
+import { AdminManagementButton } from "@/components/admin/admin-management-button";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 
@@ -10,7 +11,7 @@ export default async function HomePage() {
   const user = await getAuthenticatedUser(await createClient());
   if (!user) redirect("/login");
   return <main className="min-h-screen">
-    <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-6"><BrandHomeLink /><UserAccountMenu email={user.email ?? ""} /></header>
+    <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-6"><BrandHomeLink /><div className="flex items-center gap-2"><AdminManagementButton email={user.email ?? ""} /><UserAccountMenu email={user.email ?? ""} /></div></header>
     <section className="mx-auto max-w-5xl px-5 py-12 sm:py-24">
       <p className="text-sm font-semibold tracking-widest text-blue-700">BIZUP WORKSPACE</p>
       <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">어떤 공간에서 시작할까요?</h1>
