@@ -18,8 +18,15 @@ const SERVICE_LINKS = [
   { label: "자금 흐름", href: "/services/cash-flow" },
 ] as const;
 
-const AD_PERFORMANCE_ROUTE = "/services/ad-performance";
 const COURSE_OPERATIONS_ROUTE = "/services/course-operations";
+const STANDALONE_SERVICE_ROUTES = [
+  "/services/ad-performance",
+  "/services/youtube-channels",
+] as const;
+
+function matchesRoute(pathname: string, route: string) {
+  return pathname === route || pathname.startsWith(`${route}/`);
+}
 
 export function ServiceQuickLinks({
   email,
@@ -30,12 +37,16 @@ export function ServiceQuickLinks({
 }) {
   const pathname = usePathname();
   const hiddenRouteSet = new Set(hiddenRoutes);
-  const isAdPerformance = pathname.startsWith(AD_PERFORMANCE_ROUTE);
+  const isStandaloneService = STANDALONE_SERVICE_ROUTES.some((route) =>
+    matchesRoute(pathname, route),
+  );
   const visibleServiceLinks = SERVICE_LINKS.filter(
-    (service) => service.href === "/work" || !hiddenRouteSet.has(service.href),
+    (service) =>
+      service.href === "/work" ||
+      (!isStandaloneService && !hiddenRouteSet.has(service.href)),
   );
   const showCourseShortcuts =
-    !isAdPerformance && !hiddenRouteSet.has(COURSE_OPERATIONS_ROUTE);
+    !isStandaloneService && !hiddenRouteSet.has(COURSE_OPERATIONS_ROUTE);
 
   return (
     <header className="border-b bg-background">
@@ -48,8 +59,6 @@ export function ServiceQuickLinks({
         >
           {showCourseShortcuts ? <CourseShortcutsMenu /> : null}
           {visibleServiceLinks.map((service) => {
-            if (isAdPerformance && service.href !== "/work") return null;
-
             const current = pathname.startsWith(service.href);
             return (
               <Button
