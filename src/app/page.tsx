@@ -12,11 +12,8 @@ export default async function HomePage() {
   if (!user) redirect("/login");
   return <main className="min-h-screen">
     <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-6"><BrandHomeLink /><div className="flex items-center gap-2"><AdminManagementButton email={user.email ?? ""} /><UserAccountMenu email={user.email ?? ""} /></div></header>
-    <section className="mx-auto max-w-5xl px-5 py-12 sm:py-24">
-      <p className="text-sm font-semibold tracking-widest text-blue-700">BIZUP WORKSPACE</p>
-      <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">어떤 공간에서 시작할까요?</h1>
-      <p className="mt-4 text-muted-foreground">업무 운영과 직원의 하루를 한곳에서 관리하세요.</p>
-      <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+    <section className="mx-auto max-w-[1600px] px-5 py-8 lg:px-8 lg:py-12">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {[
           { href: "/work", name: "대시보드", description: "강의 운영, 수강생 명단, 알림톡·문자와 정산 등 기존 업무 도구를 사용합니다.", icon: LayoutDashboard, color: "bg-blue-50 text-blue-700" },
           { href: "/hr", name: "업무관리", description: "오늘의 업무와 진행 상황, 담당자 이관 내역을 관리합니다.", icon: BriefcaseBusiness, color: "bg-emerald-50 text-emerald-700" },
