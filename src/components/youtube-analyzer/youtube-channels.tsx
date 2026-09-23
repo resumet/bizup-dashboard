@@ -167,7 +167,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   const completed=requests.filter(request=>["completed","failed"].includes(request.status)).length;
 
   return <main className="mx-auto min-h-screen max-w-[1600px] space-y-6 px-4 py-6 sm:px-8">
-    <div className="flex flex-wrap items-center justify-end gap-4 border-b pb-5">
+    <div className="flex flex-wrap items-center justify-end gap-4 pb-5">
       <div className="flex items-center gap-2"><Button onClick={openAddDialog}>{active(batch) ? <LoaderCircle className="size-4 animate-spin"/> : <Plus className="size-4"/>}{active(batch) ? "분석 중" : "채널 추가"}</Button><Button variant="outline" size="icon" title="새로고침" aria-label="새로고침" onClick={()=>setRevision(value=>value+1)}><RefreshCw className="size-4"/></Button></div>
     </div>
 

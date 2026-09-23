@@ -51,7 +51,7 @@ export function ServiceQuickLinks({
     !isStandaloneService && !hiddenRouteSet.has(COURSE_OPERATIONS_ROUTE);
 
   return (
-    <header className="border-b bg-background">
+    <header className={isYoutubeChannels ? "bg-background" : "border-b bg-background"}>
       <div className="mx-auto flex min-h-14 max-w-[1600px] items-center gap-3 px-5 lg:px-8">
         <BrandHomeLink showName={false} />
         <div className="h-5 w-px shrink-0 bg-border" />
