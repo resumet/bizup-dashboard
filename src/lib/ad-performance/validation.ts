@@ -20,6 +20,7 @@ export const metricSchema = z.object({
   googleLandingLeads: count,
   metaLandingLeads: count,
   adminCumulativeLeads: count,
+  chatRoomMembers: count.nullable().optional(),
   organicLeads: z.record(z.uuid(), count),
 });
 

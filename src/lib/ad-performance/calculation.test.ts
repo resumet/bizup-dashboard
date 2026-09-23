@@ -17,6 +17,7 @@ const metric: AdPerformanceDailyMetric = {
   googleLandingLeads: 18,
   metaLandingLeads: 7,
   adminCumulativeLeads: 28,
+  chatRoomMembers: null,
   organicLeads: { blog: 5, youtube: 3 },
 };
 
@@ -37,6 +38,25 @@ test("광고비는 날짜순으로 누적하고 빈 날짜는 이전 누적액�
   assert.deepEqual(calculateDailyAdSpend([]), []);
 });
 
+test("톡방 입장은 실제 전일 대비로 계산하고 미입력과 감소를 구분한다", () => {
+  const rows = calculateDailyAdSpend([
+    { ...metric, metricDate: "2026-10-01", chatRoomMembers: 130 },
+    { ...metric, metricDate: "2026-09-30", chatRoomMembers: 100 },
+    { ...metric, metricDate: "2026-10-02", chatRoomMembers: 120 },
+    { ...metric, metricDate: "2026-10-04", chatRoomMembers: 150 },
+    { ...metric, metricDate: "2026-10-05", chatRoomMembers: null },
+    { ...metric, metricDate: "2026-10-06", chatRoomMembers: 0 },
+    { ...metric, metricDate: "2026-10-07", chatRoomMembers: 0 },
+  ]);
+  assert.deepEqual(rows.map(row => row.chatRoomEntrants), [null, 30, -10, null, null, null, 0]);
+  assert.equal(rows[1].chatRoomLeadCost, 500_000 / 30);
+  assert.equal(rows[2].chatRoomLeadCost, null);
+  assert.equal(rows[6].chatRoomLeadCost, null);
+  assert.equal(rows[1].totalLandingLeadCost, 500_000 / 25);
+  assert.equal(rows[1].googleLeadCostDifference, 300_000 / 18 - 300_000 / 20);
+  assert.equal(rows[1].metaLeadCostDifference, 200_000 / 7 - 200_000 / 10);
+});
+
 test("DB당 단가는 매체별 광고비와 해당 접수 건수로 계산한다", () => {
   const [row] = calculateDailyAdSpend([metric]);
   assert.equal(row.googleAdLeadCost, 300_000 / 20);
@@ -45,6 +65,8 @@ test("DB당 단가는 매체별 광고비와 해당 접수 건수로 계산한�
   assert.equal(row.metaLandingLeadCost, 200_000 / 7);
   const [empty] = calculateDailyAdSpend([{ ...metric, googleAdLeads: 0, metaAdLeads: 0, googleLandingLeads: 0, metaLandingLeads: 0 }]);
   assert.deepEqual([empty.googleAdLeadCost, empty.metaAdLeadCost, empty.googleLandingLeadCost, empty.metaLandingLeadCost], [null, null, null, null]);
+  assert.equal(empty.googleLeadCostDifference, null);
+  assert.equal(empty.totalLandingLeadCost, null);
   assert.equal(calculateDailyAdSpend([{ ...metric, googleSpend: 0 }])[0].googleAdLeadCost, 0);
 });
 
@@ -93,6 +115,7 @@ test("분모가 없는 전환율과 단가는 null로 반환한다", () => {
     googleLandingLeads: 0,
     metaLandingLeads: 0,
     adminCumulativeLeads: 0,
+    chatRoomMembers: null,
     organicLeads: {},
   };
   const result = summarizeAdPerformance([empty], 0);

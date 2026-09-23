@@ -37,6 +37,7 @@ test("강의마다 하나의 광고성과 대시보드와 날짜별 지표를 �
     `);
     await db.exec(await readFile("supabase/migrations/202609230004_ad_performance_dashboard.sql", "utf8"));
     await db.exec(await readFile("supabase/migrations/202609230005_course_ad_performance_dashboards.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations/202609230006_ad_chat_room_members.sql", "utf8"));
 
     await db.query(
       `insert into public.ad_performance_dashboards
@@ -63,6 +64,11 @@ test("강의마다 하나의 광고성과 대시보드와 날짜별 지표를 �
        values ($1,$2,'2026-09-01',5,$4,$4),($1,$3,'2026-09-01',3,$4,$4)`,
       [dashboardId, blogChannelId, youtubeChannelId, userId],
     );
+
+    assert.equal((await db.query<{ chat_room_members: number | null }>("select chat_room_members from public.ad_performance_dashboard_metrics where dashboard_id=$1", [dashboardId])).rows[0].chat_room_members, null);
+    await db.query("update public.ad_performance_dashboard_metrics set chat_room_members=125 where dashboard_id=$1", [dashboardId]);
+    assert.equal(Number((await db.query<{ chat_room_members: number }>("select chat_room_members from public.ad_performance_dashboard_metrics where dashboard_id=$1", [dashboardId])).rows[0].chat_room_members), 125);
+    await assert.rejects(db.query("update public.ad_performance_dashboard_metrics set chat_room_members=-1 where dashboard_id=$1", [dashboardId]), /check constraint/);
 
     const result = await db.query<{
       impressions: string;

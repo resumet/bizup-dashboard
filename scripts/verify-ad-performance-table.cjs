@@ -80,8 +80,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
     }
     assert.deepEqual((await page.locator('table[data-slot="table"] thead tr').nth(1).locator('th').allTextContents()).slice(-4), ['Google', 'Meta', 'Google', 'Meta']);
     const cells = page.locator('table[data-slot="table"] tbody tr').first().locator('td');
-    assert.deepEqual(headers.slice(-3, -1), ['광고DB당 단가', '랜딩DB당 단가']);
-    assert.deepEqual((await cells.allTextContents()).slice(-5, -1), ['₩12,345,679', '₩10,000', '₩4,115,226', '₩5,000']);
+    assert.deepEqual(headers.slice(-6, -4), ['광고DB당 단가', '랜딩DB당 단가']);
+    assert.deepEqual((await cells.allTextContents()).slice(-9, -5), ['₩12,345,679', '₩10,000', '₩4,115,226', '₩5,000']);
     assert.equal(await page.getByRole('columnheader', { name: '광고 집행비용', exact: true }).getAttribute('colspan'), '4');
     assert.deepEqual((await page.locator('table[data-slot="table"] thead tr').nth(1).locator('th').allTextContents()).slice(6, 10), ['Google', 'Meta', '총광고비', '누적총광고비']);
     assert.equal(await cells.nth(9).textContent(), '123,656,789');
@@ -93,7 +93,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
     assert.equal(await cells.nth(13).textContent(), '90');
     assert.equal(await cells.nth(17).textContent(), '102');
     const width = await page.locator('table[data-slot="table"]').evaluate(el => el.getBoundingClientRect().width);
-    assert.ok(width < 2800, `Table should be compact: ${width}`);
+    assert.ok(width < 3500, `Table should be compact: ${width}`);
     await fs.mkdir('.cache/ad-performance-table', { recursive: true });
     await page.getByRole('region', { name: '성과 요약', exact: true }).screenshot({ path: '.cache/ad-performance-table/summary-desktop.png' });
     await presets.screenshot({ path: '.cache/ad-performance-table/presets-desktop.png' });
@@ -119,12 +119,12 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
     await page.getByLabel('2026-09-25 Meta 광고 집행비용', { exact: true }).fill('200');
     const secondCells = page.locator('table[data-slot="table"] tbody tr').nth(1).locator('td');
     assert.equal(await secondCells.nth(9).textContent(), '500');
-    assert.deepEqual((await secondCells.allTextContents()).slice(-5, -1), ['-', '-', '-', '-']);
+    assert.deepEqual((await secondCells.allTextContents()).slice(-9, -5), ['-', '-', '-', '-']);
     assert.equal(await secondCells.nth(10).textContent(), '123,657,289');
     await page.getByLabel('2026-09-23 Google 광고 집행비용', { exact: true }).fill('100');
     await page.getByLabel('2026-09-23 Meta 광고 집행비용', { exact: true }).fill('200');
     assert.equal(await cells.nth(10).textContent(), '300');
-    assert.deepEqual((await cells.allTextContents()).slice(-5, -1), ['₩10', '₩10', '₩2', '₩5']);
+    assert.deepEqual((await cells.allTextContents()).slice(-9, -5), ['₩10', '₩10', '₩2', '₩5']);
     assert.equal(await secondCells.nth(10).textContent(), '800');
     assert.deepEqual(await spendTable.locator('td').allTextContents(), ['₩400', '₩400']);
     assert.equal(await page.getByLabel('전체 누적광고비', { exact: true }).textContent(), '₩800');
@@ -132,6 +132,22 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
     assert.equal(await page.locator('table[data-slot="table"] tbody tr').count(), 1);
     assert.equal(await cells.nth(10).textContent(), '300');
     await page.goto(`${url}/?empty`);
+    await page.getByLabel('2026-09-23 톡방인원', { exact: true }).fill('10');
+    await page.getByLabel('기록 날짜', { exact: true }).fill('2026-09-24');
+    await page.getByRole('button', { name: '날짜 추가', exact: true }).click();
+    await page.getByLabel('2026-09-24 톡방인원', { exact: true }).fill('30');
+    await page.getByLabel('2026-09-24 Google 광고 집행비용', { exact: true }).fill('300');
+    await page.getByLabel('2026-09-24 Meta 광고 집행비용', { exact: true }).fill('200');
+    await page.getByLabel('2026-09-24 Google 랜딩페이지접수 DB', { exact: true }).fill('5');
+    await page.getByLabel('2026-09-24 Meta 랜딩페이지접수 DB', { exact: true }).fill('5');
+    const chatCells = page.locator('table[data-slot="table"] tbody tr').nth(1).locator('td');
+    assert.equal(await chatCells.nth(23).textContent(), '20');
+    assert.deepEqual((await chatCells.allTextContents()).slice(-5, -1), ['₩25', '₩50', '-', '-']);
+    await page.getByLabel('2026-09-23 톡방인원', { exact: true }).fill('20');
+    assert.equal(await chatCells.nth(23).textContent(), '10');
+    assert.equal(await chatCells.nth(28).textContent(), '₩50');
+    await page.getByLabel('2026-09-23 톡방인원', { exact: true }).fill('');
+    assert.equal(await chatCells.nth(23).textContent(), '-');
     await page.locator('table[data-slot="table"]').waitFor();
     assert.equal(await page.locator('table[data-slot="table"] tbody tr td').nth(15).textContent(), '0');
     assert.deepEqual(errors, []);

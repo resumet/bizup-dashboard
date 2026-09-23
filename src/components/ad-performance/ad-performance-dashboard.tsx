@@ -16,7 +16,7 @@ import type { AdPerformanceDailyMetric, AdPerformanceDashboardData, AdPerformanc
 
 const number = new Intl.NumberFormat("ko-KR");
 const won = new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW", maximumFractionDigits: 0 });
-type NumericMetricField = Exclude<keyof AdPerformanceDailyMetric, "metricDate" | "organicLeads">;
+type NumericMetricField = Exclude<keyof AdPerformanceDailyMetric, "metricDate" | "organicLeads" | "chatRoomMembers">;
 const numericFields: NumericMetricField[] = [
   "googleImpressions", "metaImpressions", "googleClicks", "metaClicks",
   "googleAdLeads", "metaAdLeads", "googleSpend", "metaSpend",
@@ -30,6 +30,7 @@ function todayInSeoul() {
 function emptyMetric(metricDate: string, channels: AdPerformanceOrganicChannel[]): AdPerformanceDailyMetric {
   return {
     metricDate,
+    chatRoomMembers: null,
     ...Object.fromEntries(numericFields.map((field) => [field, 0])),
     organicLeads: Object.fromEntries(channels.map((channel) => [channel.id, 0])),
   } as AdPerformanceDailyMetric;
@@ -272,8 +273,13 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
                 <TableHead colSpan={2} className="border-l bg-muted/40 text-center">클릭전환</TableHead>
                 <TableHead colSpan={2} className="border-l bg-muted/40 text-center">랜딩전환</TableHead>
                 <TableHead rowSpan={2} className="border-l text-center">어드민<br />누적 DB</TableHead>
+                <TableHead rowSpan={2} className="border-l text-center">톡방인원</TableHead>
+                <TableHead rowSpan={2} className="border-l bg-muted/40 text-center">톡방입장<br />인원</TableHead>
                 <TableHead colSpan={2} className="border-l bg-muted/40 text-center">광고DB당 단가</TableHead>
                 <TableHead colSpan={2} className="border-l bg-muted/40 text-center">랜딩DB당 단가</TableHead>
+                <TableHead rowSpan={2} className="border-l bg-muted/40 text-center">톡방접수DB당<br />단가</TableHead>
+                <TableHead rowSpan={2} className="border-l bg-muted/40 text-center">랜딩접수DB당<br />단가</TableHead>
+                <TableHead colSpan={2} className="border-l bg-muted/40 text-center">단가차이<br />(랜딩DB − 광고DB)</TableHead>
                 <TableHead rowSpan={2} className="w-9" />
               </TableRow>
               <TableRow>
@@ -286,6 +292,7 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
                 <TableHead className="border-l bg-muted/40 text-center">총합</TableHead>
                 <TableHead className="border-l bg-muted/40 text-center">Google</TableHead><TableHead className="bg-muted/40 text-center">Meta</TableHead><TableHead className="border-l bg-muted/40 text-center">Google</TableHead><TableHead className="bg-muted/40 text-center">Meta</TableHead>
                 <TableHead className="border-l bg-muted/40 text-center">Google</TableHead><TableHead className="bg-muted/40 text-center">Meta</TableHead><TableHead className="border-l bg-muted/40 text-center">Google</TableHead><TableHead className="bg-muted/40 text-center">Meta</TableHead>
+                <TableHead className="border-l bg-muted/40 text-center">Google</TableHead><TableHead className="bg-muted/40 text-center">Meta</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -305,11 +312,18 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
                   <TableCell className="border-l bg-muted/30 text-right font-medium tabular-nums">{number.format(organicLanding)}</TableCell><TableCell className="border-l bg-muted/30 text-right font-semibold tabular-nums">{number.format(paidLanding + organicLanding)}</TableCell>
                   <TableCell className="border-l bg-muted/30 text-right tabular-nums">{rate(ratio(metric.googleClicks, metric.googleImpressions))}</TableCell><TableCell className="bg-muted/30 text-right tabular-nums">{rate(ratio(metric.metaClicks, metric.metaImpressions))}</TableCell><TableCell className="border-l bg-muted/30 text-right tabular-nums">{rate(ratio(metric.googleAdLeads, metric.googleClicks))}</TableCell><TableCell className="bg-muted/30 text-right tabular-nums">{rate(ratio(metric.metaAdLeads, metric.metaClicks))}</TableCell>
                   <TableCell className="border-l"><CountInput label={`${metric.metricDate} 어드민 누적 DB`} value={metric.adminCumulativeLeads} onChange={(value) => updateMetric(metric.metricDate, "adminCumulativeLeads", value)} /></TableCell>
+                  <TableCell className="border-l"><Input className="h-8 w-[88px] min-w-0 px-1 text-right tabular-nums" inputMode="numeric" aria-label={`${metric.metricDate} 톡방인원`} placeholder="미입력" value={metric.chatRoomMembers == null ? "" : number.format(metric.chatRoomMembers)} onChange={(event) => {
+                    const value = event.target.value.trim() === "" ? null : parseCount(event.target.value);
+                    setMetrics(current => current.map(row => row.metricDate === metric.metricDate ? { ...row, chatRoomMembers: value } : row));
+                    setNotice("");
+                  }} /></TableCell>
+                  <TableCell className="border-l bg-muted/30 text-right tabular-nums">{metric.chatRoomEntrants === null ? "-" : number.format(metric.chatRoomEntrants)}</TableCell>
                   {[metric.googleAdLeadCost, metric.metaAdLeadCost, metric.googleLandingLeadCost, metric.metaLandingLeadCost].map((cost, index) => <TableCell key={index} className={`${index % 2 === 0 ? "border-l " : ""}bg-muted/30 text-right tabular-nums`}>{cost === null ? "-" : won.format(cost)}</TableCell>)}
+                  {[metric.chatRoomLeadCost, metric.totalLandingLeadCost, metric.googleLeadCostDifference, metric.metaLeadCostDifference].map((cost, index) => <TableCell key={index} className={`${index < 3 ? "border-l " : ""}bg-muted/30 text-right tabular-nums`}>{cost === null ? "-" : won.format(cost)}</TableCell>)}
                   <TableCell><Button type="button" size="icon" variant="ghost" className="size-8" aria-label={`${metric.metricDate} 삭제`} disabled={saving} onClick={() => void removeMetric(metric.metricDate)}><Trash2 className="text-destructive" /></Button></TableCell>
                 </TableRow>;
               })}
-              {!metrics.length ? <TableRow><TableCell colSpan={26 + organicColumnCount} className="h-28 text-center text-muted-foreground">기록 날짜를 추가해 광고성과 입력을 시작하세요.</TableCell></TableRow> : null}
+              {!metrics.length ? <TableRow><TableCell colSpan={32 + organicColumnCount} className="h-28 text-center text-muted-foreground">기록 날짜를 추가해 광고성과 입력을 시작하세요.</TableCell></TableRow> : null}
             </TableBody>
           </Table>
         </CardContent>

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createDashboardSchema, updateDashboardSchema } from "./validation";
+import { createDashboardSchema, metricSchema, updateDashboardSchema } from "./validation";
 
 const metric = {
   metricDate: "2026-09-23",
@@ -18,6 +18,14 @@ const metric = {
   adminCumulativeLeads: 0,
   organicLeads: {},
 };
+
+test("톡방인원은 미입력과 0을 구분하고 음수 및 소수는 거부한다", () => {
+  assert.equal(metricSchema.parse({ ...metric, chatRoomMembers: null }).chatRoomMembers, null);
+  assert.equal(metricSchema.parse({ ...metric, chatRoomMembers: 0 }).chatRoomMembers, 0);
+  assert.equal(metricSchema.parse(metric).chatRoomMembers, undefined);
+  assert.equal(metricSchema.safeParse({ ...metric, chatRoomMembers: -1 }).success, false);
+  assert.equal(metricSchema.safeParse({ ...metric, chatRoomMembers: 1.5 }).success, false);
+});
 
 test("새 광고성과는 저장된 강의 ID와 시작일·예산을 요구한다", () => {
   assert.equal(createDashboardSchema.safeParse({

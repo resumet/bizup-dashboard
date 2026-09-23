@@ -11,6 +11,7 @@ export type AdPerformanceDailyMetric = {
   googleLandingLeads: number;
   metaLandingLeads: number;
   adminCumulativeLeads: number;
+  chatRoomMembers: number | null;
   organicLeads: Record<string, number>;
 };
 

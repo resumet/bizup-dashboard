@@ -70,6 +70,7 @@ export async function PUT(request: Request, { params }: Context) {
           google_landing_leads: metric.googleLandingLeads,
           meta_landing_leads: metric.metaLandingLeads,
           admin_cumulative_leads: metric.adminCumulativeLeads,
+          ...(metric.chatRoomMembers !== undefined ? { chat_room_members: metric.chatRoomMembers } : {}),
           created_by: user.id,
           updated_by: user.id,
           updated_at: now,

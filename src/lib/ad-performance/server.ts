@@ -24,6 +24,7 @@ type MetricRow = {
   google_landing_leads: number | string;
   meta_landing_leads: number | string;
   admin_cumulative_leads: number | string;
+  chat_room_members?: number | string | null;
 };
 
 type OrganicChannelRow = { id: string; name: string; sort_order: number };
@@ -50,7 +51,7 @@ type DashboardRow = {
   admin_cumulative_leads?: number | string;
 };
 
-const metricColumns = "dashboard_id,metric_date,google_impressions,meta_impressions,google_clicks,meta_clicks,google_ad_leads,meta_ad_leads,google_spend,meta_spend,google_landing_leads,meta_landing_leads,admin_cumulative_leads";
+const metricColumns = "dashboard_id,metric_date,google_impressions,meta_impressions,google_clicks,meta_clicks,google_ad_leads,meta_ad_leads,google_spend,meta_spend,google_landing_leads,meta_landing_leads,admin_cumulative_leads,chat_room_members";
 
 function toCourse(row: CourseRow): AdPerformanceCourse {
   return {
@@ -75,6 +76,7 @@ export function toAdPerformanceMetric(row: MetricRow, organicLeads: Record<strin
     googleLandingLeads: Number(row.google_landing_leads),
     metaLandingLeads: Number(row.meta_landing_leads),
     adminCumulativeLeads: Number(row.admin_cumulative_leads),
+    chatRoomMembers: row.chat_room_members == null ? null : Number(row.chat_room_members),
     organicLeads,
   };
 }
