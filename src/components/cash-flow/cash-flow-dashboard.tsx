@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Landmark, Loader2, RefreshCw, Save, TrendingDown, TrendingUp, WalletCards } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { BackLink } from "@/components/layout/back-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -111,9 +112,9 @@ export function CashFlowDashboard({ initialData }: { initialData: CashFlowDashbo
 
   return (
     <main className="min-h-screen">
-      <div className="mx-auto max-w-[1600px] px-5 py-8 lg:px-8">
+      <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
         <Button variant="ghost" size="sm" asChild className="mb-5">
-          <Link href="/"><ArrowLeft />서비스 목록</Link>
+          <BackLink href="/"><ArrowLeft />뒤로가기</BackLink>
         </Button>
 
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">

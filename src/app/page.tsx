@@ -11,8 +11,8 @@ export default async function HomePage() {
   const user = await getAuthenticatedUser(await createClient());
   if (!user) redirect("/login");
   return <main className="min-h-screen">
-    <header className="border-b bg-background"><div className="mx-auto flex min-h-16 max-w-[1600px] items-center justify-between px-5 py-4 lg:px-8"><BrandHomeLink /><div className="flex items-center gap-2"><AdminManagementButton email={user.email ?? ""} /><UserAccountMenu email={user.email ?? ""} /></div></div></header>
-    <section className="mx-auto max-w-[1600px] px-5 py-8 lg:px-8 lg:py-12">
+    <header className="border-b bg-background"><div className="mx-auto flex min-h-16 max-w-[1900px] items-center justify-between px-5 py-4 lg:px-8"><BrandHomeLink /><div className="flex items-center gap-2"><AdminManagementButton email={user.email ?? ""} /><UserAccountMenu email={user.email ?? ""} /></div></div></header>
+    <section className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8 lg:py-12">
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {[
           { href: "/work", name: "강의관리", description: "강의 운영, 수강생 명단, 알림톡·문자와 정산 등 기존 업무 도구를 사용합니다.", icon: LayoutDashboard, color: "bg-blue-50 text-blue-700" },

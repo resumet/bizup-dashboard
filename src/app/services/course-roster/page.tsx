@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, CalendarDays, FileSpreadsheet, Plus, Users } from "lucide-react";
 
+import { BackLink } from "@/components/layout/back-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DeleteJobButton } from "@/components/jobs/delete-job-button";
 import { hasAdminAccess } from "@/lib/admin/access";
@@ -58,8 +59,8 @@ export default async function CourseRosterPage() {
   const errorCount = jobs.reduce((sum, job) => sum + job.error_count, 0);
 
   return <main className="min-h-screen">
-    <header className="border-b bg-background"><div className="mx-auto flex h-18 max-w-[1600px] items-center px-5 lg:px-8"><Button variant="ghost" size="sm" asChild><Link href="/"><ArrowLeft />서비스</Link></Button><div className="mx-3 h-5 w-px bg-border" /><span className="font-semibold">수강생 명단 분석</span></div></header>
-    <div className="mx-auto max-w-[1600px] px-5 py-10 lg:px-8">
+    <header className="border-b bg-background"><div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8"><Button variant="ghost" size="sm" asChild><BackLink href="/"><ArrowLeft />뒤로가기</BackLink></Button><div className="mx-3 h-5 w-px bg-border" /><span className="font-semibold">수강생 명단 분석</span></div></header>
+    <div className="mx-auto max-w-[1900px] px-5 py-10 lg:px-8">
       <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><Badge variant="outline" className="mb-3">수강생 데이터</Badge><h1 className="text-3xl font-semibold tracking-tight">작업 목록</h1><p className="mt-2 text-muted-foreground">Supabase에 저장된 신청자 명단과 분석 상태입니다.</p></div><Button asChild><Link href="/services/course-roster/new"><Plus />새 작업</Link></Button></div>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-3">

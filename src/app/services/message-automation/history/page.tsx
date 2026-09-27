@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackLink } from "@/components/layout/back-link";
 import { messageHistorySourceId, messageHistorySourceName } from "@/lib/messages/recipient-source";
 import { redirect } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
@@ -52,18 +53,15 @@ export default async function MessageAutomationHistoryPage() {
     <main className="min-h-screen">
       <DeliveryStatusRefresher endpoints={syncEndpoints} />
       <header className="border-b">
-        <div className="mx-auto flex h-18 max-w-[1600px] items-center px-5 lg:px-8">
+        <div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/services/message-automation">
-              <ArrowLeft />
-              문자 자동화
-            </Link>
+            <BackLink href="/services/message-automation"><ArrowLeft /> 뒤로가기</BackLink>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
           <span className="font-semibold">발송 이력</span>
         </div>
       </header>
-      <div className="mx-auto max-w-[1600px] px-5 py-10 lg:px-8">
+      <div className="mx-auto max-w-[1900px] px-5 py-10 lg:px-8">
         <h1 className="text-3xl font-semibold">알림톡·문자 발송 이력</h1>
         <p className="mt-2 mb-8 text-muted-foreground">
           최근 발송 작업 200건을 확인합니다.

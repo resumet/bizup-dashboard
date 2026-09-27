@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { RosterDetailClient } from "@/components/jobs/roster-detail-client";
+import { BackLink } from "@/components/layout/back-link";
 import { Button } from "@/components/ui/button";
 import { loadJobEnrollmentRows } from "@/lib/jobs/server";
 import { toCourseJobNote, type CourseJobNote } from "@/lib/jobs/notes";
@@ -97,13 +97,13 @@ export async function CourseRosterDetail({ jobId, embedded = false }: { jobId: s
   if (embedded) return detail;
   return <main className="min-h-screen">
     <header className="border-b bg-background">
-      <div className="mx-auto flex h-18 max-w-[1600px] items-center px-5 lg:px-8">
-        <Button variant="ghost" size="sm" asChild><Link href="/services/course-roster"><ArrowLeft />작업 목록</Link></Button>
+      <div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
+        <Button variant="ghost" size="sm" asChild><BackLink href="/services/course-roster"><ArrowLeft />뒤로가기</BackLink></Button>
         <div className="mx-3 h-5 w-px bg-border" />
         <span className="truncate font-semibold">{job.name}</span>
       </div>
     </header>
-    <div className="mx-auto max-w-[1600px] px-5 py-8 lg:px-8">
+    <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
       {detail}
     </div>
   </main>;

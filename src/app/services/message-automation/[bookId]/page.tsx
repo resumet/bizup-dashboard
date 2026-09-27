@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { BackLink } from "@/components/layout/back-link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
@@ -57,18 +57,15 @@ export default async function AddressBookPage({ params, searchParams }: Props) {
   return (
     <main className="min-h-screen">
       <header className="border-b">
-        <div className="mx-auto flex h-18 max-w-[1600px] items-center px-5 lg:px-8">
+        <div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/services/message-automation">
-              <ArrowLeft />
-              발송 주소록 선택
-            </Link>
+            <BackLink href="/services/message-automation"><ArrowLeft /> 뒤로가기</BackLink>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
           <span className="font-semibold">{book.name} 메시지 발송</span>
         </div>
       </header>
-      <div className="mx-auto max-w-[1600px] px-5 py-8 lg:px-8">
+      <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
         <AddressBookDetail
           mode="automation"
           book={book}

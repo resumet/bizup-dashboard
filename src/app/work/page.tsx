@@ -26,7 +26,7 @@ export default async function DashboardPage() {
   return (
     <main className="min-h-screen">
       <header className="border-b bg-background">
-        <div className="mx-auto flex h-18 max-w-[1600px] items-center gap-6 px-5 lg:px-8">
+        <div className="mx-auto flex h-18 max-w-[1900px] items-center gap-6 px-5 lg:px-8">
           <BrandHomeLink />
           <CourseShortcutsMenu />
           <div className="ml-auto flex items-center gap-2">
@@ -38,7 +38,7 @@ export default async function DashboardPage() {
           </div>
         </div>
       </header>
-      <div className="mx-auto max-w-[1600px] px-5 py-12 lg:px-8 lg:py-16">
+      <div className="mx-auto max-w-[1900px] px-5 py-12 lg:px-8 lg:py-16">
         <section className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <div>
             <Badge variant="outline" className="mb-4 bg-background/70">

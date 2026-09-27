@@ -122,7 +122,7 @@ export default async function AdminUsersPage({
   return (
     <main className="min-h-screen bg-muted/30">
       <header className="border-b bg-background">
-        <div className="mx-auto flex h-18 max-w-[1600px] items-center justify-between gap-4 px-5 lg:px-8">
+        <div className="mx-auto flex h-18 max-w-[1900px] items-center justify-between gap-4 px-5 lg:px-8">
           <div className="flex items-center gap-3">
             <BrandHomeLink showName={false} />
             <div>
@@ -136,7 +136,7 @@ export default async function AdminUsersPage({
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1600px] space-y-6 px-5 py-8 lg:px-8">
+      <div className="mx-auto max-w-[1900px] space-y-6 px-5 py-8 lg:px-8">
         <CommonLinksManager />
         <section>
           <Badge variant="secondary" className="mb-3">최고관리자 전용</Badge>

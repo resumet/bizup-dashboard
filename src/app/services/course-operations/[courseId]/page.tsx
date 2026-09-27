@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import { BackLink } from "@/components/layout/back-link";
 import { PaidCourseRoster } from "@/components/course-operations/paid-course-roster";
 import { CourseOperationsEditor } from "@/components/course-operations/course-editor";
 import { PendingLinkLabel } from "@/components/navigation/pending-link-label";
@@ -130,24 +130,24 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
   return (
     <main className="min-h-screen">
       <header className="border-b bg-background">
-        <div className="mx-auto flex h-18 max-w-[1600px] items-center px-5 lg:px-8">
+        <div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/services/course-operations">
+            <BackLink href="/services/course-operations">
               <PendingLinkLabel
                 idle={
                   <>
-                    <ArrowLeft />강의 목록
+                    <ArrowLeft />뒤로가기
                   </>
                 }
                 pending="이동 중"
               />
-            </Link>
+            </BackLink>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
           <span className="truncate font-semibold">{course.cohort ? `(${course.cohort}기) ` : ""}{course.name}{course.instructor_name ? ` - ${course.instructor_name}` : ""}</span>
         </div>
       </header>
-      <div className="mx-auto max-w-[1600px] px-5 py-8 lg:px-8">
+      <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
         <CourseOperationsEditor
           courseId={courseId}
           paidRoster={<PaidCourseRoster courseId={courseId} />}

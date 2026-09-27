@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeft, ArrowRight, BarChart3, BookOpenCheck, CalendarDays, Loader2, Plus, Trash2, WalletCards } from "lucide-react";
 
+import { AdPerformanceTabs } from "@/components/ad-performance/ad-performance-tabs";
+import { BackLink } from "@/components/layout/back-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -111,9 +113,10 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
   const totalBudgetSum = dashboards.reduce((sum, dashboard) => sum + dashboard.totalBudget, 0);
 
   return <main className="min-h-screen">
-    <div className="mx-auto max-w-[1600px] px-5 py-8 lg:px-8">
-      <Button variant="ghost" size="sm" asChild className="mb-5"><Link href="/work"><ArrowLeft />서비스 목록</Link></Button>
-      <div><Badge variant="outline" className="mb-3"><BarChart3 />강의별 광고 운영</Badge><h1 className="text-3xl font-semibold tracking-tight">광고성과 대시보드</h1><p className="mt-2 text-muted-foreground">저장된 강의에 광고성과를 연결하고 강의별 집행 현황을 관리합니다.</p></div>
+    <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
+      <Button variant="ghost" size="sm" asChild className="mb-5"><BackLink href="/work"><ArrowLeft />뒤로가기</BackLink></Button>
+      <div><Badge variant="outline" className="mb-3"><BarChart3 />강의별 광고 운영</Badge><h1 className="text-3xl font-semibold tracking-tight">광고성과</h1><p className="mt-2 text-muted-foreground">저장된 강의에 광고성과를 연결하고 강의별 집행 현황을 관리합니다.</p></div>
+      <AdPerformanceTabs active="daily" />
 
       {error ? <Alert variant="destructive" className="mt-6"><AlertTriangle /><AlertTitle>확인이 필요합니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
 

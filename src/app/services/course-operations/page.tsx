@@ -6,6 +6,7 @@ import {
   Plus,
 } from "lucide-react";
 
+import { BackLink } from "@/components/layout/back-link";
 import { CourseOperationsList } from "@/components/course-operations/course-list";
 import type { CoursePaymentSummary } from "@/lib/course-operations/payment-summary";
 import { hasAdminAccess } from "@/lib/admin/access";
@@ -40,18 +41,18 @@ export default async function CourseOperationsPage() {
   return (
     <main className="min-h-screen">
       <header className="border-b bg-background">
-        <div className="mx-auto flex h-18 max-w-[1600px] items-center px-5 lg:px-8">
+        <div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/work">
-              <ArrowLeft />서비스
-            </Link>
+            <BackLink href="/work">
+              <ArrowLeft />뒤로가기
+            </BackLink>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
           <span className="font-semibold">강의 운영 자동화</span>
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1600px] px-5 py-10 lg:px-8">
+      <div className="mx-auto max-w-[1900px] px-5 py-10 lg:px-8">
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
             <Badge variant="outline" className="mb-3">강의 중심 관리</Badge>

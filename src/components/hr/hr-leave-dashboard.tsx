@@ -189,7 +189,7 @@ export function HrLeaveDashboard({ initialData }: { initialData: HrLeaveDashboar
     if (reset) setResetOpen(false);
   }
 
-  return <div className="mx-auto max-w-[1600px] space-y-6 px-5 py-8 lg:px-8 lg:py-10">
+  return <div className="mx-auto max-w-[1900px] space-y-6 px-5 py-8 lg:px-8 lg:py-10">
     <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
       <div><Badge variant="outline">매년 1월 1일 초기화</Badge><h1 className="mt-3 text-3xl font-semibold tracking-tight">근태관리</h1><p className="mt-2 text-muted-foreground">기본 휴가와 지원근무로 적립한 추가휴가를 분리해 기록합니다.</p></div>
       <div className="flex flex-wrap items-center gap-2">

@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import { BackLink } from "@/components/layout/back-link";
 import { ContactCsvExtractor } from "@/components/tools/contact-csv-extractor";
 import { Button } from "@/components/ui/button";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
@@ -15,17 +15,17 @@ export default async function ContactCsvPage() {
   return (
     <main className="min-h-screen">
       <header className="border-b bg-background">
-        <div className="mx-auto flex h-18 max-w-[1600px] items-center px-5 lg:px-8">
+        <div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/">
-              <ArrowLeft /> 서비스
-            </Link>
+            <BackLink href="/">
+              <ArrowLeft /> 뒤로가기
+            </BackLink>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
           <span className="font-semibold">연락처 CSV 추출</span>
         </div>
       </header>
-      <div className="mx-auto max-w-[1600px] px-5 py-10 lg:px-8">
+      <div className="mx-auto max-w-[1900px] px-5 py-10 lg:px-8">
         <ContactCsvExtractor />
       </div>
     </main>

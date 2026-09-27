@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { BackLink } from "@/components/layout/back-link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
@@ -39,17 +39,15 @@ export default async function PhoneSalesJobDetailPage({ params }: PageProps) {
   return (
     <main className="min-h-screen">
       <header className="border-b bg-background">
-        <div className="mx-auto flex h-18 max-w-[1600px] items-center px-5 lg:px-8">
+        <div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/services/phone-sales-list">
-              <ArrowLeft /> 작업 목록
-            </Link>
+            <BackLink href="/services/phone-sales-list"><ArrowLeft /> 뒤로가기</BackLink>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
           <span className="font-semibold">{job.instructor_name}</span>
         </div>
       </header>
-      <div className="mx-auto max-w-[1600px] px-5 py-10 lg:px-8">
+      <div className="mx-auto max-w-[1900px] px-5 py-10 lg:px-8">
         <PhoneSalesListMaker initialJob={job} />
       </div>
     </main>

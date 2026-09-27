@@ -448,7 +448,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
     } finally { setSaving(false); }
   }
 
-  return <div className="mx-auto max-w-[1800px] px-5 py-8 lg:px-8 lg:py-10">
+  return <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8 lg:py-10">
     <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
       <div>
         <Badge variant="outline" className="mb-3 bg-background">강의 준비 · 웨비나 운영</Badge>

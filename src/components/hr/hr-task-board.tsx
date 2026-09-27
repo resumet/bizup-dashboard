@@ -301,7 +301,7 @@ export function HrTaskBoard({
     </div>;
   }
 
-  return <div className="mx-auto max-w-[1600px] space-y-6 px-5 py-8 lg:px-8 lg:py-10">
+  return <div className="mx-auto max-w-[1900px] space-y-6 px-5 py-8 lg:px-8 lg:py-10">
     <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
       <div>
         <Badge variant="outline">{today}</Badge>

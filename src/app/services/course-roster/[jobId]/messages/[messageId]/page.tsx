@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Clock3, MessageSquareText, XCircle } from "lucide-react";
 
+import { BackLink } from "@/components/layout/back-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,8 +57,8 @@ export default async function MessageHistoryDetailPage({ params }: PageProps) {
 
   return <main className="min-h-screen">
     {!detail.isTest && detail.provider === "directalk" && (detail.status === "processing" || !detail.deliveryCheckedAt) ? <DeliveryStatusRefresher endpoints={[`/api/jobs/${jobId}/messages/${messageId}/sync`]} /> : null}
-    <header className="border-b bg-background"><div className="mx-auto flex h-18 max-w-[1600px] items-center px-5 lg:px-8"><Button variant="ghost" size="sm" asChild><Link href={`/services/course-roster/${jobId}`}><ArrowLeft />작업 상세</Link></Button><div className="mx-3 h-5 w-px bg-border" /><span className="truncate font-semibold">발송 이력 상세</span></div></header>
-    <div className="mx-auto max-w-[1600px] px-5 py-8 lg:px-8">
+    <header className="border-b bg-background"><div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8"><Button variant="ghost" size="sm" asChild><BackLink href={`/services/course-roster/${jobId}`}><ArrowLeft />뒤로가기</BackLink></Button><div className="mx-3 h-5 w-px bg-border" /><span className="truncate font-semibold">발송 이력 상세</span></div></header>
+    <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
       <div className="mb-7"><Badge variant={detail.isTest ? "secondary" : "outline"} className="mb-3">{detail.isTest ? "테스트 발송" : MESSAGE_SCOPE_LABELS[detail.targetScope] ?? detail.targetScope}</Badge><h1 className="text-3xl font-semibold tracking-tight">{MESSAGE_TEMPLATE_LABELS[templateKey]}</h1><p className="mt-2 text-muted-foreground">{job.name} · {formatDateTime(detail.createdAt)}</p></div>
       <div className="grid gap-4 sm:grid-cols-3"><Metric title="발송 대상" value={detail.requestedCount} icon={<MessageSquareText className="size-4" />} /><Metric title="성공" value={detail.successCount} icon={<CheckCircle2 className="size-4 text-emerald-600" />} /><Metric title="실패" value={detail.failedCount} icon={<XCircle className="size-4 text-destructive" />} /></div>
       <Card className="mt-5"><CardHeader><CardTitle className="text-base">발송 정보</CardTitle></CardHeader><CardContent className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-6"><Info label="템플릿" value={MESSAGE_TEMPLATE_LABELS[templateKey]} /><Info label="Template Code" value={detail.templateCode || "-"} mono /><Info label="공급자" value={detail.provider || "-"} /><Info label="발송 구분" value={detail.isTest ? "테스트 발송" : MESSAGE_SCOPE_LABELS[detail.targetScope] ?? detail.targetScope} /><Info label="요청 시간" value={formatDateTime(detail.createdAt)} /><Info label="결과 확인" value={detail.deliveryCheckedAt ? formatDateTime(detail.deliveryCheckedAt) : "확인 중"} /></CardContent></Card>

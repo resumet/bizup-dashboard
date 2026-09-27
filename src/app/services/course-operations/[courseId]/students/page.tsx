@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import { BackLink } from "@/components/layout/back-link";
 import { CombinedCourseRosterClient } from "@/components/course-operations/combined-course-roster-client";
 import { Button } from "@/components/ui/button";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
@@ -70,11 +70,11 @@ export default async function CombinedCourseRosterPage({ params }: PageProps) {
   return (
     <main className="min-h-screen">
       <header className="border-b bg-background">
-        <div className="mx-auto flex h-18 max-w-[1600px] items-center px-5 lg:px-8">
+        <div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
           <Button variant="ghost" size="sm" asChild>
-            <Link href={`/services/course-operations/${courseId}`}>
-              <ArrowLeft />강의로 돌아가기
-            </Link>
+            <BackLink href={`/services/course-operations/${courseId}`}>
+              <ArrowLeft />뒤로가기
+            </BackLink>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
           <span className="truncate font-semibold">
@@ -82,7 +82,7 @@ export default async function CombinedCourseRosterPage({ params }: PageProps) {
           </span>
         </div>
       </header>
-      <div className="mx-auto max-w-[1600px] px-5 py-8 lg:px-8">
+      <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
         <CombinedCourseRosterClient
           courseId={courseId}
           courseName={courseResult.data.name}

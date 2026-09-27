@@ -132,7 +132,7 @@ export function PersonnelManager({ today }: { today: string }) {
     return () => controller.abort();
   }, [query, key]);
   function saved() { setSelected(null); setRevision(value => value + 1); setMessage("임직원 정보를 저장했습니다."); }
-  return <div className="mx-auto max-w-6xl space-y-5 px-4 py-7 sm:px-6">
+  return <div className="mx-auto max-w-[1900px] space-y-5 px-4 py-7 sm:px-6">
     <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-semibold">임직원 관리</h1><Button disabled={loadedKey !== key} onClick={() => { setSelected("new"); setMessage(""); }}><Plus className="size-4" />신규채용</Button></div>
     <form className="flex flex-wrap gap-2" onSubmit={event => { event.preventDefault(); setQ(search); setPage(0); }}><select aria-label="재직 상태" className={`${selectClass} sm:max-w-32`} value={status} onChange={event => { setStatus(event.target.value); setPage(0); }}><option value="all">전체</option>{Object.entries(statusLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select><Input className="min-w-0 flex-1 sm:max-w-sm" aria-label="이름 또는 이메일 검색" placeholder="이름 또는 이메일" maxLength={150} value={search} onChange={event => setSearch(event.target.value)} /><Button size="icon" variant="outline" aria-label="검색" title="검색"><Search /></Button><Button type="button" size="icon" variant="outline" title="새로고침" aria-label="새로고침" onClick={() => setRevision(value => value + 1)}><RefreshCw /></Button></form>
     <ErrorMessage message={error} />{message && <p role="status" className="text-sm text-emerald-700">{message}</p>}

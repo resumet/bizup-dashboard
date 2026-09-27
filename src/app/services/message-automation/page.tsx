@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackLink } from "@/components/layout/back-link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, History } from "lucide-react";
 
@@ -57,12 +58,9 @@ export default async function MessageAutomationPage({ searchParams }: Props) {
   return (
     <main className="min-h-screen">
       <header className="border-b">
-        <div className="mx-auto flex h-18 max-w-[1600px] items-center px-5 lg:px-8">
+        <div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/">
-              <ArrowLeft />
-              서비스
-            </Link>
+            <BackLink href="/"><ArrowLeft /> 뒤로가기</BackLink>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
           <span className="font-semibold">알림톡·문자 자동화</span>
@@ -74,7 +72,7 @@ export default async function MessageAutomationPage({ searchParams }: Props) {
           </Button>
         </div>
       </header>
-      <div className="mx-auto max-w-[1600px] px-5 py-10 lg:px-8">
+      <div className="mx-auto max-w-[1900px] px-5 py-10 lg:px-8">
         <MessageAutomationManager
           key={`${query.templateId ?? ""}:${query.bookId ?? ""}:${query.contactId ?? ""}:${query.selectionKey ?? ""}:${query.courseId ?? ""}`}
           books={booksResult.data ?? []}

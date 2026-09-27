@@ -31,7 +31,7 @@ export function HrHeader({
 
   return (
     <header className="border-b bg-background">
-      <div className="mx-auto flex h-18 max-w-[1600px] items-center justify-between gap-4 px-5 lg:px-8">
+      <div className="mx-auto flex h-18 max-w-[1900px] items-center justify-between gap-4 px-5 lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
           <BrandHomeLink showName={false} />
           <div className="h-5 w-px shrink-0 bg-border" />

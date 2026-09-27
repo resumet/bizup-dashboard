@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import { BackLink } from "@/components/layout/back-link";
 import { CourseOperationsEditor } from "@/components/course-operations/course-editor";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -98,11 +98,11 @@ export default async function NewCourseOperationsPage({ searchParams }: Props) {
   return (
     <main className="min-h-screen">
       <header className="border-b bg-background">
-        <div className="mx-auto flex h-18 max-w-[1600px] items-center px-5 lg:px-8">
+        <div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
           <Button variant="ghost" size="sm" asChild>
-            <Link href={scheduleDraft ? "/services/course-schedule-planner" : "/services/course-operations"}>
-              <ArrowLeft />{scheduleDraft ? "일정 플래너" : "강의 목록"}
-            </Link>
+            <BackLink href={scheduleDraft ? "/services/course-schedule-planner" : "/services/course-operations"}>
+              <ArrowLeft />뒤로가기
+            </BackLink>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
           <span className="font-semibold">
@@ -110,7 +110,7 @@ export default async function NewCourseOperationsPage({ searchParams }: Props) {
           </span>
         </div>
       </header>
-      <div className="mx-auto max-w-[1600px] px-5 py-8 lg:px-8">
+      <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
         {scheduleDraft ? (
           <Alert className="mb-6 border-sky-300 bg-sky-50 text-sky-950">
             <AlertTitle>예비 강의 정보를 불러왔습니다</AlertTitle>

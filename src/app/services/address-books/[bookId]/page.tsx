@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { AddressBookDetail } from "@/components/address-books/address-book-detail";
+import { BackLink } from "@/components/layout/back-link";
 import { PendingLinkLabel } from "@/components/navigation/pending-link-label";
 import { Button } from "@/components/ui/button";
 import { loadAddressBookContactsPage } from "@/lib/address-books/load";
@@ -51,25 +51,25 @@ export default async function AddressBookDetailPage({
   return (
     <main className="min-h-screen">
       <header className="border-b">
-        <div className="mx-auto flex h-18 max-w-[1600px] items-center px-5 lg:px-8">
+        <div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/services/address-books">
+            <BackLink href="/services/address-books">
               <PendingLinkLabel
                 idle={
                   <>
                     <ArrowLeft />
-                    주소록 목록
+                    뒤로가기
                   </>
                 }
                 pending="이동 중"
               />
-            </Link>
+            </BackLink>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
           <span className="font-semibold">{book.name}</span>
         </div>
       </header>
-      <div className="mx-auto max-w-[1600px] px-5 py-8 lg:px-8">
+      <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
         <AddressBookDetail
           mode="manager"
           book={book}
