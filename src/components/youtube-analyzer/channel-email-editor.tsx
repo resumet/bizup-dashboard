@@ -42,7 +42,7 @@ export function ChannelEmailEditor({ run, onSaved }: {
   }
 
   return <div className="min-w-0 space-y-1.5">
-    {email ? <a href={`mailto:${encodeURIComponent(email)}`} className="flex items-start gap-1.5 break-all text-sm text-primary hover:underline"><Mail className="mt-0.5 size-3.5 shrink-0" />{email}</a> : <span className="text-xs text-muted-foreground">미등록</span>}
+    {email ? <a href={`mailto:${encodeURIComponent(email)}`} className="flex items-start gap-1.5 break-all text-sm text-primary hover:underline"><Mail className="mt-0.5 size-3.5 shrink-0" />{email}</a> : null}
     <Dialog open={open} onOpenChange={(next) => {
       if (saving) return;
       setOpen(next);
