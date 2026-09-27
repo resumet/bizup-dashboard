@@ -33,8 +33,16 @@ export type WbsCourse = {
   webinarAt: string | null;
 };
 
+export type WbsSummary = {
+  courseId: string;
+  itemCount: number;
+  completedCount: number;
+  updatedAt: string;
+};
+
 export type CourseWbsBootstrap = {
   courses: WbsCourse[];
+  wbsSummaries: WbsSummary[];
   template: WbsTemplate;
   people: string[];
   employeeNames: string[];

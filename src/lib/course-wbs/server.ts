@@ -12,6 +12,7 @@ import type {
   CourseWbsBootstrap,
   WbsCourse,
   WbsItem,
+  WbsSummary,
   WbsTemplate,
 } from "./types";
 import {
@@ -82,6 +83,31 @@ async function loadWbsPeople(workspaceId: string): Promise<string[]> {
     }
     people.push(...(data ?? []).map((row) => row.name));
     if (!data || data.length < PEOPLE_PAGE_SIZE) return people;
+  }
+}
+
+async function loadWbsSummaries(workspaceId: string): Promise<WbsSummary[]> {
+  const admin = createAdminClient();
+  const summaries: WbsSummary[] = [];
+  for (let offset = 0; ; offset += PEOPLE_PAGE_SIZE) {
+    const { data, error } = await admin
+      .from("course_wbs")
+      .select(WBS_COLUMNS)
+      .eq("workspace_id", workspaceId)
+      .order("updated_at", { ascending: false })
+      .order("course_id", { ascending: true })
+      .range(offset, offset + PEOPLE_PAGE_SIZE - 1);
+    if (error) throw databaseError("WBS 목록 조회", error.code);
+    for (const row of data ?? []) {
+      const items = parseWbsItems(row.items);
+      summaries.push({
+        courseId: row.course_id,
+        itemCount: items.length,
+        completedCount: items.filter((item) => item.completed).length,
+        updatedAt: row.updated_at,
+      });
+    }
+    if (!data || data.length < PEOPLE_PAGE_SIZE) return summaries;
   }
 }
 
@@ -231,7 +257,7 @@ export async function loadCourseWbsBootstrap(
   workspaceId: string,
 ): Promise<CourseWbsBootstrap> {
   const admin = createAdminClient();
-  const [coursesResult, activeTemplateRow, savedPeople, employeeNames] = await Promise.all([
+  const [coursesResult, activeTemplateRow, savedPeople, employeeNames, wbsSummaries] = await Promise.all([
     admin
       .from("courses")
       .select("id,name,cohort,instructor_name,free_webinar_at")
@@ -240,6 +266,7 @@ export async function loadCourseWbsBootstrap(
     loadActiveTemplateRow(workspaceId),
     loadWbsPeople(workspaceId),
     loadWbsEmployeeNames(workspaceId),
+    loadWbsSummaries(workspaceId),
   ]);
   if (coursesResult.error) {
     throw databaseError("강의 목록 조회", coursesResult.error.code);
@@ -254,6 +281,7 @@ export async function loadCourseWbsBootstrap(
   const template = activeTemplateRow ? toTemplate(activeTemplateRow) : builtInTemplate();
   return {
     courses,
+    wbsSummaries,
     template,
     people: [...new Set([...savedPeople, ...peopleInItems(template.items)])]
       .sort((a, b) => a.localeCompare(b, "ko")),

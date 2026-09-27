@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
-  ArrowDown, ArrowUp, CalendarDays, ChevronDown, ClipboardList, ExternalLink, GripVertical,
+  ArrowDown, ArrowLeft, ArrowUp, CalendarDays, ChevronDown, ClipboardList, ExternalLink, GripVertical,
   LoaderCircle, Plus, Save, Trash2,
 } from "lucide-react";
 
@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toKoreaDate, toKoreaTime } from "@/lib/course-operations/schedule";
 import { reorderWbsItems } from "@/lib/course-wbs/reorder";
 import { datesForStartOffset, dueDateForOffset, dueDateForStartDate, WBS_DUE_OFFSETS, WBS_START_OFFSETS } from "@/lib/course-wbs/schedule-options";
-import type { CourseWbs, CourseWbsBootstrap, WbsCourse, WbsItem, WbsTemplate } from "@/lib/course-wbs/types";
+import type { CourseWbs, CourseWbsBootstrap, WbsCourse, WbsItem, WbsSummary, WbsTemplate } from "@/lib/course-wbs/types";
 import { applyTemplateToCourse, syncWebinarItem, webinarDateFromTimestamp, webinarDayLabel, WEBINAR_ITEM_ID } from "@/lib/course-wbs/webinar-date";
 
 type WbsResponse = { wbs: CourseWbs | null; webinarAt: string | null };
@@ -44,6 +44,15 @@ function reusableItems(items: WbsItem[]) {
 function courseLabel(course: WbsCourse) {
   const cohort = course.cohort.trim();
   return [course.instructorName || "강사 미입력", course.name, cohort ? `${cohort}${cohort.endsWith("기") ? "" : "기"}` : ""].filter(Boolean).join(" · ");
+}
+
+function courseCohort(course: WbsCourse) {
+  const cohort = course.cohort.trim();
+  return cohort ? `${cohort}${cohort.endsWith("기") ? "" : "기"}` : "기수 미입력";
+}
+
+function savedWbsProgress(summary: WbsSummary) {
+  return summary.itemCount ? Math.round(summary.completedCount / summary.itemCount * 100) : 0;
 }
 
 function withSavedPeople(people: string[], items: WbsItem[]) {
@@ -119,6 +128,8 @@ function validateItems(items: WbsItem[]) {
 
 export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: string }) {
   const [courses, setCourses] = useState<WbsCourse[]>([]);
+  const [wbsSummaries, setWbsSummaries] = useState<WbsSummary[]>([]);
+  const [newCourseId, setNewCourseId] = useState("");
   const [people, setPeople] = useState<string[]>([]);
   const [employeeNames, setEmployeeNames] = useState<string[]>([]);
   const [template, setTemplate] = useState<WbsTemplate | null>(null);
@@ -178,13 +189,14 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
         const body = await responseJson<CourseWbsBootstrap>(response);
         if (!active) return;
         setCourses(body.courses);
+        setWbsSummaries(body.wbsSummaries);
         setPeople(body.people);
         setEmployeeNames(body.employeeNames);
         setTemplate(body.template);
-        const firstCourse = body.courses.find((course) => course.id === initialCourseId) ?? body.courses[0];
-        if (firstCourse) {
-          setCourseId(firstCourse.id);
-          void loadCourse(firstCourse.id);
+        const requestedCourse = body.courses.find((course) => course.id === initialCourseId);
+        if (requestedCourse) {
+          setCourseId(requestedCourse.id);
+          void loadCourse(requestedCourse.id);
         }
       } catch (caught) {
         if (active) {
@@ -224,6 +236,17 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   const sortedItems = useMemo(() => ordered(items), [items]);
   const ownerPeople = useMemo(() => [...new Set([...employeeNames, ...people])]
     .sort((a, b) => a.localeCompare(b, "ko")), [employeeNames, people]);
+  const savedWbsCards = useMemo(() => {
+    const coursesById = new Map(courses.map((entry) => [entry.id, entry]));
+    return wbsSummaries
+      .map((summary) => ({ summary, course: coursesById.get(summary.courseId) }))
+      .filter((entry): entry is { summary: WbsSummary; course: WbsCourse } => Boolean(entry.course))
+      .sort((a, b) => b.summary.updatedAt.localeCompare(a.summary.updatedAt));
+  }, [courses, wbsSummaries]);
+  const coursesWithoutWbs = useMemo(() => {
+    const savedIds = new Set(wbsSummaries.map((summary) => summary.courseId));
+    return courses.filter((entry) => !savedIds.has(entry.id));
+  }, [courses, wbsSummaries]);
 
   function clearFeedback() { setError(""); setNotice(""); setConflictTarget(null); }
 
@@ -314,19 +337,25 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   }
 
   function selectCourse(id: string) {
-    if (id === courseId) return;
-    if (dirty && !window.confirm("저장하지 않은 변경 사항이 있습니다. 다른 강의로 이동할까요?")) return;
+    if (id === courseId || saving) return;
+    if (dirty && !window.confirm("저장하지 않은 변경 사항이 있습니다. 다른 WBS로 이동할까요?")) return;
+    ++loadSequence.current;
     setCourseId(id);
+    setNewCourseId("");
     setDraggedItemId(null);
     setDropTarget(null);
     setItems([]);
     setHasWbs(false);
+    setUpdatedAt("");
     setDirty(false);
     setCourseReady(false);
+    clearFeedback();
     const url = new URL(window.location.href);
-    url.searchParams.set("courseId", id);
+    if (id) url.searchParams.set("courseId", id);
+    else url.searchParams.delete("courseId");
     window.history.replaceState(null, "", url);
-    void loadCourse(id);
+    if (id) void loadCourse(id);
+    else setLoadingWbs(false);
   }
 
   async function refreshTemplate() {
@@ -373,11 +402,22 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
         method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items: ordered(items), expectedUpdatedAt: updatedAt || null }),
       });
       const body = await responseJson<WbsResponse>(response);
-      setItems(ordered(body.wbs?.items ?? items));
-      setPeople((current) => withSavedPeople(current, body.wbs?.items ?? items));
+      const savedWbs = body.wbs;
+      const savedItems = ordered(savedWbs?.items ?? items);
+      setItems(savedItems);
+      setPeople((current) => withSavedPeople(current, savedItems));
       setCourses((current) => current.map((entry) => entry.id === courseId ? { ...entry, webinarAt: body.webinarAt } : entry));
       setHasWbs(true);
-      setUpdatedAt(body.wbs?.updatedAt ?? "");
+      setUpdatedAt(savedWbs?.updatedAt ?? "");
+      if (savedWbs) setWbsSummaries((current) => [
+        ...current.filter((summary) => summary.courseId !== courseId),
+        {
+          courseId,
+          itemCount: savedItems.length,
+          completedCount: savedItems.filter((item) => item.completed).length,
+          updatedAt: savedWbs.updatedAt,
+        },
+      ]);
       setDirty(false);
       setNotice("이 강의의 WBS를 저장했습니다.");
     } catch (caught) {
@@ -413,13 +453,9 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
       <div>
         <Badge variant="outline" className="mb-3 bg-background">강의 준비 · 웨비나 운영</Badge>
         <h2 className="text-3xl font-semibold tracking-tight">강의 WBS</h2>
-        <p className="mt-2 text-sm text-muted-foreground">업무를 강의에 연결하고 진행 상태와 일정을 함께 관리하세요.</p>
+        <p className="mt-2 text-sm text-muted-foreground">강의별 WBS를 선택해 업무와 일정을 관리하세요.</p>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" variant="outline" onClick={() => void saveTemplate()} disabled={!template || !courseReady || !items.length || loadingWbs || saving}><Save /> 템플릿으로 저장</Button>
-        <Button size="sm" variant="outline" onClick={applyTemplate} disabled={!template || !courseReady || loadingWbs || saving}><ClipboardList /> 템플릿 불러오기</Button>
-        {course ? <Button variant="outline" size="sm" asChild><Link href={`/services/course-operations/${course.id}`}>강의 상세 <ExternalLink /></Link></Button> : null}
-      </div>
+      {courseId ? <Button size="sm" variant="outline" onClick={() => selectCourse("")} disabled={saving}><ArrowLeft /> WBS 목록</Button> : null}
     </div>
 
     {error ? <Alert variant="destructive" className="mb-5" role="alert"><AlertDescription>
@@ -438,23 +474,77 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
         <p className="mt-2 text-sm text-muted-foreground">강의를 만든 뒤 WBS를 연결할 수 있습니다.</p>
         <Button className="mt-5" asChild><Link href="/services/course-operations/new"><Plus /> 강의 만들기</Link></Button>
       </div>
-    ) : <>
-      <section className="mb-4 rounded-xl border bg-background p-5 shadow-sm" aria-label="강의 선택">
-        <div className="flex flex-wrap items-end gap-4">
+    ) : !courseId ? <>
+      <section aria-label="저장된 강의 WBS">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h3 className="text-xl font-semibold">저장된 WBS</h3>
+            <p className="mt-1 text-sm text-muted-foreground">연결된 강의를 선택하면 해당 WBS를 열 수 있습니다.</p>
+          </div>
+          <Badge variant="secondary">{savedWbsCards.length}개</Badge>
+        </div>
+        {savedWbsCards.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {savedWbsCards.map(({ summary, course: linkedCourse }) => {
+            const cardProgress = savedWbsProgress(summary);
+            return <button key={summary.courseId} type="button" onClick={() => selectCourse(summary.courseId)} aria-label={`${courseLabel(linkedCourse)} WBS 열기`} className="group rounded-xl border bg-background p-5 text-left shadow-sm transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <div className="flex items-center justify-between gap-2">
+                <Badge variant="outline">강의 WBS</Badge>
+                <span className="text-xs text-muted-foreground">마지막 저장 {new Date(summary.updatedAt).toLocaleDateString("ko-KR")}</span>
+              </div>
+              <p className="mt-5 text-sm font-medium text-primary">{linkedCourse.instructorName || "강사 미입력"}</p>
+              <h4 className="mt-1 text-lg font-semibold group-hover:text-primary">{linkedCourse.name}</h4>
+              <p className="mt-1 text-sm text-muted-foreground">{courseCohort(linkedCourse)}</p>
+              <div className="mt-5 border-t pt-4">
+                <p className="text-sm"><span className="text-muted-foreground">무료 웨비나</span> <span className="ml-2 font-medium">{linkedCourse.webinarAt ? `${toKoreaDate(linkedCourse.webinarAt)} ${toKoreaTime(linkedCourse.webinarAt)}` : "일정 미정"}</span></p>
+                <div className="mt-4 flex items-center justify-between text-sm"><span className="text-muted-foreground">업무 {summary.itemCount}개 · 완료 {summary.completedCount}개</span><span className="font-semibold tabular-nums">{cardProgress}%</span></div>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${cardProgress}%` }} /></div>
+              </div>
+            </button>;
+          })}
+        </div> : <div className="rounded-xl border border-dashed bg-background px-6 py-14 text-center text-sm text-muted-foreground">저장된 WBS가 없습니다. 아래에서 강의를 선택해 첫 WBS를 만들어 보세요.</div>}
+      </section>
+
+      <section className="mt-7 rounded-xl border bg-background p-5 shadow-sm" aria-label="새 WBS 만들기">
+        <h3 className="text-lg font-semibold">새 WBS 만들기</h3>
+        {coursesWithoutWbs.length ? <>
+          <p className="mt-1 text-sm text-muted-foreground">아직 WBS가 없는 강의를 연결합니다.</p>
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <div className="min-w-64 flex-1">
+              <label htmlFor="wbs-new-course" className="mb-2 block text-sm font-medium">연결할 강의</label>
+              <select id="wbs-new-course" value={newCourseId} onChange={(event) => setNewCourseId(event.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm">
+                <option value="">강의를 선택하세요</option>
+                {coursesWithoutWbs.map((entry) => <option value={entry.id} key={entry.id}>{courseLabel(entry)}</option>)}
+              </select>
+            </div>
+            <Button onClick={() => selectCourse(newCourseId)} disabled={!newCourseId}><Plus /> 새 WBS 만들기</Button>
+          </div>
+        </> : <div className="mt-2 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+          <span>모든 강의에 WBS가 연결되어 있습니다.</span>
+          <Button size="sm" variant="outline" asChild><Link href="/services/course-operations/new"><Plus /> 강의 만들기</Link></Button>
+        </div>}
+      </section>
+    </> : <>
+      <section className="mb-4 rounded-xl border bg-background p-5 shadow-sm" aria-label="연결된 강의">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-64 flex-1">
-            <label htmlFor="wbs-course" className="mb-2 block text-sm font-medium">연결할 강의</label>
-            <select id="wbs-course" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" value={courseId} onChange={(event) => selectCourse(event.target.value)} disabled={saving || loadingWbs}>
-              {courses.map((entry) => <option value={entry.id} key={entry.id}>{courseLabel(entry)}</option>)}
-            </select>
-            <p className="mt-2 text-xs text-muted-foreground">무료웨비나 기준일: {webinarDate ? `${webinarDate}${webinarTime ? ` ${webinarTime}` : ""}` : "강의 상세에서 날짜를 설정해 주세요."}</p>
+            <p className="text-xs font-medium text-muted-foreground">연결된 강의</p>
+            <h3 className="mt-2 text-xl font-semibold">{course ? courseLabel(course) : "강의 정보 확인 중"}</h3>
+            <p className="mt-2 text-sm text-muted-foreground">무료 웨비나 · {webinarDate ? `${webinarDate}${webinarTime ? ` ${webinarTime}` : ""}` : "강의 상세에서 날짜를 설정해 주세요."}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => void saveTemplate()} disabled={!template || !courseReady || !items.length || loadingWbs || saving}><Save /> 템플릿으로 저장</Button>
+            <Button size="sm" variant="outline" onClick={applyTemplate} disabled={!template || !courseReady || loadingWbs || saving}><ClipboardList /> 템플릿 불러오기</Button>
+            {course ? <Button variant="outline" size="sm" asChild><Link href={`/services/course-operations/${course.id}`}>강의 상세 <ExternalLink /></Link></Button> : null}
+          </div>
+        </div>
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+          <div className="text-xs text-muted-foreground">
+            <p>{dirty ? "저장하지 않은 변경 사항이 있습니다." : hasWbs ? "이 강의에 저장된 WBS입니다." : "아직 이 강의에 WBS가 없습니다. 템플릿을 불러오거나 항목을 추가하세요."}</p>
+            {updatedAt && !dirty ? <p className="mt-1">마지막 저장 {new Date(updatedAt).toLocaleString("ko-KR")}</p> : null}
           </div>
           <Button onClick={() => void saveWbs()} disabled={saving || loadingWbs || !courseReady || !courseId || (!dirty && hasWbs)}>
             {saving ? <LoaderCircle className="animate-spin" /> : <Save />} 강의 WBS 저장
           </Button>
-        </div>
-        <div className="mt-2 flex flex-wrap justify-between gap-1 text-xs text-muted-foreground">
-          <span>{dirty ? "저장하지 않은 변경 사항이 있습니다." : hasWbs ? "이 강의에 저장된 WBS입니다." : "아직 이 강의에 WBS가 없습니다. 템플릿을 불러오거나 항목을 추가하세요."}</span>
-          {updatedAt && !dirty ? <span>마지막 저장 {new Date(updatedAt).toLocaleString("ko-KR")}</span> : null}
         </div>
       </section>
 

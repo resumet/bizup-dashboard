@@ -8,6 +8,7 @@ const workspaceB = "00000000-0000-4000-8000-000000000002";
 const userA = "00000000-0000-4000-8000-000000000003";
 const userB = "00000000-0000-4000-8000-000000000004";
 const courseA = "00000000-0000-4000-8000-000000000005";
+const courseB = "00000000-0000-4000-8000-000000000006";
 
 test("WBS 마이그레이션은 강의와 워크스페이스 연결 및 템플릿 업그레이드를 보장한다", async () => {
   const db = new PGlite();
@@ -29,7 +30,7 @@ test("WBS 마이그레이션은 강의와 워크스페이스 연결 및 템플�
     await db.query("insert into auth.users values ($1), ($2)", [userA, userB]);
     await db.query("insert into public.workspaces values ($1), ($2)", [workspaceA, workspaceB]);
     await db.query("insert into public.workspace_members values ($1, $2), ($3, $4)", [workspaceA, userA, workspaceB, userB]);
-    await db.query("insert into public.courses values ($1, $2)", [courseA, workspaceA]);
+    await db.query("insert into public.courses values ($1, $2), ($3, $4)", [courseA, workspaceA, courseB, workspaceA]);
     await db.exec(await readFile("supabase/migrations/202609270001_course_wbs.sql", "utf8"));
 
     await assert.rejects(
@@ -55,6 +56,12 @@ test("WBS 마이그레이션은 강의와 워크스페이스 연결 및 템플�
       [courseA, firstWbsRevision],
     );
     assert.equal(staleWbs.rows.length, 0);
+
+    await db.query("insert into public.course_wbs (course_id, workspace_id, items, updated_by) values ($1, $2, $3::jsonb, $4)",
+      [courseB, workspaceA, JSON.stringify([{ id: "task-2", title: "Second course" }]), userA]);
+    assert.equal((await db.query<{ count: string }>(
+      "select count(*)::text count from public.course_wbs where workspace_id = $1", [workspaceA],
+    )).rows[0].count, "2");
 
     await db.query(`insert into public.course_wbs_templates (workspace_id, id, name, items, updated_by)
       values ($1, 'notion-webinar', 'Original', '[]'::jsonb, $3),
