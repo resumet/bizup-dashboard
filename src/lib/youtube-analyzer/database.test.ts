@@ -33,11 +33,17 @@ test("channels accumulate in first-seen order and reanalysis updates only the ma
     const emailMigration=await readFile("supabase/migrations/202609270005_youtube_channel_email.sql","utf8");
     await db.exec(emailMigration);
     await db.exec(emailMigration);
+    const attributesMigration=await readFile("supabase/migrations/202609270006_youtube_channel_attributes.sql","utf8");
+    await db.exec(attributesMigration);
+    await db.exec(attributesMigration);
 
     const initial=await db.query<{first_analyzed_at:string}>("select first_analyzed_at from youtube_analyzed_channels where channel_id='channel-a'");
     assert.equal(initial.rows.length,1);
     assert.equal((await db.query("select * from youtube_channel_videos")).rows.length,1);
-    await db.query("update youtube_analyzed_channels set email=$1 where channel_id='channel-a'",["contact@example.com"]);
+    await db.query("update youtube_analyzed_channels set email=$1, category=$2, appearance_fee=$3, rs_percent=$4 where channel_id='channel-a'",["contact@example.com","타이탄 외부채널",1000000,25.125]);
+    await assert.rejects(db.query("update youtube_analyzed_channels set category='unknown' where channel_id='channel-a'"),/youtube_analyzed_channels_category_valid/);
+    await assert.rejects(db.query("update youtube_analyzed_channels set appearance_fee=-1 where channel_id='channel-a'"),/youtube_analyzed_channels_appearance_fee_nonnegative/);
+    await assert.rejects(db.query("update youtube_analyzed_channels set rs_percent=101 where channel_id='channel-a'"),/youtube_analyzed_channels_rs_percent_range/);
 
     await db.query("insert into youtube_analysis_batches(id,workspace_id,created_by,input_count) values($1,$2,$3,1),($4,$2,$3,1)",[secondBatch,workspace,user,thirdBatch]);
     await db.query("insert into youtube_analysis_requests(batch_id,input_order,input_url,resolved_channel_id) values($1,0,'a','channel-a'),($2,0,'b','channel-b')",[secondBatch,thirdBatch]);
@@ -60,12 +66,18 @@ test("channels accumulate in first-seen order and reanalysis updates only the ma
       JSON.stringify([{id:"second-video",publishedAt:"2100-03-01",views:30}]),
     ]);
 
-    const channels=await db.query<{position:number;channel_id:string;channel:{name:string};email:string|null;metrics:{count:number};first_analyzed_at:string}>("select position,channel_id,channel,email,metrics,first_analyzed_at from youtube_analyzed_channels order by position");
+    const channels=await db.query<{position:number;channel_id:string;channel:{name:string};email:string|null;category:string|null;appearance_fee:number|null;rs_percent:number|null;metrics:{count:number};first_analyzed_at:string}>("select position,channel_id,channel,email,category,appearance_fee,rs_percent,metrics,first_analyzed_at from youtube_analyzed_channels order by position");
     assert.deepEqual(channels.rows.map(row=>row.channel_id),["channel-a","channel-b"]);
     assert.equal(channels.rows[0].channel.name,"Updated");
     assert.equal(channels.rows[0].metrics.count,2);
     assert.equal(channels.rows[0].email,"contact@example.com");
     assert.equal(channels.rows[1].email,null);
+    assert.equal(channels.rows[0].category,"타이탄 외부채널");
+    assert.equal(Number(channels.rows[0].appearance_fee),1000000);
+    assert.equal(Number(channels.rows[0].rs_percent),25.125);
+    assert.equal(channels.rows[1].category,null);
+    assert.equal(channels.rows[1].appearance_fee,null);
+    assert.equal(channels.rows[1].rs_percent,null);
     assert.equal(String(channels.rows[0].first_analyzed_at),String(initial.rows[0].first_analyzed_at));
     assert.ok(channels.rows[0].position < channels.rows[1].position);
     assert.deepEqual((await db.query<{video_id:string}>("select video_id from youtube_channel_videos where channel_id='channel-a'")).rows.map(row=>row.video_id),["new-video"]);
@@ -75,6 +87,10 @@ test("channels accumulate in first-seen order and reanalysis updates only the ma
     await db.query(save,[secondBatch,JSON.stringify({id:"channel-a",name:"Stale"}),JSON.stringify({count:0}),"[]","2098-01-15","[]"]);
     assert.equal((await db.query<{channel:{name:string} }>("select channel from youtube_analyzed_channels where channel_id='channel-a'")).rows[0].channel.name,"Updated");
     assert.equal((await db.query<{email:string}>("select email from youtube_analyzed_channels where channel_id='channel-a'")).rows[0].email,"contact@example.com");
+    const retained=(await db.query<{category:string;appearance_fee:number;rs_percent:string}>("select category,appearance_fee,rs_percent from youtube_analyzed_channels where channel_id='channel-a'")).rows[0];
+    assert.equal(retained.category,"타이탄 외부채널");
+    assert.equal(Number(retained.appearance_fee),1000000);
+    assert.equal(Number(retained.rs_percent),25.125);
 
     // Deleting one current channel cascades only its videos. Analyzing it again
     // creates a new entry at the bottom of the cumulative list.

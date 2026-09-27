@@ -24,7 +24,7 @@ test("workflow paginates all uploads, deduplicates channels per batch, and recol
       }
       const ids=url.searchParams.get("id")!.split(",");
       assert.ok(ids.length<=50);
-      return Response.json({items:ids.map(id=>({id,snippet:{title:id,channelId,publishedAt:"2026-01-01T00:00:00Z"},statistics:{viewCount:"100"},status:{privacyStatus:"public"}}))});
+      return Response.json({items:ids.map(id=>({id,snippet:{title:id,channelId,publishedAt:"2026-01-01T00:00:00Z"},statistics:{viewCount:"100",likeCount:"5",commentCount:"3"},status:{privacyStatus:"public"}}))});
     }
     assert.equal(url.hostname,"supabase.test");
     const body=init?.body ? JSON.parse(String(init.body)) : null;
@@ -49,7 +49,11 @@ test("workflow paginates all uploads, deduplicates channels per batch, and recol
     await youtubeAnalysisWorkflow("batch-a",input,3);
     assert.equal(saved.length,1);
     assert.equal((saved[0].p_videos as unknown[]).length,120);
-    assert.equal((saved[0].p_metrics as {recent20:number}).recent20,100);
+    const metrics=saved[0].p_metrics as {recent20:number;recent30Likes:number;recent30Comments:number;recent30Count:number};
+    assert.equal(metrics.recent20,100);
+    assert.equal(metrics.recent30Likes,5);
+    assert.equal(metrics.recent30Comments,3);
+    assert.equal(metrics.recent30Count,30);
     assert.equal(requests.get("3")?.error_code,"INVALID_URL",JSON.stringify([...requests]));
     assert.equal(states.at(-1),"partial");
     await youtubeAnalysisWorkflow("batch-b",input,3);

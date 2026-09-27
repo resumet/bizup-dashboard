@@ -30,10 +30,50 @@ export function calculate(videos: Video[]) {
   const recent = [...videos].sort((a,b) => b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id));
   const ranked = [...videos].sort((a,b) => b.views-a.views || b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id));
   const avg = (rows: Video[]) => rows.length ? rows.reduce((sum,v) => sum+v.views, 0)/rows.length : null;
-  return { count: videos.length, top: ranked[0] ?? null, exclude1: avg(ranked.slice(1)), exclude3: avg(ranked.slice(3)), recent5: avg(recent.slice(0,5)), recent10: avg(recent.slice(0,10)), recent20: avg(recent.slice(0,20)), samples: [5,10,20].map(n => Math.min(n,videos.length)) };
+  const recent30 = recent.slice(0,30);
+  const avgAvailable = (values: (number | null)[]) => {
+    const available = values.filter((value): value is number => value !== null);
+    return available.length ? available.reduce((sum,value) => sum+value,0)/available.length : null;
+  };
+  return { count: videos.length, top: ranked[0] ?? null, exclude1: avg(ranked.slice(1)), exclude3: avg(ranked.slice(3)), recent5: avg(recent.slice(0,5)), recent10: avg(recent.slice(0,10)), recent20: avg(recent.slice(0,20)), recent30Likes: avgAvailable(recent30.map(video => video.likes)), recent30Comments: avgAvailable(recent30.map(video => video.comments)), recent30Count: recent30.length, samples: [5,10,20].map(n => Math.min(n,videos.length)) };
 }
 export type Metrics = Omit<ReturnType<typeof calculate>, "top"> & { top: Video | null };
-export type Analysis = { position: number; channel_id: string; channel: Channel; email: string | null; metrics: Metrics; warnings: string[]; first_analyzed_at: string; last_analyzed_at: string };
+export const CHANNEL_CATEGORIES = [
+  "타이탄 외부채널",
+  "타이탄 내부채널",
+  "N잡 연구소 내부채널",
+  "N잡 연구소 협력채널",
+  "휴먼스토리 산하채널",
+  "레드락",
+  "마브스쿨",
+  "N잡연구소",
+  "인베이더스쿨",
+  "쇼츠아재",
+  "하이퍼클래스",
+  "서과장쪽",
+  "하이클래스",
+] as const;
+export type ChannelCategory = (typeof CHANNEL_CATEGORIES)[number];
+export type Analysis = { position: number; channel_id: string; channel: Channel; email: string | null; category: ChannelCategory | null; appearance_fee: number | null; rs_percent: number | null; metrics: Metrics; warnings: string[]; first_analyzed_at: string; last_analyzed_at: string };
+export function normalizeChannelCategory(value: unknown): ChannelCategory | null {
+  if (value === null || value === "") return null;
+  if (typeof value !== "string" || !CHANNEL_CATEGORIES.includes(value as ChannelCategory)) throw new Error("INVALID_CATEGORY");
+  return value as ChannelCategory;
+}
+export function normalizeAppearanceFee(value: unknown): number | null {
+  if (value === null || value === "") return null;
+  const normalized = typeof value === "string" ? value.replaceAll(",", "") : value;
+  const amount = typeof normalized === "string" && /^\d+$/.test(normalized) ? Number(normalized) : normalized;
+  if (typeof amount !== "number" || !Number.isSafeInteger(amount) || amount < 0) throw new Error("INVALID_APPEARANCE_FEE");
+  return amount;
+}
+export function normalizeRsPercent(value: unknown): number | null {
+  if (value === null || value === "") return null;
+  if (typeof value !== "number" && (typeof value !== "string" || !/^\d+(?:\.\d+)?$/.test(value))) throw new Error("INVALID_RS_PERCENT");
+  const percent = Number(value);
+  if (!Number.isFinite(percent) || percent < 0 || percent > 100) throw new Error("INVALID_RS_PERCENT");
+  return percent;
+}
 export function normalizeChannelEmail(value: unknown): string | null {
   if (value === null) return null;
   if (typeof value !== "string") throw new Error("INVALID_EMAIL");

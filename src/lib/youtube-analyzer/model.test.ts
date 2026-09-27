@@ -18,6 +18,9 @@ test("blank lines, tracking params and equivalent video URLs are deduplicated", 
 const video=(id:string,views:number,publishedAt="2026-01-01T00:00:00Z"):Video=>({id,views,publishedAt,title:id,likes:null,comments:null});
 test("empty and short channels preserve unavailable averages", () => {
   assert.equal(calculate([]).top,null);
+  assert.equal(calculate([]).recent30Likes,null);
+  assert.equal(calculate([]).recent30Comments,null);
+  assert.equal(calculate([]).recent30Count,0);
   assert.equal(calculate([video("a",10)]).exclude1,null);
   assert.equal(calculate([video("a",10),video("b",1),video("c",2)]).exclude3,null);
   assert.deepEqual(calculate([video("a",10)]).samples,[1,1,1]);
@@ -34,4 +37,17 @@ test("all videos are used while recent samples use publication order", () => {
   assert.equal(result.recent5,(1050+1049+1048+1047+1046)/5);
   assert.equal(result.exclude1,1049/2);
   assert.deepEqual(result.samples,[5,10,20]);
+});
+test("recent 30 engagement averages use publication order and available statistics", () => {
+  const rows=Array.from({length:35},(_,i)=>({
+    ...video(String(i),1000-i,new Date(Date.UTC(2026,0,i+1)).toISOString()),
+    likes: i===10 ? null : i,
+    comments: i===20 ? null : i*2,
+  }));
+  const result=calculate(rows);
+  assert.equal(result.recent30Count,30);
+  assert.equal(result.recent30Likes,(585-10)/29);
+  assert.equal(result.recent30Comments,(1170-40)/29);
+  assert.equal(calculate([{...video("zero",1),likes:0,comments:0}]).recent30Likes,0);
+  assert.equal(calculate([{...video("zero",1),likes:0,comments:0}]).recent30Comments,0);
 });

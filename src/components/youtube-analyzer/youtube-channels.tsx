@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink, LoaderCircle, Play, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { ChannelDetailsEditor } from "@/components/youtube-analyzer/channel-details-editor";
 import { ChannelEmailEditor } from "@/components/youtube-analyzer/channel-email-editor";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -191,6 +192,11 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     setDetail(previous=>previous?.channel_id===channelId ? {...previous,email} : previous);
   }
 
+  function updateDetails(channelId: string, details: Pick<Analysis,"category"|"appearance_fee"|"rs_percent">) {
+    setRuns(previous=>previous.map(run=>run.channel_id===channelId ? {...run,...details} : run));
+    setDetail(previous=>previous?.channel_id===channelId ? {...previous,...details} : previous);
+  }
+
   const completed=requests.filter(request=>["completed","failed"].includes(request.status)).length;
 
   return <main className="mx-auto min-h-screen max-w-[1900px] space-y-6 px-4 py-6 sm:px-8">
@@ -222,16 +228,21 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
         </div>
       </div>
       {loading || loadingAll ? <p role="status" className="flex items-center gap-2 py-10 text-sm"><LoaderCircle className="size-4 animate-spin"/>{loadingAll ? "전체 채널을 불러와 정렬하는 중입니다." : "분석 목록을 불러오는 중입니다."}</p> : sortBy!=="position" && !allLoaded ? <div className="flex items-center gap-3 border-y py-8 text-sm"><span>전체 채널 정렬을 완료하지 못했습니다.</span><Button variant="outline" size="sm" onClick={()=>{setLoadingAll(true);setRevision(value=>value+1);}}>다시 시도</Button></div> : !runs.length ? <p className="border-y py-12 text-center text-muted-foreground">{active(batch) ? "첫 번째 채널 분석을 기다리고 있습니다." : "분석한 채널이 없습니다."}</p> : <div className="overflow-x-auto rounded-md border">
-        <table className="w-full min-w-[1350px] text-sm">
-          <thead className="bg-muted/60"><tr>{["채널 / 주소","이메일","전체 / 분석 영상","구독자","최고 조회 영상","최고 조회수","최고 1개 제외 평균","최근 20개 평균","등록 / 업데이트","관리"].map(heading=><th key={heading} className="whitespace-nowrap px-3 py-3 text-left font-medium">{heading}</th>)}</tr></thead>
+        <table className="w-full min-w-[1950px] text-sm">
+          <thead className="bg-muted/60"><tr>{["채널 / 주소","이메일","분류","출연료","RS(%)","전체 / 분석 영상","구독자","최고 조회 영상","최고 조회수","최고 1개 제외 평균","최근 20개 평균","최근 30개 평균 댓글","최근 30개 평균 좋아요","등록 / 업데이트","관리"].map(heading=><th key={heading} className="whitespace-nowrap px-3 py-3 text-left font-medium">{heading}</th>)}</tr></thead>
           <tbody>{sortedRuns.map(run=><tr key={run.channel_id} className="border-t align-top hover:bg-muted/20">
             <td className="min-w-60 max-w-72 px-3 py-4"><a href={run.channel.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-semibold hover:underline">{run.channel.thumbnail && <Image unoptimized src={run.channel.thumbnail} alt="" width={36} height={36} className="size-9 rounded-full" referrerPolicy="no-referrer"/>}<span className="break-words">{run.channel.name}</span><ExternalLink className="size-3 shrink-0"/></a><a href={run.channel.url} target="_blank" rel="noreferrer" className="mt-2 block break-all text-xs text-muted-foreground hover:underline">{displayUrl(run.channel.url)}</a>{run.warnings.map(warning=><p key={warning} className="mt-2 text-xs text-amber-800">{warning}</p>)}</td>
             <td className="min-w-52 px-3 py-4"><ChannelEmailEditor run={run} onSaved={updateEmail}/></td>
+            <td className="min-w-48 px-3 py-4"><span className="mb-2 block">{run.category ?? "-"}</span><ChannelDetailsEditor run={run} onSaved={updateDetails}/></td>
+            <td className="whitespace-nowrap px-3 py-4 text-right tabular-nums">{run.appearance_fee == null ? "-" : `${number(run.appearance_fee)}원`}</td>
+            <td className="whitespace-nowrap px-3 py-4 text-right tabular-nums">{run.rs_percent == null ? "-" : `${run.rs_percent}%`}</td>
             <td className="px-3 py-4 tabular-nums">{number(run.channel.reported)} / {number(run.metrics.count)}</td>
             <td className="px-3 py-4 tabular-nums">{run.channel.subscribers===null ? "비공개" : number(run.channel.subscribers)}</td>
             <td className="min-w-52 max-w-64 px-3 py-4">{run.metrics.top ? <a href={`https://www.youtube.com/watch?v=${run.metrics.top.id}`} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">{run.metrics.top.title}</a> : "-"}</td>
             {[run.metrics.top?.views,run.metrics.exclude1].map((value,index)=><td key={index} className="px-3 py-4 text-right tabular-nums">{number(value)}</td>)}
             <td className="px-3 py-4 text-right tabular-nums">{number(run.metrics.recent20)}<span className="mt-1 block text-xs text-muted-foreground">{run.metrics.samples[2]}개</span></td>
+            <td className="px-3 py-4 text-right tabular-nums">{number(run.metrics.recent30Comments)}</td>
+            <td className="px-3 py-4 text-right tabular-nums">{number(run.metrics.recent30Likes)}</td>
             <td className="min-w-44 px-3 py-4 text-xs leading-5"><span className="block">등록 {date(run.first_analyzed_at)}</span><span>업데이트 {date(run.last_analyzed_at)}</span></td>
             <td className="px-3 py-4"><div className="flex items-center gap-1"><Button variant="outline" size="sm" onClick={()=>openDetail(run)}>더보기</Button><Button variant="ghost" size="icon-sm" aria-label={`${run.channel.name} 삭제`} title="채널 삭제" disabled={active(batch)} onClick={()=>{setDeleteError("");setDeleteTarget(run);}}><Trash2 className="size-4"/></Button></div></td>
           </tr>)}</tbody>

@@ -3,13 +3,13 @@ import { start } from "workflow/api";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireCourseOperationsMembership, requireCourseOperationsUser } from "@/lib/course-operations/server";
-import { inputs, normalizeChannelEmail } from "@/lib/youtube-analyzer/model";
+import { inputs, normalizeAppearanceFee, normalizeChannelCategory, normalizeChannelEmail, normalizeRsPercent } from "@/lib/youtube-analyzer/model";
 import { setting } from "@/lib/youtube-analyzer/api";
 import { youtubeAnalysisWorkflow } from "@/workflows/youtube-analysis";
 
 export const maxDuration = 120;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-function missingEmailColumn(error: {code?: string} | null) {
+function missingOptionalColumn(error: {code?: string} | null) {
   return error?.code === "42703" || error?.code === "PGRST204";
 }
 
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
     if (!Number.isSafeInteger(offset) || offset < 0) return NextResponse.json({error:"잘못된 페이지입니다."},{status:400});
 
     const channelsQuery = admin.from("youtube_analyzed_channels")
-      .select("position,channel_id,channel,email,metrics,warnings,first_analyzed_at,last_analyzed_at")
+      .select("position,channel_id,channel,email,category,appearance_fee,rs_percent,metrics,warnings,first_analyzed_at,last_analyzed_at")
       .eq("workspace_id",workspaceId)
       .order("position")
       .range(offset,offset+200);
@@ -64,14 +64,35 @@ export async function GET(request: Request) {
     const [result,batch,requests] = await Promise.all([channelsQuery,batchQuery,requestsQuery]);
     if (batch.error || requests.error) throw batch.error ?? requests.error;
     let rows = result.data;
-    if (missingEmailColumn(result.error)) {
-      const legacy = await admin.from("youtube_analyzed_channels")
-        .select("position,channel_id,channel,metrics,warnings,first_analyzed_at,last_analyzed_at")
+    if (missingOptionalColumn(result.error)) {
+      const withAttributes = await admin.from("youtube_analyzed_channels")
+        .select("position,channel_id,channel,category,appearance_fee,rs_percent,metrics,warnings,first_analyzed_at,last_analyzed_at")
         .eq("workspace_id",workspaceId)
         .order("position")
         .range(offset,offset+200);
-      if (legacy.error) throw legacy.error;
-      rows = legacy.data.map(row=>({...row,email:null}));
+      if (!withAttributes.error) {
+        rows = withAttributes.data.map(row=>({...row,email:null}));
+      } else if (missingOptionalColumn(withAttributes.error)) {
+        const withEmail = await admin.from("youtube_analyzed_channels")
+          .select("position,channel_id,channel,email,metrics,warnings,first_analyzed_at,last_analyzed_at")
+          .eq("workspace_id",workspaceId)
+          .order("position")
+          .range(offset,offset+200);
+        if (missingOptionalColumn(withEmail.error)) {
+          const legacy = await admin.from("youtube_analyzed_channels")
+            .select("position,channel_id,channel,metrics,warnings,first_analyzed_at,last_analyzed_at")
+            .eq("workspace_id",workspaceId)
+            .order("position")
+            .range(offset,offset+200);
+          if (legacy.error) throw legacy.error;
+          rows = legacy.data.map(row=>({...row,email:null,category:null,appearance_fee:null,rs_percent:null}));
+        } else {
+          if (withEmail.error) throw withEmail.error;
+          rows = withEmail.data.map(row=>({...row,category:null,appearance_fee:null,rs_percent:null}));
+        }
+      } else {
+        throw withAttributes.error;
+      }
     } else if (result.error) throw result.error;
     if (batchId && !batch.data) return NextResponse.json({error:"분석 요청을 찾을 수 없습니다."},{status:404});
     return NextResponse.json({
@@ -115,25 +136,39 @@ export async function PATCH(request: Request) {
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       return NextResponse.json({error:"잘못된 입력입니다."},{status:400});
     }
-    const {channelId,email} = body as Record<string,unknown>;
+    const fields = body as Record<string,unknown>;
+    const {channelId} = fields;
     if (typeof channelId !== "string" || !channelId.trim() || channelId.length > 128) {
-      return NextResponse.json({error:"채널 또는 이메일 입력이 올바르지 않습니다."},{status:400});
+      return NextResponse.json({error:"채널 입력이 올바르지 않습니다."},{status:400});
     }
-    let normalizedEmail: string | null;
-    try { normalizedEmail = normalizeChannelEmail(email); }
-    catch { return NextResponse.json({error:"올바른 이메일 주소를 입력해 주세요."},{status:400}); }
+    const updates: Record<string,string|number|null> = {};
+    const includes = (key: string) => Object.prototype.hasOwnProperty.call(fields,key);
+    try {
+      if (includes("email")) updates.email = normalizeChannelEmail(fields.email);
+      if (includes("category")) updates.category = normalizeChannelCategory(fields.category);
+      if (includes("appearanceFee")) updates.appearance_fee = normalizeAppearanceFee(fields.appearanceFee);
+      if (includes("rsPercent")) updates.rs_percent = normalizeRsPercent(fields.rsPercent);
+    } catch(error) {
+      const code = error instanceof Error ? error.message : "";
+      const message = code === "INVALID_EMAIL" ? "올바른 이메일 주소를 입력해 주세요."
+        : code === "INVALID_CATEGORY" ? "분류 목록에서 선택해 주세요."
+        : code === "INVALID_APPEARANCE_FEE" ? "출연료는 0원 이상의 정수로 입력해 주세요."
+        : "RS는 0~100 사이의 숫자로 입력해 주세요.";
+      return NextResponse.json({error:message},{status:400});
+    }
+    if (!Object.keys(updates).length) return NextResponse.json({error:"수정할 항목을 입력해 주세요."},{status:400});
     const result = await admin.from("youtube_analyzed_channels")
-      .update({email:normalizedEmail})
+      .update(updates)
       .eq("workspace_id",workspaceId)
       .eq("channel_id",channelId)
-      .select("channel_id,email")
+      .select("channel_id")
       .maybeSingle();
-    if (missingEmailColumn(result.error)) {
-      return NextResponse.json({error:"채널 이메일 저장을 사용하려면 Supabase SQL 마이그레이션을 먼저 적용해 주세요."},{status:503});
+    if (missingOptionalColumn(result.error)) {
+      return NextResponse.json({error:"채널 정보 저장을 사용하려면 Supabase SQL 마이그레이션을 먼저 적용해 주세요."},{status:503});
     }
     if (result.error) throw result.error;
     if (!result.data) return NextResponse.json({error:"분석한 채널을 찾을 수 없습니다."},{status:404});
-    return NextResponse.json({channelId:result.data.channel_id,email:result.data.email});
+    return NextResponse.json({channelId:result.data.channel_id,...updates});
   } catch(error) { return failure(error); }
 }
 
