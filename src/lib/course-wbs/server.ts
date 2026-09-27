@@ -85,6 +85,32 @@ async function loadWbsPeople(workspaceId: string): Promise<string[]> {
   }
 }
 
+function sortedEmployeeNames(values: unknown): string[] {
+  if (!Array.isArray(values)) return [];
+  return [...new Set(values.filter((value): value is string => typeof value === "string")
+    .map((name) => name.trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "ko"));
+}
+
+async function loadWbsEmployeeNames(workspaceId: string): Promise<string[]> {
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc("course_wbs_employee_names", { p_workspace_id: workspaceId });
+  if (!error) return sortedEmployeeNames(data);
+  if (error.code !== "PGRST202" && error.code !== "42883") {
+    throw databaseError("직원 목록 조회", error.code);
+  }
+
+  // Keep linked, active personnel available until the names-only RPC is installed.
+  const fallback = await admin.rpc("personnel_directory", { p_workspace_id: workspaceId });
+  if (fallback.error) {
+    if (fallback.error.code === "PGRST202" || fallback.error.code === "42883") return [];
+    throw databaseError("직원 목록 조회", fallback.error.code);
+  }
+  const directory = Array.isArray(fallback.data) ? fallback.data : [];
+  return sortedEmployeeNames(directory.filter((row) => row && typeof row === "object" && row.active === true)
+    .map((row) => row.name));
+}
+
 async function saveWbsPeople(workspaceId: string, items: WbsItem[]): Promise<void> {
   const names = peopleInItems(items);
   if (names.length === 0) return;
@@ -205,7 +231,7 @@ export async function loadCourseWbsBootstrap(
   workspaceId: string,
 ): Promise<CourseWbsBootstrap> {
   const admin = createAdminClient();
-  const [coursesResult, activeTemplateRow, savedPeople] = await Promise.all([
+  const [coursesResult, activeTemplateRow, savedPeople, employeeNames] = await Promise.all([
     admin
       .from("courses")
       .select("id,name,cohort,instructor_name,free_webinar_at")
@@ -213,6 +239,7 @@ export async function loadCourseWbsBootstrap(
       .order("free_webinar_at", { ascending: false }),
     loadActiveTemplateRow(workspaceId),
     loadWbsPeople(workspaceId),
+    loadWbsEmployeeNames(workspaceId),
   ]);
   if (coursesResult.error) {
     throw databaseError("강의 목록 조회", coursesResult.error.code);
@@ -230,6 +257,7 @@ export async function loadCourseWbsBootstrap(
     template,
     people: [...new Set([...savedPeople, ...peopleInItems(template.items)])]
       .sort((a, b) => a.localeCompare(b, "ko")),
+    employeeNames,
   };
 }
 

@@ -112,6 +112,7 @@ function validateItems(items: WbsItem[]) {
 export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: string }) {
   const [courses, setCourses] = useState<WbsCourse[]>([]);
   const [people, setPeople] = useState<string[]>([]);
+  const [employeeNames, setEmployeeNames] = useState<string[]>([]);
   const [template, setTemplate] = useState<WbsTemplate | null>(null);
   const [courseId, setCourseId] = useState("");
   const [items, setItems] = useState<WbsItem[]>([]);
@@ -168,6 +169,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
         if (!active) return;
         setCourses(body.courses);
         setPeople(body.people);
+        setEmployeeNames(body.employeeNames);
         setTemplate(body.template);
         const firstCourse = body.courses.find((course) => course.id === initialCourseId) ?? body.courses[0];
         if (firstCourse) {
@@ -210,6 +212,8 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
     return !item.completed && Boolean(scheduled) && scheduled <= today;
   });
   const sortedItems = useMemo(() => ordered(items), [items]);
+  const ownerPeople = useMemo(() => [...new Set([...employeeNames, ...people])]
+    .sort((a, b) => a.localeCompare(b, "ko")), [employeeNames, people]);
 
   function clearFeedback() { setError(""); setNotice(""); setConflictTarget(null); }
 
@@ -280,6 +284,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
       const body = await responseJson<CourseWbsBootstrap>(response);
       setTemplate(body.template);
       setPeople(body.people);
+      setEmployeeNames(body.employeeNames);
       setConflictTarget(null);
       setError("");
       setNotice("최신 템플릿을 불러왔습니다. 현재 강의의 편집 내용은 유지했습니다.");
@@ -441,7 +446,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
                       {item.id === WEBINAR_ITEM_ID ? <p className="mt-1 text-xs text-muted-foreground">날짜는 강의 상세의 무료웨비나 일정과 연결됩니다.</p> : null}
                       <Textarea value={item.description ?? ""} onChange={(event) => editItem(item.id, { description: event.target.value })} placeholder="업무 설명 또는 세부 체크 내용" aria-label={`${index + 1}번째 업무 설명`} rows={2} className="mt-2 min-h-14 resize-y text-xs" disabled={saving} />
                     </td>
-                    <td className="px-3 py-3"><PeoplePicker value={item.owner} people={people} disabled={saving} label={`${index + 1}번째 담당자`} onChange={(value) => editItem(item.id, { owner: value })} /></td>
+                    <td className="px-3 py-3"><PeoplePicker value={item.owner} people={ownerPeople} disabled={saving} label={`${index + 1}번째 담당자`} onChange={(value) => editItem(item.id, { owner: value })} /></td>
                     <td className="px-3 py-3"><PeoplePicker value={item.stakeholders} people={people} disabled={saving} label={`${index + 1}번째 관계자`} onChange={(value) => editItem(item.id, { stakeholders: value })} /></td>
                     <td className="px-3 py-3">
                       {item.id === WEBINAR_ITEM_ID ? (
