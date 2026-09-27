@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { ArrowLeft, BarChart3, ImageIcon } from "lucide-react";
 
-import { AdPerformanceTabs } from "@/components/ad-performance/ad-performance-tabs";
 import { BackLink } from "@/components/layout/back-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,8 +22,6 @@ export default async function AdCreativePerformancePage() {
         <Badge variant="outline" className="mb-3"><BarChart3 />강의별 광고 운영</Badge>
         <h1 className="text-3xl font-semibold tracking-tight">소재성과 관리</h1>
         <p className="mt-2 text-muted-foreground">광고 소재별 성과를 관리합니다.</p>
-
-        <AdPerformanceTabs active="creative" />
 
         <Card className="mt-8">
           <CardContent className="flex min-h-72 flex-col items-center justify-center px-6 py-12 text-center">

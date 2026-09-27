@@ -5,7 +5,6 @@ import { AlertTriangle, ArrowLeft, BarChart3, CheckCircle2, ChevronDown, Loader2
 
 import { AdPerformanceMetricDialog } from "@/components/ad-performance/ad-performance-metric-dialog";
 import { AdPerformanceRawTable } from "@/components/ad-performance/ad-performance-raw-table";
-import { AdPerformanceTabs } from "@/components/ad-performance/ad-performance-tabs";
 import { BackLink } from "@/components/layout/back-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -237,8 +236,6 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
         <div><Badge variant="outline" className="mb-3"><BarChart3 />{initialData.course.instructorName || "강사 미지정"}</Badge><h1 className="text-3xl font-semibold tracking-tight">{initialData.course.name}</h1><p className="mt-2 max-w-3xl text-muted-foreground">광고와 오가닉 채널의 날짜별 DB 유입을 기록하고 매체별 전환율을 자동 계산합니다.</p></div>
         <Button onClick={() => void save()} disabled={saving || channelBusy || Boolean(initialData.loadError)}>{saving ? <Loader2 className="animate-spin" /> : <Save />}변경사항 저장</Button>
       </div>
-      <AdPerformanceTabs active="daily" />
-
       {error ? <Alert variant="destructive" className="mt-6"><AlertTriangle /><AlertTitle>확인이 필요합니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
       {notice ? <Alert className="mt-6"><CheckCircle2 /><AlertTitle>처리 완료</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert> : null}
 
