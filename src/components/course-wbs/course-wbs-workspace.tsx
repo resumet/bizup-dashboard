@@ -53,7 +53,7 @@ function withSavedPeople(people: string[], items: WbsItem[]) {
 function selectedStartOffset(item: WbsItem, webinarDate: string) {
   const choice = WBS_START_OFFSETS.find((option) => {
     const dates = datesForStartOffset(webinarDate, option.daysBefore);
-    return dates?.startDate === item.startDate && dates.dueDate === item.dueDate;
+    return dates?.startDate === item.startDate;
   });
   return choice ? String(choice.daysBefore) : "";
 }
@@ -420,15 +420,16 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
           </div>
           {loadingWbs ? <div className="flex min-h-72 items-center justify-center rounded-xl border bg-background text-sm text-muted-foreground"><LoaderCircle className="mr-2 size-4 animate-spin" /> WBS를 불러오는 중...</div> : !courseReady ? <div className="rounded-xl border border-dashed bg-background px-6 py-16 text-center text-sm text-muted-foreground">이 강의의 WBS를 불러오지 못했습니다.<div><Button className="mt-4" variant="outline" onClick={() => void loadCourse(courseId)}>다시 시도</Button></div></div> : view === "gantt" ? <WbsGantt key={courseId} items={sortedItems} webinarDate={webinarDate} todayDate={today} /> : (
             <div className="overflow-x-auto rounded-xl border bg-background shadow-sm" aria-busy={saving}>
-              <table className="w-full min-w-[1160px] border-collapse text-sm">
+              <table className="w-full min-w-[1360px] border-collapse text-sm">
                 <thead className="bg-muted/50 text-left text-xs font-medium text-muted-foreground">
                   <tr>
                     <th className="w-12 px-3 py-3 text-center">완료</th>
                     <th className="min-w-96 px-3 py-3">업무 제목 · 설명</th>
                     <th className="w-40 px-3 py-3">담당자</th>
                     <th className="w-40 px-3 py-3">관계자</th>
-                    <th className="w-44 px-3 py-3">시작일 · D-Day 기준</th>
-                    <th className="w-36 px-3 py-3">데드라인</th>
+                    <th className="w-36 px-3 py-3">몇 주 전</th>
+                    <th className="w-44 px-3 py-3">시작일 (D-며칠)</th>
+                    <th className="w-44 px-3 py-3">데드라인 (D-며칠)</th>
                     <th className="w-24 px-3 py-3 text-center">순서 · 삭제</th>
                   </tr>
                 </thead>
@@ -442,7 +443,17 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
                     </td>
                     <td className="px-3 py-3"><PeoplePicker value={item.owner} people={people} disabled={saving} label={`${index + 1}번째 담당자`} onChange={(value) => editItem(item.id, { owner: value })} /></td>
                     <td className="px-3 py-3"><PeoplePicker value={item.stakeholders} people={people} disabled={saving} label={`${index + 1}번째 관계자`} onChange={(value) => editItem(item.id, { stakeholders: value })} /></td>
-                    <td className="px-3 py-3"><select value={selectedStartOffset(item, webinarDate)} onChange={(event) => selectStartOffset(item.id, event.target.value)} aria-label={`${index + 1}번째 시작일 D-Day 기준 선택`} disabled={saving || item.id === WEBINAR_ITEM_ID || !webinarDate} className="mb-2 h-9 w-full rounded-lg border border-input bg-background px-2 text-xs"><option value="">날짜 직접 선택</option>{WBS_START_OFFSETS.map((option) => <option key={option.daysBefore} value={option.daysBefore}>{option.label}</option>)}</select><Input type="date" value={item.startDate} onChange={(event) => changeStartDate(item.id, event.target.value)} aria-label={`${index + 1}번째 시작일`} disabled={saving || item.id === WEBINAR_ITEM_ID} />{webinarDayLabel(item.startDate, webinarDate) ? <span className="mt-1 block text-xs font-medium text-primary">{webinarDayLabel(item.startDate, webinarDate)}</span> : null}</td>
+                    <td className="px-3 py-3">
+                      {item.id === WEBINAR_ITEM_ID ? (
+                        <span className="inline-block py-2 text-xs font-medium text-muted-foreground">{webinarDate ? "D-Day" : "일정 미정"}</span>
+                      ) : (
+                        <select value={selectedStartOffset(item, webinarDate)} onChange={(event) => selectStartOffset(item.id, event.target.value)} aria-label={`${index + 1}번째 몇 주 전 선택`} disabled={saving || !webinarDate} className="h-10 w-full rounded-lg border border-input bg-background px-2 text-xs">
+                          <option value="">직접 지정</option>
+                          {WBS_START_OFFSETS.map((option) => <option key={option.daysBefore} value={option.daysBefore}>{option.label}</option>)}
+                        </select>
+                      )}
+                    </td>
+                    <td className="px-3 py-3"><Input type="date" value={item.startDate} onChange={(event) => changeStartDate(item.id, event.target.value)} aria-label={`${index + 1}번째 시작일`} disabled={saving || item.id === WEBINAR_ITEM_ID} />{webinarDayLabel(item.startDate, webinarDate) ? <span className="mt-1 block text-xs font-medium text-primary">{webinarDayLabel(item.startDate, webinarDate)}</span> : null}</td>
                     <td className="px-3 py-3"><Input type="date" value={item.dueDate} onChange={(event) => editItem(item.id, { dueDate: event.target.value })} aria-label={`${index + 1}번째 데드라인`} disabled={saving || item.id === WEBINAR_ITEM_ID} />{webinarDayLabel(item.dueDate, webinarDate) ? <span className="mt-1 block text-xs font-medium text-primary">{webinarDayLabel(item.dueDate, webinarDate)}</span> : null}</td>
                     <td className="px-3 py-3"><div className="flex items-center justify-center gap-1">
                       <Button size="icon" variant="ghost" onClick={() => moveItem(item.id, -1)} disabled={saving || index === 0} aria-label={`${item.title || `${index + 1}번째 항목`} 위로 이동`}><ArrowUp /></Button>
@@ -450,7 +461,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
                       <Button size="icon" variant="ghost" onClick={() => removeItem(item.id)} disabled={saving || item.id === WEBINAR_ITEM_ID} aria-label={`${item.title || `${index + 1}번째 항목`} 삭제`} className="text-destructive"><Trash2 /></Button>
                     </div></td>
                   </tr>)}
-                  {!sortedItems.length ? <tr><td colSpan={7} className="px-6 py-16 text-center text-sm text-muted-foreground">항목이 없습니다. 템플릿을 불러오거나 항목을 추가하세요.</td></tr> : null}
+                  {!sortedItems.length ? <tr><td colSpan={8} className="px-6 py-16 text-center text-sm text-muted-foreground">항목이 없습니다. 템플릿을 불러오거나 항목을 추가하세요.</td></tr> : null}
                 </tbody>
               </table>
             </div>
