@@ -1,7 +1,7 @@
 import "server-only";
 import { type Channel, type Video, parseSource } from "./model";
 
-type Item = { id: string; snippet?: { title: string; channelId: string; publishedAt: string; customUrl?: string; thumbnails?: { default?: { url: string } } }; statistics?: { viewCount?: string; likeCount?: string; commentCount?: string; videoCount?: string; subscriberCount?: string; hiddenSubscriberCount?: boolean }; contentDetails?: { relatedPlaylists?: { uploads: string }; videoId?: string }; status?: { privacyStatus: string } };
+type Item = { id: string; snippet?: { title: string; channelId: string; publishedAt: string; customUrl?: string; thumbnails?: { default?: { url: string } } }; statistics?: { viewCount?: string; likeCount?: string; commentCount?: string; videoCount?: string; subscriberCount?: string; hiddenSubscriberCount?: boolean }; contentDetails?: { relatedPlaylists?: { uploads: string }; videoId?: string; duration?: string }; player?: { embedWidth?: number | string; embedHeight?: number | string }; status?: { privacyStatus: string } };
 type ApiResult = { items?: Item[]; nextPageToken?: string; error?: { errors?: { reason: string }[] } };
 export function setting(name: string, fallback: number, max: number) {
   const n = Number(process.env[name]);
@@ -45,10 +45,28 @@ export async function resolveChannel(input: string): Promise<Channel> {
   if (!row?.snippet || !row.contentDetails?.relatedPlaylists?.uploads) throw new Error("NOT_FOUND");
   return { id: row.id, name: row.snippet.title, url: `https://www.youtube.com/${row.snippet.customUrl?.startsWith("@") ? encodeURI(row.snippet.customUrl) : `channel/${row.id}`}`, thumbnail: row.snippet.thumbnails?.default?.url ?? null, reported: Number(row.statistics?.videoCount ?? 0), subscribers: row.statistics?.hiddenSubscriberCount || row.statistics?.subscriberCount === undefined ? null : Number(row.statistics.subscriberCount), playlist: row.contentDetails.relatedPlaylists.uploads };
 }
-export async function videoPage(channel: Channel, token?: string) {
-  const page = await youtube("playlistItems", { part: "contentDetails", playlistId: channel.playlist, maxResults: "50", ...(token ? { pageToken: token } : {}) });
+
+function isShortsVideo(video: Item): boolean {
+  const duration = video.contentDetails?.duration;
+  const match = duration?.match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/);
+  if (!match || !match.slice(1).some(Boolean)) return false;
+  const seconds = Number(match[1] ?? 0) * 86400 + Number(match[2] ?? 0) * 3600 + Number(match[3] ?? 0) * 60 + Number(match[4] ?? 0);
+  const publishedAt = Date.parse(video.snippet?.publishedAt ?? "");
+  const maxShortsSeconds = Number.isFinite(publishedAt) && publishedAt < Date.UTC(2024,9,15) ? 60 : 180;
+  // YouTube notes that reported duration can differ from playback duration by one second.
+  if (seconds <= 0 || seconds > maxShortsSeconds + 1) return false;
+  const width = Number(video.player?.embedWidth);
+  const height = Number(video.player?.embedHeight);
+  // The public API has no Shorts flag. Its player dimensions expose the aspect ratio.
+  // If the aspect ratio is unavailable, exclude short videos rather than include an unrecognized Short.
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return true;
+  return width <= height;
+}
+
+export async function videoPage(channel: Channel, token?: string, fetcher: typeof fetch = fetch) {
+  const page = await youtube("playlistItems", { part: "contentDetails", playlistId: channel.playlist, maxResults: "50", ...(token ? { pageToken: token } : {}) }, fetcher);
   const ids = [...new Set((page.items ?? []).map(v => v.contentDetails?.videoId).filter((v): v is string => !!v))];
-  const rows = ids.length ? (await youtube("videos", { part: "snippet,statistics,status", id: ids.join(",") })).items ?? [] : [];
-  const videos: Video[] = rows.filter(v => v.status?.privacyStatus === "public" && v.snippet?.channelId === channel.id).map(v => ({ id: v.id, title: v.snippet!.title, publishedAt: v.snippet!.publishedAt, views: Number(v.statistics?.viewCount ?? 0), likes: v.statistics?.likeCount === undefined ? null : Number(v.statistics.likeCount), comments: v.statistics?.commentCount === undefined ? null : Number(v.statistics.commentCount) }));
+  const rows = ids.length ? (await youtube("videos", { part: "snippet,statistics,status,contentDetails,player", id: ids.join(","), maxWidth: "720", maxHeight: "720" }, fetcher)).items ?? [] : [];
+  const videos: Video[] = rows.filter(v => v.status?.privacyStatus === "public" && v.snippet?.channelId === channel.id && !isShortsVideo(v)).map(v => ({ id: v.id, title: v.snippet!.title, publishedAt: v.snippet!.publishedAt, views: Number(v.statistics?.viewCount ?? 0), likes: v.statistics?.likeCount === undefined ? null : Number(v.statistics.likeCount), comments: v.statistics?.commentCount === undefined ? null : Number(v.statistics.commentCount) }));
   return { videos, next: page.nextPageToken };
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { start } from "workflow/api";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireCourseOperationsMembership, requireCourseOperationsUser } from "@/lib/course-operations/server";
@@ -8,6 +9,7 @@ import { setting } from "@/lib/youtube-analyzer/api";
 import { youtubeAnalysisWorkflow } from "@/workflows/youtube-analysis";
 
 export const maxDuration = 120;
+const pageSize = 200;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function missingOptionalColumn(error: {code?: string} | null) {
   return error?.code === "42703" || error?.code === "PGRST204";
@@ -26,6 +28,40 @@ function failure(error: unknown) {
     { error: unauthorized ? "로그인이 필요합니다." : "분석 데이터를 불러오지 못했습니다. DB 설정과 접근 권한을 확인해 주세요." },
     { status:unauthorized ? 401 : 500 },
   );
+}
+
+async function storedChannelUrls(admin: SupabaseClient, workspaceId: string) {
+  const urls: string[] = [];
+  let afterPosition: number | string | undefined;
+  while (true) {
+    let query = admin.from("youtube_analyzed_channels")
+      .select("position,channel_id")
+      .eq("workspace_id",workspaceId)
+      .order("position")
+      .limit(pageSize);
+    if (afterPosition !== undefined) query = query.gt("position",afterPosition);
+    const {data,error} = await query;
+    if (error) throw error;
+    urls.push(...data.map(row=>`https://www.youtube.com/channel/${row.channel_id}`));
+    if (data.length < pageSize) break;
+    afterPosition = data[data.length-1].position;
+  }
+  return urls;
+}
+
+async function batchRequests(admin: SupabaseClient, batchId: string) {
+  const requests: Record<string,unknown>[] = [];
+  for (let offset=0;;offset+=pageSize) {
+    const {data,error} = await admin.from("youtube_analysis_requests")
+      .select("id,input_url,status,error_code,resolved_channel_id")
+      .eq("batch_id",batchId)
+      .order("input_order")
+      .range(offset,offset+pageSize-1);
+    if (error) throw error;
+    requests.push(...data);
+    if (data.length < pageSize) break;
+  }
+  return requests;
 }
 
 export async function GET(request: Request) {
@@ -59,7 +95,7 @@ export async function GET(request: Request) {
       ? admin.from("youtube_analysis_batches").select("*").eq("id",batchId).eq("workspace_id",workspaceId).maybeSingle()
       : Promise.resolve({data:null,error:null});
     const requestsQuery = batchId
-      ? admin.from("youtube_analysis_requests").select("*").eq("batch_id",batchId).order("input_order")
+      ? batchRequests(admin,batchId).then(data=>({data,error:null}))
       : Promise.resolve({data:[],error:null});
     const [result,batch,requests] = await Promise.all([channelsQuery,batchQuery,requestsQuery]);
     if (batch.error || requests.error) throw batch.error ?? requests.error;
@@ -108,17 +144,33 @@ export async function POST(request: Request) {
   try {
     const {user,workspaceId,admin} = await context();
     if (!process.env.YOUTUBE_API_KEY?.trim()) return NextResponse.json({error:"서버에 YOUTUBE_API_KEY를 설정해 주세요."},{status:503});
-    let body;
+    let body: unknown;
     try { body = await request.json(); } catch { return NextResponse.json({error:"잘못된 입력입니다."},{status:400}); }
-    if (typeof body?.urls !== "string" || body.urls.length > 100_000) return NextResponse.json({error:"URL 입력이 올바르지 않습니다."},{status:400});
-    const urls = inputs(body.urls), max = setting("MAX_URLS_PER_BATCH",50,200);
-    if (!urls.length || urls.length > max || urls.some(s=>s.length>2000)) return NextResponse.json({error:`URL을 1~${max}개 입력해 주세요.`},{status:400});
+    const fields = body && typeof body === "object" && !Array.isArray(body) ? body as Record<string,unknown> : null;
+    const reanalyzeAll = fields?.reanalyzeAll === true;
+    let urls: string[];
+    if (reanalyzeAll) {
+      if (Object.keys(fields).length !== 1) return NextResponse.json({error:"잘못된 입력입니다."},{status:400});
+      urls = await storedChannelUrls(admin,workspaceId);
+      if (!urls.length) return NextResponse.json({error:"재분석할 채널이 없습니다."},{status:400});
+    } else {
+      if (typeof fields?.urls !== "string" || fields.urls.length > 100_000) return NextResponse.json({error:"URL 입력이 올바르지 않습니다."},{status:400});
+      urls = inputs(fields.urls);
+      const max = setting("MAX_URLS_PER_BATCH",50,200);
+      if (!urls.length || urls.length > max || urls.some(s=>s.length>2000)) return NextResponse.json({error:`URL을 1~${max}개 입력해 주세요.`},{status:400});
+    }
     const {data:batch,error} = await admin.from("youtube_analysis_batches").insert({workspace_id:workspaceId,created_by:user.id,input_count:urls.length}).select("id").single();
     if(error) throw error;
     try {
-      const requests = await admin.from("youtube_analysis_requests").insert(urls.map((input_url,input_order)=>({batch_id:batch.id,input_order,input_url}))).select("id,input_url,input_order");
-      if(requests.error) throw requests.error;
-      await start(youtubeAnalysisWorkflow,[batch.id,requests.data.sort((a,b)=>a.input_order-b.input_order),setting("MAX_CONCURRENT_CHANNELS",3,5)]);
+      const requests: {id:string;input_url:string;input_order:number}[] = [];
+      for (let offset=0;offset<urls.length;offset+=pageSize) {
+        const inserted = await admin.from("youtube_analysis_requests")
+          .insert(urls.slice(offset,offset+pageSize).map((input_url,index)=>({batch_id:batch.id,input_order:offset+index,input_url})))
+          .select("id,input_url,input_order");
+        if (inserted.error) throw inserted.error;
+        requests.push(...inserted.data);
+      }
+      await start(youtubeAnalysisWorkflow,[batch.id,requests,setting("MAX_CONCURRENT_CHANNELS",3,5)]);
     } catch {
       await admin.from("youtube_analysis_requests").update({status:"failed",error_code:"START_ERROR"}).eq("batch_id",batch.id);
       await admin.from("youtube_analysis_batches").update({status:"failed",completed_at:new Date().toISOString()}).eq("id",batch.id);

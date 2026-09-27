@@ -37,6 +37,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   const [addOpen,setAddOpen] = useState(false);
   const [addError,setAddError] = useState("");
   const [batchId,setBatchId] = useState<string | null>(null);
+  const [reanalyzeBatch,setReanalyzeBatch] = useState(false);
   const [batch,setBatch] = useState<Batch | null>(null);
   const [requests,setRequests] = useState<AnalysisRequest[]>([]);
   const [runs,setRuns] = useState<Analysis[]>([]);
@@ -49,6 +50,8 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   const [refreshingEngagement,setRefreshingEngagement] = useState(false);
   const [engagementMessage,setEngagementMessage] = useState("");
   const [engagementError,setEngagementError] = useState("");
+  const [reanalyzingAll,setReanalyzingAll] = useState(false);
+  const [reanalysisError,setReanalysisError] = useState("");
   const [categoryFilter,setCategoryFilter] = useState<CategoryFilter>("all");
   const [sortBy,setSortBy] = useState<ChannelSort>("position");
   const [sortDirection,setSortDirection] = useState<SortDirection>("desc");
@@ -70,7 +73,11 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   });
 
   useEffect(() => {
-    const read = () => setBatchId(new URLSearchParams(window.location.search).get("batchId"));
+    const read = () => {
+      const params = new URLSearchParams(window.location.search);
+      setBatchId(params.get("batchId"));
+      setReanalyzeBatch(params.get("reanalyze") === "1");
+    };
     read();
     window.addEventListener("popstate",read);
     return () => window.removeEventListener("popstate",read);
@@ -127,17 +134,19 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     return ()=>controller.abort();
   },[detail]);
 
-  function watchBatch(id: string) {
-    window.history.pushState(null,"",`?batchId=${id}`);
+  function watchBatch(id: string, reanalyze = false) {
+    window.history.pushState(null,"",`?batchId=${id}${reanalyze ? "&reanalyze=1" : ""}`);
     setBatchId(id);
+    setReanalyzeBatch(reanalyze);
     setBatch(null);
     setRequests([]);
   }
 
   function openAddDialog() {
-    if(!active(batch)) {
+    if(!batchId || (batch && !active(batch))) {
       window.history.replaceState(null,"",window.location.pathname);
       setBatchId(null);
+      setReanalyzeBatch(false);
       setBatch(null);
       setRequests([]);
       setText("");
@@ -176,6 +185,17 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     } catch(e) {
       setAddError(e instanceof Error ? e.message : "분석 요청 실패");
     } finally { setSubmitting(false); }
+  }
+
+  async function reanalyzeStoredChannels() {
+    setReanalyzingAll(true);
+    setReanalysisError("");
+    try {
+      const result=await api("",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({reanalyzeAll:true})});
+      watchBatch(result.batchId,true);
+    } catch(e) {
+      setReanalysisError(e instanceof Error ? e.message : "저장된 채널 재분석을 시작하지 못했습니다.");
+    } finally { setReanalyzingAll(false); }
   }
 
   async function refreshEngagement() {
@@ -246,13 +266,16 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   }
 
   const completed=requests.filter(request=>["completed","failed"].includes(request.status)).length;
+  const analysisPending=!!batchId && (!batch || active(batch));
 
   return <main className="mx-auto min-h-screen max-w-[1900px] space-y-6 px-4 py-6 sm:px-8">
     <div className="flex flex-wrap items-center justify-end gap-4 pb-5">
-      <div className="flex flex-wrap items-center gap-2"><Button variant="outline" disabled={refreshingEngagement || active(batch)} onClick={()=>void refreshEngagement()} title="저장된 영상 데이터로 모든 채널의 평균 댓글·좋아요를 다시 계산합니다.">{refreshingEngagement ? <LoaderCircle className="size-4 animate-spin"/> : <RefreshCw className="size-4"/>}전체 평균 갱신 (임시)</Button><Button onClick={openAddDialog}>{active(batch) ? <LoaderCircle className="size-4 animate-spin"/> : <Plus className="size-4"/>}{active(batch) ? "분석 중" : "채널 추가"}</Button><Button variant="outline" size="icon" title="새로고침" aria-label="새로고침" onClick={()=>setRevision(value=>value+1)}><RefreshCw className="size-4"/></Button></div>
+      <div className="flex flex-wrap items-center gap-2"><Button variant="outline" disabled={reanalyzingAll || refreshingEngagement || submitting || analysisPending || loading || !runs.length} onClick={()=>void reanalyzeStoredChannels()} title="저장된 모든 채널을 다시 분석해 숏츠 제외 기준을 적용합니다.">{reanalyzingAll ? <LoaderCircle className="size-4 animate-spin"/> : <RefreshCw className="size-4"/>}숏츠 제외 재분석</Button><Button variant="outline" disabled={refreshingEngagement || reanalyzingAll || analysisPending} onClick={()=>void refreshEngagement()} title="저장된 영상 데이터로 모든 채널의 평균 댓글·좋아요를 다시 계산합니다.">{refreshingEngagement ? <LoaderCircle className="size-4 animate-spin"/> : <RefreshCw className="size-4"/>}전체 평균 갱신 (임시)</Button><Button onClick={openAddDialog}>{analysisPending ? <LoaderCircle className="size-4 animate-spin"/> : <Plus className="size-4"/>}{analysisPending ? "분석 중" : "채널 추가"}</Button><Button variant="outline" size="icon" title="새로고침" aria-label="새로고침" onClick={()=>setRevision(value=>value+1)}><RefreshCw className="size-4"/></Button></div>
     </div>
 
     {error && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+    {reanalysisError && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{reanalysisError}</p>}
+    {reanalyzeBatch && batchId && <p role="status" className="rounded-md border bg-muted/30 p-3 text-sm">{batch ? <>저장된 채널 재분석: {statuses[batch.status] ?? batch.status} · 처리 {completed} / {batch.input_count}개{batch.status==="completed" ? " · 숏츠 제외 기준 적용 완료" : ""}</> : "저장된 채널 재분석 요청을 확인하는 중입니다."}</p>}
     {engagementError && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{engagementError}</p>}
     {engagementMessage && <p role="status" className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{engagementMessage}</p>}
 
@@ -260,7 +283,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">누적 채널 분석</h2>
-          <p className="mt-1 text-sm text-muted-foreground">새 채널은 목록 하단에 추가되고, 기존 채널은 현재 위치에서 최신 정보로 업데이트됩니다.</p>
+          <p className="mt-1 text-sm text-muted-foreground">새 분석에서는 숏츠를 제외합니다. 기존 채널에도 적용하려면 상단의 숏츠 제외 재분석을 실행하세요.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <label htmlFor="youtube-channel-category-filter" className="text-sm font-medium">분류</label>
@@ -323,13 +346,13 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
 
     <Dialog open={!!detail} onOpenChange={open=>{if(!open) setDetail(null);}}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
-        <DialogHeader><DialogTitle>{detail?.channel.name}</DialogTitle><DialogDescription>최근 영상 {Math.min(detail?.metrics.count ?? 0,30)}개 · {detail ? date(detail.last_analyzed_at) : ""} 기준</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>{detail?.channel.name}</DialogTitle><DialogDescription>최근 분석 영상 {Math.min(detail?.metrics.count ?? 0,30)}개 · {detail ? date(detail.last_analyzed_at) : ""} 기준</DialogDescription></DialogHeader>
         {detail && <section aria-label="최고 조회 영상 요약" className="grid gap-3 sm:grid-cols-3">
           <div className="min-w-0 rounded-lg border bg-muted/20 p-4"><p className="text-xs text-muted-foreground">최고 조회 영상</p>{detail.metrics.top ? <a href={`https://www.youtube.com/watch?v=${detail.metrics.top.id}`} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-start gap-1.5 break-words font-medium text-blue-700 hover:underline">{detail.metrics.top.title}<ExternalLink className="mt-0.5 size-3.5 shrink-0" /></a> : <p className="mt-2 font-medium">-</p>}</div>
           <div className="rounded-lg border bg-muted/20 p-4"><p className="text-xs text-muted-foreground">최고 조회수</p><p className="mt-2 text-xl font-semibold tabular-nums">{number(detail.metrics.top?.views)}</p></div>
           <div className="rounded-lg border bg-muted/20 p-4"><p className="text-xs text-muted-foreground">최고 1개 제외 평균 조회수</p><p className="mt-2 text-xl font-semibold tabular-nums">{number(detail.metrics.exclude1)}</p></div>
         </section>}
-        {detailError ? <p role="alert" className="text-red-700">{detailError}</p> : videos===null ? <p>영상을 불러오는 중입니다.</p> : !videos.length ? <p>공개 영상이 없습니다.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[540px] text-sm"><thead><tr>{["영상","게시일","조회수","좋아요","댓글"].map(heading=><th key={heading} className="border-b p-2 text-left">{heading}</th>)}</tr></thead><tbody>{videos.map(video=><tr key={video.id}><td className="max-w-96 border-b p-2"><a className="text-blue-700 hover:underline" href={`https://www.youtube.com/watch?v=${video.id}`} target="_blank" rel="noreferrer">{video.title}</a></td><td className="whitespace-nowrap border-b p-2">{new Date(video.publishedAt).toLocaleDateString("ko-KR")}</td>{[video.views,video.likes,video.comments].map((value,index)=><td key={index} className="border-b p-2 text-right tabular-nums">{number(value)}</td>)}</tr>)}</tbody></table></div>}
+        {detailError ? <p role="alert" className="text-red-700">{detailError}</p> : videos===null ? <p>영상을 불러오는 중입니다.</p> : !videos.length ? <p>분석된 공개 영상이 없습니다.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[540px] text-sm"><thead><tr>{["영상","게시일","조회수","좋아요","댓글"].map(heading=><th key={heading} className="border-b p-2 text-left">{heading}</th>)}</tr></thead><tbody>{videos.map(video=><tr key={video.id}><td className="max-w-96 border-b p-2"><a className="text-blue-700 hover:underline" href={`https://www.youtube.com/watch?v=${video.id}`} target="_blank" rel="noreferrer">{video.title}</a></td><td className="whitespace-nowrap border-b p-2">{new Date(video.publishedAt).toLocaleDateString("ko-KR")}</td>{[video.views,video.likes,video.comments].map((value,index)=><td key={index} className="border-b p-2 text-right tabular-nums">{number(value)}</td>)}</tr>)}</tbody></table></div>}
       </DialogContent>
     </Dialog>
 
