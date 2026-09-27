@@ -1,12 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink, LoaderCircle, Play, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { ChannelEmailEditor } from "@/components/youtube-analyzer/channel-email-editor";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { inputs, parseSource, errorMessages, type Analysis, type AnalysisRequest, type Batch, type Video } from "@/lib/youtube-analyzer/model";
+import { sortChannels, type ChannelSort, type SortDirection } from "@/lib/youtube-analyzer/sort";
 
 const number = (n: number | null | undefined) => n == null ? "-" : Math.round(n).toLocaleString("ko-KR");
 const date = (s: string) => new Date(s).toLocaleString("ko-KR");
@@ -42,6 +44,10 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   const [revision,setRevision] = useState(0);
   const [hasMore,setHasMore] = useState(false);
   const [loadingMore,setLoadingMore] = useState(false);
+  const [sortBy,setSortBy] = useState<ChannelSort>("position");
+  const [sortDirection,setSortDirection] = useState<SortDirection>("desc");
+  const [loadingAll,setLoadingAll] = useState(false);
+  const [allLoaded,setAllLoaded] = useState(false);
   const viewVersion = useRef(0);
   const [detail,setDetail] = useState<Analysis | null>(null);
   const [videos,setVideos] = useState<Video[] | null>(null);
@@ -49,6 +55,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   const [deleteTarget,setDeleteTarget] = useState<Analysis | null>(null);
   const [deleting,setDeleting] = useState(false);
   const [deleteError,setDeleteError] = useState("");
+  const sortedRuns=useMemo(()=>sortChannels(runs,sortBy,sortDirection),[runs,sortBy,sortDirection]);
   const urls = inputs(text);
   const invalid = urls.flatMap(url => {
     try { parseSource(url); return []; }
@@ -71,23 +78,38 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
       try {
         const data=await api(batchId ? `?batchId=${batchId}` : "",{signal:controller.signal});
         if(cancelled) return;
-        setRuns(data.runs);
-        setHasMore(!!data.hasMore);
+        const allRuns: Analysis[]=[...data.runs];
+        if(sortBy!=="position") {
+          let page=data;
+          while(page.hasMore) {
+            const params=new URLSearchParams({offset:String(allRuns.length)});
+            if(batchId) params.set("batchId",batchId);
+            page=await api(`?${params}`,{signal:controller.signal});
+            if(cancelled) return;
+            if(!page.runs.length) throw new Error("전체 채널을 불러오지 못했습니다.");
+            allRuns.push(...page.runs);
+          }
+        }
+        setRuns(allRuns);
+        setHasMore(sortBy==="position" && !!data.hasMore);
+        if(sortBy!=="position") setAllLoaded(true);
         setBatch(data.batch ?? null);
         setRequests(data.requests ?? []);
         setError("");
         setLoading(false);
+        setLoadingAll(false);
         if(active(data.batch)) timer=setTimeout(load,2500);
       } catch(e) {
         if(cancelled) return;
         setError(e instanceof Error ? e.message : "분석 조회 실패");
         setLoading(false);
+        setLoadingAll(false);
         if(batchId) timer=setTimeout(load,5000);
       }
     }
     void load();
     return () => {cancelled=true;controller.abort();clearTimeout(timer);};
-  },[batchId,revision]);
+  },[batchId,revision,sortBy]);
 
   useEffect(() => {
     if(!detail) return;
@@ -164,6 +186,11 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     } finally { setDeleting(false); }
   }
 
+  function updateEmail(channelId: string, email: string | null) {
+    setRuns(previous=>previous.map(run=>run.channel_id===channelId ? {...run,email} : run));
+    setDetail(previous=>previous?.channel_id===channelId ? {...previous,email} : previous);
+  }
+
   const completed=requests.filter(request=>["completed","failed"].includes(request.status)).length;
 
   return <main className="mx-auto min-h-screen max-w-[1900px] space-y-6 px-4 py-6 sm:px-8">
@@ -174,15 +201,32 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     {error && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
 
     <section className="space-y-4 border-t pt-5">
-      <div>
-        <h2 className="text-lg font-semibold">누적 채널 분석</h2>
-        <p className="mt-1 text-sm text-muted-foreground">새 채널은 목록 하단에 추가되고, 기존 채널은 현재 위치에서 최신 정보로 업데이트됩니다.</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">누적 채널 분석</h2>
+          <p className="mt-1 text-sm text-muted-foreground">새 채널은 목록 하단에 추가되고, 기존 채널은 현재 위치에서 최신 정보로 업데이트됩니다.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="youtube-channel-sort" className="text-sm font-medium">정렬</label>
+          <select id="youtube-channel-sort" className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" value={sortBy} onChange={event=>{const next=event.target.value as ChannelSort;setAllLoaded(false);setLoadingAll(next!=="position");setSortDirection("desc");setSortBy(next);}}>
+            <option value="position">등록 순서</option>
+            <option value="subscribers">구독자 수</option>
+            <option value="topViews">최고 조회수</option>
+            <option value="exclude1">최고 1개 제외 평균</option>
+            <option value="recent20">최근 20개 평균</option>
+          </select>
+          {sortBy!=="position" && <select aria-label="정렬 방향" className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" value={sortDirection} onChange={event=>setSortDirection(event.target.value as SortDirection)}>
+            <option value="desc">높은 순</option>
+            <option value="asc">낮은 순</option>
+          </select>}
+        </div>
       </div>
-      {loading ? <p className="flex items-center gap-2 py-10 text-sm"><LoaderCircle className="size-4 animate-spin"/>분석 목록을 불러오는 중입니다.</p> : !runs.length ? <p className="border-y py-12 text-center text-muted-foreground">{active(batch) ? "첫 번째 채널 분석을 기다리고 있습니다." : "분석한 채널이 없습니다."}</p> : <div className="overflow-x-auto rounded-md border">
-        <table className="w-full min-w-[1100px] text-sm">
-          <thead className="bg-muted/60"><tr>{["채널 / 주소","전체 / 분석 영상","구독자","최고 조회 영상","최고 조회수","최고 1개 제외 평균","최근 20개 평균","등록 / 업데이트","관리"].map(heading=><th key={heading} className="whitespace-nowrap px-3 py-3 text-left font-medium">{heading}</th>)}</tr></thead>
-          <tbody>{runs.map(run=><tr key={run.channel_id} className="border-t align-top hover:bg-muted/20">
+      {loading || loadingAll ? <p role="status" className="flex items-center gap-2 py-10 text-sm"><LoaderCircle className="size-4 animate-spin"/>{loadingAll ? "전체 채널을 불러와 정렬하는 중입니다." : "분석 목록을 불러오는 중입니다."}</p> : sortBy!=="position" && !allLoaded ? <div className="flex items-center gap-3 border-y py-8 text-sm"><span>전체 채널 정렬을 완료하지 못했습니다.</span><Button variant="outline" size="sm" onClick={()=>{setLoadingAll(true);setRevision(value=>value+1);}}>다시 시도</Button></div> : !runs.length ? <p className="border-y py-12 text-center text-muted-foreground">{active(batch) ? "첫 번째 채널 분석을 기다리고 있습니다." : "분석한 채널이 없습니다."}</p> : <div className="overflow-x-auto rounded-md border">
+        <table className="w-full min-w-[1350px] text-sm">
+          <thead className="bg-muted/60"><tr>{["채널 / 주소","이메일","전체 / 분석 영상","구독자","최고 조회 영상","최고 조회수","최고 1개 제외 평균","최근 20개 평균","등록 / 업데이트","관리"].map(heading=><th key={heading} className="whitespace-nowrap px-3 py-3 text-left font-medium">{heading}</th>)}</tr></thead>
+          <tbody>{sortedRuns.map(run=><tr key={run.channel_id} className="border-t align-top hover:bg-muted/20">
             <td className="min-w-60 max-w-72 px-3 py-4"><a href={run.channel.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-semibold hover:underline">{run.channel.thumbnail && <Image unoptimized src={run.channel.thumbnail} alt="" width={36} height={36} className="size-9 rounded-full" referrerPolicy="no-referrer"/>}<span className="break-words">{run.channel.name}</span><ExternalLink className="size-3 shrink-0"/></a><a href={run.channel.url} target="_blank" rel="noreferrer" className="mt-2 block break-all text-xs text-muted-foreground hover:underline">{displayUrl(run.channel.url)}</a>{run.warnings.map(warning=><p key={warning} className="mt-2 text-xs text-amber-800">{warning}</p>)}</td>
+            <td className="min-w-52 px-3 py-4"><ChannelEmailEditor run={run} onSaved={updateEmail}/></td>
             <td className="px-3 py-4 tabular-nums">{number(run.channel.reported)} / {number(run.metrics.count)}</td>
             <td className="px-3 py-4 tabular-nums">{run.channel.subscribers===null ? "비공개" : number(run.channel.subscribers)}</td>
             <td className="min-w-52 max-w-64 px-3 py-4">{run.metrics.top ? <a href={`https://www.youtube.com/watch?v=${run.metrics.top.id}`} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">{run.metrics.top.title}</a> : "-"}</td>
@@ -193,7 +237,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
           </tr>)}</tbody>
         </table>
       </div>}
-      {hasMore && <Button variant="outline" disabled={loadingMore} onClick={loadMore}>{loadingMore ? <LoaderCircle className="size-4 animate-spin"/> : null}더 불러오기</Button>}
+      {sortBy==="position" && hasMore && <Button variant="outline" disabled={loadingMore} onClick={loadMore}>{loadingMore ? <LoaderCircle className="size-4 animate-spin"/> : null}더 불러오기</Button>}
     </section>
 
     <Dialog open={addOpen} onOpenChange={setAddOpen}>

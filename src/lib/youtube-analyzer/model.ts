@@ -32,8 +32,18 @@ export function calculate(videos: Video[]) {
   const avg = (rows: Video[]) => rows.length ? rows.reduce((sum,v) => sum+v.views, 0)/rows.length : null;
   return { count: videos.length, top: ranked[0] ?? null, exclude1: avg(ranked.slice(1)), exclude3: avg(ranked.slice(3)), recent5: avg(recent.slice(0,5)), recent10: avg(recent.slice(0,10)), recent20: avg(recent.slice(0,20)), samples: [5,10,20].map(n => Math.min(n,videos.length)) };
 }
-export type Metrics = ReturnType<typeof calculate>;
-export type Analysis = { position: number; channel_id: string; channel: Channel; metrics: Metrics; warnings: string[]; first_analyzed_at: string; last_analyzed_at: string };
+export type Metrics = Omit<ReturnType<typeof calculate>, "top"> & { top: Video | null };
+export type Analysis = { position: number; channel_id: string; channel: Channel; email: string | null; metrics: Metrics; warnings: string[]; first_analyzed_at: string; last_analyzed_at: string };
+export function normalizeChannelEmail(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value !== "string") throw new Error("INVALID_EMAIL");
+  const email = value.trim();
+  if (!email) return null;
+  if (email.length > 254 || !/^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/u.test(email)) {
+    throw new Error("INVALID_EMAIL");
+  }
+  return email;
+}
 export type AnalysisRequest = { id: string; input_url: string; status: string; error_code: string | null; resolved_channel_id: string | null };
 export type Batch = { id: string; status: string; input_count: number; unique_channel_count: number; created_at: string; completed_at: string | null };
 export const errorMessages: Record<string,string> = {

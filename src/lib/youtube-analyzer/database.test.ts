@@ -30,10 +30,14 @@ test("channels accumulate in first-seen order and reanalysis updates only the ma
       [firstBatch,JSON.stringify({id:"channel-a",name:"Original"}),JSON.stringify({count:1}),"[]","2026-01-01",JSON.stringify([{id:"old-video",publishedAt:"2026-01-01",views:10}])],
     );
     await db.exec(await readFile("supabase/migrations/202609230008_youtube_channel_accumulation.sql","utf8"));
+    const emailMigration=await readFile("supabase/migrations/202609270005_youtube_channel_email.sql","utf8");
+    await db.exec(emailMigration);
+    await db.exec(emailMigration);
 
     const initial=await db.query<{first_analyzed_at:string}>("select first_analyzed_at from youtube_analyzed_channels where channel_id='channel-a'");
     assert.equal(initial.rows.length,1);
     assert.equal((await db.query("select * from youtube_channel_videos")).rows.length,1);
+    await db.query("update youtube_analyzed_channels set email=$1 where channel_id='channel-a'",["contact@example.com"]);
 
     await db.query("insert into youtube_analysis_batches(id,workspace_id,created_by,input_count) values($1,$2,$3,1),($4,$2,$3,1)",[secondBatch,workspace,user,thirdBatch]);
     await db.query("insert into youtube_analysis_requests(batch_id,input_order,input_url,resolved_channel_id) values($1,0,'a','channel-a'),($2,0,'b','channel-b')",[secondBatch,thirdBatch]);
@@ -56,10 +60,12 @@ test("channels accumulate in first-seen order and reanalysis updates only the ma
       JSON.stringify([{id:"second-video",publishedAt:"2100-03-01",views:30}]),
     ]);
 
-    const channels=await db.query<{position:number;channel_id:string;channel:{name:string};metrics:{count:number};first_analyzed_at:string}>("select position,channel_id,channel,metrics,first_analyzed_at from youtube_analyzed_channels order by position");
+    const channels=await db.query<{position:number;channel_id:string;channel:{name:string};email:string|null;metrics:{count:number};first_analyzed_at:string}>("select position,channel_id,channel,email,metrics,first_analyzed_at from youtube_analyzed_channels order by position");
     assert.deepEqual(channels.rows.map(row=>row.channel_id),["channel-a","channel-b"]);
     assert.equal(channels.rows[0].channel.name,"Updated");
     assert.equal(channels.rows[0].metrics.count,2);
+    assert.equal(channels.rows[0].email,"contact@example.com");
+    assert.equal(channels.rows[1].email,null);
     assert.equal(String(channels.rows[0].first_analyzed_at),String(initial.rows[0].first_analyzed_at));
     assert.ok(channels.rows[0].position < channels.rows[1].position);
     assert.deepEqual((await db.query<{video_id:string}>("select video_id from youtube_channel_videos where channel_id='channel-a'")).rows.map(row=>row.video_id),["new-video"]);
@@ -68,6 +74,7 @@ test("channels accumulate in first-seen order and reanalysis updates only the ma
     // An older overlapping job cannot overwrite a newer channel state.
     await db.query(save,[secondBatch,JSON.stringify({id:"channel-a",name:"Stale"}),JSON.stringify({count:0}),"[]","2098-01-15","[]"]);
     assert.equal((await db.query<{channel:{name:string} }>("select channel from youtube_analyzed_channels where channel_id='channel-a'")).rows[0].channel.name,"Updated");
+    assert.equal((await db.query<{email:string}>("select email from youtube_analyzed_channels where channel_id='channel-a'")).rows[0].email,"contact@example.com");
 
     // Deleting one current channel cascades only its videos. Analyzing it again
     // creates a new entry at the bottom of the cumulative list.
@@ -85,6 +92,7 @@ test("channels accumulate in first-seen order and reanalysis updates only the ma
     await db.exec(`set role authenticated; select set_config('test.user','${user}',false)`);
     assert.equal((await db.query("select * from youtube_analyzed_channels")).rows.length,2);
     assert.equal((await db.query("select * from youtube_channel_videos")).rows.length,2);
+    await assert.rejects(db.query("update youtube_analyzed_channels set email='other@example.com' where channel_id='channel-a'"),/permission denied/);
     await db.exec("select set_config('test.user','00000000-0000-0000-0000-000000000099',false)");
     assert.equal((await db.query("select * from youtube_analyzed_channels")).rows.length,0);
     assert.equal((await db.query("select * from youtube_channel_videos")).rows.length,0);
