@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
-  ArrowDown, ArrowUp, CalendarDays, ChevronDown, ClipboardList, ExternalLink,
+  ArrowDown, ArrowUp, CalendarDays, ChevronDown, ClipboardList, ExternalLink, GripVertical,
   LoaderCircle, Plus, Save, Trash2,
 } from "lucide-react";
 
@@ -15,7 +15,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toKoreaDate, toKoreaTime } from "@/lib/course-operations/schedule";
-import { datesForStartOffset, dueDateForStartDate, WBS_START_OFFSETS } from "@/lib/course-wbs/schedule-options";
+import { reorderWbsItems } from "@/lib/course-wbs/reorder";
+import { datesForStartOffset, dueDateForOffset, dueDateForStartDate, WBS_DUE_OFFSETS, WBS_START_OFFSETS } from "@/lib/course-wbs/schedule-options";
 import type { CourseWbs, CourseWbsBootstrap, WbsCourse, WbsItem, WbsTemplate } from "@/lib/course-wbs/types";
 import { applyTemplateToCourse, syncWebinarItem, webinarDateFromTimestamp, webinarDayLabel, WEBINAR_ITEM_ID } from "@/lib/course-wbs/webinar-date";
 
@@ -51,11 +52,18 @@ function withSavedPeople(people: string[], items: WbsItem[]) {
 }
 
 function selectedStartOffset(item: WbsItem, webinarDate: string) {
+  if (!item.startDate) return "none";
   const choice = WBS_START_OFFSETS.find((option) => {
     const dates = datesForStartOffset(webinarDate, option.daysBefore);
     return dates?.startDate === item.startDate;
   });
-  return choice ? String(choice.daysBefore) : "";
+  return choice ? String(choice.daysBefore) : "custom";
+}
+
+function selectedDueOffset(item: WbsItem) {
+  if (!item.dueDate) return "none";
+  const choice = WBS_DUE_OFFSETS.find((option) => dueDateForOffset(item.startDate, option.daysAfter) === item.dueDate);
+  return choice ? String(choice.daysAfter) : "custom";
 }
 
 function isPastItem(item: WbsItem, today: string) {
@@ -116,6 +124,8 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   const [template, setTemplate] = useState<WbsTemplate | null>(null);
   const [courseId, setCourseId] = useState("");
   const [items, setItems] = useState<WbsItem[]>([]);
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ id: string; position: "before" | "after" } | null>(null);
   const [hasWbs, setHasWbs] = useState(false);
   const [updatedAt, setUpdatedAt] = useState("");
   const [view, setView] = useState<"list" | "gantt">("list");
@@ -225,14 +235,28 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
     clearFeedback();
   }
 
-  function changeStartDate(id: string, startDate: string) {
-    editItem(id, { startDate, dueDate: dueDateForStartDate(startDate, webinarDate) });
+  function selectStartOffset(id: string, value: string) {
+    if (value === "none") { editItem(id, { startDate: "", dueDate: "" }); return; }
+    if (value === "custom") return;
+    const dates = datesForStartOffset(webinarDate, Number(value));
+    if (!dates) return;
+    const current = items.find((item) => item.id === id);
+    let dueDate = dates.dueDate;
+    if (current?.startDate && !current.dueDate) {
+      dueDate = "";
+    } else if (current?.startDate && current.dueDate !== dueDateForStartDate(current.startDate, webinarDate)) {
+      const offset = selectedDueOffset(current);
+      if (offset !== "none" && offset !== "custom") dueDate = dueDateForOffset(dates.startDate, Number(offset));
+    }
+    editItem(id, { startDate: dates.startDate, dueDate });
   }
 
-  function selectStartOffset(id: string, value: string) {
-    if (!value) return;
-    const dates = datesForStartOffset(webinarDate, Number(value));
-    if (dates) editItem(id, dates);
+  function selectDueOffset(id: string, value: string) {
+    if (value === "none") { editItem(id, { dueDate: "" }); return; }
+    if (value === "custom") return;
+    const startDate = items.find((item) => item.id === id)?.startDate ?? "";
+    const dueDate = dueDateForOffset(startDate, Number(value));
+    if (dueDate) editItem(id, { dueDate });
   }
 
   function addItem() {
@@ -263,10 +287,38 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
     setDirty(true);
   }
 
+  function dragOverItem(event: DragEvent<HTMLTableRowElement>, targetId: string) {
+    if (!draggedItemId || draggedItemId === targetId || saving || loadingWbs || !courseReady) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const position = event.clientY < bounds.top + bounds.height / 2 ? "before" : "after";
+    setDropTarget((current) => current?.id === targetId && current.position === position ? current : { id: targetId, position });
+  }
+
+  function dropItem(event: DragEvent<HTMLTableRowElement>, targetId: string) {
+    if (!draggedItemId) return;
+    event.preventDefault();
+    const sourceId = event.dataTransfer.getData("text/plain");
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const position = event.clientY < bounds.top + bounds.height / 2 ? "before" : "after";
+    setDraggedItemId(null);
+    setDropTarget(null);
+    if (!draggedItemId || sourceId !== draggedItemId || sourceId === targetId || saving || loadingWbs || !courseReady) return;
+
+    const next = reorderWbsItems(items, sourceId, targetId, position);
+    if (!next) return;
+    setItems(next);
+    setDirty(true);
+    clearFeedback();
+  }
+
   function selectCourse(id: string) {
     if (id === courseId) return;
     if (dirty && !window.confirm("저장하지 않은 변경 사항이 있습니다. 다른 강의로 이동할까요?")) return;
     setCourseId(id);
+    setDraggedItemId(null);
+    setDropTarget(null);
     setItems([]);
     setHasWbs(false);
     setDirty(false);
@@ -425,48 +477,66 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
           </div>
           {loadingWbs ? <div className="flex min-h-72 items-center justify-center rounded-xl border bg-background text-sm text-muted-foreground"><LoaderCircle className="mr-2 size-4 animate-spin" /> WBS를 불러오는 중...</div> : !courseReady ? <div className="rounded-xl border border-dashed bg-background px-6 py-16 text-center text-sm text-muted-foreground">이 강의의 WBS를 불러오지 못했습니다.<div><Button className="mt-4" variant="outline" onClick={() => void loadCourse(courseId)}>다시 시도</Button></div></div> : view === "gantt" ? <WbsGantt key={courseId} items={sortedItems} webinarDate={webinarDate} todayDate={today} /> : (
             <div className="overflow-x-auto rounded-xl border bg-background shadow-sm" aria-busy={saving}>
-              <table className="w-full min-w-[1360px] border-collapse text-sm">
+              <table className="w-full min-w-[1320px] border-collapse text-sm">
                 <thead className="bg-muted/50 text-left text-xs font-medium text-muted-foreground">
                   <tr>
                     <th className="w-12 px-3 py-3 text-center">완료</th>
                     <th className="min-w-96 px-3 py-3">업무 제목 · 설명</th>
                     <th className="w-40 px-3 py-3">담당자</th>
                     <th className="w-40 px-3 py-3">관계자</th>
-                    <th className="w-36 px-3 py-3">몇 주 전</th>
                     <th className="w-44 px-3 py-3">시작일 (D-며칠)</th>
                     <th className="w-44 px-3 py-3">데드라인 (D-며칠)</th>
                     <th className="w-24 px-3 py-3 text-center">순서 · 삭제</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedItems.map((item, index) => <tr key={item.id} className={`border-t align-top ${isPastItem(item, today) ? "bg-muted/60" : item.id === WEBINAR_ITEM_ID ? "bg-primary/5" : ""}`}>
+                  {sortedItems.map((item, index) => <tr key={item.id} onDragOver={(event) => dragOverItem(event, item.id)} onDrop={(event) => dropItem(event, item.id)} className={`border-t align-top ${isPastItem(item, today) ? "bg-muted/60" : item.id === WEBINAR_ITEM_ID ? "bg-primary/5" : ""} ${draggedItemId === item.id ? "opacity-40" : ""} ${dropTarget?.id === item.id ? dropTarget.position === "before" ? "border-t-4 border-t-primary" : "border-b-4 border-b-primary" : ""}`}>
                     <td className="px-3 py-4 text-center"><input type="checkbox" className="size-4 accent-primary" checked={item.completed} onChange={(event) => editItem(item.id, { completed: event.target.checked })} aria-label={`${item.title || `${index + 1}번째 항목`} 완료`} disabled={saving} /></td>
                     <td className="px-3 py-3">
-                      <Input value={item.title} onChange={(event) => editItem(item.id, { title: event.target.value })} placeholder="업무 제목" aria-label={`${index + 1}번째 업무 제목`} className={item.completed ? "line-through" : ""} disabled={saving || item.id === WEBINAR_ITEM_ID} />
-                      {item.id === WEBINAR_ITEM_ID ? <p className="mt-1 text-xs text-muted-foreground">날짜는 강의 상세의 무료웨비나 일정과 연결됩니다.</p> : null}
-                      <Textarea value={item.description ?? ""} onChange={(event) => editItem(item.id, { description: event.target.value })} placeholder="업무 설명 또는 세부 체크 내용" aria-label={`${index + 1}번째 업무 설명`} rows={2} className="mt-2 min-h-14 resize-y text-xs" disabled={saving} />
+                      <div className="flex items-start gap-2">
+                        <span draggable={!saving} onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", item.id); setDraggedItemId(item.id); setDropTarget(null); }} onDragEnd={() => { setDraggedItemId(null); setDropTarget(null); }} title="드래그하여 순서 변경" aria-hidden="true" className="flex h-10 w-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground active:cursor-grabbing"><GripVertical className="size-4" /></span>
+                        <div className="min-w-0 flex-1">
+                          <Input value={item.title} onChange={(event) => editItem(item.id, { title: event.target.value })} placeholder="업무 제목" aria-label={`${index + 1}번째 업무 제목`} className={item.completed ? "line-through" : ""} disabled={saving || item.id === WEBINAR_ITEM_ID} />
+                          {item.id === WEBINAR_ITEM_ID ? <p className="mt-1 text-xs text-muted-foreground">날짜는 강의 상세의 무료웨비나 일정과 연결됩니다.</p> : null}
+                          <Textarea value={item.description ?? ""} onChange={(event) => editItem(item.id, { description: event.target.value })} placeholder="업무 설명 또는 세부 체크 내용" aria-label={`${index + 1}번째 업무 설명`} rows={2} className="mt-2 min-h-14 resize-y text-xs" disabled={saving} />
+                        </div>
+                      </div>
                     </td>
                     <td className="px-3 py-3"><PeoplePicker value={item.owner} people={ownerPeople} disabled={saving} label={`${index + 1}번째 담당자`} onChange={(value) => editItem(item.id, { owner: value })} /></td>
                     <td className="px-3 py-3"><PeoplePicker value={item.stakeholders} people={people} disabled={saving} label={`${index + 1}번째 관계자`} onChange={(value) => editItem(item.id, { stakeholders: value })} /></td>
                     <td className="px-3 py-3">
                       {item.id === WEBINAR_ITEM_ID ? (
-                        <span className="inline-block py-2 text-xs font-medium text-muted-foreground">{webinarDate ? "D-Day" : "일정 미정"}</span>
+                        <select value="webinar" disabled aria-label="무료웨비나 시작일 기준" className="mb-2 h-9 w-full rounded-lg border border-input bg-background px-2 text-xs"><option value="webinar">무료웨비나 당일</option></select>
                       ) : (
-                        <select value={selectedStartOffset(item, webinarDate)} onChange={(event) => selectStartOffset(item.id, event.target.value)} aria-label={`${index + 1}번째 몇 주 전 선택`} disabled={saving || !webinarDate} className="h-10 w-full rounded-lg border border-input bg-background px-2 text-xs">
-                          <option value="">직접 지정</option>
+                        <select value={selectedStartOffset(item, webinarDate)} onChange={(event) => selectStartOffset(item.id, event.target.value)} aria-label={`${index + 1}번째 시작일 선택`} disabled={saving || !webinarDate} className="mb-2 h-9 w-full rounded-lg border border-input bg-background px-2 text-xs">
+                          <option value="none">일정 없음</option>
+                          <option value="custom" disabled>기존 일정</option>
                           {WBS_START_OFFSETS.map((option) => <option key={option.daysBefore} value={option.daysBefore}>{option.label}</option>)}
                         </select>
                       )}
+                      <Input type="date" value={item.startDate} aria-label={`${index + 1}번째 시작일 날짜`} disabled className="disabled:bg-background disabled:opacity-100 dark:disabled:bg-input/30" />
+                      {webinarDayLabel(item.startDate, webinarDate) ? <span className="mt-1 block text-xs font-medium text-primary">{webinarDayLabel(item.startDate, webinarDate)}</span> : null}
                     </td>
-                    <td className="px-3 py-3"><Input type="date" value={item.startDate} onChange={(event) => changeStartDate(item.id, event.target.value)} aria-label={`${index + 1}번째 시작일`} disabled={saving || item.id === WEBINAR_ITEM_ID} />{webinarDayLabel(item.startDate, webinarDate) ? <span className="mt-1 block text-xs font-medium text-primary">{webinarDayLabel(item.startDate, webinarDate)}</span> : null}</td>
-                    <td className="px-3 py-3"><Input type="date" value={item.dueDate} onChange={(event) => editItem(item.id, { dueDate: event.target.value })} aria-label={`${index + 1}번째 데드라인`} disabled={saving || item.id === WEBINAR_ITEM_ID} />{webinarDayLabel(item.dueDate, webinarDate) ? <span className="mt-1 block text-xs font-medium text-primary">{webinarDayLabel(item.dueDate, webinarDate)}</span> : null}</td>
+                    <td className="px-3 py-3">
+                      {item.id === WEBINAR_ITEM_ID ? (
+                        <select value="webinar" disabled aria-label="무료웨비나 데드라인 기준" className="mb-2 h-9 w-full rounded-lg border border-input bg-background px-2 text-xs"><option value="webinar">무료웨비나 당일</option></select>
+                      ) : (
+                        <select value={selectedDueOffset(item)} onChange={(event) => selectDueOffset(item.id, event.target.value)} aria-label={`${index + 1}번째 데드라인 선택`} disabled={saving || !item.startDate} className="mb-2 h-9 w-full rounded-lg border border-input bg-background px-2 text-xs">
+                          <option value="none">일정 없음</option>
+                          <option value="custom" disabled>기존 일정</option>
+                          {WBS_DUE_OFFSETS.map((option) => <option key={option.daysAfter} value={option.daysAfter}>{option.label}</option>)}
+                        </select>
+                      )}
+                      <Input type="date" value={item.dueDate} aria-label={`${index + 1}번째 데드라인 날짜`} disabled className="disabled:bg-background disabled:opacity-100 dark:disabled:bg-input/30" />
+                      {webinarDayLabel(item.dueDate, webinarDate) ? <span className="mt-1 block text-xs font-medium text-primary">{webinarDayLabel(item.dueDate, webinarDate)}</span> : null}
+                    </td>
                     <td className="px-3 py-3"><div className="flex items-center justify-center gap-1">
                       <Button size="icon" variant="ghost" onClick={() => moveItem(item.id, -1)} disabled={saving || index === 0} aria-label={`${item.title || `${index + 1}번째 항목`} 위로 이동`}><ArrowUp /></Button>
                       <Button size="icon" variant="ghost" onClick={() => moveItem(item.id, 1)} disabled={saving || index === sortedItems.length - 1} aria-label={`${item.title || `${index + 1}번째 항목`} 아래로 이동`}><ArrowDown /></Button>
                       <Button size="icon" variant="ghost" onClick={() => removeItem(item.id)} disabled={saving || item.id === WEBINAR_ITEM_ID} aria-label={`${item.title || `${index + 1}번째 항목`} 삭제`} className="text-destructive"><Trash2 /></Button>
                     </div></td>
                   </tr>)}
-                  {!sortedItems.length ? <tr><td colSpan={8} className="px-6 py-16 text-center text-sm text-muted-foreground">항목이 없습니다. 템플릿을 불러오거나 항목을 추가하세요.</td></tr> : null}
+                  {!sortedItems.length ? <tr><td colSpan={7} className="px-6 py-16 text-center text-sm text-muted-foreground">항목이 없습니다. 템플릿을 불러오거나 항목을 추가하세요.</td></tr> : null}
                 </tbody>
               </table>
             </div>

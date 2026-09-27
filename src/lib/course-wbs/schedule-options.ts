@@ -13,6 +13,11 @@ export const WBS_START_OFFSETS: readonly StartOffset[] = [
   }),
 ];
 
+export const WBS_DUE_OFFSETS = [
+  { label: "시작일 당일", daysAfter: 0 },
+  ...Array.from({ length: 7 }, (_, index) => ({ label: `시작일 +${index + 1}일`, daysAfter: index + 1 })),
+] as const;
+
 function dateValue(value: string): number | null {
   if (!/^\d{4}-\d{2}-\d{2}$/u.test(value)) return null;
   const timestamp = Date.parse(`${value}T00:00:00Z`);
@@ -26,6 +31,12 @@ function formatDate(timestamp: number): string | null {
   if (Number.isNaN(date.getTime())) return null;
   const formatted = date.toISOString().slice(0, 10);
   return dateValue(formatted) === timestamp ? formatted : null;
+}
+
+export function dueDateForOffset(startDate: string, daysAfter: number): string {
+  const start = dateValue(startDate);
+  if (start === null || !Number.isInteger(daysAfter) || daysAfter < 0 || daysAfter > 7) return "";
+  return formatDate(start + daysAfter * DAY_MS) ?? "";
 }
 
 export function dueDateForStartDate(startDate: string, webinarDate: string): string {

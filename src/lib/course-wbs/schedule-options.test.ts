@@ -3,7 +3,9 @@ import test from "node:test";
 
 import {
   datesForStartOffset,
+  dueDateForOffset,
   dueDateForStartDate,
+  WBS_DUE_OFFSETS,
   WBS_START_OFFSETS,
 } from "./schedule-options";
 
@@ -33,6 +35,17 @@ test("day offsets use the same start and due date, including a leap day", () => 
   assert.deepEqual(datesForStartOffset("2024-03-01", 1), {
     startDate: "2024-02-29", dueDate: "2024-02-29",
   });
+});
+
+test("deadline choices run from the same day through seven days after the start", () => {
+  assert.deepEqual(WBS_DUE_OFFSETS.map((option) => option.daysAfter), [0, 1, 2, 3, 4, 5, 6, 7]);
+  assert.equal(WBS_DUE_OFFSETS[0].label, "시작일 당일");
+  assert.equal(WBS_DUE_OFFSETS[7].label, "시작일 +7일");
+  assert.equal(dueDateForOffset("2024-02-28", 1), "2024-02-29");
+  assert.equal(dueDateForOffset("2025-12-29", 7), "2026-01-05");
+  assert.equal(dueDateForOffset("2026-10-01", 0), "2026-10-01");
+  assert.equal(dueDateForOffset("2026-02-30", 1), "");
+  assert.equal(dueDateForOffset("2026-10-01", 8), "");
 });
 
 test("manual start dates use the same rule relative to the webinar", () => {
