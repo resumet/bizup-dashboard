@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { toKoreaDate } from "@/lib/course-operations/schedule";
 import { webinarDayLabel } from "@/lib/course-wbs/webinar-date";
 
 export type GanttItem = {
@@ -34,7 +35,11 @@ function monday(value: number) {
   return value - ((day + 6) % 7) * DAY;
 }
 
-export function WbsGantt({ items, webinarDate = "" }: { items: GanttItem[]; webinarDate?: string }) {
+export function WbsGantt({
+  items,
+  webinarDate = "",
+  todayDate = toKoreaDate(new Date().toISOString()),
+}: { items: GanttItem[]; webinarDate?: string; todayDate?: string }) {
   const [chosenStart, setChosenStart] = useState<number | null>(null);
   const dated = useMemo(() => {
     const dated = items.map((item) => ({
@@ -59,9 +64,7 @@ export function WbsGantt({ items, webinarDate = "" }: { items: GanttItem[]; webi
     return <div className="rounded-xl border border-dashed bg-background px-6 py-16 text-center text-sm text-muted-foreground">간트 차트를 보려면 목록에서 시작일 또는 데드라인을 입력하세요.</div>;
   }
 
-  const currentDate = new Date();
-  const localToday = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
-  const now = dateValue(localToday);
+  const now = dateValue(todayDate);
   const todayOffset = now === null ? -1 : ((now - timeline.start) / DAY) * DAY_WIDTH;
   const sorted = [...items].sort((a, b) => a.position - b.position);
   const lastVisible = timeline.start + VISIBLE_WEEKS * 7 * DAY - DAY;
@@ -118,6 +121,7 @@ export function WbsGantt({ items, webinarDate = "" }: { items: GanttItem[]; webi
         {sorted.map((item) => {
           const start = dateValue(item.startDate || item.dueDate);
           const end = dateValue(item.dueDate || item.startDate);
+          const isPast = end !== null && now !== null && end < now;
           const rawLeft = start === null || end === null ? 0 : (Math.min(start, end) - timeline.start) / DAY * DAY_WIDTH;
           const rawRight = start === null || end === null ? 0 : (Math.max(start, end) - timeline.start) / DAY * DAY_WIDTH + DAY_WIDTH;
           const visible = start !== null && end !== null && rawRight > 0 && rawLeft < timeline.width;
@@ -127,8 +131,8 @@ export function WbsGantt({ items, webinarDate = "" }: { items: GanttItem[]; webi
             item.startDate ? `시작 ${webinarDayLabel(item.startDate, webinarDate)}` : "",
             item.dueDate ? `마감 ${webinarDayLabel(item.dueDate, webinarDate)}` : "",
           ].filter(Boolean);
-          return <div key={item.id} className="flex h-16 border-b last:border-b-0">
-            <div className="sticky left-0 z-30 flex w-64 shrink-0 flex-col justify-center border-r bg-background px-4">
+          return <div key={item.id} className={`flex h-16 border-b last:border-b-0 ${isPast ? "bg-muted/50" : ""}`}>
+            <div className={`sticky left-0 z-30 flex w-64 shrink-0 flex-col justify-center border-r px-4 ${isPast ? "bg-muted/50" : "bg-background"}`}>
               <span className={`truncate text-sm font-medium ${item.completed ? "text-muted-foreground line-through" : ""}`} title={item.title}>{item.title || "제목 없음"}</span>
               <span className="truncate text-xs text-muted-foreground">{item.owner || "담당자 미정"}</span>
               {relativeDates.length ? <span className="truncate text-[11px] text-amber-700" title={relativeDates.join(" · ")}>{relativeDates.join(" · ")}</span> : null}

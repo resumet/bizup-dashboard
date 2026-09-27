@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_WBS_TEMPLATE } from "./default-template";
+import { peopleInItems } from "./people";
 import { syncWebinarItem, webinarDateFromTimestamp, WEBINAR_ITEM_ID } from "./webinar-date";
 import type {
   CourseWbs,
@@ -22,6 +23,7 @@ import {
 
 const WBS_COLUMNS = "course_id,items,updated_at";
 const TEMPLATE_COLUMNS = "id,name,items,updated_at";
+const PEOPLE_PAGE_SIZE = 1000;
 
 type WbsRow = {
   course_id: string;
@@ -35,6 +37,67 @@ type TemplateRow = {
   items: unknown;
   updated_at: string;
 };
+
+function missingPeopleTable(code?: string): boolean {
+  return code === "PGRST205" || code === "42P01";
+}
+
+async function loadStoredPeople(workspaceId: string): Promise<string[]> {
+  const admin = createAdminClient();
+  const names = new Set<string>();
+  for (const [table, orderColumn] of [
+    ["course_wbs", "course_id"],
+    ["course_wbs_templates", "id"],
+  ] as const) {
+    for (let offset = 0; ; offset += PEOPLE_PAGE_SIZE) {
+      const { data, error } = await admin
+        .from(table)
+        .select("items")
+        .eq("workspace_id", workspaceId)
+        .order(orderColumn, { ascending: true })
+        .range(offset, offset + PEOPLE_PAGE_SIZE - 1);
+      if (error) throw databaseError("담당자 목록 조회", error.code);
+      for (const row of data ?? []) {
+        for (const name of peopleInItems(row.items)) names.add(name);
+      }
+      if (!data || data.length < PEOPLE_PAGE_SIZE) break;
+    }
+  }
+  return [...names];
+}
+
+async function loadWbsPeople(workspaceId: string): Promise<string[]> {
+  const admin = createAdminClient();
+  const people: string[] = [];
+  for (let offset = 0; ; offset += PEOPLE_PAGE_SIZE) {
+    const { data, error } = await admin
+      .from("course_wbs_people")
+      .select("name")
+      .eq("workspace_id", workspaceId)
+      .order("name", { ascending: true })
+      .range(offset, offset + PEOPLE_PAGE_SIZE - 1);
+    if (error) {
+      if (missingPeopleTable(error.code)) return loadStoredPeople(workspaceId);
+      throw databaseError("담당자 목록 조회", error.code);
+    }
+    people.push(...(data ?? []).map((row) => row.name));
+    if (!data || data.length < PEOPLE_PAGE_SIZE) return people;
+  }
+}
+
+async function saveWbsPeople(workspaceId: string, items: WbsItem[]): Promise<void> {
+  const names = peopleInItems(items);
+  if (names.length === 0) return;
+  const { error } = await createAdminClient()
+    .from("course_wbs_people")
+    .upsert(names.map((name) => ({ workspace_id: workspaceId, name })), {
+      onConflict: "workspace_id,name",
+      ignoreDuplicates: true,
+    });
+  if (error && !missingPeopleTable(error.code)) {
+    throw databaseError("담당자 목록 저장", error.code);
+  }
+}
 
 class WbsNotFoundError extends Error {}
 class WbsUnauthorizedError extends Error {}
@@ -142,13 +205,14 @@ export async function loadCourseWbsBootstrap(
   workspaceId: string,
 ): Promise<CourseWbsBootstrap> {
   const admin = createAdminClient();
-  const [coursesResult, activeTemplateRow] = await Promise.all([
+  const [coursesResult, activeTemplateRow, savedPeople] = await Promise.all([
     admin
       .from("courses")
       .select("id,name,cohort,instructor_name,free_webinar_at")
       .eq("workspace_id", workspaceId)
       .order("free_webinar_at", { ascending: false }),
     loadActiveTemplateRow(workspaceId),
+    loadWbsPeople(workspaceId),
   ]);
   if (coursesResult.error) {
     throw databaseError("강의 목록 조회", coursesResult.error.code);
@@ -160,9 +224,12 @@ export async function loadCourseWbsBootstrap(
     instructorName: row.instructor_name ?? "",
     webinarAt: row.free_webinar_at,
   }));
+  const template = activeTemplateRow ? toTemplate(activeTemplateRow) : builtInTemplate();
   return {
     courses,
-    template: activeTemplateRow ? toTemplate(activeTemplateRow) : builtInTemplate(),
+    template,
+    people: [...new Set([...savedPeople, ...peopleInItems(template.items)])]
+      .sort((a, b) => a.localeCompare(b, "ko")),
   };
 }
 
@@ -190,6 +257,7 @@ export async function saveCourseWbs(
 ): Promise<{ wbs: CourseWbs; webinarAt: string | null }> {
   const webinarAt = await assertCourse(workspaceId, courseId);
   const normalizedItems = parseWbsItems(syncWebinarItem(items, webinarDateFromTimestamp(webinarAt)));
+  await saveWbsPeople(workspaceId, normalizedItems);
   const admin = createAdminClient();
   if (expectedUpdatedAt === null) {
     const { data, error } = await admin
@@ -241,6 +309,7 @@ export async function updateWbsTemplate(
   ) {
     throw new WbsConflictError();
   }
+  await saveWbsPeople(workspaceId, normalizedItems);
   const admin = createAdminClient();
   if (!activeTemplateRow) {
     const { data, error } = await admin

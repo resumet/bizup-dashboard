@@ -47,3 +47,22 @@ test("웨비나 날짜가 표시 기간 밖이어도 업무의 상대일은 표�
   assert.match(html, /무료 웨비나 .* 기준/u);
   assert.doesNotMatch(html, /aria-label="무료 웨비나 기준일"/u);
 });
+
+test("오늘보다 마감일이 지난 업무만 회색 배경으로 표시한다", () => {
+  const html = renderToStaticMarkup(createElement(WbsGantt, {
+    todayDate: "2026-09-27",
+    items: [
+      { id: "past", title: "지난 업무", owner: "", startDate: "2026-09-24", dueDate: "2026-09-26", completed: false, position: 0 },
+      { id: "today", title: "오늘 업무", owner: "", startDate: "2026-09-27", dueDate: "2026-09-27", completed: false, position: 1 },
+    ],
+  }));
+
+  function markupBeforeTitle(title: string) {
+    const titleIndex = html.indexOf(`title="${title}"`);
+    assert.ok(titleIndex >= 0, `${title} 행이 표시되어야 한다`);
+    return html.slice(html.lastIndexOf('<div class="flex h-16 border-b', titleIndex), titleIndex);
+  }
+
+  assert.match(markupBeforeTitle("지난 업무"), /bg-muted\/50/u);
+  assert.doesNotMatch(markupBeforeTitle("오늘 업무"), /bg-muted\/50/u);
+});

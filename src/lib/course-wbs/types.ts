@@ -36,4 +36,5 @@ export type WbsCourse = {
 export type CourseWbsBootstrap = {
   courses: WbsCourse[];
   template: WbsTemplate;
+  people: string[];
 };
