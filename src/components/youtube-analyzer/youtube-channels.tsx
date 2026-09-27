@@ -220,6 +220,8 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
             <option value="topViews">최고 조회수</option>
             <option value="exclude1">최고 1개 제외 평균</option>
             <option value="recent20">최근 20개 평균</option>
+            <option value="recent30Comments">최근 30개 평균 댓글</option>
+            <option value="recent30Likes">최근 30개 평균 좋아요</option>
           </select>
           {sortBy!=="position" && <select aria-label="정렬 방향" className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" value={sortDirection} onChange={event=>setSortDirection(event.target.value as SortDirection)}>
             <option value="desc">높은 순</option>
