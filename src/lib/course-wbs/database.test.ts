@@ -76,11 +76,18 @@ test("WBS 마이그레이션은 강의와 워크스페이스 연결 및 템플�
       [workspaceA],
     )).rows[0].revision;
     const upgradedTemplate = await db.query(
-      `update public.course_wbs_templates set name = 'Upgraded', items = '[{"id":"task-2"}]'::jsonb
+      `update public.course_wbs_templates set name = 'Upgraded', items = $3::jsonb
        where workspace_id = $1 and id = 'notion-webinar' and updated_at = $2::timestamptz returning id`,
-      [workspaceA, firstTemplateRevision],
+      [workspaceA, firstTemplateRevision, JSON.stringify([{
+        id: "task-2", title: "Updated", description: "첫 단계 확인\n담당자에게 결과 공유",
+      }])],
     );
     assert.equal(upgradedTemplate.rows.length, 1);
+    const storedDescriptions = await db.query<{ items: { description: string }[] }>(
+      "select items from public.course_wbs_templates where workspace_id = $1 and id = 'notion-webinar'",
+      [workspaceA],
+    );
+    assert.equal(storedDescriptions.rows[0].items[0].description, "첫 단계 확인\n담당자에게 결과 공유");
     const staleTemplate = await db.query(
       "update public.course_wbs_templates set name = 'Stale' where workspace_id = $1 and id = 'notion-webinar' and updated_at = $2::timestamptz returning id",
       [workspaceA, firstTemplateRevision],

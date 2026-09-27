@@ -4,6 +4,7 @@ import { ArrowLeft, ChartGantt } from "lucide-react";
 import { CourseWbsWorkspace } from "@/components/course-wbs/course-wbs-workspace";
 import { BackLink } from "@/components/layout/back-link";
 import { Button } from "@/components/ui/button";
+import { isSuperAdminEmail } from "@/lib/admin/access";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -12,7 +13,8 @@ export default async function CourseWbsPage({
 }: {
   searchParams: Promise<{ courseId?: string }>;
 }) {
-  if (!await getAuthenticatedUser(await createClient())) redirect("/login");
+  const user = await getAuthenticatedUser(await createClient());
+  if (!user) redirect("/login");
   const { courseId } = await searchParams;
 
   return (
@@ -25,7 +27,7 @@ export default async function CourseWbsPage({
           <h1 className="min-w-0 text-base font-semibold">강의 WBS</h1>
         </div>
       </header>
-      <CourseWbsWorkspace initialCourseId={courseId ?? ""} />
+      <CourseWbsWorkspace initialCourseId={courseId ?? ""} canSaveTemplate={isSuperAdminEmail(user.email)} />
     </main>
   );
 }

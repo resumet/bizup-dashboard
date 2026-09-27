@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toKoreaDate, toKoreaTime } from "@/lib/course-operations/schedule";
 import { reorderWbsItems } from "@/lib/course-wbs/reorder";
 import { datesForStartOffset, dueDateForOffset, dueDateForStartDate, WBS_DUE_OFFSETS, WBS_START_OFFSETS } from "@/lib/course-wbs/schedule-options";
+import { reusableItems } from "@/lib/course-wbs/template-items";
 import type { CourseWbs, CourseWbsBootstrap, WbsCourse, WbsItem, WbsSummary, WbsTemplate } from "@/lib/course-wbs/types";
 import { applyTemplateToCourse, syncWebinarItem, webinarDateFromTimestamp, webinarDayLabel, WEBINAR_ITEM_ID } from "@/lib/course-wbs/webinar-date";
 
@@ -35,10 +36,6 @@ function emptyItem(position: number): WbsItem {
 
 function ordered(items: WbsItem[]) {
   return [...items].sort((a, b) => a.position - b.position).map((item, position) => ({ ...item, position }));
-}
-
-function reusableItems(items: WbsItem[]) {
-  return ordered(items).map((item) => ({ ...item, completed: false }));
 }
 
 function courseLabel(course: WbsCourse) {
@@ -126,7 +123,7 @@ function validateItems(items: WbsItem[]) {
   return "";
 }
 
-export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: string }) {
+export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initialCourseId: string; canSaveTemplate: boolean }) {
   const [courses, setCourses] = useState<WbsCourse[]>([]);
   const [wbsSummaries, setWbsSummaries] = useState<WbsSummary[]>([]);
   const [newCourseId, setNewCourseId] = useState("");
@@ -427,7 +424,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   }
 
   async function saveTemplate() {
-    if (!template || saving || loadingWbs || !courseReady) return;
+    if (!canSaveTemplate || !template || saving || loadingWbs || !courseReady) return;
     if (!items.length) { setError("템플릿으로 저장할 항목을 먼저 추가해 주세요."); return; }
     const validationError = validateItems(items);
     if (validationError) { setError(validationError); return; }
@@ -532,7 +529,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
             <p className="mt-2 text-sm text-muted-foreground">무료 웨비나 · {webinarDate ? `${webinarDate}${webinarTime ? ` ${webinarTime}` : ""}` : "강의 상세에서 날짜를 설정해 주세요."}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => void saveTemplate()} disabled={!template || !courseReady || !items.length || loadingWbs || saving}><Save /> 템플릿으로 저장</Button>
+            {canSaveTemplate ? <Button size="sm" variant="outline" onClick={() => void saveTemplate()} disabled={!template || !courseReady || !items.length || loadingWbs || saving}><Save /> 템플릿으로 저장</Button> : null}
             <Button size="sm" variant="outline" onClick={applyTemplate} disabled={!template || !courseReady || loadingWbs || saving}><ClipboardList /> 템플릿 불러오기</Button>
             {course ? <Button variant="outline" size="sm" asChild><Link href={`/services/course-operations/${course.id}`}>강의 상세 <ExternalLink /></Link></Button> : null}
           </div>
