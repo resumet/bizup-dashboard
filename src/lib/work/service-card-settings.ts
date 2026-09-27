@@ -4,6 +4,7 @@ export const WORK_SERVICE_CARD_GROUPS = [
   {
     title:"서비스",
     items:[
+      {route:"/services/course-wbs",title:"강의 WBS"},
       {route:"/services/course-operations",title:"강의 운영 자동화"},
       {route:"/services/course-schedule-planner",title:"강의 일정 플래너"},
       {route:"/services/course-webinars",title:"라이브 세미나 대시보드"},

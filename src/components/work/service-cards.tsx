@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  ArrowLeftRight, ArrowRight, BookOpenCheck, Calculator, CalendarRange, ChartNoAxesCombined,
+  ArrowLeftRight, ArrowRight, BookOpenCheck, Calculator, CalendarRange, ChartGantt, ChartNoAxesCombined,
   CirclePlay, ContactRound, FileCheck2, FileDown, FileSpreadsheet, HandCoins,
   MessageSquareText, PhoneCall, ShoppingCart, Users, WalletCards,
   type LucideIcon,
@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 type Service = { title: string; description: string; route: string; icon: LucideIcon; active?: boolean; iconClass?: string };
 
 const services: Service[] = [
+  { title: "강의 WBS", description: "강의 준비와 웨비나 업무를 체크리스트와 간트 차트로 관리하고 템플릿으로 재사용합니다.", route: "/services/course-wbs", icon: ChartGantt },
   { title: "강의 운영 자동화", description: "강의 ID를 기준으로 일정, 옵션, 수강생 명단과 문자 제작물을 연결합니다.", route: "/services/course-operations", icon: BookOpenCheck },
   { title: "강의 일정 플래너", description: "예비 강의 카드를 달력에 배치해 확정된 웨비나와 전체 강의 일정을 한눈에 확인합니다.", route: "/services/course-schedule-planner", icon: CalendarRange },
   { title: "라이브 웨비나 대시보드", description: "강의별 라이브 참여 인원, 결제와 매출을 모아 보고 단계별 전환율과 광고 효율을 비교합니다.", route: "/services/course-webinars", icon: ChartNoAxesCombined },
