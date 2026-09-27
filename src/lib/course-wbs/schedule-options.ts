@@ -11,6 +11,11 @@ export const WBS_START_OFFSETS: readonly StartOffset[] = [
     const daysBefore = 6 - index;
     return { label: `${daysBefore}일 전`, daysBefore };
   }),
+  { label: "당일", daysBefore: 0 },
+  ...Array.from({ length: 3 }, (_, index) => ({
+    label: `D+${index + 1}일`,
+    daysBefore: -(index + 1),
+  })),
 ];
 
 export const WBS_DUE_OFFSETS = [
@@ -45,7 +50,7 @@ export function dueDateForStartDate(startDate: string, webinarDate: string): str
 
   const webinar = dateValue(webinarDate);
   const daysBefore = webinar === null ? null : (webinar - start) / DAY_MS;
-  if (daysBefore !== null && daysBefore >= 1 && daysBefore <= 6) return startDate;
+  if (daysBefore !== null && daysBefore >= -3 && daysBefore <= 6) return startDate;
 
   return formatDate(start + DAY_MS) ?? "";
 }
@@ -55,7 +60,7 @@ export function datesForStartOffset(
   daysBefore: number,
 ): { startDate: string; dueDate: string } | null {
   const webinar = dateValue(webinarDate);
-  if (webinar === null || !Number.isInteger(daysBefore) || daysBefore < 1) return null;
+  if (webinar === null || !Number.isInteger(daysBefore) || daysBefore < -3) return null;
 
   const startDate = formatDate(webinar - daysBefore * DAY_MS);
   if (startDate === null) return null;
