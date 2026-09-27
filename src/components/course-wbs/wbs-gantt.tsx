@@ -73,6 +73,7 @@ export function WbsGantt({
   const webinarOffset = webinarTime !== null && webinarTime >= timeline.start && webinarTime <= lastVisible
     ? ((webinarTime - timeline.start) / DAY) * DAY_WIDTH
     : null;
+  const webinarWeekIndex = webinarOffset === null ? null : Math.floor(webinarOffset / WEEK_WIDTH);
 
   function shiftWeeks(weeks: number) {
     setChosenStart((current) => (current ?? autoStart!) + weeks * 7 * DAY);
@@ -102,19 +103,15 @@ export function WbsGantt({
             {Array.from({ length: timeline.weeks }, (_, index) => {
               const weekStart = new Date(timeline.start + index * 7 * DAY);
               const relative = webinarTime !== null ? webinarDayLabel(weekStart.toISOString().slice(0, 10), webinarDate) : "";
-              return <div key={index} className="flex shrink-0 flex-col justify-start border-r px-2 pt-2" style={{ width: WEEK_WIDTH }}>
+              return <div key={index} className="relative flex shrink-0 flex-col justify-start border-r px-2 pt-2" style={{ width: WEEK_WIDTH }}>
                 <span>{dateLabel.format(weekStart)} 주</span>
-                {relative ? <span className="font-normal text-amber-700">{relative}</span> : null}
+                {relative ? <span className="font-normal text-amber-700">주 시작 {relative}</span> : null}
+                {webinarWeekIndex === index ? <span
+                  className="pointer-events-none absolute inset-x-2 bottom-1 z-20 rounded bg-amber-500 px-1.5 py-0.5 text-center text-[10px] font-semibold whitespace-nowrap text-white"
+                  aria-label="무료 웨비나 기준일"
+                >웨비나 D-Day</span> : null}
               </div>;
             })}
-            {webinarOffset !== null ? <span
-              className="pointer-events-none absolute bottom-1 z-20 rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap text-white"
-              style={{
-                left: webinarOffset,
-                transform: webinarOffset < 48 ? "none" : webinarOffset > timeline.width - 48 ? "translateX(-100%)" : "translateX(-50%)",
-              }}
-              aria-label="무료 웨비나 기준일"
-            >웨비나 D-Day</span> : null}
           </div>
         </div>
         {webinarOffset !== null ? <div className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-amber-500/80" style={{ left: 256 + webinarOffset }} aria-hidden="true" /> : null}

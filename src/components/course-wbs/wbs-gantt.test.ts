@@ -35,6 +35,33 @@ test("간트의 업무 일정과 주 눈금을 무료 웨비나 기준일로 표
   assert.match(html, /bg-amber-500\/80/u, "웨비나 날짜의 세로 기준선을 표시해야 한다");
 });
 
+test("주 초와 주말의 웨비나 D-Day 배지는 해당 주 칸 안에 표시한다", () => {
+  const cases = [
+    { webinarDate: "2026-09-28", weekStart: "9. 28." },
+    { webinarDate: "2026-10-04", weekStart: "9. 28." },
+    { webinarDate: "2026-10-13", weekStart: "10. 12." }, // 저장된 미닝 WBS
+  ];
+
+  for (const { webinarDate, weekStart } of cases) {
+    const html = renderToStaticMarkup(createElement(WbsGantt, {
+      webinarDate,
+      items: [
+        { id: "preparation", title: "준비", owner: "", startDate: "2026-09-21", dueDate: "2026-09-21", completed: false, position: 0 },
+        { id: "course-free-webinar", title: "무료웨비나", owner: "", startDate: webinarDate, dueDate: webinarDate, completed: false, position: 1 },
+      ],
+    }));
+    const weeks = [...html.matchAll(/<div class="relative flex shrink-0[^>]*style="width:112px">([\s\S]*?)<\/div>/gu)]
+      .map((match) => match[1]);
+    const webinarWeek = weeks.find((week) => week.includes("웨비나 D-Day"));
+
+    assert.ok(webinarWeek, `${webinarDate}: D-Day 배지가 표시되어야 한다`);
+    assert.ok(webinarWeek.includes(`<span>${weekStart} 주</span>`), `${webinarDate}: ${weekStart} 주에 표시되어야 한다`);
+    assert.match(webinarWeek, /absolute inset-x-2 bottom-1/u, "배지는 해당 주 칸 안에 있어야 한다");
+    assert.match(webinarWeek, /주 시작 D-/u, "주 상대일은 월요일 기준임을 명시해야 한다");
+    assert.equal(weeks.filter((week) => week.includes("웨비나 D-Day")).length, 1);
+  }
+});
+
 test("웨비나 날짜가 표시 기간 밖이어도 업무의 상대일은 표시한다", () => {
   const html = renderToStaticMarkup(createElement(WbsGantt, {
     webinarDate: "2027-09-29",
