@@ -47,7 +47,9 @@ test("저장 기준 시각은 최초 생성의 null 또는 서버 시각 문자�
 
 test("Notion 기본 템플릿은 고유한 항목 ID로 시작하고 수정 입력을 받을 수 있다", () => {
   const initial = parseWbsItems(DEFAULT_WBS_TEMPLATE.items);
-  assert.equal(initial.length, 22);
+  assert.equal(initial.length, 23);
+  assert.equal(initial[0].id, "course-free-webinar");
+  assert.equal(initial[0].title, "무료웨비나");
   assert.equal(new Set(initial.map((row) => row.id)).size, initial.length);
   assert.ok(initial.every((row) => !row.startDate && !row.dueDate));
   assert.ok(initial.every((row) => !("deliverable" in row)));

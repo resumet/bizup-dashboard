@@ -13,9 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { toKoreaTime } from "@/lib/course-operations/schedule";
 import type { CourseWbs, CourseWbsBootstrap, WbsCourse, WbsItem, WbsTemplate } from "@/lib/course-wbs/types";
+import { applyTemplateToCourse, syncWebinarItem, webinarDateFromTimestamp, webinarDayLabel, WEBINAR_ITEM_ID } from "@/lib/course-wbs/webinar-date";
 
-type WbsResponse = { wbs: CourseWbs | null };
+type WbsResponse = { wbs: CourseWbs | null; webinarAt: string | null };
 
 class ApiError extends Error {
   constructor(message: string, public status: number) { super(message); }
@@ -88,10 +90,13 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
       const response = await fetch(`/api/course-wbs/${encodeURIComponent(id)}`, { cache: "no-store" });
       const body = await responseJson<WbsResponse>(response);
       if (sequence !== loadSequence.current) return;
-      setItems(ordered(body.wbs?.items ?? []));
+      const storedItems = ordered(body.wbs?.items ?? []);
+      const linkedItems = ordered(syncWebinarItem(storedItems, webinarDateFromTimestamp(body.webinarAt)));
+      setCourses((current) => current.map((entry) => entry.id === id ? { ...entry, webinarAt: body.webinarAt } : entry));
+      setItems(linkedItems);
       setHasWbs(Boolean(body.wbs));
       setUpdatedAt(body.wbs?.updatedAt ?? "");
-      setDirty(false);
+      setDirty(Boolean(body.wbs) && JSON.stringify(storedItems) !== JSON.stringify(linkedItems));
       setCourseReady(true);
     } catch (caught) {
       if (sequence === loadSequence.current) {
@@ -138,6 +143,8 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   }, [dirty]);
 
   const course = courses.find((entry) => entry.id === courseId);
+  const webinarDate = webinarDateFromTimestamp(course?.webinarAt ?? null);
+  const webinarTime = course?.webinarAt ? toKoreaTime(course.webinarAt) : "";
   const completed = items.filter((item) => item.completed).length;
   const progress = items.length ? Math.round(completed / items.length * 100) : 0;
   const sortedItems = useMemo(() => ordered(items), [items]);
@@ -146,6 +153,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
 
   function editItem(id: string, change: Partial<WbsItem>) {
     if (saving || loadingWbs || !courseReady) return;
+    if (id === WEBINAR_ITEM_ID && ("title" in change || "startDate" in change || "dueDate" in change)) return;
     setItems((current) => current.map((item) => item.id === id ? { ...item, ...change } : item));
     setDirty(true);
     clearFeedback();
@@ -161,6 +169,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
 
   function removeItem(id: string) {
     if (saving || loadingWbs || !courseReady) return;
+    if (id === WEBINAR_ITEM_ID) return;
     if (!window.confirm("이 항목을 삭제할까요? 저장하면 삭제가 반영됩니다.")) return;
     setItems((current) => ordered(current.filter((item) => item.id !== id)));
     setDirty(true);
@@ -213,9 +222,9 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
 
   function applyTemplate() {
     if (!template || saving || loadingWbs || !courseReady) return;
-    if (items.length && !window.confirm("현재 목록을 템플릿으로 바꿀까요? 저장하지 않은 변경 사항은 사라집니다.")) return;
-    setItems(ordered(template.items.map((item) => ({
-      ...item, id: crypto.randomUUID(), completed: false,
+    if (items.length && (hasWbs || dirty) && !window.confirm("현재 목록을 템플릿으로 바꿀까요? 저장하지 않은 변경 사항은 사라집니다.")) return;
+    setItems(ordered(applyTemplateToCourse(template.items, webinarDate).map((item) => ({
+      ...item, id: item.id === WEBINAR_ITEM_ID ? WEBINAR_ITEM_ID : crypto.randomUUID(), completed: false,
     }))));
     setDirty(true);
     setView("list");
@@ -235,6 +244,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
       });
       const body = await responseJson<WbsResponse>(response);
       setItems(ordered(body.wbs?.items ?? items));
+      setCourses((current) => current.map((entry) => entry.id === courseId ? { ...entry, webinarAt: body.webinarAt } : entry));
       setHasWbs(true);
       setUpdatedAt(body.wbs?.updatedAt ?? "");
       setDirty(false);
@@ -300,6 +310,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
             <select id="wbs-course" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" value={courseId} onChange={(event) => selectCourse(event.target.value)} disabled={saving || loadingWbs}>
               {courses.map((entry) => <option value={entry.id} key={entry.id}>{entry.name}{entry.cohort ? ` · ${entry.cohort}기` : ""}</option>)}
             </select>
+            <p className="mt-2 text-xs text-muted-foreground">무료웨비나 기준일: {webinarDate ? `${webinarDate}${webinarTime ? ` ${webinarTime}` : ""}` : "강의 상세에서 날짜를 설정해 주세요."}</p>
           </div>
           <div className="flex items-center gap-4 text-sm">
             <div><span className="block text-xs text-muted-foreground">완료</span><strong className="tabular-nums">{completed} / {items.length}</strong></div>
@@ -334,7 +345,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
             </div>
             <Button size="sm" variant="outline" onClick={addItem} disabled={loadingWbs || !courseReady || saving}><Plus /> 항목 추가</Button>
           </div>
-          {loadingWbs ? <div className="flex min-h-72 items-center justify-center rounded-xl border bg-background text-sm text-muted-foreground"><LoaderCircle className="mr-2 size-4 animate-spin" /> WBS를 불러오는 중...</div> : !courseReady ? <div className="rounded-xl border border-dashed bg-background px-6 py-16 text-center text-sm text-muted-foreground">이 강의의 WBS를 불러오지 못했습니다.<div><Button className="mt-4" variant="outline" onClick={() => void loadCourse(courseId)}>다시 시도</Button></div></div> : view === "gantt" ? <WbsGantt key={courseId} items={sortedItems} /> : (
+          {loadingWbs ? <div className="flex min-h-72 items-center justify-center rounded-xl border bg-background text-sm text-muted-foreground"><LoaderCircle className="mr-2 size-4 animate-spin" /> WBS를 불러오는 중...</div> : !courseReady ? <div className="rounded-xl border border-dashed bg-background px-6 py-16 text-center text-sm text-muted-foreground">이 강의의 WBS를 불러오지 못했습니다.<div><Button className="mt-4" variant="outline" onClick={() => void loadCourse(courseId)}>다시 시도</Button></div></div> : view === "gantt" ? <WbsGantt key={courseId} items={sortedItems} webinarDate={webinarDate} /> : (
             <div className="overflow-x-auto rounded-xl border bg-background shadow-sm" aria-busy={saving}>
               <table className="w-full min-w-[1080px] border-collapse text-sm">
                 <thead className="bg-muted/50 text-left text-xs font-medium text-muted-foreground">
@@ -349,20 +360,21 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedItems.map((item, index) => <tr key={item.id} className="border-t align-top">
+                  {sortedItems.map((item, index) => <tr key={item.id} className={`border-t align-top ${item.id === WEBINAR_ITEM_ID ? "bg-primary/5" : ""}`}>
                     <td className="px-3 py-4 text-center"><input type="checkbox" className="size-4 accent-primary" checked={item.completed} onChange={(event) => editItem(item.id, { completed: event.target.checked })} aria-label={`${item.title || `${index + 1}번째 항목`} 완료`} disabled={saving} /></td>
                     <td className="px-3 py-3">
-                      <Input value={item.title} onChange={(event) => editItem(item.id, { title: event.target.value })} placeholder="업무 제목" aria-label={`${index + 1}번째 업무 제목`} className={item.completed ? "line-through" : ""} disabled={saving} />
+                      <Input value={item.title} onChange={(event) => editItem(item.id, { title: event.target.value })} placeholder="업무 제목" aria-label={`${index + 1}번째 업무 제목`} className={item.completed ? "line-through" : ""} disabled={saving || item.id === WEBINAR_ITEM_ID} />
+                      {item.id === WEBINAR_ITEM_ID ? <p className="mt-1 text-xs text-muted-foreground">날짜는 강의 상세의 무료웨비나 일정과 연결됩니다.</p> : null}
                       <Textarea value={item.description ?? ""} onChange={(event) => editItem(item.id, { description: event.target.value })} placeholder="업무 설명 또는 세부 체크 내용" aria-label={`${index + 1}번째 업무 설명`} rows={2} className="mt-2 min-h-14 resize-y text-xs" disabled={saving} />
                     </td>
                     <td className="px-3 py-3"><Input value={item.owner} onChange={(event) => editItem(item.id, { owner: event.target.value })} placeholder="담당자" aria-label={`${index + 1}번째 담당자`} disabled={saving} /></td>
                     <td className="px-3 py-3"><Input value={item.stakeholders} onChange={(event) => editItem(item.id, { stakeholders: event.target.value })} placeholder="관계자" aria-label={`${index + 1}번째 관계자`} disabled={saving} /></td>
-                    <td className="px-3 py-3"><Input type="date" value={item.startDate} onChange={(event) => editItem(item.id, { startDate: event.target.value })} aria-label={`${index + 1}번째 시작일`} disabled={saving} /></td>
-                    <td className="px-3 py-3"><Input type="date" value={item.dueDate} onChange={(event) => editItem(item.id, { dueDate: event.target.value })} aria-label={`${index + 1}번째 데드라인`} disabled={saving} /></td>
+                    <td className="px-3 py-3"><Input type="date" value={item.startDate} onChange={(event) => editItem(item.id, { startDate: event.target.value })} aria-label={`${index + 1}번째 시작일`} disabled={saving || item.id === WEBINAR_ITEM_ID} />{webinarDayLabel(item.startDate, webinarDate) ? <span className="mt-1 block text-xs font-medium text-primary">{webinarDayLabel(item.startDate, webinarDate)}</span> : null}</td>
+                    <td className="px-3 py-3"><Input type="date" value={item.dueDate} onChange={(event) => editItem(item.id, { dueDate: event.target.value })} aria-label={`${index + 1}번째 데드라인`} disabled={saving || item.id === WEBINAR_ITEM_ID} />{webinarDayLabel(item.dueDate, webinarDate) ? <span className="mt-1 block text-xs font-medium text-primary">{webinarDayLabel(item.dueDate, webinarDate)}</span> : null}</td>
                     <td className="px-3 py-3"><div className="flex items-center justify-center gap-1">
                       <Button size="icon" variant="ghost" onClick={() => moveItem(item.id, -1)} disabled={saving || index === 0} aria-label={`${item.title || `${index + 1}번째 항목`} 위로 이동`}><ArrowUp /></Button>
                       <Button size="icon" variant="ghost" onClick={() => moveItem(item.id, 1)} disabled={saving || index === sortedItems.length - 1} aria-label={`${item.title || `${index + 1}번째 항목`} 아래로 이동`}><ArrowDown /></Button>
-                      <Button size="icon" variant="ghost" onClick={() => removeItem(item.id)} disabled={saving} aria-label={`${item.title || `${index + 1}번째 항목`} 삭제`} className="text-destructive"><Trash2 /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => removeItem(item.id)} disabled={saving || item.id === WEBINAR_ITEM_ID} aria-label={`${item.title || `${index + 1}번째 항목`} 삭제`} className="text-destructive"><Trash2 /></Button>
                     </div></td>
                   </tr>)}
                   {!sortedItems.length ? <tr><td colSpan={7} className="px-6 py-16 text-center text-sm text-muted-foreground">항목이 없습니다. 템플릿을 불러오거나 항목을 추가하세요.</td></tr> : null}

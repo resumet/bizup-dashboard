@@ -21,7 +21,7 @@ export async function GET(
   try {
     const { workspaceId } = await requireWbsContext();
     const { courseId } = await context.params;
-    return Response.json({ wbs: await loadCourseWbs(workspaceId, courseId) });
+    return Response.json(await loadCourseWbs(workspaceId, courseId));
   } catch (error) {
     return wbsApiError(error);
   }
@@ -37,7 +37,7 @@ export async function PUT(
     const body = await request.json();
     const items = parseWbsItemsBody(body);
     const expectedUpdatedAt = parseWbsExpectedUpdatedAt(body);
-    return Response.json({ wbs: await saveCourseWbs(workspaceId, actorId, courseId, items, expectedUpdatedAt) });
+    return Response.json(await saveCourseWbs(workspaceId, actorId, courseId, items, expectedUpdatedAt));
   } catch (error) {
     return wbsApiError(error);
   }

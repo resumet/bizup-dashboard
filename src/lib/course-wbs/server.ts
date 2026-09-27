@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_WBS_TEMPLATE } from "./default-template";
+import { syncWebinarItem, webinarDateFromTimestamp, WEBINAR_ITEM_ID } from "./webinar-date";
 import type {
   CourseWbs,
   CourseWbsBootstrap,
@@ -81,10 +82,12 @@ function toWbs(row: WbsRow): CourseWbs {
 
 function toTemplate(row: TemplateRow): WbsTemplate {
   const builtIn = row.id === DEFAULT_WBS_TEMPLATE.id;
+  const items = parseWbsItems(row.items);
+  const anchor = items.find((item) => item.id === WEBINAR_ITEM_ID || item.title.replace(/\s+/gu, "") === "무료웨비나");
   return {
     id: row.id,
     name: row.name,
-    items: parseWbsItems(row.items),
+    items: syncWebinarItem(items, anchor?.dueDate || anchor?.startDate || ""),
     updatedAt: row.updated_at,
     builtIn,
     ...(builtIn ? { sourceUrl: DEFAULT_WBS_TEMPLATE.sourceUrl } : {}),
@@ -122,17 +125,17 @@ async function loadActiveTemplateRow(workspaceId: string): Promise<TemplateRow |
   return data as TemplateRow | null;
 }
 
-async function assertCourse(workspaceId: string, courseId: string): Promise<string> {
+async function assertCourse(workspaceId: string, courseId: string): Promise<string | null> {
   parseWbsCourseId(courseId);
   const { data, error } = await createAdminClient()
     .from("courses")
-    .select("id")
+    .select("id,free_webinar_at")
     .eq("workspace_id", workspaceId)
     .eq("id", courseId)
     .maybeSingle();
   if (error) throw databaseError("강의 확인", error.code);
   if (!data) throw new WbsNotFoundError("강의를 찾을 수 없습니다.");
-  return courseId;
+  return data.free_webinar_at;
 }
 
 export async function loadCourseWbsBootstrap(
@@ -166,8 +169,8 @@ export async function loadCourseWbsBootstrap(
 export async function loadCourseWbs(
   workspaceId: string,
   courseId: string,
-): Promise<CourseWbs | null> {
-  await assertCourse(workspaceId, courseId);
+): Promise<{ wbs: CourseWbs | null; webinarAt: string | null }> {
+  const webinarAt = await assertCourse(workspaceId, courseId);
   const { data, error } = await createAdminClient()
     .from("course_wbs")
     .select(WBS_COLUMNS)
@@ -175,7 +178,7 @@ export async function loadCourseWbs(
     .eq("course_id", courseId)
     .maybeSingle();
   if (error) throw databaseError("조회", error.code);
-  return data ? toWbs(data as WbsRow) : null;
+  return { wbs: data ? toWbs(data as WbsRow) : null, webinarAt };
 }
 
 export async function saveCourseWbs(
@@ -184,22 +187,23 @@ export async function saveCourseWbs(
   courseId: string,
   items: WbsItem[],
   expectedUpdatedAt: string | null,
-): Promise<CourseWbs> {
-  await assertCourse(workspaceId, courseId);
+): Promise<{ wbs: CourseWbs; webinarAt: string | null }> {
+  const webinarAt = await assertCourse(workspaceId, courseId);
+  const normalizedItems = parseWbsItems(syncWebinarItem(items, webinarDateFromTimestamp(webinarAt)));
   const admin = createAdminClient();
   if (expectedUpdatedAt === null) {
     const { data, error } = await admin
       .from("course_wbs")
-      .insert({ course_id: courseId, workspace_id: workspaceId, items, updated_by: actorId })
+      .insert({ course_id: courseId, workspace_id: workspaceId, items: normalizedItems, updated_by: actorId })
       .select(WBS_COLUMNS)
       .single();
     if (error?.code === "23505") throw new WbsConflictError();
     if (error || !data) throw databaseError("저장", error?.code);
-    return toWbs(data as WbsRow);
+    return { wbs: toWbs(data as WbsRow), webinarAt };
   }
   const { data, error } = await admin
     .from("course_wbs")
-    .update({ items, updated_by: actorId })
+    .update({ items: normalizedItems, updated_by: actorId })
     .eq("workspace_id", workspaceId)
     .eq("course_id", courseId)
     .eq("updated_at", expectedUpdatedAt)
@@ -207,7 +211,7 @@ export async function saveCourseWbs(
     .maybeSingle();
   if (error) throw databaseError("저장", error.code);
   if (!data) throw new WbsConflictError();
-  return toWbs(data as WbsRow);
+  return { wbs: toWbs(data as WbsRow), webinarAt };
 }
 
 export async function deleteCourseWbs(workspaceId: string, courseId: string): Promise<void> {
@@ -227,6 +231,8 @@ export async function updateWbsTemplate(
   input: { name: string; items: WbsItem[]; expectedUpdatedAt: string | null },
 ): Promise<WbsTemplate> {
   parseWbsTemplateId(templateId);
+  const anchor = input.items.find((item) => item.id === WEBINAR_ITEM_ID || item.title.replace(/\s+/gu, "") === "무료웨비나");
+  const normalizedItems = parseWbsItems(syncWebinarItem(input.items, anchor?.dueDate || anchor?.startDate || ""));
   const activeTemplateRow = await loadActiveTemplateRow(workspaceId);
   if (
     activeTemplateRow
@@ -243,7 +249,7 @@ export async function updateWbsTemplate(
         workspace_id: workspaceId,
         id: templateId,
         name: input.name,
-        items: input.items,
+        items: normalizedItems,
         updated_by: actorId,
       })
       .select(TEMPLATE_COLUMNS)
@@ -254,7 +260,7 @@ export async function updateWbsTemplate(
   }
   const { data, error } = await admin
     .from("course_wbs_templates")
-    .update({ name: input.name, items: input.items, updated_by: actorId })
+    .update({ name: input.name, items: normalizedItems, updated_by: actorId })
     .eq("workspace_id", workspaceId)
     .eq("id", templateId)
     .eq("updated_at", activeTemplateRow.updated_at)

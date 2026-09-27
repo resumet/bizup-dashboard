@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { webinarDayLabel } from "@/lib/course-wbs/webinar-date";
 
 export type GanttItem = {
   id: string;
@@ -25,7 +26,7 @@ const fullDateLabel = new Intl.DateTimeFormat("ko-KR", { year: "numeric", month:
 function dateValue(value: string): number | null {
   if (!/^\d{4}-\d{2}-\d{2}$/u.test(value)) return null;
   const result = Date.parse(`${value}T00:00:00Z`);
-  return Number.isNaN(result) ? null : result;
+  return Number.isNaN(result) || new Date(result).toISOString().slice(0, 10) !== value ? null : result;
 }
 
 function monday(value: number) {
@@ -33,7 +34,7 @@ function monday(value: number) {
   return value - ((day + 6) % 7) * DAY;
 }
 
-export function WbsGantt({ items }: { items: GanttItem[] }) {
+export function WbsGantt({ items, webinarDate = "" }: { items: GanttItem[]; webinarDate?: string }) {
   const [chosenStart, setChosenStart] = useState<number | null>(null);
   const dated = useMemo(() => {
     const dated = items.map((item) => ({
@@ -65,6 +66,10 @@ export function WbsGantt({ items }: { items: GanttItem[] }) {
   const sorted = [...items].sort((a, b) => a.position - b.position);
   const lastVisible = timeline.start + VISIBLE_WEEKS * 7 * DAY - DAY;
   const outsideCount = dated.filter((entry) => entry.end! < timeline.start || entry.start! > lastVisible).length;
+  const webinarTime = dateValue(webinarDate);
+  const webinarOffset = webinarTime !== null && webinarTime >= timeline.start && webinarTime <= lastVisible
+    ? ((webinarTime - timeline.start) / DAY) * DAY_WIDTH
+    : null;
 
   function shiftWeeks(weeks: number) {
     setChosenStart((current) => (current ?? autoStart!) + weeks * 7 * DAY);
@@ -78,7 +83,7 @@ export function WbsGantt({ items }: { items: GanttItem[] }) {
   return (
     <div className="rounded-xl border bg-background" aria-label="WBS 간트 차트">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 text-xs text-muted-foreground">
-        <span>{fullDateLabel.format(new Date(timeline.start))} ~ {fullDateLabel.format(new Date(lastVisible))}{outsideCount ? ` · 표시 기간 밖 ${outsideCount}개` : ""}</span>
+        <span>{fullDateLabel.format(new Date(timeline.start))} ~ {fullDateLabel.format(new Date(lastVisible))}{outsideCount ? ` · 표시 기간 밖 ${outsideCount}개` : ""}{webinarTime !== null ? ` · 무료 웨비나 ${fullDateLabel.format(new Date(webinarTime))} 기준` : ""}</span>
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => setChosenStart(null)}>첫 일정</Button>
           <input type="month" value={new Date(timeline.start + 7 * DAY).toISOString().slice(0, 7)} onChange={(event) => chooseMonth(event.target.value)} aria-label="간트 차트 표시 월" className="h-9 rounded-lg border border-input bg-background px-2 text-xs" />
@@ -88,17 +93,28 @@ export function WbsGantt({ items }: { items: GanttItem[] }) {
       </div>
       <div className="overflow-x-auto">
       <div className="relative" style={{ width: timeline.width + 256 }}>
-        <div className="flex h-12 border-b bg-muted/40 text-xs font-medium text-muted-foreground">
-          <div className="sticky left-0 z-20 flex w-64 shrink-0 items-center border-r bg-muted px-4">업무 · 담당자</div>
+        <div className="flex h-16 border-b bg-muted/40 text-xs font-medium text-muted-foreground">
+          <div className="sticky left-0 z-30 flex w-64 shrink-0 items-center border-r bg-muted px-4">업무 · 담당자</div>
           <div className="relative flex" style={{ width: timeline.width }}>
             {Array.from({ length: timeline.weeks }, (_, index) => {
               const weekStart = new Date(timeline.start + index * 7 * DAY);
-              return <div key={index} className="flex shrink-0 items-center border-r px-2" style={{ width: WEEK_WIDTH }}>
-                {dateLabel.format(weekStart)} 주
+              const relative = webinarTime !== null ? webinarDayLabel(weekStart.toISOString().slice(0, 10), webinarDate) : "";
+              return <div key={index} className="flex shrink-0 flex-col justify-start border-r px-2 pt-2" style={{ width: WEEK_WIDTH }}>
+                <span>{dateLabel.format(weekStart)} 주</span>
+                {relative ? <span className="font-normal text-amber-700">{relative}</span> : null}
               </div>;
             })}
+            {webinarOffset !== null ? <span
+              className="pointer-events-none absolute bottom-1 z-20 rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap text-white"
+              style={{
+                left: webinarOffset,
+                transform: webinarOffset < 48 ? "none" : webinarOffset > timeline.width - 48 ? "translateX(-100%)" : "translateX(-50%)",
+              }}
+              aria-label="무료 웨비나 기준일"
+            >웨비나 D-Day</span> : null}
           </div>
         </div>
+        {webinarOffset !== null ? <div className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-amber-500/80" style={{ left: 256 + webinarOffset }} aria-hidden="true" /> : null}
         {sorted.map((item) => {
           const start = dateValue(item.startDate || item.dueDate);
           const end = dateValue(item.dueDate || item.startDate);
@@ -107,17 +123,22 @@ export function WbsGantt({ items }: { items: GanttItem[] }) {
           const visible = start !== null && end !== null && rawRight > 0 && rawLeft < timeline.width;
           const left = Math.max(0, rawLeft);
           const width = Math.max(0, Math.min(timeline.width, rawRight) - left);
-          return <div key={item.id} className="flex h-14 border-b last:border-b-0">
-            <div className="sticky left-0 z-10 flex w-64 shrink-0 flex-col justify-center border-r bg-background px-4">
+          const relativeDates = webinarTime === null ? [] : [
+            item.startDate ? `시작 ${webinarDayLabel(item.startDate, webinarDate)}` : "",
+            item.dueDate ? `마감 ${webinarDayLabel(item.dueDate, webinarDate)}` : "",
+          ].filter(Boolean);
+          return <div key={item.id} className="flex h-16 border-b last:border-b-0">
+            <div className="sticky left-0 z-30 flex w-64 shrink-0 flex-col justify-center border-r bg-background px-4">
               <span className={`truncate text-sm font-medium ${item.completed ? "text-muted-foreground line-through" : ""}`} title={item.title}>{item.title || "제목 없음"}</span>
               <span className="truncate text-xs text-muted-foreground">{item.owner || "담당자 미정"}</span>
+              {relativeDates.length ? <span className="truncate text-[11px] text-amber-700" title={relativeDates.join(" · ")}>{relativeDates.join(" · ")}</span> : null}
             </div>
             <div className="relative h-full" style={{ width: timeline.width, backgroundImage: `linear-gradient(to right, var(--border) 1px, transparent 1px)`, backgroundSize: `${WEEK_WIDTH}px 100%` }}>
               {todayOffset >= 0 && todayOffset <= timeline.width ? <div className="absolute inset-y-0 z-10 w-px bg-rose-500/70" style={{ left: todayOffset }} title="오늘" /> : null}
               {visible ? <div
-                className={`absolute top-4 flex h-6 items-center overflow-hidden rounded-md px-2 text-[11px] font-medium whitespace-nowrap ${item.completed ? "bg-emerald-500 text-white" : "bg-primary text-primary-foreground"}`}
+                className={`absolute top-5 flex h-6 items-center overflow-hidden rounded-md px-2 text-[11px] font-medium whitespace-nowrap ${item.completed ? "bg-emerald-500 text-white" : "bg-primary text-primary-foreground"}`}
                 style={{ left, width }}
-                title={`${item.title}: ${item.startDate || item.dueDate} ~ ${item.dueDate || item.startDate}${item.completed ? " (완료)" : ""}`}
+                title={`${item.title}: ${item.startDate || item.dueDate} ~ ${item.dueDate || item.startDate}${relativeDates.length ? ` (${relativeDates.join(" · ")})` : ""}${item.completed ? " (완료)" : ""}`}
               >{width > 65 ? item.title : ""}</div> : <span className="absolute left-4 top-5 text-xs text-muted-foreground">{start !== null && end !== null ? "표시 기간 밖" : "일정 미정"}</span>}
             </div>
           </div>;

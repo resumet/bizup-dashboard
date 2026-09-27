@@ -1,3 +1,5 @@
+import { WEBINAR_ITEM_ID } from "./webinar-date";
+
 /**
  * Initial WBS based on the 22 named rows in the Notion "작업 트래커".
  * The source's 2025 deadlines are intentionally omitted so new courses start
@@ -98,14 +100,27 @@ export const DEFAULT_WBS_TEMPLATE = {
   id: "notion-webinar",
   name: "강의 준비·웨비나 기본 템플릿",
   sourceUrl: "https://app.notion.com/p/3e495b2493eb8006bc05c903ee253129",
-  items: NOTION_TASKS.map((task, position) => ({
-    id: `notion-${String(position + 1).padStart(2, "0")}`,
-    ...task,
-    owner: position === 7 ? "황지유" : "",
-    stakeholders: position === 1 || position === 3 ? "김지은 (노바)" : "",
-    startDate: "",
-    dueDate: "",
-    completed: false,
-    position,
-  })),
+  items: [
+    {
+      id: WEBINAR_ITEM_ID,
+      title: "무료웨비나",
+      description: "강의 상세에 설정된 무료 웨비나 일정입니다.",
+      owner: "",
+      stakeholders: "",
+      startDate: "",
+      dueDate: "",
+      completed: false,
+      position: 0,
+    },
+    ...NOTION_TASKS.map((task, position) => ({
+      id: `notion-${String(position + 1).padStart(2, "0")}`,
+      ...task,
+      owner: position === 7 ? "황지유" : "",
+      stakeholders: position === 1 || position === 3 ? "김지은 (노바)" : "",
+      startDate: "",
+      dueDate: "",
+      completed: false,
+      position: position + 1,
+    })),
+  ],
 } as const;
