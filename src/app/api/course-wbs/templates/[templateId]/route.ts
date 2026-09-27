@@ -1,5 +1,4 @@
 import {
-  deleteWbsTemplate,
   requireWbsContext,
   updateWbsTemplate,
   wbsApiError,
@@ -25,20 +24,6 @@ export async function PUT(
     const expectedUpdatedAt = parseWbsExpectedUpdatedAt(body);
     const template = await updateWbsTemplate(workspaceId, actorId, templateId, { ...input, expectedUpdatedAt });
     return Response.json({ template });
-  } catch (error) {
-    return wbsApiError(error);
-  }
-}
-
-export async function DELETE(
-  _request: Request,
-  context: TemplateRouteContext,
-) {
-  try {
-    const { workspaceId } = await requireWbsContext();
-    const { templateId } = await context.params;
-    await deleteWbsTemplate(workspaceId, templateId);
-    return new Response(null, { status: 204 });
   } catch (error) {
     return wbsApiError(error);
   }

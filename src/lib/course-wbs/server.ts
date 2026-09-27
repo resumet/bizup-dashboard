@@ -109,6 +109,19 @@ function databaseError(action: string, code?: string): Error {
   return new Error(`WBS ${action} 실패: ${code ?? "UNKNOWN"}`);
 }
 
+async function loadActiveTemplateRow(workspaceId: string): Promise<TemplateRow | null> {
+  const { data, error } = await createAdminClient()
+    .from("course_wbs_templates")
+    .select(TEMPLATE_COLUMNS)
+    .eq("workspace_id", workspaceId)
+    .order("updated_at", { ascending: false })
+    .order("id", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw databaseError("템플릿 조회", error.code);
+  return data as TemplateRow | null;
+}
+
 async function assertCourse(workspaceId: string, courseId: string): Promise<string> {
   parseWbsCourseId(courseId);
   const { data, error } = await createAdminClient()
@@ -126,23 +139,16 @@ export async function loadCourseWbsBootstrap(
   workspaceId: string,
 ): Promise<CourseWbsBootstrap> {
   const admin = createAdminClient();
-  const [coursesResult, templatesResult] = await Promise.all([
+  const [coursesResult, activeTemplateRow] = await Promise.all([
     admin
       .from("courses")
       .select("id,name,cohort,instructor_name,free_webinar_at")
       .eq("workspace_id", workspaceId)
       .order("free_webinar_at", { ascending: false }),
-    admin
-      .from("course_wbs_templates")
-      .select(TEMPLATE_COLUMNS)
-      .eq("workspace_id", workspaceId)
-      .order("updated_at", { ascending: false }),
+    loadActiveTemplateRow(workspaceId),
   ]);
   if (coursesResult.error) {
     throw databaseError("강의 목록 조회", coursesResult.error.code);
-  }
-  if (templatesResult.error) {
-    throw databaseError("템플릿 목록 조회", templatesResult.error.code);
   }
   const courses: WbsCourse[] = (coursesResult.data ?? []).map((row) => ({
     id: row.id,
@@ -151,16 +157,9 @@ export async function loadCourseWbsBootstrap(
     instructorName: row.instructor_name ?? "",
     webinarAt: row.free_webinar_at,
   }));
-  const storedTemplates = ((templatesResult.data ?? []) as TemplateRow[]).map(toTemplate);
-  const defaultOverride = storedTemplates.find(
-    (template) => template.id === DEFAULT_WBS_TEMPLATE.id,
-  );
   return {
     courses,
-    templates: [
-      defaultOverride ?? builtInTemplate(),
-      ...storedTemplates.filter((template) => template.id !== DEFAULT_WBS_TEMPLATE.id),
-    ],
+    template: activeTemplateRow ? toTemplate(activeTemplateRow) : builtInTemplate(),
   };
 }
 
@@ -221,26 +220,6 @@ export async function deleteCourseWbs(workspaceId: string, courseId: string): Pr
   if (error) throw databaseError("삭제", error.code);
 }
 
-export async function createWbsTemplate(
-  workspaceId: string,
-  actorId: string,
-  input: { name: string; items: WbsItem[] },
-): Promise<WbsTemplate> {
-  const { data, error } = await createAdminClient()
-    .from("course_wbs_templates")
-    .insert({
-      workspace_id: workspaceId,
-      id: crypto.randomUUID(),
-      name: input.name,
-      items: input.items,
-      updated_by: actorId,
-    })
-    .select(TEMPLATE_COLUMNS)
-    .single();
-  if (error || !data) throw databaseError("템플릿 생성", error?.code);
-  return toTemplate(data as TemplateRow);
-}
-
 export async function updateWbsTemplate(
   workspaceId: string,
   actorId: string,
@@ -248,8 +227,16 @@ export async function updateWbsTemplate(
   input: { name: string; items: WbsItem[]; expectedUpdatedAt: string | null },
 ): Promise<WbsTemplate> {
   parseWbsTemplateId(templateId);
+  const activeTemplateRow = await loadActiveTemplateRow(workspaceId);
+  if (
+    activeTemplateRow
+      ? activeTemplateRow.id !== templateId || activeTemplateRow.updated_at !== input.expectedUpdatedAt
+      : templateId !== DEFAULT_WBS_TEMPLATE.id || input.expectedUpdatedAt !== null
+  ) {
+    throw new WbsConflictError();
+  }
   const admin = createAdminClient();
-  if (templateId === DEFAULT_WBS_TEMPLATE.id && input.expectedUpdatedAt === null) {
+  if (!activeTemplateRow) {
     const { data, error } = await admin
       .from("course_wbs_templates")
       .insert({
@@ -265,35 +252,15 @@ export async function updateWbsTemplate(
     if (error || !data) throw databaseError("기본 템플릿 저장", error?.code);
     return toTemplate(data as TemplateRow);
   }
-  if (input.expectedUpdatedAt === null) {
-    throw new WbsInputError("템플릿 수정 기준 시각을 확인해 주세요. 최신 내용을 다시 불러와 주세요.");
-  }
   const { data, error } = await admin
     .from("course_wbs_templates")
     .update({ name: input.name, items: input.items, updated_by: actorId })
     .eq("workspace_id", workspaceId)
     .eq("id", templateId)
-    .eq("updated_at", input.expectedUpdatedAt)
+    .eq("updated_at", activeTemplateRow.updated_at)
     .select(TEMPLATE_COLUMNS)
     .maybeSingle();
   if (error) throw databaseError("템플릿 수정", error.code);
   if (!data) throw new WbsConflictError();
   return toTemplate(data as TemplateRow);
-}
-
-export async function deleteWbsTemplate(
-  workspaceId: string,
-  templateId: string,
-): Promise<void> {
-  parseWbsTemplateId(templateId);
-  const { data, error } = await createAdminClient()
-    .from("course_wbs_templates")
-    .delete()
-    .eq("workspace_id", workspaceId)
-    .eq("id", templateId)
-    .select("id");
-  if (error) throw databaseError("템플릿 삭제", error.code);
-  if (!data?.length && templateId !== DEFAULT_WBS_TEMPLATE.id) {
-    throw new WbsNotFoundError("템플릿을 찾을 수 없습니다.");
-  }
 }

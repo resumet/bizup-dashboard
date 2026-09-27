@@ -1,19 +1,5 @@
-import {
-  createWbsTemplate,
-  requireWbsContext,
-  wbsApiError,
-} from "@/lib/course-wbs/server";
-import { parseWbsTemplateBody } from "@/lib/course-wbs/validation";
-
 export const runtime = "nodejs";
 
-export async function POST(request: Request) {
-  try {
-    const { workspaceId, actorId } = await requireWbsContext();
-    const input = parseWbsTemplateBody(await request.json());
-    const template = await createWbsTemplate(workspaceId, actorId, input);
-    return Response.json({ template }, { status: 201 });
-  } catch (error) {
-    return wbsApiError(error);
-  }
+export async function POST() {
+  return Response.json({ message: "템플릿은 하나만 저장할 수 있습니다." }, { status: 405 });
 }

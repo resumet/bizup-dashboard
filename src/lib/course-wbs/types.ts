@@ -5,7 +5,6 @@ export type WbsItem = {
   stakeholders: string;
   startDate: string;
   dueDate: string;
-  deliverable: string;
   description: string;
   completed: boolean;
   position: number;
@@ -36,5 +35,5 @@ export type WbsCourse = {
 
 export type CourseWbsBootstrap = {
   courses: WbsCourse[];
-  templates: WbsTemplate[];
+  template: WbsTemplate;
 };

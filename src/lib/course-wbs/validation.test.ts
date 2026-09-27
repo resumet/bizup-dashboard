@@ -12,13 +12,12 @@ import {
 const item = { id: "task-1", title: "웨비나 준비", position: 0 };
 
 test("WBS 항목의 날짜와 완료 상태를 저장 가능한 형태로 검증한다", () => {
-  assert.deepEqual(parseWbsItems([{ ...item, startDate: "2026-09-27", dueDate: "2026-09-28", completed: true }]), [{
+  assert.deepEqual(parseWbsItems([{ ...item, startDate: "2026-09-27", dueDate: "2026-09-28", deliverable: "Legacy result", completed: true }]), [{
     ...item,
     owner: "",
     stakeholders: "",
     startDate: "2026-09-27",
     dueDate: "2026-09-28",
-    deliverable: "",
     description: "",
     completed: true,
   }]);
@@ -51,6 +50,7 @@ test("Notion 기본 템플릿은 고유한 항목 ID로 시작하고 수정 입�
   assert.equal(initial.length, 22);
   assert.equal(new Set(initial.map((row) => row.id)).size, initial.length);
   assert.ok(initial.every((row) => !row.startDate && !row.dueDate));
+  assert.ok(initial.every((row) => !("deliverable" in row)));
   const upgraded = parseWbsTemplateBody({
     name: "강의 준비 템플릿 2판",
     items: [{ ...initial[0], completed: true }, ...initial.slice(1)],

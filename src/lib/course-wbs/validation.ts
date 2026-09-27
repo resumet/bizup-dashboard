@@ -73,7 +73,6 @@ export function parseWbsItems(value: unknown): WbsItem[] {
       stakeholders: optionalText(item.stakeholders, "관계자", 500),
       startDate,
       dueDate,
-      deliverable: optionalText(item.deliverable, "최종 결과물", 1000),
       description: optionalText(item.description, "설명", 2000),
       completed: item.completed === true,
       position: position as number,
