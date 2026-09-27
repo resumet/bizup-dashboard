@@ -44,7 +44,7 @@ export function WorkServiceCardSettingsButton({hiddenRoutes}:{hiddenRoutes:strin
   return <Dialog open={open} onOpenChange={changeOpen}>
     <Button variant="outline" size="sm" onClick={()=>changeOpen(true)}><Settings2 />설정</Button>
     <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-      <DialogHeader><DialogTitle>카드 표시 설정</DialogTitle><DialogDescription>모든 사용자의 강의관리 화면에 표시할 카드를 선택하세요.</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>카드 표시 설정</DialogTitle><DialogDescription>모든 사용자의 운영 워크스페이스에 표시할 카드를 선택하세요.</DialogDescription></DialogHeader>
       <div className="space-y-5">{WORK_SERVICE_CARD_GROUPS.map(group=><section key={group.title} className="space-y-2"><h3 className="font-semibold">{group.title}</h3><div className="grid gap-2 sm:grid-cols-2">{group.items.map(item=><label key={item.route} className="flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm hover:bg-muted/40"><Checkbox checked={!draftHidden.has(item.route)} disabled={saving} onCheckedChange={checked=>setVisible(item.route,checked===true)} aria-label={`${item.title} 표시`} /><span className="min-w-0 flex-1">{item.title}</span></label>)}</div></section>)}</div>
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
       <DialogFooter><Button type="button" variant="ghost" className="mr-auto" disabled={saving} onClick={()=>setDraftHidden(new Set())}>전체 표시</Button><DialogClose asChild><Button variant="outline" disabled={saving}>취소</Button></DialogClose><Button disabled={saving} onClick={()=>void save()}>{saving ? <LoaderCircle className="animate-spin"/> : null}{saving ? "저장 중…" : "저장"}</Button></DialogFooter>

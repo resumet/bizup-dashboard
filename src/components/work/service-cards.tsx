@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { WORK_SERVICE_CARD_GROUPS } from "@/lib/work/service-card-settings";
 
 type Service = { title: string; description: string; route: string; icon: LucideIcon; active?: boolean; iconClass?: string };
 
@@ -34,6 +35,8 @@ const quickTools: Service[] = [
   { title: "노바 정산서 검증하기", description: "강사별 매출·비용을 계산하고 전체 정산 숫자를 대조합니다.", route: "/services/nova-settlement-validator", icon: FileCheck2, iconClass: "bg-blue-600 text-white" },
 ];
 
+const serviceByRoute = new Map([...services, ...quickTools].map(service => [service.route, service] as const));
+
 function ServiceCard({ service }: { service: Service }) {
   const Icon = service.icon;
   return (
@@ -58,18 +61,19 @@ function ServiceCard({ service }: { service: Service }) {
 
 export function WorkServiceCards({hiddenRoutes:values}:{hiddenRoutes:string[]}) {
   const hiddenRoutes=new Set(values);
-  const visibleServices=services.filter(service=>!hiddenRoutes.has(service.route));
-  const visibleTools=quickTools.filter(service=>!hiddenRoutes.has(service.route));
+  const visibleGroups=WORK_SERVICE_CARD_GROUPS.map(group=>({
+    title:group.title,
+    services:group.items
+      .map(item=>serviceByRoute.get(item.route))
+      .filter((service):service is Service=>service!==undefined&&!hiddenRoutes.has(service.route)),
+  })).filter(group=>group.services.length>0);
   return <>
-    {visibleServices.length ? <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="서비스 목록">
-      {visibleServices.map(service => <ServiceCard key={service.route} service={service} />)}
-    </section> : null}
-    {visibleTools.length ? <section className="mt-10 border-t pt-6" aria-label="간편 도구">
-      <h2 className="mb-4 text-xl font-semibold tracking-tight">간편 도구</h2>
+    {visibleGroups.map((group,index)=><section key={group.title} className={index===0?"mt-8":"mt-10 border-t pt-6"} aria-label={group.title}>
+      <h2 className="mb-4 text-xl font-semibold tracking-tight">{group.title}</h2>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {visibleTools.map(service => <ServiceCard key={service.route} service={service} />)}
+        {group.services.map(service => <ServiceCard key={service.route} service={service} />)}
       </div>
-    </section> : null}
-    {!visibleServices.length && !visibleTools.length ? <p className="mt-8 rounded-lg border border-dashed p-10 text-center text-muted-foreground">표시할 카드가 없습니다. 최고관리자에게 카드 표시 설정을 요청해 주세요.</p> : null}
+    </section>)}
+    {!visibleGroups.length ? <p className="mt-8 rounded-lg border border-dashed p-10 text-center text-muted-foreground">표시할 카드가 없습니다. 최고관리자에게 카드 표시 설정을 요청해 주세요.</p> : null}
   </>;
 }

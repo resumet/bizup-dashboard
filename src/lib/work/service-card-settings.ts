@@ -2,16 +2,12 @@ import { z } from "zod";
 
 export const WORK_SERVICE_CARD_GROUPS = [
   {
-    title:"서비스",
+    title:"강의운영",
     items:[
-      {route:"/services/course-wbs",title:"강의 WBS"},
       {route:"/services/course-operations",title:"강의 운영 자동화"},
+      {route:"/services/course-wbs",title:"강의 WBS"},
       {route:"/services/course-schedule-planner",title:"강의 일정 플래너"},
-      {route:"/services/course-webinars",title:"라이브 세미나 대시보드"},
-      {route:"/services/course-roster",title:"수강생 명단 분석"},
-      {route:"/services/address-books",title:"주소록 매니저"},
-      {route:"/services/phone-sales-list",title:"전화 세일즈 명단 만들기"},
-      {route:"/services/message-automation",title:"알림톡·문자 자동화"},
+      {route:"/services/course-webinars",title:"라이브 웨비나 대시보드"},
       {route:"/services/settlement-analysis",title:"강의별 정산"},
       {route:"/services/cash-flow",title:"자금 흐름"},
       {route:"/services/purchase-analysis",title:"주문결제 매출분석"},
@@ -19,7 +15,16 @@ export const WORK_SERVICE_CARD_GROUPS = [
     ],
   },
   {
-    title:"간편 도구",
+    title:"명단관리",
+    items:[
+      {route:"/services/course-roster",title:"수강생 명단 분석"},
+      {route:"/services/address-books",title:"주소록 매니저"},
+      {route:"/services/phone-sales-list",title:"전화 세일즈 명단 만들기"},
+      {route:"/services/message-automation",title:"알림톡·문자 자동화"},
+    ],
+  },
+  {
+    title:"간편도구",
     items:[
       {route:"/services/roster-duplicates",title:"수강생 명단 중복 검사"},
       {route:"/services/roster-comparison",title:"결제자·수강생 명단 비교"},
