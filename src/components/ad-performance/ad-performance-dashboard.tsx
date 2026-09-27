@@ -2,16 +2,18 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, BarChart3, CheckCircle2, ChevronDown, Loader2, Plus, Save, Settings2, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BarChart3, CheckCircle2, ChevronDown, Loader2, Plus, Save, Settings2, X } from "lucide-react";
 
+import { AdPerformanceMetricDialog } from "@/components/ad-performance/ad-performance-metric-dialog";
+import { AdPerformanceRawTable } from "@/components/ad-performance/ad-performance-raw-table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { calculateDailyAdSpend, summarizeAdPerformance } from "@/lib/ad-performance/calculation";
+import { summarizeAdPerformance } from "@/lib/ad-performance/calculation";
+import { nextMetricDate } from "@/lib/ad-performance/date";
 import type { AdPerformanceDailyMetric, AdPerformanceDashboardData, AdPerformanceOrganicChannel } from "@/lib/ad-performance/types";
 
 const number = new Intl.NumberFormat("ko-KR");
@@ -22,10 +24,6 @@ const numericFields: NumericMetricField[] = [
   "googleAdLeads", "metaAdLeads", "googleSpend", "metaSpend",
   "googleLandingLeads", "metaLandingLeads", "adminCumulativeLeads",
 ];
-
-function todayInSeoul() {
-  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-}
 
 function emptyMetric(metricDate: string, channels: AdPerformanceOrganicChannel[]): AdPerformanceDailyMetric {
   return {
@@ -41,30 +39,18 @@ function parseCount(value: string) {
   return Number.isSafeInteger(parsed) ? parsed : 0;
 }
 
-function ratio(numerator: number, denominator: number) {
-  return denominator > 0 ? numerator / denominator * 100 : null;
-}
-
-function organicTotal(metric: AdPerformanceDailyMetric) {
-  return Object.values(metric.organicLeads).reduce((sum, value) => sum + value, 0);
-}
-
-function CountInput({ value, label, onChange, money = false }: { value: number; label: string; onChange: (value: number) => void; money?: boolean }) {
-  return <Input className={`h-8 min-w-0 px-1 text-right tabular-nums ${money ? "w-[104px]" : "w-[88px]"}`} inputMode="numeric" aria-label={label} value={value ? number.format(value) : ""} placeholder="0" onChange={(event) => onChange(parseCount(event.target.value))} title={money ? won.format(value) : number.format(value)} />;
-}
-
 function SummaryCard({ label, value, detail, negative = false }: { label: string; value: string; detail: string; negative?: boolean }) {
-  return <Card className={negative ? "border-destructive/40" : undefined}><CardHeader className="gap-2"><CardDescription>{label}</CardDescription><CardTitle className={`text-2xl tabular-nums ${negative ? "text-destructive" : ""}`}>{value}</CardTitle><p className="text-xs text-muted-foreground">{detail}</p></CardHeader></Card>;
+  return <Card className={negative ? "border-destructive/40" : undefined}><CardHeader className="gap-1"><CardTitle>{label}</CardTitle><CardDescription className="text-xs">{detail}</CardDescription><p className={`pt-2 text-2xl font-semibold tabular-nums ${negative ? "text-destructive" : ""}`}>{value}</p></CardHeader></Card>;
 }
 
 function ConversionCard({ label, google, meta, detail }: { label: string; google: number | null; meta: number | null; detail: string }) {
-  return <Card><CardHeader className="gap-2">
-    <CardDescription>{label}</CardDescription>
-    <table aria-label={label} className="w-full table-fixed text-center">
+  return <Card><CardHeader className="gap-1">
+    <CardTitle>{label}</CardTitle>
+    <CardDescription className="text-xs">{detail}</CardDescription>
+    <table aria-label={label} className="mt-2 w-full table-fixed text-center">
       <thead><tr><th scope="col" className="border-r pb-1 text-sm font-medium text-muted-foreground">Google</th><th scope="col" className="pb-1 text-sm font-medium text-muted-foreground">Meta</th></tr></thead>
       <tbody><tr><td className="border-r px-1 text-xl font-semibold tabular-nums">{rate(google)}</td><td className="px-1 text-xl font-semibold tabular-nums">{rate(meta)}</td></tr></tbody>
     </table>
-    <p className="text-xs text-muted-foreground">{detail}</p>
   </CardHeader></Card>;
 }
 
@@ -78,34 +64,32 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
   const [channels, setChannels] = useState(initialData.organicChannels);
   const [metrics, setMetrics] = useState(() => [...initialData.metrics].sort((a, b) => a.metricDate.localeCompare(b.metricDate)));
   const [savedDates, setSavedDates] = useState(() => new Set(initialData.metrics.map((metric) => metric.metricDate)));
-  const [newMetricDate, setNewMetricDate] = useState(initialData.startDate || todayInSeoul());
+  const [dialogMetric, setDialogMetric] = useState<AdPerformanceDailyMetric | null>(null);
+  const [editingDate, setEditingDate] = useState<string | null>(null);
+  const [metricDialogOpen, setMetricDialogOpen] = useState(false);
+  const [dialogError, setDialogError] = useState("");
   const [newChannelName, setNewChannelName] = useState("");
   const [saving, setSaving] = useState(false);
   const [channelBusy, setChannelBusy] = useState(false);
   const [error, setError] = useState(initialData.loadError ?? "");
   const [notice, setNotice] = useState("");
   const summary = useMemo(() => summarizeAdPerformance(metrics, totalBudget), [metrics, totalBudget]);
-  const dailyMetrics = useMemo(() => calculateDailyAdSpend(metrics), [metrics]);
 
-  function updateMetric(metricDate: string, field: NumericMetricField, value: number) {
-    setMetrics((current) => current.map((metric) => metric.metricDate === metricDate ? { ...metric, [field]: value } : metric));
-    setNotice("");
+  function openNewMetric() {
+    const metricDate = nextMetricDate(metrics.map((metric) => metric.metricDate), startDate);
+    setDialogMetric(emptyMetric(metricDate, channels));
+    setEditingDate(null);
+    setDialogError("");
+    setMetricDialogOpen(true);
   }
 
-  function updateOrganicMetric(metricDate: string, channelId: string, value: number) {
-    setMetrics((current) => current.map((metric) => metric.metricDate === metricDate
-      ? { ...metric, organicLeads: { ...metric.organicLeads, [channelId]: value } }
-      : metric));
-    setNotice("");
-  }
-
-  function addMetric() {
-    setError("");
-    if (!/^\d{4}-\d{2}-\d{2}$/u.test(newMetricDate)) return setError("기록할 날짜를 선택해 주세요.");
-    if (startDate && newMetricDate < startDate) return setError("광고 시작일 이전 날짜는 추가할 수 없습니다.");
-    if (metrics.some((metric) => metric.metricDate === newMetricDate)) return setError("이미 추가된 날짜입니다.");
-    setMetrics((current) => [...current, emptyMetric(newMetricDate, channels)].sort((a, b) => a.metricDate.localeCompare(b.metricDate)));
-    setNotice("");
+  function openEditMetric(metricDate: string) {
+    const metric = metrics.find((item) => item.metricDate === metricDate);
+    if (!metric) return;
+    setDialogMetric({ ...metric, organicLeads: { ...metric.organicLeads } });
+    setEditingDate(metricDate);
+    setDialogError("");
+    setMetricDialogOpen(true);
   }
 
   async function addOrganicChannel() {
@@ -167,7 +151,9 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
         if (!response.ok) throw new Error(result.message || "날짜별 기록을 삭제하지 못했습니다.");
         setSavedDates((current) => { const next = new Set(current); next.delete(metricDate); return next; });
       } catch (caught) {
-        setError(caught instanceof Error ? caught.message : "날짜별 기록을 삭제하지 못했습니다.");
+        const message = caught instanceof Error ? caught.message : "날짜별 기록을 삭제하지 못했습니다.";
+        setError(message);
+        setDialogError(message);
         return;
       } finally {
         setSaving(false);
@@ -175,10 +161,17 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
     }
     setMetrics((current) => current.filter((metric) => metric.metricDate !== metricDate));
     setNotice("날짜별 기록을 삭제했습니다.");
+    setMetricDialogOpen(false);
+    setDialogMetric(null);
+    setEditingDate(null);
   }
 
-  async function save() {
-    if (!startDate) return setError("광고 시작일을 선택해 주세요.");
+  async function save(nextMetrics = metrics, successNotice = "광고 설정과 날짜별 성과를 저장했습니다."): Promise<string | null> {
+    if (!startDate) {
+      const message = "광고 시작일을 선택해 주세요.";
+      setError(message);
+      return message;
+    }
     setSaving(true);
     setError("");
     setNotice("");
@@ -186,20 +179,56 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
       const response = await fetch(`/api/ad-performance/${initialData.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ startDate, totalBudget, metrics }),
+        body: JSON.stringify({ startDate, totalBudget, metrics: nextMetrics }),
       });
       const result = await response.json() as { message?: string };
       if (!response.ok) throw new Error(result.message || "광고성과를 저장하지 못했습니다.");
-      setSavedDates(new Set(metrics.map((metric) => metric.metricDate)));
-      setNotice("광고 설정과 날짜별 성과를 저장했습니다.");
+      setMetrics(nextMetrics);
+      setSavedDates(new Set(nextMetrics.map((metric) => metric.metricDate)));
+      setNotice(successNotice);
+      return null;
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "광고성과를 저장하지 못했습니다.");
+      const message = caught instanceof Error ? caught.message : "광고성과를 저장하지 못했습니다.";
+      setError(message);
+      return message;
     } finally {
       setSaving(false);
     }
   }
 
-  const organicColumnCount = Math.max(1, channels.length);
+  async function saveMetric() {
+    if (!dialogMetric || saving) return;
+    const metricDate = dialogMetric.metricDate;
+    const timestamp = Date.parse(`${metricDate}T00:00:00Z`);
+    if (!/^\d{4}-\d{2}-\d{2}$/u.test(metricDate) || Number.isNaN(timestamp) || new Date(timestamp).toISOString().slice(0, 10) !== metricDate) {
+      setDialogError("기록할 날짜를 선택해 주세요.");
+      return;
+    }
+    if (metricDate < startDate) {
+      setDialogError("광고 시작일 이전 날짜는 추가할 수 없습니다.");
+      return;
+    }
+    if (editingDate && editingDate !== metricDate) {
+      setDialogError("기존 기록의 날짜는 바꿀 수 없습니다.");
+      return;
+    }
+    if (!editingDate && metrics.some((metric) => metric.metricDate === metricDate)) {
+      setDialogError("이미 추가된 날짜입니다.");
+      return;
+    }
+    const nextMetrics = editingDate
+      ? metrics.map((metric) => metric.metricDate === editingDate ? dialogMetric : metric)
+      : [...metrics, dialogMetric].sort((a, b) => a.metricDate.localeCompare(b.metricDate));
+    setDialogError("");
+    const failed = await save(nextMetrics, `${metricDate} 광고성과 기록을 저장했습니다.`);
+    if (failed) setDialogError(failed);
+    else {
+      setMetricDialogOpen(false);
+      setDialogMetric(null);
+      setEditingDate(null);
+    }
+  }
+
   return <main className="min-h-screen">
     <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
       <Button variant="ghost" size="sm" asChild className="mb-5"><Link href="/services/ad-performance"><ArrowLeft />광고성과 목록</Link></Button>
@@ -219,7 +248,7 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
         <div className="grid min-w-0 gap-5 pb-5 md:grid-cols-[180px_160px_minmax(0,1fr)]">
           <div className="min-w-0 space-y-2">
             <Label htmlFor="ad-start-date">광고시작일 설정</Label>
-            <Input id="ad-start-date" className="min-w-0" type="date" value={startDate} onChange={(event) => { setStartDate(event.target.value); if (!metrics.length) setNewMetricDate(event.target.value); setNotice(""); }} />
+            <Input id="ad-start-date" className="min-w-0" type="date" value={startDate} onChange={(event) => { setStartDate(event.target.value); setNotice(""); }} />
           </div>
           <div className="min-w-0 space-y-2">
             <Label htmlFor="ad-total-budget">총예산 설정</Label>
@@ -235,14 +264,14 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
 
       <section aria-label="성과 요약" className="mt-6 grid gap-4 xl:grid-cols-2">
         <div aria-label="광고비 및 전환율" className="grid min-w-0 gap-4 sm:grid-cols-2">
-        <Card><CardHeader className="gap-2">
-          <CardDescription>누적 광고비</CardDescription>
-          <CardTitle className="break-all text-2xl tabular-nums" aria-label="전체 누적광고비">{won.format(summary.spend)}</CardTitle>
+        <Card><CardHeader className="gap-1">
+          <CardTitle>누적 광고비</CardTitle>
+          <CardDescription className="text-xs">예산 {totalBudget ? `${(summary.spend / totalBudget * 100).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%` : "미설정"} 사용</CardDescription>
+          <p className="break-all pt-2 text-2xl font-semibold tabular-nums" aria-label="전체 누적광고비">{won.format(summary.spend)}</p>
           <table aria-label="매체별 누적광고비" className="w-full table-fixed text-center">
             <thead><tr><th scope="col" className="border-r pb-1 text-sm font-medium text-muted-foreground">Google</th><th scope="col" className="pb-1 text-sm font-medium text-muted-foreground">Meta</th></tr></thead>
             <tbody><tr><td className="break-all border-r px-1 font-semibold tabular-nums">{won.format(summary.googleSpend)}</td><td className="break-all px-1 font-semibold tabular-nums">{won.format(summary.metaSpend)}</td></tr></tbody>
           </table>
-          <p className="text-xs text-muted-foreground">예산 {totalBudget ? `${(summary.spend / totalBudget * 100).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%` : "미설정"} 사용</p>
         </CardHeader></Card>
         <SummaryCard label="남은 예산" value={won.format(summary.remainingBudget)} detail={`총예산 ${won.format(totalBudget)}`} negative={summary.remainingBudget < 0} />
         <ConversionCard label="광고클릭전환율" google={summary.googleClickConversionRate} meta={summary.metaClickConversionRate} detail="광고클릭수 ÷ 광고노출수" />
@@ -258,76 +287,40 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
 
 
       <Card className="mt-6">
-        <CardHeader className="gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div><CardTitle>날짜별 광고·오가닉 원시 데이터</CardTitle><CardDescription className="mt-1">흰색 입력칸만 직접 입력합니다. 합계와 전환율은 자동 계산됩니다.</CardDescription></div>
-          <div className="flex flex-wrap items-end gap-2"><div className="space-y-1"><Label htmlFor="new-ad-date">기록 날짜</Label><Input id="new-ad-date" type="date" min={startDate || undefined} value={newMetricDate} onChange={(event) => setNewMetricDate(event.target.value)} /></div><Button type="button" variant="outline" onClick={addMetric}><Plus />날짜 추가</Button></div>
+        <CardHeader className="gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <CardTitle>날짜별 광고·오가닉 원시 데이터</CardTitle>
+            <CardDescription className="mt-1 text-xs">표는 읽기 전용입니다. 새 날짜 입력과 기존 기록 수정은 팝업에서 진행합니다.</CardDescription>
+          </div>
+          <Button type="button" variant="outline" onClick={openNewMetric} disabled={saving || channelBusy || Boolean(initialData.loadError)}>
+            <Plus />원시 데이터 입력
+          </Button>
         </CardHeader>
-        <CardContent className="overflow-x-auto px-0 sm:px-6">
-          <Table className="w-max [&_td]:px-1 [&_td]:py-1 [&_th]:h-8 [&_th]:px-1 [&_th]:py-1">
-            <TableHeader>
-              <TableRow>
-                <TableHead rowSpan={2} className="sticky left-0 z-20 min-w-[88px] bg-background px-1">날짜</TableHead>
-                <TableHead colSpan={2} className="border-l text-center">광고 노출</TableHead><TableHead colSpan={2} className="border-l text-center">광고 클릭</TableHead><TableHead colSpan={2} className="border-l text-center">광고접수 DB</TableHead><TableHead colSpan={4} className="border-l text-center">광고 집행비용</TableHead><TableHead colSpan={3} className="border-l text-center">랜딩페이지접수 DB</TableHead>
-                <TableHead colSpan={organicColumnCount + 1} className="border-l text-center">오가닉 채널 DB</TableHead>
-                <TableHead rowSpan={2} className="border-l bg-muted/40 text-center">DB 총합</TableHead>
-                <TableHead colSpan={2} className="border-l bg-muted/40 text-center">클릭전환</TableHead>
-                <TableHead colSpan={2} className="border-l bg-muted/40 text-center">랜딩전환</TableHead>
-                <TableHead rowSpan={2} className="border-l text-center">어드민<br />누적 DB</TableHead>
-                <TableHead rowSpan={2} className="border-l text-center">톡방인원</TableHead>
-                <TableHead rowSpan={2} className="border-l bg-muted/40 text-center">톡방입장<br />인원</TableHead>
-                <TableHead colSpan={2} className="border-l bg-muted/40 text-center">광고DB당 단가</TableHead>
-                <TableHead colSpan={2} className="border-l bg-muted/40 text-center">랜딩DB당 단가</TableHead>
-                <TableHead rowSpan={2} className="border-l bg-muted/40 text-center">톡방접수DB당<br />단가</TableHead>
-                <TableHead rowSpan={2} className="border-l bg-muted/40 text-center">랜딩접수DB당<br />단가</TableHead>
-                <TableHead colSpan={2} className="border-l bg-muted/40 text-center">단가차이<br />(랜딩DB − 광고DB)</TableHead>
-                <TableHead rowSpan={2} className="w-9" />
-              </TableRow>
-              <TableRow>
-                {Array.from({ length: 3 }).flatMap((_, index) => [<TableHead key={`${index}-g`} className="border-l text-center">Google</TableHead>, <TableHead key={`${index}-m`} className="text-center">Meta</TableHead>])}
-                <TableHead className="border-l text-center">Google</TableHead><TableHead className="text-center">Meta</TableHead>
-                <TableHead className="border-l bg-muted/40 text-center">총광고비</TableHead><TableHead className="border-l bg-muted/40 text-center">누적총광고비</TableHead>
-                <TableHead className="border-l text-center">Google</TableHead><TableHead className="text-center">Meta</TableHead>
-                <TableHead className="border-l bg-muted/40 text-center">총합</TableHead>
-                {channels.length ? channels.map((channel, index) => <TableHead key={channel.id} className={`${index === 0 ? "border-l " : ""}w-[80px] max-w-[104px] whitespace-normal break-words text-center`}>{channel.name}</TableHead>) : <TableHead className="border-l text-center text-muted-foreground">채널 없음</TableHead>}
-                <TableHead className="border-l bg-muted/40 text-center">총합</TableHead>
-                <TableHead className="border-l bg-muted/40 text-center">Google</TableHead><TableHead className="bg-muted/40 text-center">Meta</TableHead><TableHead className="border-l bg-muted/40 text-center">Google</TableHead><TableHead className="bg-muted/40 text-center">Meta</TableHead>
-                <TableHead className="border-l bg-muted/40 text-center">Google</TableHead><TableHead className="bg-muted/40 text-center">Meta</TableHead><TableHead className="border-l bg-muted/40 text-center">Google</TableHead><TableHead className="bg-muted/40 text-center">Meta</TableHead>
-                <TableHead className="border-l bg-muted/40 text-center">Google</TableHead><TableHead className="bg-muted/40 text-center">Meta</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {dailyMetrics.map((metric) => {
-                const paidLanding = metric.googleLandingLeads + metric.metaLandingLeads;
-                const organicLanding = organicTotal(metric);
-                return <TableRow key={metric.metricDate}>
-                  <TableCell className="sticky left-0 z-10 bg-background px-1 font-medium tabular-nums">{metric.metricDate}</TableCell>
-                  <TableCell className="border-l"><CountInput label={`${metric.metricDate} Google 광고 노출`} value={metric.googleImpressions} onChange={(value) => updateMetric(metric.metricDate, "googleImpressions", value)} /></TableCell><TableCell><CountInput label={`${metric.metricDate} Meta 광고 노출`} value={metric.metaImpressions} onChange={(value) => updateMetric(metric.metricDate, "metaImpressions", value)} /></TableCell>
-                  <TableCell className="border-l"><CountInput label={`${metric.metricDate} Google 광고 클릭`} value={metric.googleClicks} onChange={(value) => updateMetric(metric.metricDate, "googleClicks", value)} /></TableCell><TableCell><CountInput label={`${metric.metricDate} Meta 광고 클릭`} value={metric.metaClicks} onChange={(value) => updateMetric(metric.metricDate, "metaClicks", value)} /></TableCell>
-                  <TableCell className="border-l"><CountInput label={`${metric.metricDate} Google 광고접수 DB`} value={metric.googleAdLeads} onChange={(value) => updateMetric(metric.metricDate, "googleAdLeads", value)} /></TableCell><TableCell><CountInput label={`${metric.metricDate} Meta 광고접수 DB`} value={metric.metaAdLeads} onChange={(value) => updateMetric(metric.metricDate, "metaAdLeads", value)} /></TableCell>
-                  <TableCell className="border-l"><CountInput money label={`${metric.metricDate} Google 광고 집행비용`} value={metric.googleSpend} onChange={(value) => updateMetric(metric.metricDate, "googleSpend", value)} /></TableCell><TableCell><CountInput money label={`${metric.metricDate} Meta 광고 집행비용`} value={metric.metaSpend} onChange={(value) => updateMetric(metric.metricDate, "metaSpend", value)} /></TableCell>
-                  <TableCell className="border-l bg-muted/30 text-right font-medium tabular-nums">{number.format(metric.totalSpend)}</TableCell><TableCell className="border-l bg-muted/30 text-right font-semibold tabular-nums">{number.format(metric.cumulativeSpend)}</TableCell>
-                  <TableCell className="border-l"><CountInput label={`${metric.metricDate} Google 랜딩페이지접수 DB`} value={metric.googleLandingLeads} onChange={(value) => updateMetric(metric.metricDate, "googleLandingLeads", value)} /></TableCell><TableCell><CountInput label={`${metric.metricDate} Meta 랜딩페이지접수 DB`} value={metric.metaLandingLeads} onChange={(value) => updateMetric(metric.metricDate, "metaLandingLeads", value)} /></TableCell>
-                  <TableCell className="border-l bg-muted/30 text-right font-medium tabular-nums">{number.format(paidLanding)}</TableCell>
-                  {channels.length ? channels.map((channel, index) => <TableCell key={channel.id} className={index === 0 ? "border-l" : undefined}><CountInput label={`${metric.metricDate} ${channel.name} DB 유입량`} value={metric.organicLeads[channel.id] ?? 0} onChange={(value) => updateOrganicMetric(metric.metricDate, channel.id, value)} /></TableCell>) : <TableCell className="border-l text-center text-muted-foreground">-</TableCell>}
-                  <TableCell className="border-l bg-muted/30 text-right font-medium tabular-nums">{number.format(organicLanding)}</TableCell><TableCell className="border-l bg-muted/30 text-right font-semibold tabular-nums">{number.format(paidLanding + organicLanding)}</TableCell>
-                  <TableCell className="border-l bg-muted/30 text-right tabular-nums">{rate(ratio(metric.googleClicks, metric.googleImpressions))}</TableCell><TableCell className="bg-muted/30 text-right tabular-nums">{rate(ratio(metric.metaClicks, metric.metaImpressions))}</TableCell><TableCell className="border-l bg-muted/30 text-right tabular-nums">{rate(ratio(metric.googleAdLeads, metric.googleClicks))}</TableCell><TableCell className="bg-muted/30 text-right tabular-nums">{rate(ratio(metric.metaAdLeads, metric.metaClicks))}</TableCell>
-                  <TableCell className="border-l"><CountInput label={`${metric.metricDate} 어드민 누적 DB`} value={metric.adminCumulativeLeads} onChange={(value) => updateMetric(metric.metricDate, "adminCumulativeLeads", value)} /></TableCell>
-                  <TableCell className="border-l"><Input className="h-8 w-[88px] min-w-0 px-1 text-right tabular-nums" inputMode="numeric" aria-label={`${metric.metricDate} 톡방인원`} placeholder="미입력" value={metric.chatRoomMembers == null ? "" : number.format(metric.chatRoomMembers)} onChange={(event) => {
-                    const value = event.target.value.trim() === "" ? null : parseCount(event.target.value);
-                    setMetrics(current => current.map(row => row.metricDate === metric.metricDate ? { ...row, chatRoomMembers: value } : row));
-                    setNotice("");
-                  }} /></TableCell>
-                  <TableCell className="border-l bg-muted/30 text-right tabular-nums">{metric.chatRoomEntrants === null ? "-" : number.format(metric.chatRoomEntrants)}</TableCell>
-                  {[metric.googleAdLeadCost, metric.metaAdLeadCost, metric.googleLandingLeadCost, metric.metaLandingLeadCost].map((cost, index) => <TableCell key={index} className={`${index % 2 === 0 ? "border-l " : ""}bg-muted/30 text-right tabular-nums`}>{cost === null ? "-" : won.format(cost)}</TableCell>)}
-                  {[metric.chatRoomLeadCost, metric.totalLandingLeadCost, metric.googleLeadCostDifference, metric.metaLeadCostDifference].map((cost, index) => <TableCell key={index} className={`${index < 3 ? "border-l " : ""}bg-muted/30 text-right tabular-nums`}>{cost === null ? "-" : won.format(cost)}</TableCell>)}
-                  <TableCell><Button type="button" size="icon" variant="ghost" className="size-8" aria-label={`${metric.metricDate} 삭제`} disabled={saving} onClick={() => void removeMetric(metric.metricDate)}><Trash2 className="text-destructive" /></Button></TableCell>
-                </TableRow>;
-              })}
-              {!metrics.length ? <TableRow><TableCell colSpan={32 + organicColumnCount} className="h-28 text-center text-muted-foreground">기록 날짜를 추가해 광고성과 입력을 시작하세요.</TableCell></TableRow> : null}
-            </TableBody>
-          </Table>
+        <CardContent className="px-0 sm:px-6">
+          <AdPerformanceRawTable metrics={metrics} channels={channels} onEdit={openEditMetric} disabled={saving || channelBusy || Boolean(initialData.loadError)} />
         </CardContent>
       </Card>
+      {dialogMetric ? <AdPerformanceMetricDialog
+        open={metricDialogOpen}
+        onOpenChange={(open) => {
+          if (saving) return;
+          setMetricDialogOpen(open);
+          if (!open) {
+            setDialogMetric(null);
+            setEditingDate(null);
+            setDialogError("");
+          }
+        }}
+        metric={dialogMetric}
+        isNew={editingDate === null}
+        channels={channels}
+        startDate={startDate}
+        busy={saving || channelBusy}
+        error={dialogError}
+        onMetricChange={setDialogMetric}
+        onSave={() => void saveMetric()}
+        onDelete={editingDate ? () => void removeMetric(editingDate) : undefined}
+      /> : null}
       <div className="mt-6 flex justify-end"><Button size="lg" onClick={() => void save()} disabled={saving || channelBusy || Boolean(initialData.loadError)}>{saving ? <Loader2 className="animate-spin" /> : <Save />}변경사항 저장</Button></div>
     </div>
   </main>;
