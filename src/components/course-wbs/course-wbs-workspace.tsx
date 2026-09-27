@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowDown, ArrowUp, CalendarDays, ClipboardList, ExternalLink,
+  ArrowDown, ArrowUp, CalendarDays, ChevronDown, ClipboardList, ExternalLink,
   LoaderCircle, Plus, Save, Trash2,
 } from "lucide-react";
 
@@ -11,6 +11,7 @@ import { WbsGantt } from "@/components/course-wbs/wbs-gantt";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toKoreaDate, toKoreaTime } from "@/lib/course-operations/schedule";
@@ -69,13 +70,21 @@ function PeoplePicker({ value, people, disabled, label, onChange }: {
   label: string;
   onChange: (value: string) => void;
 }) {
-  return <>
-    <select value={people.includes(value) ? value : ""} onChange={(event) => onChange(event.target.value)} aria-label={`${label} 목록`} disabled={disabled} className="mb-2 h-9 w-full rounded-lg border border-input bg-background px-2 text-xs">
-      <option value="">직접 입력</option>
-      {people.map((name) => <option key={name} value={name}>{name}</option>)}
-    </select>
-    <Input list="wbs-people-options" value={value} onChange={(event) => onChange(event.target.value)} placeholder={`${label} 입력`} aria-label={label} disabled={disabled} />
-  </>;
+  return <div className="relative">
+    <Input value={value} onChange={(event) => onChange(event.target.value)} placeholder={`${label} 입력 또는 선택`} aria-label={label} className="pr-10" disabled={disabled} />
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" size="icon-xs" variant="ghost" aria-label={`${label} 목록 열기`} disabled={disabled} className="absolute right-1 top-1">
+          <ChevronDown />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="max-h-64 w-56 overflow-y-auto">
+        {people.length ? people.map((name) => <DropdownMenuItem key={name} onSelect={() => onChange(name)}>{name}</DropdownMenuItem>) : (
+          <DropdownMenuItem disabled>저장된 이름이 없습니다. 직접 입력하세요.</DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  </div>;
 }
 
 async function responseJson<T>(response: Response): Promise<T> {
@@ -362,7 +371,6 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
       {conflictTarget === "template" ? <div className="mt-3"><Button size="sm" variant="outline" onClick={() => void refreshTemplate()} disabled={saving}>템플릿 새로고침</Button></div> : null}
     </AlertDescription></Alert> : null}
     {notice ? <Alert className="mb-5" role="status"><AlertDescription>{notice}</AlertDescription></Alert> : null}
-    <datalist id="wbs-people-options">{people.map((name) => <option key={name} value={name} />)}</datalist>
 
     {loading ? <div className="flex min-h-72 items-center justify-center text-sm text-muted-foreground"><LoaderCircle className="mr-2 size-4 animate-spin" /> 강의 목록을 불러오는 중...</div> : overviewFailed ? (
       <div className="rounded-xl border border-dashed bg-background px-6 py-16 text-center"><p className="text-sm text-muted-foreground">강의와 템플릿 목록을 불러오지 못했습니다.</p><Button className="mt-4" variant="outline" onClick={() => window.location.reload()}>다시 시도</Button></div>
