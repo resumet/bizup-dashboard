@@ -2,9 +2,8 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink, LoaderCircle, Play, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { ExternalLink, LoaderCircle, Mail, Play, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { ChannelDetailsEditor } from "@/components/youtube-analyzer/channel-details-editor";
-import { ChannelEmailEditor } from "@/components/youtube-analyzer/channel-email-editor";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -45,6 +44,9 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   const [revision,setRevision] = useState(0);
   const [hasMore,setHasMore] = useState(false);
   const [loadingMore,setLoadingMore] = useState(false);
+  const [refreshingEngagement,setRefreshingEngagement] = useState(false);
+  const [engagementMessage,setEngagementMessage] = useState("");
+  const [engagementError,setEngagementError] = useState("");
   const [sortBy,setSortBy] = useState<ChannelSort>("position");
   const [sortDirection,setSortDirection] = useState<SortDirection>("desc");
   const [loadingAll,setLoadingAll] = useState(false);
@@ -172,6 +174,34 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     } finally { setSubmitting(false); }
   }
 
+  async function refreshEngagement() {
+    setRefreshingEngagement(true);
+    setEngagementMessage("");
+    setEngagementError("");
+    let updatedCount = 0;
+    let cursor: string | null = null;
+    try {
+      do {
+        const result = await api("/refresh-engagement",{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify(cursor ? {cursor} : {}),
+        }) as {updatedCount:number;nextCursor:string|null};
+        updatedCount += result.updatedCount;
+        cursor = result.nextCursor;
+        if(cursor) setEngagementMessage(`${number(updatedCount)}개 채널의 최근 30개 평균을 갱신하는 중입니다.`);
+      } while(cursor);
+      setEngagementMessage(`저장된 영상 데이터로 ${number(updatedCount)}개 채널의 최근 30개 평균 댓글·좋아요를 갱신했습니다.`);
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "전체 평균을 갱신하지 못했습니다.";
+      setEngagementMessage("");
+      setEngagementError(updatedCount ? `${message} ${number(updatedCount)}개 채널은 갱신되었습니다. 다시 실행할 수 있습니다.` : message);
+    } finally {
+      setRevision(value=>value+1);
+      setRefreshingEngagement(false);
+    }
+  }
+
   async function deleteChannel() {
     if(!deleteTarget) return;
     setDeleting(true);
@@ -187,12 +217,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     } finally { setDeleting(false); }
   }
 
-  function updateEmail(channelId: string, email: string | null) {
-    setRuns(previous=>previous.map(run=>run.channel_id===channelId ? {...run,email} : run));
-    setDetail(previous=>previous?.channel_id===channelId ? {...previous,email} : previous);
-  }
-
-  function updateDetails(channelId: string, details: Pick<Analysis,"category"|"appearance_fee"|"rs_percent">) {
+  function updateDetails(channelId: string, details: Pick<Analysis,"email"|"category"|"appearance_fee"|"rs_percent">) {
     setRuns(previous=>previous.map(run=>run.channel_id===channelId ? {...run,...details} : run));
     setDetail(previous=>previous?.channel_id===channelId ? {...previous,...details} : previous);
   }
@@ -201,10 +226,12 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
 
   return <main className="mx-auto min-h-screen max-w-[1900px] space-y-6 px-4 py-6 sm:px-8">
     <div className="flex flex-wrap items-center justify-end gap-4 pb-5">
-      <div className="flex items-center gap-2"><Button onClick={openAddDialog}>{active(batch) ? <LoaderCircle className="size-4 animate-spin"/> : <Plus className="size-4"/>}{active(batch) ? "분석 중" : "채널 추가"}</Button><Button variant="outline" size="icon" title="새로고침" aria-label="새로고침" onClick={()=>setRevision(value=>value+1)}><RefreshCw className="size-4"/></Button></div>
+      <div className="flex flex-wrap items-center gap-2"><Button variant="outline" disabled={refreshingEngagement || active(batch)} onClick={()=>void refreshEngagement()} title="저장된 영상 데이터로 모든 채널의 평균 댓글·좋아요를 다시 계산합니다.">{refreshingEngagement ? <LoaderCircle className="size-4 animate-spin"/> : <RefreshCw className="size-4"/>}전체 평균 갱신 (임시)</Button><Button onClick={openAddDialog}>{active(batch) ? <LoaderCircle className="size-4 animate-spin"/> : <Plus className="size-4"/>}{active(batch) ? "분석 중" : "채널 추가"}</Button><Button variant="outline" size="icon" title="새로고침" aria-label="새로고침" onClick={()=>setRevision(value=>value+1)}><RefreshCw className="size-4"/></Button></div>
     </div>
 
     {error && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+    {engagementError && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{engagementError}</p>}
+    {engagementMessage && <p role="status" className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{engagementMessage}</p>}
 
     <section className="space-y-4 border-t pt-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -234,7 +261,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
           <thead className="bg-muted/60"><tr>{["채널 / 주소","이메일","출연료","RS(%)","전체 / 분석 영상","구독자","최근 20개 평균","최근 30개 평균 댓글","최근 30개 평균 좋아요","등록 / 업데이트","관리"].map(heading=><th key={heading} className="whitespace-nowrap px-3 py-3 text-left font-medium">{heading}</th>)}</tr></thead>
           <tbody>{sortedRuns.map(run=><tr key={run.channel_id} className="border-t align-top hover:bg-muted/20">
             <td className="min-w-60 max-w-72 px-3 py-4"><a href={run.channel.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-semibold hover:underline">{run.channel.thumbnail && <Image unoptimized src={run.channel.thumbnail} alt="" width={36} height={36} className="size-9 rounded-full" referrerPolicy="no-referrer"/>}<span className="break-words">{run.channel.name}</span><ExternalLink className="size-3 shrink-0"/></a><a href={run.channel.url} target="_blank" rel="noreferrer" className="mt-2 block break-all text-xs text-muted-foreground hover:underline">{displayUrl(run.channel.url)}</a><p className="mt-3 text-xs text-muted-foreground">분류: <span className="font-medium text-foreground">{run.category ?? "-"}</span></p><div className="mt-2"><ChannelDetailsEditor run={run} onSaved={updateDetails}/></div>{run.warnings.map(warning=><p key={warning} className="mt-2 text-xs text-amber-800">{warning}</p>)}</td>
-            <td className="min-w-52 px-3 py-4"><ChannelEmailEditor run={run} onSaved={updateEmail}/></td>
+            <td className="min-w-52 px-3 py-4">{run.email ? <a href={`mailto:${encodeURIComponent(run.email)}`} className="flex items-start gap-1.5 break-all text-sm text-primary hover:underline"><Mail className="mt-0.5 size-3.5 shrink-0" />{run.email}</a> : null}</td>
             <td className="whitespace-nowrap px-3 py-4 text-right tabular-nums">{run.appearance_fee == null ? "-" : `${number(run.appearance_fee)}원`}</td>
             <td className="whitespace-nowrap px-3 py-4 text-right tabular-nums">{run.rs_percent == null ? "-" : `${run.rs_percent}%`}</td>
             <td className="px-3 py-4 tabular-nums">{number(run.channel.reported)} / {number(run.metrics.count)}</td>

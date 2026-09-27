@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CHANNEL_CATEGORIES, type Analysis } from "@/lib/youtube-analyzer/model";
 
-type ChannelDetails = Pick<Analysis, "category" | "appearance_fee" | "rs_percent">;
+type ChannelDetails = Pick<Analysis, "email" | "category" | "appearance_fee" | "rs_percent">;
 
 function groupedDigits(value: string) {
   return value.replace(/\D/gu, "").replace(/\B(?=(\d{3})+(?!\d))/gu, ",");
@@ -21,6 +21,7 @@ export function ChannelDetailsEditor({ run, onSaved }: {
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
   const [category, setCategory] = useState("");
   const [fee, setFee] = useState("");
   const [rsPercent, setRsPercent] = useState("");
@@ -31,6 +32,7 @@ export function ChannelDetailsEditor({ run, onSaved }: {
     if (saving) return;
     setOpen(next);
     if (next) {
+      setEmail(run.email ?? "");
       setCategory(run.category ?? "");
       setFee(run.appearance_fee == null ? "" : groupedDigits(String(run.appearance_fee)));
       setRsPercent(run.rs_percent == null ? "" : String(run.rs_percent));
@@ -71,14 +73,16 @@ export function ChannelDetailsEditor({ run, onSaved }: {
     setSaving(true);
     setError("");
     try {
+      const emailChanged = email.trim() !== (run.email ?? "");
       const response = await fetch("/api/youtube-channels", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelId: run.channel_id, category: category || null, appearanceFee, rsPercent: revenueShare }),
+        body: JSON.stringify({ channelId: run.channel_id, category: category || null, appearanceFee, rsPercent: revenueShare, ...(emailChanged ? { email: email.trim() } : {}) }),
       });
       const result = await response.json() as ChannelDetails & { error?: string };
       if (!response.ok) throw new Error(result.error ?? "채널 정보를 저장하지 못했습니다.");
       onSaved(run.channel_id, {
+        email: emailChanged ? result.email : run.email,
         category: result.category,
         appearance_fee: result.appearance_fee,
         rs_percent: result.rs_percent,
@@ -92,13 +96,17 @@ export function ChannelDetailsEditor({ run, onSaved }: {
   }
 
   return <Dialog open={open} onOpenChange={openEditor}>
-    <DialogTrigger asChild><Button type="button" variant="outline" size="sm" aria-label={`${run.channel.name} 분류 및 출연 조건 수정`}><Pencil className="size-3.5" />정보 수정</Button></DialogTrigger>
+    <DialogTrigger asChild><Button type="button" variant="outline" size="sm" aria-label={`${run.channel.name} 정보 수정`}><Pencil className="size-3.5" />정보 수정</Button></DialogTrigger>
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
         <DialogTitle>{run.channel.name} 채널 정보</DialogTitle>
-        <DialogDescription>분류와 출연료, RS 비율을 저장합니다.</DialogDescription>
+        <DialogDescription>이메일 주소, 분류, 출연료와 RS 비율을 저장합니다.</DialogDescription>
       </DialogHeader>
       <form onSubmit={(event) => void save(event)} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor={`${id}-email`}>이메일 주소</Label>
+          <Input id={`${id}-email`} type="email" autoComplete="email" maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@example.com" disabled={saving} />
+        </div>
         <div className="space-y-2">
           <Label htmlFor={`${id}-category`}>분류</Label>
           <select id={`${id}-category`} className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" value={category} onChange={(event) => setCategory(event.target.value)} disabled={saving}>
