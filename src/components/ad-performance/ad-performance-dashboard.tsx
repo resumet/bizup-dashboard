@@ -232,7 +232,7 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
 
   return <main className="min-h-screen">
     <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
-      <Button variant="ghost" size="sm" asChild className="mb-5"><BackLink href="/services/ad-performance"><ArrowLeft />뒤로가기</BackLink></Button>
+      <Button variant="ghost" size="sm" asChild className="mb-5"><BackLink href="/services/ad-performance/daily"><ArrowLeft />뒤로가기</BackLink></Button>
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div><Badge variant="outline" className="mb-3"><BarChart3 />{initialData.course.instructorName || "강사 미지정"}</Badge><h1 className="text-3xl font-semibold tracking-tight">{initialData.course.name}</h1><p className="mt-2 max-w-3xl text-muted-foreground">광고와 오가닉 채널의 날짜별 DB 유입을 기록하고 매체별 전환율을 자동 계산합니다.</p></div>
         <Button onClick={() => void save()} disabled={saving || channelBusy || Boolean(initialData.loadError)}>{saving ? <Loader2 className="animate-spin" /> : <Save />}변경사항 저장</Button>

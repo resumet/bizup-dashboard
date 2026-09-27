@@ -114,8 +114,8 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
 
   return <main className="min-h-screen">
     <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
-      <Button variant="ghost" size="sm" asChild className="mb-5"><BackLink href="/work"><ArrowLeft />뒤로가기</BackLink></Button>
-      <div><Badge variant="outline" className="mb-3"><BarChart3 />강의별 광고 운영</Badge><h1 className="text-3xl font-semibold tracking-tight">광고성과</h1><p className="mt-2 text-muted-foreground">저장된 강의에 광고성과를 연결하고 강의별 집행 현황을 관리합니다.</p></div>
+      <Button variant="ghost" size="sm" asChild className="mb-5"><BackLink href="/services/ad-performance"><ArrowLeft />뒤로가기</BackLink></Button>
+      <div><Badge variant="outline" className="mb-3"><BarChart3 />강의별 광고 운영</Badge><h1 className="text-3xl font-semibold tracking-tight">광고성과 관리</h1><p className="mt-2 text-muted-foreground">저장된 강의에 광고성과를 연결하고 강의별 집행 현황을 관리합니다.</p></div>
       <AdPerformanceTabs active="daily" />
 
       {error ? <Alert variant="destructive" className="mt-6"><AlertTriangle /><AlertTitle>확인이 필요합니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}

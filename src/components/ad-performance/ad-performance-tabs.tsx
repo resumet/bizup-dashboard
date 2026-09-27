@@ -3,7 +3,7 @@ import Link from "next/link";
 type AdPerformanceTab = "daily" | "creative";
 
 const tabs = [
-  { id: "daily", label: "일일성과", href: "/services/ad-performance" },
+  { id: "daily", label: "일일성과", href: "/services/ad-performance/daily" },
   { id: "creative", label: "소재성과", href: "/services/ad-performance/creative" },
 ] as const;
 
