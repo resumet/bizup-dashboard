@@ -62,6 +62,30 @@ test("주 초와 주말의 웨비나 D-Day 배지는 해당 주 칸 안에 표�
   }
 });
 
+test("미닝 웨비나 D-Day 세로선은 10월 13일이 속한 주의 화요일에 그린다", () => {
+  const html = renderToStaticMarkup(createElement(WbsGantt, {
+    webinarDate: "2026-10-13",
+    items: [
+      { id: "preparation", title: "준비", owner: "", startDate: "2026-09-21", dueDate: "2026-09-21", completed: false, position: 0 },
+      { id: "course-free-webinar", title: "무료웨비나", owner: "", startDate: "2026-10-13", dueDate: "2026-10-13", completed: false, position: 1 },
+    ],
+  }));
+  const labelWidths = [...html.matchAll(/class="sticky left-0 z-30 flex shrink-0[^"]*" style="width:(\d+)px"/gu)]
+    .map((match) => Number(match[1]));
+  const chartWidth = html.match(/class="relative" style="width:(\d+)px"/u);
+  const line = html.match(/bg-amber-500\/80" style="left:(\d+)px"/u);
+  const weeks = [...html.matchAll(/<div class="relative flex shrink-0[^>]*style="width:112px">([\s\S]*?)<\/div>/gu)]
+    .map((match) => match[1]);
+  const webinarWeekIndex = weeks.findIndex((week) => week.includes("<span>10. 12. 주</span>"));
+
+  assert.equal(labelWidths.length, 3, "헤더와 두 업무 행의 제목 열 너비가 명시되어야 한다");
+  assert.ok(labelWidths.every((width) => width === labelWidths[0]));
+  assert.ok(chartWidth && line && webinarWeekIndex >= 0);
+  assert.equal(Number(chartWidth[1]), labelWidths[0] + 16 * 112);
+  assert.equal(Number(line[1]) - (labelWidths[0] + webinarWeekIndex * 112), 16,
+    "D-Day 선은 10월 12일 주간의 화요일 칸에서 시작해야 한다");
+});
+
 test("웨비나 날짜가 표시 기간 밖이어도 업무의 상대일은 표시한다", () => {
   const html = renderToStaticMarkup(createElement(WbsGantt, {
     webinarDate: "2027-09-29",

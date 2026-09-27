@@ -139,7 +139,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   const [dropTarget, setDropTarget] = useState<{ id: string; position: "before" | "after" } | null>(null);
   const [hasWbs, setHasWbs] = useState(false);
   const [updatedAt, setUpdatedAt] = useState("");
-  const [view, setView] = useState<"list" | "gantt">("list");
+  const [view, setView] = useState<"list" | "compact" | "gantt">("list");
   const [loading, setLoading] = useState(true);
   const [loadingWbs, setLoadingWbs] = useState(false);
   const [courseReady, setCourseReady] = useState(false);
@@ -560,12 +560,39 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex rounded-lg border bg-background p-1" role="group" aria-label="보기 방식">
               <Button size="sm" variant={view === "list" ? "secondary" : "ghost"} onClick={() => setView("list")} aria-pressed={view === "list"}><ClipboardList /> 목록</Button>
+              <Button size="sm" variant={view === "compact" ? "secondary" : "ghost"} onClick={() => setView("compact")} aria-pressed={view === "compact"}><ClipboardList /> 간소화목록</Button>
               <Button size="sm" variant={view === "gantt" ? "secondary" : "ghost"} onClick={() => setView("gantt")} aria-pressed={view === "gantt"}><CalendarDays /> 간트 차트</Button>
             </div>
-            <p className="text-xs text-muted-foreground">담당자·관계자는 목록에서 선택하거나 새 이름을 입력한 뒤 저장할 수 있습니다.</p>
-            <Button size="sm" variant="outline" onClick={addItem} disabled={loadingWbs || !courseReady || saving}><Plus /> 항목 추가</Button>
+            <p className="text-xs text-muted-foreground">{view === "compact" ? "완료 여부를 변경한 뒤 강의 WBS 저장을 눌러 주세요." : "담당자·관계자는 목록에서 선택하거나 새 이름을 입력한 뒤 저장할 수 있습니다."}</p>
+            {view !== "compact" ? <Button size="sm" variant="outline" onClick={addItem} disabled={loadingWbs || !courseReady || saving}><Plus /> 항목 추가</Button> : null}
           </div>
-          {loadingWbs ? <div className="flex min-h-72 items-center justify-center rounded-xl border bg-background text-sm text-muted-foreground"><LoaderCircle className="mr-2 size-4 animate-spin" /> WBS를 불러오는 중...</div> : !courseReady ? <div className="rounded-xl border border-dashed bg-background px-6 py-16 text-center text-sm text-muted-foreground">이 강의의 WBS를 불러오지 못했습니다.<div><Button className="mt-4" variant="outline" onClick={() => void loadCourse(courseId)}>다시 시도</Button></div></div> : view === "gantt" ? <WbsGantt key={courseId} items={sortedItems} webinarDate={webinarDate} todayDate={today} /> : (
+          {loadingWbs ? <div className="flex min-h-72 items-center justify-center rounded-xl border bg-background text-sm text-muted-foreground"><LoaderCircle className="mr-2 size-4 animate-spin" /> WBS를 불러오는 중...</div> : !courseReady ? <div className="rounded-xl border border-dashed bg-background px-6 py-16 text-center text-sm text-muted-foreground">이 강의의 WBS를 불러오지 못했습니다.<div><Button className="mt-4" variant="outline" onClick={() => void loadCourse(courseId)}>다시 시도</Button></div></div> : view === "gantt" ? <WbsGantt key={courseId} items={sortedItems} webinarDate={webinarDate} todayDate={today} /> : view === "compact" ? (
+            <div className="overflow-x-auto rounded-xl border bg-background shadow-sm" aria-busy={saving}>
+              <table className="w-full min-w-[760px] border-collapse text-sm" aria-label="간소화 WBS 목록">
+                <thead className="bg-muted/50 text-left text-xs font-medium text-muted-foreground">
+                  <tr>
+                    <th scope="col" className="w-16 px-4 py-3 text-center">완료</th>
+                    <th scope="col" className="min-w-64 px-4 py-3">업무 제목</th>
+                    <th scope="col" className="w-36 px-4 py-3">담당자</th>
+                    <th scope="col" className="w-36 px-4 py-3">관계자</th>
+                    <th scope="col" className="w-36 px-4 py-3">시작일 날짜</th>
+                    <th scope="col" className="w-36 px-4 py-3">데드라인 날짜</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedItems.map((item, index) => <tr key={item.id} className={`border-t ${isPastItem(item, today) ? "bg-muted/60" : item.id === WEBINAR_ITEM_ID ? "bg-primary/5" : ""}`}>
+                    <td className="px-4 py-3 text-center"><input type="checkbox" className="size-4 accent-primary" checked={item.completed} onChange={(event) => editItem(item.id, { completed: event.target.checked })} aria-label={`${item.title || `${index + 1}번째 항목`} 완료`} disabled={saving} /></td>
+                    <td className={`px-4 py-3 font-medium ${item.completed ? "text-muted-foreground line-through" : ""}`}>{item.title || "—"}</td>
+                    <td className="px-4 py-3">{item.owner || "—"}</td>
+                    <td className="px-4 py-3">{item.stakeholders || "—"}</td>
+                    <td className="whitespace-nowrap px-4 py-3 tabular-nums">{item.startDate ? <time dateTime={item.startDate}>{item.startDate}</time> : "—"}</td>
+                    <td className="whitespace-nowrap px-4 py-3 tabular-nums">{item.dueDate ? <time dateTime={item.dueDate}>{item.dueDate}</time> : "—"}</td>
+                  </tr>)}
+                  {!sortedItems.length ? <tr><td colSpan={6} className="px-6 py-16 text-center text-sm text-muted-foreground">항목이 없습니다. 목록 탭에서 템플릿을 불러오거나 항목을 추가하세요.</td></tr> : null}
+                </tbody>
+              </table>
+            </div>
+          ) : (
             <div className="overflow-x-auto rounded-xl border bg-background shadow-sm" aria-busy={saving}>
               <table className="w-full min-w-[1320px] border-collapse text-sm">
                 <thead className="bg-muted/50 text-left text-xs font-medium text-muted-foreground">

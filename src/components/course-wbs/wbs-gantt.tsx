@@ -18,6 +18,8 @@ export type GanttItem = {
 };
 
 const DAY = 24 * 60 * 60 * 1000;
+// The title column and overlay lines must use the same pixel width.
+const LABEL_WIDTH = 288;
 const WEEK_WIDTH = 112;
 const DAY_WIDTH = WEEK_WIDTH / 7;
 const VISIBLE_WEEKS = 16;
@@ -96,9 +98,9 @@ export function WbsGantt({
         </div>
       </div>
       <div className="overflow-x-auto">
-      <div className="relative" style={{ width: timeline.width + 256 }}>
+      <div className="relative" style={{ width: timeline.width + LABEL_WIDTH }}>
         <div className="flex h-16 border-b bg-muted/40 text-xs font-medium text-muted-foreground">
-          <div className="sticky left-0 z-30 flex w-64 shrink-0 items-center border-r bg-muted px-4">업무 · 담당자</div>
+          <div className="sticky left-0 z-30 flex shrink-0 items-center border-r bg-muted px-4" style={{ width: LABEL_WIDTH }}>업무 · 담당자</div>
           <div className="relative flex" style={{ width: timeline.width }}>
             {Array.from({ length: timeline.weeks }, (_, index) => {
               const weekStart = new Date(timeline.start + index * 7 * DAY);
@@ -114,7 +116,7 @@ export function WbsGantt({
             })}
           </div>
         </div>
-        {webinarOffset !== null ? <div className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-amber-500/80" style={{ left: 256 + webinarOffset }} aria-hidden="true" /> : null}
+        {webinarOffset !== null ? <div className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-amber-500/80" style={{ left: LABEL_WIDTH + webinarOffset }} aria-hidden="true" /> : null}
         {sorted.map((item) => {
           const start = dateValue(item.startDate || item.dueDate);
           const end = dateValue(item.dueDate || item.startDate);
@@ -129,7 +131,7 @@ export function WbsGantt({
             item.dueDate ? `마감 ${webinarDayLabel(item.dueDate, webinarDate)}` : "",
           ].filter(Boolean);
           return <div key={item.id} className={`flex h-16 border-b last:border-b-0 ${isPast ? "bg-muted/50" : ""}`}>
-            <div className={`sticky left-0 z-30 flex w-64 shrink-0 flex-col justify-center border-r px-4 ${isPast ? "bg-muted/50" : "bg-background"}`}>
+            <div className={`sticky left-0 z-30 flex shrink-0 flex-col justify-center border-r px-4 ${isPast ? "bg-muted/50" : "bg-background"}`} style={{ width: LABEL_WIDTH }}>
               <span className={`truncate text-sm font-medium ${item.completed ? "text-muted-foreground line-through" : ""}`} title={item.title}>{item.title || "제목 없음"}</span>
               <span className="truncate text-xs text-muted-foreground">{item.owner || "담당자 미정"}</span>
               {relativeDates.length ? <span className="truncate text-[11px] text-amber-700" title={relativeDates.join(" · ")}>{relativeDates.join(" · ")}</span> : null}
