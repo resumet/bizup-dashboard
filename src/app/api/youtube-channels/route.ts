@@ -41,11 +41,23 @@ async function storedChannelUrls(admin: SupabaseClient, workspaceId: string) {
       .order("position")
       .limit(pageSize);
     if (afterPosition !== undefined) query = query.gt("position",afterPosition);
-    const {data,error} = await query;
+    let {data,error} = await query;
+    if (missingOptionalColumn(error)) {
+      let fallback = admin.from("youtube_analyzed_channels")
+        .select("position,channel_id")
+        .eq("workspace_id",workspaceId)
+        .order("position")
+        .limit(pageSize);
+      if (afterPosition !== undefined) fallback = fallback.gt("position",afterPosition);
+      const legacy = await fallback;
+      data = legacy.data;
+      error = legacy.error;
+    }
     if (error) throw error;
-    urls.push(...data.map(row=>`https://www.youtube.com/channel/${row.channel_id}`));
-    if (data.length < pageSize) break;
-    afterPosition = data[data.length-1].position;
+    const page = data ?? [];
+    urls.push(...page.map(row=>`https://www.youtube.com/channel/${row.channel_id}`));
+    if (page.length < pageSize) break;
+    afterPosition = page[page.length-1].position;
   }
   return urls;
 }
@@ -225,18 +237,28 @@ export async function PATCH(request: Request) {
       return NextResponse.json({error:message},{status:400});
     }
     if (!Object.keys(updates).length) return NextResponse.json({error:"수정할 항목을 입력해 주세요."},{status:400});
-    const result = await admin.from("youtube_analyzed_channels")
+    let result = await admin.from("youtube_analyzed_channels")
       .update(updates)
       .eq("workspace_id",workspaceId)
       .eq("channel_id",channelId)
       .select("channel_id")
       .maybeSingle();
+    const requestedExclusion = updates.excluded_from_updates;
+    if (missingOptionalColumn(result.error) && requestedExclusion === false) {
+      delete updates.excluded_from_updates;
+      result = await admin.from("youtube_analyzed_channels")
+        .update(updates)
+        .eq("workspace_id",workspaceId)
+        .eq("channel_id",channelId)
+        .select("channel_id")
+        .maybeSingle();
+    }
     if (missingOptionalColumn(result.error)) {
       return NextResponse.json({error:"채널 정보 저장을 사용하려면 Supabase SQL 마이그레이션을 먼저 적용해 주세요."},{status:503});
     }
     if (result.error) throw result.error;
     if (!result.data) return NextResponse.json({error:"분석한 채널을 찾을 수 없습니다."},{status:404});
-    return NextResponse.json({channelId:result.data.channel_id,...updates});
+    return NextResponse.json({channelId:result.data.channel_id,...updates,...(requestedExclusion === false ? { excluded_from_updates:false } : {})});
   } catch(error) { return failure(error); }
 }
 

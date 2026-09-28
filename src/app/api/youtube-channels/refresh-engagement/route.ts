@@ -11,6 +11,10 @@ const PAGE_SIZE = 100;
 const CONCURRENCY = 10;
 const MAX_RETRIES = 3;
 
+function missingExclusionColumn(error: { code?: string } | null) {
+  return error?.code === "42703" || error?.code === "PGRST204";
+}
+
 type ChannelRow = {
   position: number | string;
   channel_id: string;
@@ -104,14 +108,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "잘못된 페이지 위치입니다." }, { status: 400 });
     }
 
-    let query = admin.from("youtube_analyzed_channels")
+    const buildPageQuery = (excludeFlag: boolean) => {
+      let query = admin.from("youtube_analyzed_channels")
       .select("position,channel_id,metrics,last_analysis_started_at,last_analyzed_at")
       .eq("workspace_id", workspaceId)
-      .eq("excluded_from_updates", false)
       .order("position", { ascending: true })
       .limit(PAGE_SIZE + 1);
-    if (typeof cursor === "string") query = query.gt("position", cursor);
-    const page = await query;
+      if (excludeFlag) query = query.eq("excluded_from_updates", false);
+      if (typeof cursor === "string") query = query.gt("position", cursor);
+      return query;
+    };
+    let page = await buildPageQuery(true);
+    if (missingExclusionColumn(page.error)) page = await buildPageQuery(false);
     if (page.error) throw page.error;
     const rows = (page.data as ChannelRow[]).slice(0, PAGE_SIZE);
 
