@@ -40,9 +40,28 @@ export type WbsSummary = {
   updatedAt: string;
 };
 
+export type WbsDashboardTask = {
+  courseId: string;
+  itemId: string;
+  title: string;
+  owner: string;
+  startDate: string;
+  dueDate: string;
+  scheduledDate: string;
+};
+
+export type WbsDashboard = {
+  savedWbsCount: number;
+  totalItemCount: number;
+  completedItemCount: number;
+  urgentTasks: WbsDashboardTask[];
+  closestUnstartedCourseId: string | null;
+};
+
 export type CourseWbsBootstrap = {
   courses: WbsCourse[];
   wbsSummaries: WbsSummary[];
+  dashboard: WbsDashboard;
   template: WbsTemplate;
   people: string[];
   employeeNames: string[];

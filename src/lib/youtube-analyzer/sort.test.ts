@@ -13,6 +13,7 @@ function run(id: string, position: number, values: { subscribers: number | null;
     appearance_fee: null,
     rs_percent: null,
     memo: null,
+    excluded_from_updates: false,
     metrics: {
       count: 0,
       top: values.top === null ? null : { id: `${id}-video`, title: id, publishedAt: "2026-01-01", views: values.top, likes: null, comments: null },

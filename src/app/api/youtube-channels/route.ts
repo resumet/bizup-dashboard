@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireCourseOperationsMembership, requireCourseOperationsUser } from "@/lib/course-operations/server";
-import { inputs, normalizeAppearanceFee, normalizeChannelCategory, normalizeChannelEmail, normalizeChannelMemo, normalizeRsPercent } from "@/lib/youtube-analyzer/model";
+import { inputs, normalizeAppearanceFee, normalizeChannelCategory, normalizeChannelEmail, normalizeChannelMemo, normalizeExcludedFromUpdates, normalizeRsPercent } from "@/lib/youtube-analyzer/model";
 import { setting } from "@/lib/youtube-analyzer/api";
 import { youtubeAnalysisWorkflow } from "@/workflows/youtube-analysis";
 
@@ -37,6 +37,7 @@ async function storedChannelUrls(admin: SupabaseClient, workspaceId: string) {
     let query = admin.from("youtube_analyzed_channels")
       .select("position,channel_id")
       .eq("workspace_id",workspaceId)
+      .eq("excluded_from_updates",false)
       .order("position")
       .limit(pageSize);
     if (afterPosition !== undefined) query = query.gt("position",afterPosition);
@@ -87,7 +88,7 @@ export async function GET(request: Request) {
     if (!Number.isSafeInteger(offset) || offset < 0) return NextResponse.json({error:"잘못된 페이지입니다."},{status:400});
 
     const channelsQuery = admin.from("youtube_analyzed_channels")
-      .select("position,channel_id,channel,email,category,appearance_fee,rs_percent,memo,metrics,warnings,first_analyzed_at,last_analyzed_at")
+      .select("position,channel_id,channel,email,category,appearance_fee,rs_percent,memo,excluded_from_updates,metrics,warnings,first_analyzed_at,last_analyzed_at")
       .eq("workspace_id",workspaceId)
       .order("position")
       .range(offset,offset+200);
@@ -101,33 +102,44 @@ export async function GET(request: Request) {
     if (batch.error || requests.error) throw batch.error ?? requests.error;
     let rows = result.data;
     if (missingOptionalColumn(result.error)) {
-      const withAttributes = await admin.from("youtube_analyzed_channels")
-        .select("position,channel_id,channel,email,category,appearance_fee,rs_percent,metrics,warnings,first_analyzed_at,last_analyzed_at")
+      const withMemo = await admin.from("youtube_analyzed_channels")
+        .select("position,channel_id,channel,email,category,appearance_fee,rs_percent,memo,metrics,warnings,first_analyzed_at,last_analyzed_at")
         .eq("workspace_id",workspaceId)
         .order("position")
         .range(offset,offset+200);
-      if (!withAttributes.error) {
-        rows = withAttributes.data.map(row=>({...row,memo:null}));
-      } else if (missingOptionalColumn(withAttributes.error)) {
-        const withEmail = await admin.from("youtube_analyzed_channels")
-          .select("position,channel_id,channel,email,metrics,warnings,first_analyzed_at,last_analyzed_at")
+      if (!withMemo.error) {
+        rows = withMemo.data.map(row=>({...row,excluded_from_updates:false}));
+      } else if (missingOptionalColumn(withMemo.error)) {
+        const withAttributes = await admin.from("youtube_analyzed_channels")
+          .select("position,channel_id,channel,email,category,appearance_fee,rs_percent,metrics,warnings,first_analyzed_at,last_analyzed_at")
           .eq("workspace_id",workspaceId)
           .order("position")
           .range(offset,offset+200);
-        if (missingOptionalColumn(withEmail.error)) {
-          const legacy = await admin.from("youtube_analyzed_channels")
-            .select("position,channel_id,channel,metrics,warnings,first_analyzed_at,last_analyzed_at")
+        if (!withAttributes.error) {
+          rows = withAttributes.data.map(row=>({...row,memo:null,excluded_from_updates:false}));
+        } else if (missingOptionalColumn(withAttributes.error)) {
+          const withEmail = await admin.from("youtube_analyzed_channels")
+            .select("position,channel_id,channel,email,metrics,warnings,first_analyzed_at,last_analyzed_at")
             .eq("workspace_id",workspaceId)
             .order("position")
             .range(offset,offset+200);
-          if (legacy.error) throw legacy.error;
-          rows = legacy.data.map(row=>({...row,email:null,category:null,appearance_fee:null,rs_percent:null,memo:null}));
+          if (missingOptionalColumn(withEmail.error)) {
+            const legacy = await admin.from("youtube_analyzed_channels")
+              .select("position,channel_id,channel,metrics,warnings,first_analyzed_at,last_analyzed_at")
+              .eq("workspace_id",workspaceId)
+              .order("position")
+              .range(offset,offset+200);
+            if (legacy.error) throw legacy.error;
+            rows = legacy.data.map(row=>({...row,email:null,category:null,appearance_fee:null,rs_percent:null,memo:null,excluded_from_updates:false}));
+          } else {
+            if (withEmail.error) throw withEmail.error;
+            rows = withEmail.data.map(row=>({...row,category:null,appearance_fee:null,rs_percent:null,memo:null,excluded_from_updates:false}));
+          }
         } else {
-          if (withEmail.error) throw withEmail.error;
-          rows = withEmail.data.map(row=>({...row,category:null,appearance_fee:null,rs_percent:null,memo:null}));
+          throw withAttributes.error;
         }
       } else {
-        throw withAttributes.error;
+        throw withMemo.error;
       }
     } else if (result.error) throw result.error;
     if (batchId && !batch.data) return NextResponse.json({error:"분석 요청을 찾을 수 없습니다."},{status:404});
@@ -193,7 +205,7 @@ export async function PATCH(request: Request) {
     if (typeof channelId !== "string" || !channelId.trim() || channelId.length > 128) {
       return NextResponse.json({error:"채널 입력이 올바르지 않습니다."},{status:400});
     }
-    const updates: Record<string,string|number|null> = {};
+    const updates: Record<string,string|number|boolean|null> = {};
     const includes = (key: string) => Object.prototype.hasOwnProperty.call(fields,key);
     try {
       if (includes("email")) updates.email = normalizeChannelEmail(fields.email);
@@ -201,12 +213,14 @@ export async function PATCH(request: Request) {
       if (includes("appearanceFee")) updates.appearance_fee = normalizeAppearanceFee(fields.appearanceFee);
       if (includes("rsPercent")) updates.rs_percent = normalizeRsPercent(fields.rsPercent);
       if (includes("memo")) updates.memo = normalizeChannelMemo(fields.memo);
+      if (includes("excludedFromUpdates")) updates.excluded_from_updates = normalizeExcludedFromUpdates(fields.excludedFromUpdates);
     } catch(error) {
       const code = error instanceof Error ? error.message : "";
       const message = code === "INVALID_EMAIL" ? "올바른 이메일 주소를 입력해 주세요."
         : code === "INVALID_CATEGORY" ? "분류 목록에서 선택해 주세요."
         : code === "INVALID_APPEARANCE_FEE" ? "출연료는 0원 이상의 정수로 입력해 주세요."
         : code === "INVALID_MEMO" ? "메모는 2,000자 이하로 입력해 주세요."
+        : code === "INVALID_EXCLUDED_FROM_UPDATES" ? "업데이트 제외 설정을 확인해 주세요."
         : "RS는 0~100 사이의 숫자로 입력해 주세요.";
       return NextResponse.json({error:message},{status:400});
     }

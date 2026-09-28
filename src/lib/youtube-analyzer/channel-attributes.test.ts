@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CHANNEL_CATEGORIES, normalizeAppearanceFee, normalizeChannelCategory, normalizeChannelMemo, normalizeRsPercent } from "./model";
+import { CHANNEL_CATEGORIES, normalizeAppearanceFee, normalizeChannelCategory, normalizeChannelMemo, normalizeExcludedFromUpdates, normalizeRsPercent } from "./model";
 
 test("channel categories are unique and restricted to the dropdown choices", () => {
   assert.equal(CHANNEL_CATEGORIES.length, new Set(CHANNEL_CATEGORIES).size);
@@ -35,4 +35,12 @@ test("channel memo preserves line breaks and is limited to 2,000 characters", ()
   assert.equal(normalizeChannelMemo(null), null);
   assert.throws(() => normalizeChannelMemo("a".repeat(2001)), /INVALID_MEMO/);
   assert.throws(() => normalizeChannelMemo(123), /INVALID_MEMO/);
+});
+
+test("update exclusion accepts booleans only", () => {
+  assert.equal(normalizeExcludedFromUpdates(true), true);
+  assert.equal(normalizeExcludedFromUpdates(false), false);
+  for (const value of [null, 0, 1, "true", "false"]) {
+    assert.throws(() => normalizeExcludedFromUpdates(value), /INVALID_EXCLUDED_FROM_UPDATES/);
+  }
 });

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
-  ArrowDown, ArrowLeft, ArrowUp, CalendarDays, ChevronDown, ClipboardList, ExternalLink, GripVertical,
+  ArrowDown, ArrowLeft, ArrowUp, CalendarDays, ChevronDown, ClipboardList, Clock3, ExternalLink, GripVertical,
   LoaderCircle, Plus, Save, Trash2,
 } from "lucide-react";
 
@@ -19,10 +19,18 @@ import { reorderWbsItems } from "@/lib/course-wbs/reorder";
 import { selectablePeople } from "@/lib/course-wbs/people";
 import { datesForStartOffset, dueDateForOffset, dueDateForStartDate, WBS_DUE_OFFSETS, WBS_START_OFFSETS } from "@/lib/course-wbs/schedule-options";
 import { reusableItems } from "@/lib/course-wbs/template-items";
-import type { CourseWbs, CourseWbsBootstrap, WbsCourse, WbsItem, WbsSummary, WbsTemplate } from "@/lib/course-wbs/types";
+import type { CourseWbs, CourseWbsBootstrap, WbsCourse, WbsDashboard, WbsItem, WbsSummary, WbsTemplate } from "@/lib/course-wbs/types";
 import { applyTemplateToCourse, syncWebinarItem, webinarDateFromTimestamp, webinarDayLabel, WEBINAR_ITEM_ID } from "@/lib/course-wbs/webinar-date";
 
 type WbsResponse = { wbs: CourseWbs | null; webinarAt: string | null };
+
+const EMPTY_DASHBOARD: WbsDashboard = {
+  savedWbsCount: 0,
+  totalItemCount: 0,
+  completedItemCount: 0,
+  urgentTasks: [],
+  closestUnstartedCourseId: null,
+};
 
 class ApiError extends Error {
   constructor(message: string, public status: number) { super(message); }
@@ -51,6 +59,23 @@ function courseCohort(course: WbsCourse) {
 
 function savedWbsProgress(summary: WbsSummary) {
   return summary.itemCount ? Math.round(summary.completedCount / summary.itemCount * 100) : 0;
+}
+
+function daysBetween(from: string, to: string) {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+}
+
+function remainingDayLabel(target: string, today: string) {
+  const days = daysBetween(today, target);
+  return days === 0 ? "D-day" : days > 0 ? `D-${days}` : `${Math.abs(days)}일 지남`;
+}
+
+function taskScheduleLabel(scheduledDate: string, today: string) {
+  if (!scheduledDate) return "일정 미정";
+  const days = daysBetween(today, scheduledDate);
+  if (days === 0) return "오늘까지";
+  if (days < 0) return `${Math.abs(days)}일 지연`;
+  return `${days}일 남음`;
 }
 
 function withSavedPeople(people: string[], items: WbsItem[]) {
@@ -127,6 +152,7 @@ function validateItems(items: WbsItem[]) {
 export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initialCourseId: string; canSaveTemplate: boolean }) {
   const [courses, setCourses] = useState<WbsCourse[]>([]);
   const [wbsSummaries, setWbsSummaries] = useState<WbsSummary[]>([]);
+  const [dashboard, setDashboard] = useState<WbsDashboard>(EMPTY_DASHBOARD);
   const [newCourseId, setNewCourseId] = useState("");
   const [people, setPeople] = useState<string[]>([]);
   const [employeeNames, setEmployeeNames] = useState<string[]>([]);
@@ -189,6 +215,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
         if (!active) return;
         setCourses(body.courses);
         setWbsSummaries(body.wbsSummaries);
+        setDashboard(body.dashboard);
         setPeople(body.people);
         setEmployeeNames(body.employeeNames);
         setInactivePeople(body.inactivePeople ?? []);
@@ -248,6 +275,13 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
     const savedIds = new Set(wbsSummaries.map((summary) => summary.courseId));
     return courses.filter((entry) => !savedIds.has(entry.id));
   }, [courses, wbsSummaries]);
+  const coursesById = useMemo(() => new Map(courses.map((entry) => [entry.id, entry])), [courses]);
+  const closestUnstartedCourse = dashboard.closestUnstartedCourseId
+    ? coursesById.get(dashboard.closestUnstartedCourseId) ?? null
+    : null;
+  const dashboardProgress = dashboard.totalItemCount
+    ? Math.round(dashboard.completedItemCount / dashboard.totalItemCount * 100)
+    : 0;
 
   function clearFeedback() { setError(""); setNotice(""); setConflictTarget(null); }
 
@@ -422,6 +456,14 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
       ]);
       setDirty(false);
       setNotice("이 강의의 WBS를 저장했습니다.");
+      void fetch("/api/course-wbs", { cache: "no-store" })
+        .then((response) => responseJson<CourseWbsBootstrap>(response))
+        .then((overview) => {
+          setCourses(overview.courses);
+          setWbsSummaries(overview.wbsSummaries);
+          setDashboard(overview.dashboard);
+        })
+        .catch(() => undefined);
     } catch (caught) {
       setConflictTarget(caught instanceof ApiError && caught.status === 409 ? "wbs" : null);
       setError(caught instanceof Error ? caught.message : "WBS 저장에 실패했습니다.");
@@ -477,6 +519,49 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
         <Button className="mt-5" asChild><Link href="/services/course-operations/new"><Plus /> 강의 만들기</Link></Button>
       </div>
     ) : !courseId ? <>
+      <section className="mb-8" aria-label="WBS 대시보드">
+        <div className="mb-4">
+          <h3 className="text-xl font-semibold">WBS 대시보드</h3>
+          <p className="mt-1 text-sm text-muted-foreground">저장된 WBS 전체의 진행 상황과 지금 먼저 처리할 업무입니다.</p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+          <div className="rounded-xl border bg-background p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium">전체 진행 상황</p>
+                <p className="mt-3 text-3xl font-semibold tabular-nums">{dashboardProgress}%</p>
+              </div>
+              <Badge variant="secondary">WBS {dashboard.savedWbsCount}개</Badge>
+            </div>
+            <div className="mt-5 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${dashboardProgress}%` }} /></div>
+            <p className="mt-3 text-sm text-muted-foreground">전체 업무 {dashboard.totalItemCount}개 중 {dashboard.completedItemCount}개 완료 · {dashboard.totalItemCount - dashboard.completedItemCount}개 남음</p>
+          </div>
+          <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-5 shadow-sm dark:border-blue-900 dark:bg-blue-950/20">
+            <div className="flex items-center gap-2 text-sm font-medium"><CalendarDays className="size-4 text-blue-700 dark:text-blue-300" />아직 시작하지 않은 가장 가까운 강의</div>
+            <p className="mt-1 text-xs text-muted-foreground">완료한 업무가 0개인 WBS를 기준으로 계산합니다.</p>
+            {closestUnstartedCourse?.webinarAt ? <button type="button" onClick={() => selectCourse(closestUnstartedCourse.id)} className="mt-4 block w-full rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0"><p className="truncate font-semibold">{courseLabel(closestUnstartedCourse)}</p><p className="mt-1 text-sm text-muted-foreground">무료 웨비나 · {toKoreaDate(closestUnstartedCourse.webinarAt)} {toKoreaTime(closestUnstartedCourse.webinarAt)}</p></div>
+                <Badge className="shrink-0 bg-blue-700 text-white hover:bg-blue-700">{remainingDayLabel(toKoreaDate(closestUnstartedCourse.webinarAt), today)}</Badge>
+              </div>
+            </button> : <p className="mt-4 text-sm text-muted-foreground">예정된 강의 중 아직 시작하지 않은 WBS가 없습니다.</p>}
+          </div>
+        </div>
+        <div className="mt-4 rounded-xl border bg-background p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-3"><div><h4 className="font-semibold">지금 해야 할 가장 급한 일 3개</h4><p className="mt-1 text-xs text-muted-foreground">완료하지 않은 업무를 데드라인과 시작일 순으로 제안합니다.</p></div><Clock3 className="size-5 text-amber-600" /></div>
+          {dashboard.urgentTasks.length ? <div className="mt-4 grid gap-3 lg:grid-cols-3">{dashboard.urgentTasks.map((task, index) => {
+            const linkedCourse = coursesById.get(task.courseId);
+            const delayed = Boolean(task.scheduledDate && task.scheduledDate < today);
+            return <button key={`${task.courseId}-${task.itemId}`} type="button" onClick={() => selectCourse(task.courseId)} className="rounded-lg border p-4 text-left transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <div className="flex items-center justify-between gap-2"><Badge variant="outline">우선순위 {index + 1}</Badge><span className={delayed ? "text-xs font-semibold text-destructive" : "text-xs font-medium text-amber-700 dark:text-amber-300"}>{taskScheduleLabel(task.scheduledDate, today)}</span></div>
+              <p className="mt-3 font-semibold">{task.title}</p>
+              <p className="mt-2 truncate text-xs text-muted-foreground">{linkedCourse ? courseLabel(linkedCourse) : "연결된 강의"}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{task.scheduledDate || "날짜 미정"}{task.owner ? ` · 담당 ${task.owner}` : " · 담당자 미정"}</p>
+            </button>;
+          })}</div> : <p className="mt-4 rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">완료하지 않은 업무가 없습니다.</p>}
+        </div>
+      </section>
+
       <section aria-label="저장된 강의 WBS">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>

@@ -4,13 +4,14 @@ import { useId, useState, type ChangeEvent, type FormEvent } from "react";
 import { LoaderCircle, Pencil } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CHANNEL_CATEGORIES, type Analysis } from "@/lib/youtube-analyzer/model";
 
-type ChannelDetails = Pick<Analysis, "email" | "category" | "appearance_fee" | "rs_percent" | "memo">;
+type ChannelDetails = Pick<Analysis, "email" | "category" | "appearance_fee" | "rs_percent" | "memo" | "excluded_from_updates">;
 
 function groupedDigits(value: string) {
   return value.replace(/\D/gu, "").replace(/\B(?=(\d{3})+(?!\d))/gu, ",");
@@ -27,6 +28,7 @@ export function ChannelDetailsEditor({ run, onSaved }: {
   const [fee, setFee] = useState("");
   const [rsPercent, setRsPercent] = useState("");
   const [memo, setMemo] = useState("");
+  const [excludedFromUpdates, setExcludedFromUpdates] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -39,6 +41,7 @@ export function ChannelDetailsEditor({ run, onSaved }: {
       setFee(run.appearance_fee == null ? "" : groupedDigits(String(run.appearance_fee)));
       setRsPercent(run.rs_percent == null ? "" : String(run.rs_percent));
       setMemo(run.memo ?? "");
+      setExcludedFromUpdates(run.excluded_from_updates);
       setError("");
     }
   }
@@ -80,7 +83,7 @@ export function ChannelDetailsEditor({ run, onSaved }: {
       const response = await fetch("/api/youtube-channels", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelId: run.channel_id, category: category || null, appearanceFee, rsPercent: revenueShare, memo, ...(emailChanged ? { email: email.trim() } : {}) }),
+        body: JSON.stringify({ channelId: run.channel_id, category: category || null, appearanceFee, rsPercent: revenueShare, memo, excludedFromUpdates, ...(emailChanged ? { email: email.trim() } : {}) }),
       });
       const result = await response.json() as ChannelDetails & { error?: string };
       if (!response.ok) throw new Error(result.error ?? "채널 정보를 저장하지 못했습니다.");
@@ -90,6 +93,7 @@ export function ChannelDetailsEditor({ run, onSaved }: {
         appearance_fee: result.appearance_fee,
         rs_percent: result.rs_percent,
         memo: result.memo,
+        excluded_from_updates: result.excluded_from_updates,
       });
       setOpen(false);
     } catch (caught) {
@@ -104,7 +108,7 @@ export function ChannelDetailsEditor({ run, onSaved }: {
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
         <DialogTitle>{run.channel.name} 채널 정보</DialogTitle>
-        <DialogDescription>이메일 주소, 분류, 출연료와 RS 비율을 저장합니다.</DialogDescription>
+        <DialogDescription>채널 정보와 이후 업데이트 포함 여부를 저장합니다.</DialogDescription>
       </DialogHeader>
       <form onSubmit={(event) => void save(event)} className="space-y-4">
         <div className="space-y-2">
@@ -130,6 +134,10 @@ export function ChannelDetailsEditor({ run, onSaved }: {
           <div className="flex items-center justify-between gap-3"><Label htmlFor={`${id}-memo`}>메모</Label><span className="text-xs text-muted-foreground">{memo.length} / 2,000</span></div>
           <Textarea id={`${id}-memo`} value={memo} onChange={(event) => setMemo(event.target.value)} maxLength={2000} rows={6} placeholder="채널 관련 메모를 입력하세요." disabled={saving} />
         </div>
+        <label htmlFor={`${id}-excluded`} className="flex cursor-pointer items-start gap-3 rounded-lg border bg-muted/30 p-3">
+          <Checkbox id={`${id}-excluded`} checked={excludedFromUpdates} onCheckedChange={(checked) => setExcludedFromUpdates(checked === true)} disabled={saving} className="mt-0.5" />
+          <span><span className="block text-sm font-medium">의미 없는 채널로 설정</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">체크하면 전체 재분석과 평균 갱신 대상에서 제외되며, 채널 명단에 회색으로 표시됩니다.</span></span>
+        </label>
         {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
         <DialogFooter>
           <DialogClose asChild><Button type="button" variant="outline" disabled={saving}>취소</Button></DialogClose>

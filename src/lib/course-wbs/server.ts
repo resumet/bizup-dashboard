@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_WBS_TEMPLATE } from "./default-template";
+import { buildWbsDashboard, type WbsDashboardEntry } from "./dashboard";
 import { peopleInItems, selectablePeople, hasNewInactiveAssignment } from "./people";
 import { loadWorkspacePeople } from "@/lib/work-tasks/server";
 import { syncWebinarItem, webinarDateFromTimestamp, WEBINAR_ITEM_ID } from "./webinar-date";
@@ -98,9 +99,10 @@ async function loadWbsPeople(workspaceId: string): Promise<string[]> {
   }
 }
 
-async function loadWbsSummaries(workspaceId: string): Promise<WbsSummary[]> {
+async function loadWbsOverview(workspaceId: string): Promise<{ summaries: WbsSummary[]; entries: WbsDashboardEntry[] }> {
   const admin = createAdminClient();
   const summaries: WbsSummary[] = [];
+  const entries: WbsDashboardEntry[] = [];
   for (let offset = 0; ; offset += PEOPLE_PAGE_SIZE) {
     const { data, error } = await admin
       .from("course_wbs")
@@ -112,6 +114,7 @@ async function loadWbsSummaries(workspaceId: string): Promise<WbsSummary[]> {
     if (error) throw databaseError("WBS 목록 조회", error.code);
     for (const row of data ?? []) {
       const items = parseWbsItems(row.items);
+      entries.push({ courseId: row.course_id, items });
       summaries.push({
         courseId: row.course_id,
         itemCount: items.length,
@@ -119,7 +122,7 @@ async function loadWbsSummaries(workspaceId: string): Promise<WbsSummary[]> {
         updatedAt: row.updated_at,
       });
     }
-    if (!data || data.length < PEOPLE_PAGE_SIZE) return summaries;
+    if (!data || data.length < PEOPLE_PAGE_SIZE) return { summaries, entries };
   }
 }
 
@@ -269,7 +272,7 @@ export async function loadCourseWbsBootstrap(
   workspaceId: string,
 ): Promise<CourseWbsBootstrap> {
   const admin = createAdminClient();
-  const [coursesResult, activeTemplateRow, savedPeople, employeeNames, wbsSummaries, inactivePeople] = await Promise.all([
+  const [coursesResult, activeTemplateRow, savedPeople, employeeNames, wbsOverview, inactivePeople] = await Promise.all([
     admin
       .from("courses")
       .select("id,name,cohort,instructor_name,free_webinar_at")
@@ -278,7 +281,7 @@ export async function loadCourseWbsBootstrap(
     loadActiveTemplateRow(workspaceId),
     loadWbsPeople(workspaceId),
     loadWbsEmployeeNames(workspaceId),
-    loadWbsSummaries(workspaceId),
+    loadWbsOverview(workspaceId),
     loadInactivePeople(workspaceId),
   ]);
   if (coursesResult.error) {
@@ -294,7 +297,8 @@ export async function loadCourseWbsBootstrap(
   const template = activeTemplateRow ? toTemplate(activeTemplateRow) : builtInTemplate();
   return {
     courses,
-    wbsSummaries,
+    wbsSummaries: wbsOverview.summaries,
+    dashboard: buildWbsDashboard(wbsOverview.entries, courses),
     template,
     people: selectablePeople([...savedPeople, ...peopleInItems(template.items)], inactivePeople)
       .sort((a, b) => a.localeCompare(b, "ko")),

@@ -54,7 +54,7 @@ export const CHANNEL_CATEGORIES = [
   "하이클래스",
 ] as const;
 export type ChannelCategory = (typeof CHANNEL_CATEGORIES)[number];
-export type Analysis = { position: number; channel_id: string; channel: Channel; email: string | null; category: ChannelCategory | null; appearance_fee: number | null; rs_percent: number | null; memo: string | null; metrics: Metrics; warnings: string[]; first_analyzed_at: string; last_analyzed_at: string };
+export type Analysis = { position: number; channel_id: string; channel: Channel; email: string | null; category: ChannelCategory | null; appearance_fee: number | null; rs_percent: number | null; memo: string | null; excluded_from_updates: boolean; metrics: Metrics; warnings: string[]; first_analyzed_at: string; last_analyzed_at: string };
 export function normalizeChannelCategory(value: unknown): ChannelCategory | null {
   if (value === null || value === "") return null;
   if (typeof value !== "string" || !CHANNEL_CATEGORIES.includes(value as ChannelCategory)) throw new Error("INVALID_CATEGORY");
@@ -88,6 +88,10 @@ export function normalizeChannelMemo(value: unknown): string | null {
   if (value === null) return null;
   if (typeof value !== "string" || value.length > 2000) throw new Error("INVALID_MEMO");
   return value.trim() ? value : null;
+}
+export function normalizeExcludedFromUpdates(value: unknown): boolean {
+  if (typeof value !== "boolean") throw new Error("INVALID_EXCLUDED_FROM_UPDATES");
+  return value;
 }
 export type AnalysisRequest = { id: string; input_url: string; status: string; error_code: string | null; resolved_channel_id: string | null };
 export type Batch = { id: string; status: string; input_count: number; unique_channel_count: number; created_at: string; completed_at: string | null };

@@ -107,6 +107,7 @@ export async function POST(request: Request) {
     let query = admin.from("youtube_analyzed_channels")
       .select("position,channel_id,metrics,last_analysis_started_at,last_analyzed_at")
       .eq("workspace_id", workspaceId)
+      .eq("excluded_from_updates", false)
       .order("position", { ascending: true })
       .limit(PAGE_SIZE + 1);
     if (typeof cursor === "string") query = query.gt("position", cursor);
