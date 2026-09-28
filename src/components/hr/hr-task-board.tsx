@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowRightLeft, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronUp, Clock3, EllipsisVertical, History, Inbox, LayoutGrid, List, Loader2, Pencil, Plus, RotateCcw, Trash2, UsersRound } from "lucide-react";
+import { ArrowRightLeft, Check, CheckCircle2, ChevronDown, ChevronUp, Clock3, EllipsisVertical, FileText, History, Inbox, LayoutGrid, List, Loader2, Pencil, Plus, RotateCcw, Save, Search, Trash2, UsersRound } from "lucide-react";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +17,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { isCarriedTask, taskAppearsOnWorkday } from "@/lib/work-tasks/dates";
-import type { WorkTask, WorkTaskEvent, WorkTaskPerson } from "@/lib/work-tasks/types";
+import { normalizeWorkSearch, workReportMatches, workTaskMatches } from "@/lib/work-tasks/search";
+import type { WorkDailyReport, WorkTask, WorkTaskEvent, WorkTaskPerson } from "@/lib/work-tasks/types";
 
 type Review = { checked_out_at: string; incomplete_count: number } | null;
 type CompletionFilter = "all" | "open" | "done";
@@ -47,6 +48,7 @@ export function HrTaskBoard({
   isSuperAdmin,
   today,
   initialReview,
+  initialReports,
 }: {
   initialTasks: WorkTask[];
   people: WorkTaskPerson[];
@@ -54,6 +56,7 @@ export function HrTaskBoard({
   isSuperAdmin: boolean;
   today: string;
   initialReview: Review;
+  initialReports: WorkDailyReport[];
 }) {
   const [tasks, setTasks] = useState(initialTasks);
   const [title, setTitle] = useState("");
@@ -77,6 +80,12 @@ export function HrTaskBoard({
   const [events, setEvents] = useState<Record<string, WorkTaskEvent[]>>({});
   const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [completionFilter, setCompletionFilter] = useState<CompletionFilter>("all");
+  const [viewMode, setViewMode] = useState("cards");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [reports, setReports] = useState(initialReports);
+  const [reportDraft, setReportDraft] = useState(() => initialReports.find((report) => report.user_id === userId)?.content ?? "");
+  const [reportError, setReportError] = useState("");
+  const [reportNotice, setReportNotice] = useState("");
 
   const peopleById = useMemo(() => new Map(people.map((person) => [person.id, person])), [people]);
   const visibleTasks = tasks.filter((task) => taskAppearsOnWorkday(task, today));
@@ -84,10 +93,16 @@ export function HrTaskBoard({
   const carriedCount = openTasks.filter((task) => isCarriedTask(task, today)).length;
   const completedCount = visibleTasks.filter((task) => task.status === "done").length;
   const myOpenCount = openTasks.filter((task) => task.assignee_id === userId).length;
+  const normalizedSearch = normalizeWorkSearch(searchQuery);
+  const taskMatchesSearch = (task: WorkTask) => {
+    const personName = peopleById.get(task.assignee_id)?.name ?? "";
+    return workTaskMatches(task, personName, normalizedSearch);
+  };
   const filteredListTasks = visibleTasks.filter((task) =>
     (assigneeFilter === "all" || task.assignee_id === assigneeFilter)
     && (completionFilter === "all" || task.status === completionFilter),
-  );
+  ).filter(taskMatchesSearch);
+  const reportsByUser = useMemo(() => new Map(reports.map((report) => [report.user_id, report])), [reports]);
   const transferTask = transferTaskId ? tasks.find((task) => task.id === transferTaskId) ?? null : null;
   const activeTransferTargets = transferTask
     ? people.filter((person) => person.active && person.id !== transferTask.assignee_id)
@@ -248,6 +263,27 @@ export function HrTaskBoard({
     }
   }
 
+  async function saveReport() {
+    if (busy === "report" || reportDraft.length > 10000) return;
+    setBusy("report");
+    setReportError("");
+    setReportNotice("");
+    try {
+      const report = await readJson<WorkDailyReport>(await fetch("/api/hr/reports", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: reportDraft }),
+      }));
+      setReports((current) => [...current.filter((item) => item.user_id !== userId), report]);
+      setReportDraft(report.content);
+      setReportNotice("오늘 업무보고를 저장했습니다.");
+    } catch (reason) {
+      setReportError(reason instanceof Error ? reason.message : "업무보고를 저장하지 못했습니다.");
+    } finally {
+      setBusy("");
+    }
+  }
+
   function historyText(event: WorkTaskEvent) {
     if (event.event_type !== "transferred") return EVENT_LABELS[event.event_type];
     const from = peopleById.get(event.from_assignee_id ?? "")?.name ?? "이전 담당자";
@@ -280,7 +316,9 @@ export function HrTaskBoard({
 
   function renderTask(task: WorkTask) {
     const canChange = isSuperAdmin || task.assignee_id === userId;
-    return <div key={task.id} className={`rounded-xl border bg-background p-3 ${task.status === "done" ? "opacity-65" : ""}`}>
+    const carried = task.planned_date < today;
+    const color = carried ? "border-red-200 bg-red-50/70 dark:border-red-900 dark:bg-red-950/20" : "border-blue-200 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/20";
+    return <div key={task.id} className={`rounded-xl border p-3 ${color} ${task.status === "done" ? "opacity-65" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-start gap-2.5">
           <Checkbox
@@ -291,9 +329,9 @@ export function HrTaskBoard({
             aria-label={`${task.title} ${task.status === "done" ? "완료 취소" : "완료"}`}
           />
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-1.5"><strong className={`break-words text-sm ${task.status === "done" ? "line-through" : ""}`}>{task.title}</strong>{isCarriedTask(task, today) ? <Badge variant="secondary">이월</Badge> : null}{task.status === "done" ? <Badge className="bg-emerald-600">완료</Badge> : null}</div>
+            <div className="flex flex-wrap items-center gap-1.5"><strong className={`break-words text-sm ${task.status === "done" ? "line-through" : ""}`}>{task.title}</strong><Badge className={carried ? "bg-red-600 text-white hover:bg-red-600" : "bg-blue-600 text-white hover:bg-blue-600"}>{carried ? "이월" : "오늘"}</Badge>{task.status === "done" ? <Badge className="bg-emerald-600">완료</Badge> : null}</div>
             {task.description ? <p className="mt-1.5 break-words text-xs leading-5 text-muted-foreground">{task.description}</p> : null}
-            {task.planned_date < today ? <p className="mt-1.5 text-[11px] text-amber-700">{task.planned_date}에서 이월</p> : null}
+            {carried ? <p className="mt-1.5 text-[11px] text-red-700 dark:text-red-300">{task.planned_date}에서 이월</p> : null}
           </div>
         </div>
         {renderTaskMenu(task)}
@@ -317,6 +355,11 @@ export function HrTaskBoard({
     {error && !createOpen ? <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
     {review ? <p className="rounded-xl bg-sky-50 p-3 text-sm text-sky-900">퇴근 확인 완료 · 내 미완료 업무 {review.incomplete_count}건은 다음 업무일에 자동 표시됩니다.</p> : null}
 
+    <div className="relative max-w-2xl">
+      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} className="bg-background pl-9" placeholder={viewMode === "list" ? "업무 제목·설명·담당자 검색" : "업무와 오늘 업무보고 검색"} aria-label="팀 업무 검색" />
+    </div>
+
     <section aria-label="오늘 업무 요약" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <Card><CardContent className="flex items-center justify-between p-5"><div><p className="text-sm text-muted-foreground">전체 직원</p><p className="mt-1 text-2xl font-semibold tabular-nums">{people.length}명</p></div><span className="rounded-xl bg-slate-100 p-3 text-slate-700"><UsersRound className="size-5" /></span></CardContent></Card>
       <Card><CardContent className="flex items-center justify-between p-5"><div><p className="text-sm text-muted-foreground">진행 중 업무</p><p className="mt-1 text-2xl font-semibold tabular-nums">{openTasks.length}건</p></div><span className="rounded-xl bg-blue-50 p-3 text-blue-700"><Clock3 className="size-5" /></span></CardContent></Card>
@@ -324,7 +367,7 @@ export function HrTaskBoard({
       <Card><CardContent className="flex items-center justify-between p-5"><div><p className="text-sm text-muted-foreground">오늘 완료</p><p className="mt-1 text-2xl font-semibold tabular-nums">{completedCount}건</p></div><span className="rounded-xl bg-emerald-50 p-3 text-emerald-700"><CheckCircle2 className="size-5" /></span></CardContent></Card>
     </section>
 
-    <Tabs defaultValue="cards" className="gap-4">
+    <Tabs value={viewMode} onValueChange={setViewMode} className="gap-4">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div><h2 className="text-xl font-semibold">직원별 업무</h2><p className="mt-1 text-sm text-muted-foreground">내 미완료 업무 {myOpenCount}건</p></div>
         <TabsList aria-label="업무 보기 방식">
@@ -336,18 +379,21 @@ export function HrTaskBoard({
       <TabsContent value="cards">
         <section aria-label="직원별 업무 카드 현황" className="grid items-start gap-4 lg:grid-cols-2 2xl:grid-cols-3">
           {people.map((person) => {
-            const employeeTasks = visibleTasks.filter((task) => task.assignee_id === person.id);
-            const todayTasks = employeeTasks.filter((task) => task.planned_date === today);
-            const carriedTasks = employeeTasks.filter((task) => task.planned_date < today);
-            const employeeOpen = employeeTasks.filter((task) => task.status === "open").length;
-            const employeeDone = employeeTasks.length - employeeOpen;
+            const allEmployeeTasks = visibleTasks.filter((task) => task.assignee_id === person.id);
+            const report = reportsByUser.get(person.id);
+            const personMatches = Boolean(normalizedSearch && person.name.toLocaleLowerCase("ko").includes(normalizedSearch));
+            const reportMatches = workReportMatches(report, person.name, normalizedSearch);
+            const employeeTasks = normalizedSearch && !personMatches ? allEmployeeTasks.filter(taskMatchesSearch) : allEmployeeTasks;
+            const showReport = !normalizedSearch || personMatches || reportMatches;
+            if (normalizedSearch && !personMatches && !employeeTasks.length && !reportMatches) return null;
+            const employeeOpen = allEmployeeTasks.filter((task) => task.status === "open").length;
+            const employeeDone = allEmployeeTasks.length - employeeOpen;
             const isCurrentUser = person.id === userId;
             const isExpanded = expandedPeople.has(person.id);
             const visibleLimit = isExpanded ? employeeTasks.length : 5;
-            const shownTodayTasks = todayTasks.slice(0, visibleLimit);
-            const shownCarriedTasks = carriedTasks.slice(0, Math.max(0, visibleLimit - shownTodayTasks.length));
+            const shownTasks = employeeTasks.slice(0, visibleLimit);
             const hasMore = employeeTasks.length > 5;
-            const hiddenCount = employeeTasks.length - shownTodayTasks.length - shownCarriedTasks.length;
+            const hiddenCount = employeeTasks.length - shownTasks.length;
             return <Card key={person.id} className={`overflow-hidden ${isCurrentUser ? "border-4 border-yellow-400" : ""}`}>
               <CardHeader className="border-b bg-muted/30 px-4 py-4">
                 <div className="flex items-center justify-between gap-3">
@@ -358,20 +404,28 @@ export function HrTaskBoard({
                   <div className="flex shrink-0 gap-1.5"><Badge variant={employeeOpen ? "default" : "secondary"}>진행 {employeeOpen}</Badge><Badge variant="outline">완료 {employeeDone}</Badge></div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-5 p-3">
+              <CardContent className="space-y-4 p-3">
                 <section className="space-y-2.5">
-                  <div className="flex items-center justify-between px-1"><h3 className="flex items-center gap-2 text-base font-semibold"><CalendarDays className="size-5 text-blue-700" />오늘 업무</h3><Badge variant="outline">{todayTasks.length}</Badge></div>
-                  {todayTasks.length ? <div className="space-y-2.5">{shownTodayTasks.map(renderTask)}</div> : <div className="grid min-h-20 place-items-center rounded-xl border border-dashed text-muted-foreground"><Inbox className="size-5" aria-hidden="true" /><span className="sr-only">오늘 업무가 없습니다.</span></div>}
-                </section>
-                <section className="space-y-2.5 border-t pt-4">
-                  <div className="flex items-center justify-between px-1"><h3 className="flex items-center gap-2 text-base font-semibold"><RotateCcw className="size-5 text-amber-700" />어제 못해서 넘어온 업무</h3><Badge variant="outline">{carriedTasks.length}</Badge></div>
-                  {shownCarriedTasks.length ? <div className="space-y-2.5">{shownCarriedTasks.map(renderTask)}</div> : !carriedTasks.length ? <div className="grid min-h-14 place-items-center text-muted-foreground"><CheckCircle2 className="size-5" aria-hidden="true" /><span className="sr-only">이월 업무가 없습니다.</span></div> : null}
+                  <div className="flex items-center justify-between px-1"><h3 className="flex items-center gap-2 text-base font-semibold"><List className="size-5 text-slate-700" />업무</h3><Badge variant="outline">{employeeTasks.length}</Badge></div>
+                  {shownTasks.length ? <div className="space-y-2.5">{shownTasks.map(renderTask)}</div> : <div className="grid min-h-20 place-items-center rounded-xl border border-dashed text-muted-foreground"><Inbox className="size-5" aria-hidden="true" /><span className="sr-only">표시할 업무가 없습니다.</span></div>}
                 </section>
                 {hasMore ? <Button type="button" variant="outline" className="w-full" aria-expanded={isExpanded} onClick={() => togglePersonTasks(person.id)}>{isExpanded ? <ChevronUp /> : <ChevronDown />}{isExpanded ? "접기" : `${hiddenCount}개 더보기`}</Button> : null}
+                {showReport ? <section className="space-y-2.5 border-t pt-4" aria-label={`${person.name} 오늘 업무보고`}>
+                  <div className="flex items-center justify-between px-1"><h3 className="flex items-center gap-2 text-base font-semibold"><FileText className="size-5 text-violet-700" />오늘 업무보고</h3>{report?.updated_at ? <span className="text-[11px] text-muted-foreground">{new Date(report.updated_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} 저장</span> : null}</div>
+                  {isCurrentUser ? <div className="space-y-2">
+                    <Textarea value={reportDraft} onChange={(event) => { setReportDraft(event.target.value); setReportError(""); setReportNotice(""); }} maxLength={10000} rows={5} placeholder="오늘 진행한 업무, 결과, 공유할 내용을 작성하세요." className="bg-background" />
+                    <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs text-muted-foreground">{reportDraft.length.toLocaleString("ko-KR")} / 10,000</span><Button size="sm" onClick={() => void saveReport()} disabled={busy === "report" || reportDraft.trim() === (report?.content ?? "")} >{busy === "report" ? <Loader2 className="animate-spin" /> : <Save />}업무보고 저장</Button></div>
+                    {reportError ? <p role="alert" className="text-xs text-destructive">{reportError}</p> : null}{reportNotice ? <p role="status" className="text-xs text-emerald-700">{reportNotice}</p> : null}
+                  </div> : report?.content ? <p className="whitespace-pre-wrap break-words rounded-lg border bg-background p-3 text-sm leading-6">{report.content}</p> : <p className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">아직 작성한 업무보고가 없습니다.</p>}
+                </section> : null}
               </CardContent>
             </Card>;
           })}
         </section>
+        {normalizedSearch && !people.some((person) => {
+          const personMatches = person.name.toLocaleLowerCase("ko").includes(normalizedSearch);
+          return personMatches || visibleTasks.some((task) => task.assignee_id === person.id && taskMatchesSearch(task)) || workReportMatches(reportsByUser.get(person.id), person.name, normalizedSearch);
+        }) ? <div className="rounded-xl border border-dashed py-12 text-center text-sm text-muted-foreground">업무 또는 업무보고에서 검색 결과를 찾지 못했습니다.</div> : null}
       </TabsContent>
 
       <TabsContent value="list" className="space-y-4">
@@ -402,10 +456,11 @@ export function HrTaskBoard({
                   const person = peopleById.get(task.assignee_id);
                   const canChange = isSuperAdmin || task.assignee_id === userId;
                   const isCurrentUserTask = task.assignee_id === userId;
-                  return <TableRow key={task.id} className={isCurrentUserTask ? "bg-sky-50/60 hover:bg-sky-50" : ""}>
+                  const carried = task.planned_date < today;
+                  return <TableRow key={task.id} className={carried ? "bg-red-50/60 hover:bg-red-50 dark:bg-red-950/15" : "bg-blue-50/60 hover:bg-blue-50 dark:bg-blue-950/15"}>
                     <TableCell className="whitespace-normal pl-4">
                       <div className="flex min-w-0 items-center justify-between gap-3">
-                        <div className="min-w-0"><strong className={`break-words ${task.status === "done" ? "text-muted-foreground line-through" : ""}`}>{task.title}</strong>{isCarriedTask(task, today) ? <Badge variant="secondary" className="ml-2">이월</Badge> : null}</div>
+                        <div className="min-w-0"><strong className={`break-words ${task.status === "done" ? "text-muted-foreground line-through" : ""}`}>{task.title}</strong><Badge className={`ml-2 ${carried ? "bg-red-600 hover:bg-red-600" : "bg-blue-600 hover:bg-blue-600"}`}>{carried ? "이월" : "오늘"}</Badge>{isCurrentUserTask ? <span className="ml-2 text-xs text-blue-700">내 업무</span> : null}</div>
                         {renderTaskMenu(task)}
                       </div>
                     </TableCell>
