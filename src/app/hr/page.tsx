@@ -20,7 +20,7 @@ export default async function Page() {
   ]);
   if (taskResult.error) throw taskResult.error;
   return <HrTaskBoard
-    initialTasks={(taskResult.data ?? []) as WorkTask[]}
+    initialTasks={(taskResult.data ?? []).filter(task => people.some(person => person.id === task.assignee_id)) as WorkTask[]}
     people={people}
     userId={user.id}
     isSuperAdmin={isSuperAdmin}

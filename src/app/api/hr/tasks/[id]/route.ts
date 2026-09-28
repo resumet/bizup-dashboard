@@ -105,7 +105,7 @@ export async function PATCH(
       if (!member) return Response.json({ message: "담당자를 찾을 수 없습니다." }, { status: 400 });
       const { data: targetResult, error: targetError } = await admin.auth.admin.getUserById(assigneeId);
       const target = targetResult.user;
-      const isBanned = target?.banned_until && new Date(target.banned_until).getTime() > Date.now();
+      const isBanned = target?.app_metadata?.account_disabled === true || (target?.banned_until && new Date(target.banned_until).getTime() > Date.now());
       if (targetError || !target?.email_confirmed_at || isBanned) {
         return Response.json({ message: "활성화된 사용자만 담당자로 선택할 수 있습니다." }, { status: 400 });
       }

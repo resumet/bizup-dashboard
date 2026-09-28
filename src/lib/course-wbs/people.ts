@@ -14,3 +14,22 @@ export function peopleInItems(items: unknown): string[] {
   }
   return [...names];
 }
+
+export function selectablePeople(people: string[], inactive: string[]) {
+  return [...new Set(people.map(name => name.trim()).filter(name => name && !includesInactivePerson(name, inactive)))];
+}
+
+export function includesInactivePerson(value: string, inactive: string[]) {
+  const blocked = new Set(inactive.map(name => name.trim()));
+  return blocked.has(value.trim()) || value.split(/[,;/·\n]+/u).some(name => blocked.has(name.trim()));
+}
+
+export function hasNewInactiveAssignment(
+  items: { id: string; owner: string; stakeholders: string }[],
+  previous: { id: string; owner: string; stakeholders: string }[],
+  inactive: string[],
+) {
+  const old = new Map(previous.map(item => [item.id, item]));
+  return items.some(item => (["owner", "stakeholders"] as const).some(field =>
+    includesInactivePerson(item[field], inactive) && item[field].trim() !== old.get(item.id)?.[field].trim()));
+}

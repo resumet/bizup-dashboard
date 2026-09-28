@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toKoreaDate, toKoreaTime } from "@/lib/course-operations/schedule";
 import { reorderWbsItems } from "@/lib/course-wbs/reorder";
+import { selectablePeople } from "@/lib/course-wbs/people";
 import { datesForStartOffset, dueDateForOffset, dueDateForStartDate, WBS_DUE_OFFSETS, WBS_START_OFFSETS } from "@/lib/course-wbs/schedule-options";
 import { reusableItems } from "@/lib/course-wbs/template-items";
 import type { CourseWbs, CourseWbsBootstrap, WbsCourse, WbsItem, WbsSummary, WbsTemplate } from "@/lib/course-wbs/types";
@@ -129,6 +130,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
   const [newCourseId, setNewCourseId] = useState("");
   const [people, setPeople] = useState<string[]>([]);
   const [employeeNames, setEmployeeNames] = useState<string[]>([]);
+  const [inactivePeople, setInactivePeople] = useState<string[]>([]);
   const [template, setTemplate] = useState<WbsTemplate | null>(null);
   const [courseId, setCourseId] = useState("");
   const [items, setItems] = useState<WbsItem[]>([]);
@@ -189,6 +191,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
         setWbsSummaries(body.wbsSummaries);
         setPeople(body.people);
         setEmployeeNames(body.employeeNames);
+        setInactivePeople(body.inactivePeople ?? []);
         setTemplate(body.template);
         const requestedCourse = body.courses.find((course) => course.id === initialCourseId);
         if (requestedCourse) {
@@ -231,8 +234,9 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
     return !item.completed && Boolean(scheduled) && scheduled <= today;
   });
   const sortedItems = useMemo(() => ordered(items), [items]);
-  const ownerPeople = useMemo(() => [...new Set([...employeeNames, ...people])]
-    .sort((a, b) => a.localeCompare(b, "ko")), [employeeNames, people]);
+  const ownerPeople = useMemo(() => selectablePeople([...employeeNames, ...people], inactivePeople)
+    .sort((a, b) => a.localeCompare(b, "ko")), [employeeNames, people, inactivePeople]);
+  const stakeholderPeople = useMemo(() => selectablePeople(people, inactivePeople), [people, inactivePeople]);
   const savedWbsCards = useMemo(() => {
     const coursesById = new Map(courses.map((entry) => [entry.id, entry]));
     return wbsSummaries
@@ -363,6 +367,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
       setTemplate(body.template);
       setPeople(body.people);
       setEmployeeNames(body.employeeNames);
+      setInactivePeople(body.inactivePeople ?? []);
       setConflictTarget(null);
       setError("");
       setNotice("최신 템플릿을 불러왔습니다. 현재 강의의 편집 내용은 유지했습니다.");
@@ -617,7 +622,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
                       </div>
                     </td>
                     <td className="px-3 py-3"><PeoplePicker value={item.owner} people={ownerPeople} disabled={saving} label={`${index + 1}번째 담당자`} onChange={(value) => editItem(item.id, { owner: value })} /></td>
-                    <td className="px-3 py-3"><PeoplePicker value={item.stakeholders} people={people} disabled={saving} label={`${index + 1}번째 관계자`} onChange={(value) => editItem(item.id, { stakeholders: value })} /></td>
+                    <td className="px-3 py-3"><PeoplePicker value={item.stakeholders} people={stakeholderPeople} disabled={saving} label={`${index + 1}번째 관계자`} onChange={(value) => editItem(item.id, { stakeholders: value })} /></td>
                     <td className="px-3 py-3">
                       {item.id === WEBINAR_ITEM_ID ? (
                         <select value="webinar" disabled aria-label="무료웨비나 시작일 기준" className="mb-2 h-9 w-full rounded-lg border border-input bg-background px-2 text-xs"><option value="webinar">무료웨비나 당일</option></select>

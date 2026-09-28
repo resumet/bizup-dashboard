@@ -41,6 +41,8 @@ export async function assertWorkspaceMember(
     .maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("해당 직원을 찾을 수 없습니다.");
+  const people = await loadWorkspacePeople(workspaceId);
+  if (!people.some(person => person.id === userId)) throw new Error("활성화된 직원만 선택할 수 있습니다.");
 }
 
 export async function loadLeaveBalance(
@@ -132,7 +134,7 @@ export async function loadHrLeaveDashboard(
         remaining: balance.remaining,
       };
     }),
-    requests: normalizedRequests,
-    supportRecords: normalizedSupports,
+    requests: normalizedRequests.filter(row => visiblePeople.some(person => person.id === row.user_id)),
+    supportRecords: normalizedSupports.filter(row => visiblePeople.some(person => person.id === row.user_id)),
   };
 }

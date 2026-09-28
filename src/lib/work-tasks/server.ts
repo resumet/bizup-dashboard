@@ -9,6 +9,7 @@ import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { WorkTaskPerson } from "./types";
+import { isAccountDisabled } from "@/lib/admin/account-status";
 
 export async function requireWorkTaskContext() {
   const supabase = await createClient();
@@ -30,7 +31,7 @@ export async function requireWorkTaskContext() {
   };
 }
 
-export async function loadWorkspacePeople(workspaceId: string) {
+export async function loadWorkspacePeople(workspaceId: string, includeInactive = false) {
   const admin = createAdminClient();
   const { data: memberships, error } = await admin
     .from("workspace_members")
@@ -56,16 +57,16 @@ export async function loadWorkspacePeople(workspaceId: string) {
     createdAt: account.created_at,
     metadata: account.user_metadata as Record<string, unknown>,
   })));
-  const now = Date.now();
   const personnel = await admin.rpc("personnel_directory", { p_workspace_id: workspaceId });
   if (personnel.error) throw new Error("직원 재직 상태를 확인하지 못했습니다.");
   const profiles = new Map<string, { name: string; active: boolean }>((personnel.data ?? []).map((row: { user_id: string; name: string; active: boolean }) => [row.user_id, row]));
-  const people: WorkTaskPerson[] = accounts.map((account) => ({
+  const people: (WorkTaskPerson & { accountNames: string[] })[] = accounts.map((account) => ({
     id: account.id,
     name: profiles.get(account.id)?.name ?? displayNames.get(account.id) ?? "사용자",
-    active: profiles.get(account.id)?.active !== false && Boolean(account.email_confirmed_at) && (!account.banned_until || new Date(account.banned_until).getTime() <= now),
+    accountNames: [profiles.get(account.id)?.name, displayNames.get(account.id)].filter((name): name is string => !!name),
+    active: profiles.get(account.id)?.active !== false && Boolean(account.email_confirmed_at) && !isAccountDisabled(account),
   }));
-  return people.sort((left, right) => left.name.localeCompare(right.name, "ko"));
+  return people.filter(person => includeInactive || person.active).sort((left, right) => left.name.localeCompare(right.name, "ko"));
 }
 
 export function koreaDate() {

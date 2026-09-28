@@ -5,7 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_WBS_TEMPLATE } from "./default-template";
-import { peopleInItems } from "./people";
+import { peopleInItems, selectablePeople, hasNewInactiveAssignment } from "./people";
+import { loadWorkspacePeople } from "@/lib/work-tasks/server";
 import { syncWebinarItem, webinarDateFromTimestamp, WEBINAR_ITEM_ID } from "./webinar-date";
 import type {
   CourseWbs,
@@ -25,6 +26,17 @@ import {
 const WBS_COLUMNS = "course_id,items,updated_at";
 const TEMPLATE_COLUMNS = "id,name,items,updated_at";
 const PEOPLE_PAGE_SIZE = 1000;
+
+async function loadInactivePeople(workspaceId: string) {
+  const people = await loadWorkspacePeople(workspaceId, true);
+  return [...new Set(people.filter(person => !person.active).flatMap(person => person.accountNames))];
+}
+
+async function assertAssignablePeople(workspaceId: string, items: WbsItem[], previous: WbsItem[]) {
+  if (hasNewInactiveAssignment(items, previous, await loadInactivePeople(workspaceId))) {
+    throw new WbsInputError("비활성화된 사용자는 새 업무 담당자 또는 관계자로 지정할 수 없습니다.");
+  }
+}
 
 type WbsRow = {
   course_id: string;
@@ -257,7 +269,7 @@ export async function loadCourseWbsBootstrap(
   workspaceId: string,
 ): Promise<CourseWbsBootstrap> {
   const admin = createAdminClient();
-  const [coursesResult, activeTemplateRow, savedPeople, employeeNames, wbsSummaries] = await Promise.all([
+  const [coursesResult, activeTemplateRow, savedPeople, employeeNames, wbsSummaries, inactivePeople] = await Promise.all([
     admin
       .from("courses")
       .select("id,name,cohort,instructor_name,free_webinar_at")
@@ -267,6 +279,7 @@ export async function loadCourseWbsBootstrap(
     loadWbsPeople(workspaceId),
     loadWbsEmployeeNames(workspaceId),
     loadWbsSummaries(workspaceId),
+    loadInactivePeople(workspaceId),
   ]);
   if (coursesResult.error) {
     throw databaseError("강의 목록 조회", coursesResult.error.code);
@@ -283,9 +296,10 @@ export async function loadCourseWbsBootstrap(
     courses,
     wbsSummaries,
     template,
-    people: [...new Set([...savedPeople, ...peopleInItems(template.items)])]
+    people: selectablePeople([...savedPeople, ...peopleInItems(template.items)], inactivePeople)
       .sort((a, b) => a.localeCompare(b, "ko")),
-    employeeNames,
+    employeeNames: selectablePeople(employeeNames, inactivePeople),
+    inactivePeople,
   };
 }
 
@@ -313,6 +327,8 @@ export async function saveCourseWbs(
 ): Promise<{ wbs: CourseWbs; webinarAt: string | null }> {
   const webinarAt = await assertCourse(workspaceId, courseId);
   const normalizedItems = parseWbsItems(syncWebinarItem(items, webinarDateFromTimestamp(webinarAt)));
+  const previous = expectedUpdatedAt === null ? null : (await loadCourseWbs(workspaceId, courseId)).wbs;
+  await assertAssignablePeople(workspaceId, normalizedItems, previous?.items ?? []);
   await saveWbsPeople(workspaceId, normalizedItems);
   const admin = createAdminClient();
   if (expectedUpdatedAt === null) {
@@ -358,6 +374,7 @@ export async function updateWbsTemplate(
   const anchor = input.items.find((item) => item.id === WEBINAR_ITEM_ID || item.title.replace(/\s+/gu, "") === "무료웨비나");
   const normalizedItems = parseWbsItems(syncWebinarItem(input.items, anchor?.dueDate || anchor?.startDate || ""));
   const activeTemplateRow = await loadActiveTemplateRow(workspaceId);
+  await assertAssignablePeople(workspaceId, normalizedItems, activeTemplateRow ? parseWbsItems(activeTemplateRow.items) : []);
   if (
     activeTemplateRow
       ? activeTemplateRow.id !== templateId || activeTemplateRow.updated_at !== input.expectedUpdatedAt

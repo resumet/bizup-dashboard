@@ -5,6 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import { getAccountRole, type AccountRole } from "@/lib/admin/access";
 import { resolveUserDisplayNames } from "@/lib/admin/user-names";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isAccountDisabled } from "./account-status";
 
 type MembershipRow = {
   created_at: string;
@@ -19,6 +20,7 @@ type WorkspaceRow = {
 };
 
 export type AdminUserRow = {
+  active: boolean;
   accessRole: AccountRole;
   createdAt: string;
   email: string;
@@ -112,6 +114,7 @@ export async function loadAdminUsers(): Promise<AdminUserRow[]> {
     const memberships = membershipsByUser.get(user.id) ?? [];
 
     return {
+      active: !isAccountDisabled(user),
       accessRole: getAccountRole(
         user.email,
         memberships.map((membership) => membership.role),

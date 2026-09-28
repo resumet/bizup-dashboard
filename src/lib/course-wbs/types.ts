@@ -46,4 +46,5 @@ export type CourseWbsBootstrap = {
   template: WbsTemplate;
   people: string[];
   employeeNames: string[];
+  inactivePeople?: string[];
 };

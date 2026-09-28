@@ -11,6 +11,7 @@ import {
 
 import { UserRoleSelect } from "@/components/admin/user-role-select";
 import { UserNameEditor } from "@/components/admin/user-name-editor";
+import { UserStatusToggle } from "@/components/admin/user-status-toggle";
 import { CommonLinksManager } from "@/components/admin/common-links-manager";
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
@@ -214,6 +215,7 @@ export default async function AdminUsersPage({
                       <TableHead className="px-5">이름</TableHead>
                       <TableHead>계정</TableHead>
                       <TableHead>권한</TableHead>
+                      <TableHead>계정 상태</TableHead>
                       <TableHead>인증</TableHead>
                       <TableHead>워크스페이스</TableHead>
                       <TableHead>가입일</TableHead>
@@ -262,6 +264,9 @@ export default async function AdminUsersPage({
                               )}
                             </TableCell>
                             <TableCell>
+                              <UserStatusToggle userId={user.id} email={user.email} initialActive={user.active} disabled={isSuperAdmin || user.id === currentUser.id} />
+                            </TableCell>
+                            <TableCell>
                               <Badge variant={user.emailConfirmedAt ? "outline" : "destructive"}>
                                 {user.emailConfirmedAt ? "인증 완료" : "미인증"}
                               </Badge>
@@ -289,7 +294,7 @@ export default async function AdminUsersPage({
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                        <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
                           {query ? "검색 조건에 맞는 계정이 없습니다." : "등록된 계정이 없습니다."}
                         </TableCell>
                       </TableRow>
