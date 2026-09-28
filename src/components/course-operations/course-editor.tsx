@@ -14,6 +14,7 @@ import {
   MessageSquareText,
   Plus,
   Save,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 
@@ -79,6 +80,7 @@ import {
   courseBannerUrl,
   validateCourseBannerFile,
 } from "@/lib/course-operations/banner";
+import { createTemporaryCourseBannerFile } from "@/lib/course-operations/temporary-banner";
 import { decodeReadableUrl } from "@/lib/course-operations/youtube-channels";
 import {
   calculateDiscountRate,
@@ -389,6 +391,7 @@ export function CourseOperationsEditor({
     previewUrl: string;
   } | null>(null);
   const [bannerRemoved, setBannerRemoved] = useState(false);
+  const [creatingTemporaryBanner, setCreatingTemporaryBanner] = useState(false);
   const [error, setError] = useState("");
   const [copiedMessagePosition, setCopiedMessagePosition] = useState<
     number | null
@@ -658,6 +661,31 @@ export function CourseOperationsEditor({
   function removeBanner() {
     setBannerSelection(null);
     setBannerRemoved(true);
+  }
+
+  async function createTemporaryBanner() {
+    setCreatingTemporaryBanner(true);
+    setError("");
+    setNotice("");
+    try {
+      const file = await createTemporaryCourseBannerFile({
+        title: draft.name,
+        instructorName: draft.instructorName,
+        webinarDate: draft.freeWebinarAt,
+      });
+      validateCourseBannerFile(file);
+      setBannerSelection({ file, previewUrl: URL.createObjectURL(file) });
+      setBannerRemoved(false);
+      setNotice("임시 배너를 제작했습니다. 강의 저장을 누르면 반영됩니다.");
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "임시 배너 이미지를 만들지 못했습니다.",
+      );
+    } finally {
+      setCreatingTemporaryBanner(false);
+    }
   }
 
   function addCustomLink() {
@@ -982,7 +1010,30 @@ export function CourseOperationsEditor({
                       </div>
                     )}
                   </div>
-                  <div>
+                  <div className="space-y-4">
+                    <div className="rounded-md border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950/40">
+                      <div className="flex items-center gap-2 text-sm font-semibold">
+                        <Sparkles className="size-4 text-blue-600" />
+                        임시 배너 제작
+                      </div>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        현재 강의명, 강사명, 웨비나 날짜로 짙은 파란색 배경의
+                        16:9 배너를 만듭니다.
+                      </p>
+                      <Button
+                        type="button"
+                        className="mt-3 w-full"
+                        disabled={creatingTemporaryBanner}
+                        onClick={createTemporaryBanner}
+                      >
+                        {creatingTemporaryBanner ? (
+                          <Loader2 className="animate-spin" />
+                        ) : (
+                          <Sparkles />
+                        )}
+                        {creatingTemporaryBanner ? "제작 중..." : "임시 배너 제작"}
+                      </Button>
+                    </div>
                     <Input
                       ref={bannerInputRef}
                       id="course-banner"
@@ -991,7 +1042,7 @@ export function CourseOperationsEditor({
                       className="sr-only"
                       onChange={(event) => selectBanner(event.currentTarget.files?.[0])}
                     />
-                    <div className="mt-4 flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         type="button"
                         variant="outline"
