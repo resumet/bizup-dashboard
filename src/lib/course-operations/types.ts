@@ -99,6 +99,13 @@ export type CourseSummary = {
   cohort: string;
   nova_settled: boolean;
   instructor_settled: boolean;
+  landing_page_link: string;
+  free_kakao_room_1_link: string;
+  free_kakao_room_2_link: string;
+  paid_kakao_room_link: string;
+  payment_link: string;
+  curriculum_link: string;
+  course_materials_link: string;
 };
 
 export type LinkableRosterJob = {

@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getCachedCourseSummaries } from "@/lib/course-operations/list-cache";
+import { toKoreaDate } from "@/lib/course-operations/schedule";
 import type { CourseSummary } from "@/lib/course-operations/types";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
@@ -105,6 +106,7 @@ export default async function CourseOperationsPage() {
               courses={courses}
               canDelete={hasAdminAccess(user.email, membership.role)}
               paymentSummaries={paymentSummaries}
+              todayKoreaDate={toKoreaDate(new Date().toISOString())}
             />
           </div>
         ) : null}

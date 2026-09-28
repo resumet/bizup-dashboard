@@ -3,6 +3,7 @@ import "server-only";
 import { revalidateTag, unstable_cache } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { normalizeRequiredTasks } from "./required-tasks";
 import type { CourseSummary } from "./types";
 
 export const COURSE_OPERATIONS_LIST_CACHE_TAG = "course-operations-list";
@@ -14,7 +15,7 @@ const loadCachedCourseSummaries = unstable_cache(
     const { data, error } = await admin
       .from("courses")
       .select(
-        "id,name,instructor_name,banner_image_path,free_webinar_at,starts_at,updated_at,cohort,nova_settled,instructor_settled,course_options(count),course_jobs(count),message_studio_projects(count)",
+        "id,name,instructor_name,banner_image_path,free_webinar_at,starts_at,updated_at,cohort,nova_settled,instructor_settled,landing_page_link,free_kakao_room_1_link,free_kakao_room_2_link,paid_kakao_room_link,payment_link,curriculum_link,course_materials_link,required_tasks,course_options(count),course_jobs(count),message_studio_projects(count)",
       )
       .eq("workspace_id", workspaceId)
       .order("updated_at", { ascending: false });
@@ -27,7 +28,7 @@ const loadCachedCourseSummaries = unstable_cache(
       course_options: Array.from({ length: course.course_options?.[0]?.count ?? 0 }, (_, index) => ({ id: String(index) })),
       course_jobs: Array.from({ length: course.course_jobs?.[0]?.count ?? 0 }, (_, index) => ({ id: String(index) })),
       message_studio_projects: Array.from({ length: course.message_studio_projects?.[0]?.count ?? 0 }, (_, index) => ({ id: String(index) })),
-      required_tasks: [],
+      required_tasks: normalizeRequiredTasks(course.required_tasks),
     })) as CourseSummary[];
   },
   [COURSE_OPERATIONS_LIST_CACHE_TAG],
