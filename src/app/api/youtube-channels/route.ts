@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireCourseOperationsMembership, requireCourseOperationsUser } from "@/lib/course-operations/server";
-import { inputs, normalizeAppearanceFee, normalizeChannelCategory, normalizeChannelEmail, normalizeRsPercent } from "@/lib/youtube-analyzer/model";
+import { inputs, normalizeAppearanceFee, normalizeChannelCategory, normalizeChannelEmail, normalizeChannelMemo, normalizeRsPercent } from "@/lib/youtube-analyzer/model";
 import { setting } from "@/lib/youtube-analyzer/api";
 import { youtubeAnalysisWorkflow } from "@/workflows/youtube-analysis";
 
@@ -87,7 +87,7 @@ export async function GET(request: Request) {
     if (!Number.isSafeInteger(offset) || offset < 0) return NextResponse.json({error:"잘못된 페이지입니다."},{status:400});
 
     const channelsQuery = admin.from("youtube_analyzed_channels")
-      .select("position,channel_id,channel,email,category,appearance_fee,rs_percent,metrics,warnings,first_analyzed_at,last_analyzed_at")
+      .select("position,channel_id,channel,email,category,appearance_fee,rs_percent,memo,metrics,warnings,first_analyzed_at,last_analyzed_at")
       .eq("workspace_id",workspaceId)
       .order("position")
       .range(offset,offset+200);
@@ -102,12 +102,12 @@ export async function GET(request: Request) {
     let rows = result.data;
     if (missingOptionalColumn(result.error)) {
       const withAttributes = await admin.from("youtube_analyzed_channels")
-        .select("position,channel_id,channel,category,appearance_fee,rs_percent,metrics,warnings,first_analyzed_at,last_analyzed_at")
+        .select("position,channel_id,channel,email,category,appearance_fee,rs_percent,metrics,warnings,first_analyzed_at,last_analyzed_at")
         .eq("workspace_id",workspaceId)
         .order("position")
         .range(offset,offset+200);
       if (!withAttributes.error) {
-        rows = withAttributes.data.map(row=>({...row,email:null}));
+        rows = withAttributes.data.map(row=>({...row,memo:null}));
       } else if (missingOptionalColumn(withAttributes.error)) {
         const withEmail = await admin.from("youtube_analyzed_channels")
           .select("position,channel_id,channel,email,metrics,warnings,first_analyzed_at,last_analyzed_at")
@@ -121,10 +121,10 @@ export async function GET(request: Request) {
             .order("position")
             .range(offset,offset+200);
           if (legacy.error) throw legacy.error;
-          rows = legacy.data.map(row=>({...row,email:null,category:null,appearance_fee:null,rs_percent:null}));
+          rows = legacy.data.map(row=>({...row,email:null,category:null,appearance_fee:null,rs_percent:null,memo:null}));
         } else {
           if (withEmail.error) throw withEmail.error;
-          rows = withEmail.data.map(row=>({...row,category:null,appearance_fee:null,rs_percent:null}));
+          rows = withEmail.data.map(row=>({...row,category:null,appearance_fee:null,rs_percent:null,memo:null}));
         }
       } else {
         throw withAttributes.error;
@@ -200,11 +200,13 @@ export async function PATCH(request: Request) {
       if (includes("category")) updates.category = normalizeChannelCategory(fields.category);
       if (includes("appearanceFee")) updates.appearance_fee = normalizeAppearanceFee(fields.appearanceFee);
       if (includes("rsPercent")) updates.rs_percent = normalizeRsPercent(fields.rsPercent);
+      if (includes("memo")) updates.memo = normalizeChannelMemo(fields.memo);
     } catch(error) {
       const code = error instanceof Error ? error.message : "";
       const message = code === "INVALID_EMAIL" ? "올바른 이메일 주소를 입력해 주세요."
         : code === "INVALID_CATEGORY" ? "분류 목록에서 선택해 주세요."
         : code === "INVALID_APPEARANCE_FEE" ? "출연료는 0원 이상의 정수로 입력해 주세요."
+        : code === "INVALID_MEMO" ? "메모는 2,000자 이하로 입력해 주세요."
         : "RS는 0~100 사이의 숫자로 입력해 주세요.";
       return NextResponse.json({error:message},{status:400});
     }

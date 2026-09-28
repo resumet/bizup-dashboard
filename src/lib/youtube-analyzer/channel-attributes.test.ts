@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CHANNEL_CATEGORIES, normalizeAppearanceFee, normalizeChannelCategory, normalizeRsPercent } from "./model";
+import { CHANNEL_CATEGORIES, normalizeAppearanceFee, normalizeChannelCategory, normalizeChannelMemo, normalizeRsPercent } from "./model";
 
 test("channel categories are unique and restricted to the dropdown choices", () => {
   assert.equal(CHANNEL_CATEGORIES.length, new Set(CHANNEL_CATEGORIES).size);
@@ -27,4 +27,12 @@ test("RS percentages accept finite values from 0 through 100", () => {
   for (const value of [-1, 100.001, "101", "-0.5", "abc", "Infinity", Infinity]) {
     assert.throws(() => normalizeRsPercent(value), /INVALID_RS_PERCENT/);
   }
+});
+
+test("channel memo preserves line breaks and is limited to 2,000 characters", () => {
+  assert.equal(normalizeChannelMemo("첫 줄\n둘째 줄"), "첫 줄\n둘째 줄");
+  assert.equal(normalizeChannelMemo("   \n  "), null);
+  assert.equal(normalizeChannelMemo(null), null);
+  assert.throws(() => normalizeChannelMemo("a".repeat(2001)), /INVALID_MEMO/);
+  assert.throws(() => normalizeChannelMemo(123), /INVALID_MEMO/);
 });

@@ -241,7 +241,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     } finally { setDeleting(false); }
   }
 
-  function updateDetails(channelId: string, details: Pick<Analysis,"email"|"category"|"appearance_fee"|"rs_percent">) {
+  function updateDetails(channelId: string, details: Pick<Analysis,"email"|"category"|"appearance_fee"|"rs_percent"|"memo">) {
     setRuns(previous=>previous.map(run=>run.channel_id===channelId ? {...run,...details} : run));
     setDetail(previous=>previous?.channel_id===channelId ? {...previous,...details} : previous);
   }
@@ -352,6 +352,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
           <div className="rounded-lg border bg-muted/20 p-4"><p className="text-xs text-muted-foreground">최고 조회수</p><p className="mt-2 text-xl font-semibold tabular-nums">{number(detail.metrics.top?.views)}</p></div>
           <div className="rounded-lg border bg-muted/20 p-4"><p className="text-xs text-muted-foreground">최고 1개 제외 평균 조회수</p><p className="mt-2 text-xl font-semibold tabular-nums">{number(detail.metrics.exclude1)}</p></div>
         </section>}
+        {detail?.memo ? <section aria-label="채널 메모" className="rounded-lg border bg-muted/20 p-4"><p className="text-xs text-muted-foreground">메모</p><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{detail.memo}</p></section> : null}
         {detailError ? <p role="alert" className="text-red-700">{detailError}</p> : videos===null ? <p>영상을 불러오는 중입니다.</p> : !videos.length ? <p>분석된 공개 영상이 없습니다.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[540px] text-sm"><thead><tr>{["영상","게시일","조회수","좋아요","댓글"].map(heading=><th key={heading} className="border-b p-2 text-left">{heading}</th>)}</tr></thead><tbody>{videos.map(video=><tr key={video.id}><td className="max-w-96 border-b p-2"><a className="text-blue-700 hover:underline" href={`https://www.youtube.com/watch?v=${video.id}`} target="_blank" rel="noreferrer">{video.title}</a></td><td className="whitespace-nowrap border-b p-2">{new Date(video.publishedAt).toLocaleDateString("ko-KR")}</td>{[video.views,video.likes,video.comments].map((value,index)=><td key={index} className="border-b p-2 text-right tabular-nums">{number(value)}</td>)}</tr>)}</tbody></table></div>}
       </DialogContent>
     </Dialog>
