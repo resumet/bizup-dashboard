@@ -166,7 +166,11 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
     setEditingDate(null);
   }
 
-  async function save(nextMetrics = metrics, successNotice = "광고 설정과 날짜별 성과를 저장했습니다."): Promise<string | null> {
+  async function save(
+    nextMetrics = metrics,
+    successNotice = "광고 설정과 날짜별 성과를 저장했습니다.",
+    renamedMetricDate?: { from: string; to: string },
+  ): Promise<string | null> {
     if (!startDate) {
       const message = "광고 시작일을 선택해 주세요.";
       setError(message);
@@ -179,7 +183,7 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
       const response = await fetch(`/api/ad-performance/${initialData.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ startDate, totalBudget, metrics: nextMetrics }),
+        body: JSON.stringify({ startDate, totalBudget, metrics: nextMetrics, renamedMetricDate }),
       });
       const result = await response.json() as { message?: string };
       if (!response.ok) throw new Error(result.message || "광고성과를 저장하지 못했습니다.");
@@ -208,19 +212,22 @@ export function AdPerformanceDashboard({ initialData }: { initialData: AdPerform
       setDialogError("광고 시작일 이전 날짜는 추가할 수 없습니다.");
       return;
     }
-    if (editingDate && editingDate !== metricDate) {
-      setDialogError("기존 기록의 날짜는 바꿀 수 없습니다.");
-      return;
-    }
-    if (!editingDate && metrics.some((metric) => metric.metricDate === metricDate)) {
-      setDialogError("이미 추가된 날짜입니다.");
+    if (metrics.some((metric) => metric.metricDate === metricDate && metric.metricDate !== editingDate)) {
+      setDialogError("이미 입력된 날짜입니다.");
       return;
     }
     const nextMetrics = editingDate
       ? metrics.map((metric) => metric.metricDate === editingDate ? dialogMetric : metric)
       : [...metrics, dialogMetric].sort((a, b) => a.metricDate.localeCompare(b.metricDate));
+    const renamedMetricDate = editingDate && editingDate !== metricDate
+      ? { from: editingDate, to: metricDate }
+      : undefined;
     setDialogError("");
-    const failed = await save(nextMetrics, `${metricDate} 광고성과 기록을 저장했습니다.`);
+    const failed = await save(
+      nextMetrics,
+      `${metricDate} 광고성과 기록을 저장했습니다.`,
+      renamedMetricDate,
+    );
     if (failed) setDialogError(failed);
     else {
       setMetricDialogOpen(false);

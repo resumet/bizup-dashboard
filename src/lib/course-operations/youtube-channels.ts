@@ -1,8 +1,7 @@
 import type { YoutubeChannelSuggestion } from "./types";
 
-type YoutubeChannelRow = {
-  channel_name: string | null;
-  channel_url: string | null;
+type YoutubeAnalyzedChannelRow = {
+  channel: unknown;
 };
 
 export function decodeReadableUrl(value: string) {
@@ -17,14 +16,25 @@ export function decodeReadableUrl(value: string) {
 }
 
 export function buildYoutubeChannelSuggestions(
-  rows: YoutubeChannelRow[],
+  rows: YoutubeAnalyzedChannelRow[],
 ): YoutubeChannelSuggestion[] {
   const seen = new Set<string>();
 
   return rows.flatMap((row) => {
-    const channelName = row.channel_name?.trim() ?? "";
-    const channelUrl = decodeReadableUrl(row.channel_url ?? "");
-    if (!channelName && !channelUrl) return [];
+    if (
+      !row.channel ||
+      typeof row.channel !== "object" ||
+      Array.isArray(row.channel)
+    ) {
+      return [];
+    }
+
+    const channel = row.channel as Record<string, unknown>;
+    const channelName =
+      typeof channel.name === "string" ? channel.name.trim() : "";
+    const channelUrl =
+      typeof channel.url === "string" ? decodeReadableUrl(channel.url) : "";
+    if (!channelName || !channelUrl) return [];
 
     const key = `${channelName.toLocaleLowerCase("ko-KR")}\u0000${channelUrl.toLocaleLowerCase("ko-KR")}`;
     if (seen.has(key)) return [];
@@ -32,4 +42,23 @@ export function buildYoutubeChannelSuggestions(
 
     return [{ channelName, channelUrl }];
   });
+}
+
+function normalizeChannelName(value: string) {
+  return value.trim().toLocaleLowerCase("ko-KR");
+}
+
+export function findYoutubeChannelUrlByName(
+  suggestions: YoutubeChannelSuggestion[],
+  channelName: string,
+) {
+  const normalizedChannelName = normalizeChannelName(channelName);
+  if (!normalizedChannelName) return "";
+
+  return (
+    suggestions.find(
+      (suggestion) =>
+        normalizeChannelName(suggestion.channelName) === normalizedChannelName,
+    )?.channelUrl ?? ""
+  );
 }

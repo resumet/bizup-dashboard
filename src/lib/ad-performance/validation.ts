@@ -36,6 +36,10 @@ export const updateDashboardSchema = z.object({
   startDate: dateValue,
   totalBudget: count,
   metrics: z.array(metricSchema).max(1_000),
+  renamedMetricDate: z.object({
+    from: dateValue,
+    to: dateValue,
+  }).optional(),
 }).superRefine((value, context) => {
   const dates = new Set<string>();
   value.metrics.forEach((metric, index) => {
@@ -47,6 +51,16 @@ export const updateDashboardSchema = z.object({
       context.addIssue({ code: "custom", path: ["metrics", index, "metricDate"], message: "광고 시작일 이전 데이터는 저장할 수 없습니다." });
     }
   });
+  if (
+    value.renamedMetricDate &&
+    !value.metrics.some((metric) => metric.metricDate === value.renamedMetricDate?.to)
+  ) {
+    context.addIssue({
+      code: "custom",
+      path: ["renamedMetricDate", "to"],
+      message: "변경할 날짜의 원시데이터가 없습니다.",
+    });
+  }
 });
 
 export function adPerformanceErrorResponse(error: unknown) {

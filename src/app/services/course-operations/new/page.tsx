@@ -85,9 +85,9 @@ export default async function NewCourseOperationsPage({ searchParams }: Props) {
       .is("course_id", null)
       .order("updated_at", { ascending: false }),
     supabase
-      .from("course_youtube_appearances")
-      .select("channel_name,channel_url,created_at")
-      .order("created_at", { ascending: false })
+      .from("youtube_analyzed_channels")
+      .select("channel,position")
+      .order("position", { ascending: false })
       .limit(500),
   ]);
   const loadError =

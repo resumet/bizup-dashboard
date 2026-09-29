@@ -1,11 +1,15 @@
 "use client";
 
+import { useState } from "react";
+
 import { Loader2, Save, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { importAdPerformanceSpreadsheet } from "@/lib/ad-performance/spreadsheet-import";
 import type { AdPerformanceDailyMetric, AdPerformanceOrganicChannel } from "@/lib/ad-performance/types";
 
 type NumericMetricField = Exclude<keyof AdPerformanceDailyMetric, "metricDate" | "organicLeads" | "chatRoomMembers">;
@@ -82,12 +86,38 @@ export function AdPerformanceMetricDialog({
   onSave,
   onDelete,
 }: AdPerformanceMetricDialogProps) {
+  const [spreadsheet, setSpreadsheet] = useState("");
+  const [spreadsheetMessage, setSpreadsheetMessage] = useState<{
+    kind: "success" | "error";
+    text: string;
+  } | null>(null);
+
   function updateNumber(field: NumericMetricField, value: number) {
     onMetricChange({ ...metric, [field]: value });
   }
 
   function updateOrganic(channelId: string, value: number) {
     onMetricChange({ ...metric, organicLeads: { ...metric.organicLeads, [channelId]: value } });
+  }
+
+  function applySpreadsheet(value: string, targetMetric = metric) {
+    const result = importAdPerformanceSpreadsheet(value, targetMetric, channels);
+    if (!result.ok) {
+      setSpreadsheetMessage({ kind: "error", text: result.message });
+      return;
+    }
+
+    onMetricChange(result.metric);
+    const organicSummary = result.importedOrganicChannelNames.length
+      ? ` · 오가닉 ${result.importedOrganicChannelNames.join(", ")}`
+      : "";
+    setSpreadsheetMessage({ kind: "success", text: `선택한 날짜의 값이 입력창에 반영되었습니다${organicSummary}.` });
+  }
+
+  function updateMetricDate(metricDate: string) {
+    const nextMetric = { ...metric, metricDate };
+    onMetricChange(nextMetric);
+    if (spreadsheet.trim()) applySpreadsheet(spreadsheet, nextMetric);
   }
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
@@ -113,13 +143,38 @@ export function AdPerformanceMetricDialog({
               id="ad-metric-date"
               type="date"
               required
-              min={isNew && startDate ? startDate : undefined}
+              min={startDate || undefined}
               value={metric.metricDate}
-              disabled={busy || !isNew}
-              className={!isNew ? "bg-muted/50" : undefined}
-              onChange={(event) => onMetricChange({ ...metric, metricDate: event.target.value })}
+              disabled={busy}
+              onChange={(event) => updateMetricDate(event.target.value)}
             />
           </div>
+
+          <section aria-labelledby="ad-metric-spreadsheet-heading" className="space-y-2 rounded-lg border bg-muted/20 p-4">
+            <div>
+              <h3 id="ad-metric-spreadsheet-heading" className="text-sm font-semibold">엑셀 표 붙여넣기</h3>
+              <p className="mt-1 text-xs text-muted-foreground">엑셀에서 복사한 표를 붙여넣으면 현재 선택 날짜({metric.metricDate || "날짜 미선택"}) 행의 Google·Meta·오가닉·어드민 누적 DB 값이 아래 입력창에 반영됩니다.</p>
+            </div>
+            <Textarea
+              id="ad-metric-spreadsheet"
+              value={spreadsheet}
+              rows={5}
+              maxLength={100_000}
+              disabled={busy}
+              className="min-h-28 resize-y bg-background font-mono text-xs"
+              placeholder="엑셀 표를 그대로 붙여넣으세요"
+              onChange={(event) => {
+                const value = event.target.value;
+                setSpreadsheet(value);
+                if (!value.trim()) {
+                  setSpreadsheetMessage(null);
+                  return;
+                }
+                applySpreadsheet(value);
+              }}
+            />
+            {spreadsheetMessage ? <p role={spreadsheetMessage.kind === "error" ? "alert" : "status"} className={`text-xs ${spreadsheetMessage.kind === "error" ? "text-destructive" : "text-muted-foreground"}`}>{spreadsheetMessage.text}</p> : null}
+          </section>
 
           <section aria-labelledby="ad-metric-paid-heading" className="space-y-4">
             <h3 id="ad-metric-paid-heading" className="border-b pb-2 text-sm font-semibold">유료 광고</h3>

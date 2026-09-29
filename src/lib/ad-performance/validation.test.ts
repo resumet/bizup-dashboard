@@ -41,3 +41,19 @@ test("날짜별 지표는 중복되거나 광고 시작일보다 빠를 수 없�
   assert.equal(updateDashboardSchema.safeParse({ startDate: "2026-09-24", totalBudget: 0, metrics: [metric] }).success, false);
   assert.equal(updateDashboardSchema.safeParse({ startDate: "2026-09-23", totalBudget: 0, metrics: [{ ...metric, organicLeads: { invalid: 1 } }] }).success, false);
 });
+
+test("날짜 변경은 변경 대상 원시데이터가 포함된 경우만 허용한다", () => {
+  const renamed = { ...metric, metricDate: "2026-09-24" };
+  assert.equal(updateDashboardSchema.safeParse({
+    startDate: "2026-09-23",
+    totalBudget: 0,
+    metrics: [renamed],
+    renamedMetricDate: { from: "2026-09-23", to: "2026-09-24" },
+  }).success, true);
+  assert.equal(updateDashboardSchema.safeParse({
+    startDate: "2026-09-23",
+    totalBudget: 0,
+    metrics: [metric],
+    renamedMetricDate: { from: "2026-09-23", to: "2026-09-24" },
+  }).success, false);
+});

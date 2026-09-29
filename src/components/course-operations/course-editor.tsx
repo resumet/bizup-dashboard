@@ -81,7 +81,10 @@ import {
   validateCourseBannerFile,
 } from "@/lib/course-operations/banner";
 import { createTemporaryCourseBannerFile } from "@/lib/course-operations/temporary-banner";
-import { decodeReadableUrl } from "@/lib/course-operations/youtube-channels";
+import {
+  decodeReadableUrl,
+  findYoutubeChannelUrlByName,
+} from "@/lib/course-operations/youtube-channels";
 import {
   calculateDiscountRate,
   calculateEarlyBirdDiscountAmount,
@@ -758,12 +761,12 @@ export function CourseOperationsEditor({
   }
 
   function updateYoutubeChannelName(index: number, channelName: string) {
-    const selected = loadedYoutubeChannelSuggestions.find(
-      (suggestion) => suggestion.channelName === channelName,
-    );
     updateYoutubeAppearance(index, {
       channelName,
-      ...(selected?.channelUrl ? { channelUrl: selected.channelUrl } : {}),
+      channelUrl: findYoutubeChannelUrlByName(
+        loadedYoutubeChannelSuggestions,
+        channelName,
+      ),
     });
   }
 

@@ -54,6 +54,22 @@ export async function PUT(request: Request, { params }: Context) {
       .eq("id", dashboardId);
     if (dashboardError) throw new Error(`광고 설정 저장 실패: ${dashboardError.code}`);
 
+    if (
+      input.renamedMetricDate &&
+      input.renamedMetricDate.from !== input.renamedMetricDate.to
+    ) {
+      const { data: existingMetric, error: existingMetricError } = await admin
+        .from("ad_performance_dashboard_metrics")
+        .select("metric_date")
+        .eq("dashboard_id", dashboardId)
+        .eq("metric_date", input.renamedMetricDate.to)
+        .maybeSingle();
+      if (existingMetricError) {
+        throw new Error(`날짜별 광고성과 확인 실패: ${existingMetricError.code}`);
+      }
+      if (existingMetric) throw new Error("이미 입력된 날짜입니다.");
+    }
+
     if (input.metrics.length) {
       const { error: metricsError } = await admin.from("ad_performance_dashboard_metrics").upsert(
         input.metrics.map((metric) => ({
@@ -93,6 +109,19 @@ export async function PUT(request: Request, { params }: Context) {
           .from("ad_performance_organic_metric_values")
           .upsert(organicValues, { onConflict: "dashboard_id,channel_id,metric_date" });
         if (organicError) throw new Error(`오가닉 DB 저장 실패: ${organicError.code}`);
+      }
+    }
+    if (
+      input.renamedMetricDate &&
+      input.renamedMetricDate.from !== input.renamedMetricDate.to
+    ) {
+      const { error: removePreviousMetricError } = await admin
+        .from("ad_performance_dashboard_metrics")
+        .delete()
+        .eq("dashboard_id", dashboardId)
+        .eq("metric_date", input.renamedMetricDate.from);
+      if (removePreviousMetricError) {
+        throw new Error(`기존 날짜별 광고성과 삭제 실패: ${removePreviousMetricError.code}`);
       }
     }
     return Response.json({ saved: true });
