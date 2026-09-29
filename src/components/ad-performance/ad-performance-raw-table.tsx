@@ -97,7 +97,7 @@ export function AdPerformanceRawTable({ metrics, channels, onEdit, disabled = fa
               <td className={numberCell}>{metric.chatRoomMembers === null ? "—" : displayNumber(metric.chatRoomMembers)}</td>
               <td className={numberCell}>{metric.chatRoomEntrants === null ? "—" : displayNumber(metric.chatRoomEntrants)}</td>
               <td className={numberCell}>{displayUnitCost(metric.totalLandingLeadCost)}</td>
-              <td className={numberCell}>{displayUnitCost(metric.chatRoomMemberCost)}</td>
+              <td className={numberCell}>{displayUnitCost(metric.chatRoomEntrantCost)}</td>
               <td className="border-b px-1.5 py-1 text-center">
                 <button
                   type="button"

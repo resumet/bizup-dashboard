@@ -38,7 +38,7 @@ test("광고비는 날짜순으로 누적하고 빈 날짜는 이전 누적액�
   assert.deepEqual(calculateDailyAdSpend([]), []);
 });
 
-test("톡방 입장은 실제 전일 대비로, 톡방 접수 단가는 당일 톡방인원 기준으로 계산한다", () => {
+test("톡방 입장은 실제 전일 대비로, 톡방 접수 단가는 톡방입장 기준으로 계산한다", () => {
   const rows = calculateDailyAdSpend([
     { ...metric, metricDate: "2026-10-01", chatRoomMembers: 130 },
     { ...metric, metricDate: "2026-09-30", chatRoomMembers: 100 },
@@ -49,11 +49,11 @@ test("톡방 입장은 실제 전일 대비로, 톡방 접수 단가는 당일 �
     { ...metric, metricDate: "2026-10-07", chatRoomMembers: 0 },
   ]);
   assert.deepEqual(rows.map(row => row.chatRoomEntrants), [null, 30, -10, null, null, null, 0]);
-  assert.equal(rows[0].chatRoomMemberCost, 500_000 / 100);
-  assert.equal(rows[1].chatRoomMemberCost, 500_000 / 130);
-  assert.equal(rows[2].chatRoomMemberCost, 500_000 / 120);
-  assert.equal(rows[4].chatRoomMemberCost, null);
-  assert.equal(rows[6].chatRoomMemberCost, null);
+  assert.equal(rows[0].chatRoomEntrantCost, null);
+  assert.equal(rows[1].chatRoomEntrantCost, 500_000 / 30);
+  assert.equal(rows[2].chatRoomEntrantCost, null);
+  assert.equal(rows[4].chatRoomEntrantCost, null);
+  assert.equal(rows[6].chatRoomEntrantCost, null);
   assert.equal(rows[1].totalLandingLeadCost, 500_000 / 25);
   assert.equal(rows[1].googleLeadCostDifference, 300_000 / 18 - 300_000 / 20);
   assert.equal(rows[1].metaLeadCostDifference, 200_000 / 7 - 200_000 / 10);
