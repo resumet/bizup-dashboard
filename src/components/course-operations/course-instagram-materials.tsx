@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Copy, ExternalLink, Globe2, Loader2, Save } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -17,7 +17,7 @@ type InstagramResponse = { materials?: InstagramMaterial[]; share?: InstagramSha
 function openableUrl(value: string) {
   try {
     const url = new URL(value);
-    return ["http:", "https:"].includes(url.protocol) ? url.toString() : "";
+    return url.protocol === "https:" ? url.toString() : "";
   } catch {
     return "";
   }
@@ -36,7 +36,7 @@ export function CourseInstagramMaterials({ courseId }: { courseId: string }) {
   const [changingVisibility, setChangingVisibility] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const publicUrl = useMemo(() => share && typeof window !== "undefined" ? window.location.origin + "/public/instagram/" + share.publicId : "", [share]);
+  const publicUrl = share && typeof window !== "undefined" ? window.location.origin + "/public/instagram/" + share.publicId : "";
 
   useEffect(() => {
     let active = true;
@@ -75,7 +75,7 @@ export function CourseInstagramMaterials({ courseId }: { courseId: string }) {
       });
       const body = await response.json() as InstagramResponse;
       if (!response.ok || !body.material) throw new Error(body.message ?? "제목을 저장하지 못했습니다.");
-      setMaterials((current) => current.map((material) => material.position === position ? body.material as InstagramMaterial : material));
+      setMaterials((current) => current.map((material) => material.position === position ? { ...material, title: body.material?.title ?? material.title } : material));
       setNotice(position + "번 제목을 저장했습니다.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "제목을 저장하지 못했습니다.");
@@ -97,7 +97,7 @@ export function CourseInstagramMaterials({ courseId }: { courseId: string }) {
       const body = await response.json() as InstagramResponse;
       if (!response.ok || !body.share) throw new Error(body.message ?? "공개 설정을 저장하지 못했습니다.");
       setShare(body.share);
-      setNotice(isPublic ? "외부 공개 페이지를 켰습니다." : "외부 공개 페이지를 껐습니다.");
+      setNotice(isPublic ? "강사 공개 페이지를 열었습니다." : "강사 공개 페이지를 닫았습니다.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "공개 설정을 저장하지 못했습니다.");
     } finally {
@@ -112,7 +112,7 @@ export function CourseInstagramMaterials({ courseId }: { courseId: string }) {
         <Dialog>
           <DialogTrigger asChild><Button type="button" variant="outline" size="sm" disabled={loading || !share}><Globe2 /> 공개 설정</Button></DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>인스타 외부 공개 페이지</DialogTitle><DialogDescription>공개하면 강사가 링크를 열어 각 항목의 노션 링크를 입력할 수 있습니다.</DialogDescription></DialogHeader>
+            <DialogHeader><DialogTitle>인스타 강사 공개 페이지</DialogTitle><DialogDescription>공개하면 강사가 항목별 Notion Sites 공개 주소를 입력하고 저장할 수 있습니다.</DialogDescription></DialogHeader>
             <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
               <div className="flex items-center justify-between gap-3"><span className="font-medium">공개 상태</span><Badge variant={share?.isPublic ? "default" : "secondary"}>{share?.isPublic ? "공개" : "비공개"}</Badge></div>
               <Input aria-label="강사 공개 페이지 주소" readOnly value={publicUrl} />
@@ -129,15 +129,16 @@ export function CourseInstagramMaterials({ courseId }: { courseId: string }) {
         {notice ? <p className="flex items-center gap-2 text-sm text-emerald-700" role="status"><Check className="size-4" />{notice}</p> : null}
         {loading ? <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-dashed text-sm text-muted-foreground"><Loader2 className="animate-spin" /> 자료를 불러오는 중입니다.</div> : (
           <Table>
-            <TableHeader><TableRow className="hover:bg-transparent"><TableHead className="w-16 text-center">번호</TableHead><TableHead className="min-w-64">제목</TableHead><TableHead className="min-w-[22rem]">링크</TableHead><TableHead className="w-36 text-right">복사 / 열기</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow className="hover:bg-transparent"><TableHead className="w-16 text-center">번호</TableHead><TableHead className="min-w-64">제목</TableHead><TableHead className="min-w-[22rem]">Notion 공개 주소</TableHead><TableHead className="w-64 text-right">복사 / 원본 / 공개보기</TableHead></TableRow></TableHeader>
             <TableBody>
               {materials.map((material) => {
                 const notionUrl = openableUrl(material.notionUrl);
+                const embeddedUrl = share?.isPublic && notionUrl ? publicUrl + "/" + material.position : "";
                 return <TableRow key={material.position}>
                   <TableCell className="text-center font-mono text-sm text-muted-foreground">{String(material.position).padStart(2, "0")}</TableCell>
                   <TableCell><div className="flex min-w-60 items-center gap-2"><Input aria-label={material.position + "번 자료 제목"} placeholder="자료 제목" maxLength={200} value={material.title} onChange={(event) => updateTitle(material.position, event.target.value)} /><Button type="button" size="sm" className="shrink-0" onClick={() => void saveTitle(material.position)} disabled={savingPosition !== null}>{savingPosition === material.position ? <Loader2 className="animate-spin" /> : <Save />} 저장</Button></div></TableCell>
-                  <TableCell><Input className="min-w-80 truncate" aria-label={material.position + "번 강사 노션 링크"} readOnly value={material.notionUrl} placeholder="강사가 입력한 노션 링크" /></TableCell>
-                  <TableCell><div className="flex justify-end gap-2"><Button type="button" size="sm" variant="outline" disabled={!material.notionUrl} onClick={() => void copyText(material.notionUrl).then(() => setNotice(material.position + "번 링크를 복사했습니다.")).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "링크를 복사하지 못했습니다."))}><Copy /> 복사</Button><Button type="button" size="sm" variant="outline" disabled={!notionUrl} asChild={Boolean(notionUrl)}>{notionUrl ? <a href={notionUrl} target="_blank" rel="noopener noreferrer"><ExternalLink /> 열기</a> : <span><ExternalLink /> 열기</span>}</Button></div></TableCell>
+                  <TableCell><Input className="min-w-80 truncate" aria-label={material.position + "번 강사 Notion 공개 주소"} readOnly value={material.notionUrl} placeholder="강사가 입력한 notion.site 주소" /></TableCell>
+                  <TableCell><div className="flex justify-end gap-2"><Button type="button" size="sm" variant="outline" disabled={!material.notionUrl} onClick={() => void copyText(material.notionUrl).then(() => setNotice(material.position + "번 주소를 복사했습니다.")).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "주소를 복사하지 못했습니다."))}><Copy /> 복사</Button><Button type="button" size="sm" variant="outline" disabled={!notionUrl} asChild={Boolean(notionUrl)}>{notionUrl ? <a href={notionUrl} target="_blank" rel="noopener noreferrer"><ExternalLink /> 원본</a> : <span><ExternalLink /> 원본</span>}</Button><Button type="button" size="sm" variant="outline" disabled={!embeddedUrl} asChild={Boolean(embeddedUrl)}>{embeddedUrl ? <a href={embeddedUrl} target="_blank" rel="noopener noreferrer"><ExternalLink /> 공개보기</a> : <span><ExternalLink /> 공개보기</span>}</Button></div></TableCell>
                 </TableRow>;
               })}
             </TableBody>

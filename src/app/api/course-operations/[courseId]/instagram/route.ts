@@ -3,40 +3,19 @@ import {
   instagramMaterialTitleSchema,
 } from "@/lib/course-operations/instagram-materials";
 import {
+  authorizeCourseInstagram,
   ensureCourseInstagramMaterials,
   toInstagramMaterial,
   toInstagramShare,
 } from "@/lib/course-operations/instagram-materials-server";
-import {
-  courseOperationsApiError,
-  requireCourseOperationsMembership,
-  requireCourseOperationsUser,
-} from "@/lib/course-operations/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { courseOperationsApiError } from "@/lib/course-operations/server";
 
 export const runtime = "nodejs";
 
 type Context = { params: Promise<{ courseId: string }> };
 
-async function authorizeCourse(courseId: string) {
-  const supabase = await createClient();
-  const user = await requireCourseOperationsUser(supabase);
-  const membership = await requireCourseOperationsMembership(user.id);
-  const admin = createAdminClient();
-  const { data: course, error } = await admin
-    .from("courses")
-    .select("id")
-    .eq("id", courseId)
-    .eq("workspace_id", membership.workspace_id)
-    .maybeSingle();
-  if (error) throw new Error(`강의 조회 실패: ${error.code}`);
-  if (!course) throw new Error("NOT_FOUND");
-  return admin;
-}
-
 async function loadInstagramData(courseId: string) {
-  const admin = await authorizeCourse(courseId);
+  const { admin } = await authorizeCourseInstagram(courseId);
   await ensureCourseInstagramMaterials(admin, courseId);
   const [materialsResult, shareResult] = await Promise.all([
     admin
@@ -73,7 +52,7 @@ export async function GET(_request: Request, { params }: Context) {
 export async function PATCH(request: Request, { params }: Context) {
   try {
     const { courseId } = await params;
-    const body = (await request.json()) as Record<string, unknown>;
+    const body = await request.json() as Record<string, unknown>;
     const { admin } = await loadInstagramData(courseId);
 
     if (body.action === "title") {

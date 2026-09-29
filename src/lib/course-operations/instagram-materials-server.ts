@@ -7,6 +7,28 @@ import {
   type InstagramMaterial,
   type InstagramShare,
 } from "./instagram-materials";
+import {
+  requireCourseOperationsMembership,
+  requireCourseOperationsUser,
+} from "./server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+
+export async function authorizeCourseInstagram(courseId: string) {
+  const supabase = await createClient();
+  const user = await requireCourseOperationsUser(supabase);
+  const membership = await requireCourseOperationsMembership(user.id);
+  const admin = createAdminClient();
+  const { data: course, error } = await admin
+    .from("courses")
+    .select("id")
+    .eq("id", courseId)
+    .eq("workspace_id", membership.workspace_id)
+    .maybeSingle();
+  if (error) throw new Error(`강의 조회 실패: ${error.code}`);
+  if (!course) throw new Error("NOT_FOUND");
+  return { admin, userId: user.id };
+}
 
 export async function ensureCourseInstagramMaterials(
   admin: SupabaseClient,
@@ -34,7 +56,11 @@ export function toInstagramMaterial(row: {
   title: string;
   notion_url: string;
 }): InstagramMaterial {
-  return { position: row.position, title: row.title, notionUrl: row.notion_url };
+  return {
+    position: row.position,
+    title: row.title,
+    notionUrl: row.notion_url,
+  };
 }
 
 export function toInstagramShare(row: {
