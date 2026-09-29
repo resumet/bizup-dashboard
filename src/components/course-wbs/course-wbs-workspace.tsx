@@ -19,6 +19,7 @@ import { toKoreaDate, toKoreaTime } from "@/lib/course-operations/schedule";
 import { reorderWbsItems } from "@/lib/course-wbs/reorder";
 import { selectablePeople } from "@/lib/course-wbs/people";
 import { datesForStartOffset, dueDateForOffset, dueDateForStartDate, WBS_DUE_OFFSETS, WBS_START_OFFSETS } from "@/lib/course-wbs/schedule-options";
+import { sortWbsItemsByStartDate } from "@/lib/course-wbs/start-date-sort";
 import { reusableItems } from "@/lib/course-wbs/template-items";
 import type { CourseWbs, CourseWbsBootstrap, WbsCourse, WbsDashboard, WbsDashboardTask, WbsItem, WbsSummary, WbsTemplate } from "@/lib/course-wbs/types";
 import { applyTemplateToCourse, syncWebinarItem, webinarDateFromTimestamp, webinarDayLabel, WEBINAR_ITEM_ID } from "@/lib/course-wbs/webinar-date";
@@ -205,6 +206,8 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
   const [conflictTarget, setConflictTarget] = useState<"wbs" | "template" | null>(null);
   const [today, setToday] = useState(() => toKoreaDate(new Date().toISOString()));
   const loadSequence = useRef(0);
+  const addedItemId = useRef<string | null>(null);
+  const titleInputs = useRef(new Map<string, HTMLInputElement>());
 
   const loadCourse = useCallback(async (id: string) => {
     const sequence = ++loadSequence.current;
@@ -289,7 +292,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
     const scheduled = item.dueDate || item.startDate;
     return !item.completed && Boolean(scheduled) && scheduled <= today;
   });
-  const sortedItems = useMemo(() => ordered(items), [items]);
+  const sortedItems = useMemo(() => sortWbsItemsByStartDate(items), [items]);
   const ownerPeople = useMemo(() => selectablePeople([...employeeNames, ...people], inactivePeople)
     .sort((a, b) => a.localeCompare(b, "ko")), [employeeNames, people, inactivePeople]);
   const stakeholderPeople = useMemo(() => selectablePeople(people, inactivePeople), [people, inactivePeople]);
@@ -311,6 +314,18 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
   const dashboardProgress = dashboard.totalItemCount
     ? Math.round(dashboard.completedItemCount / dashboard.totalItemCount * 100)
     : 0;
+
+  useEffect(() => {
+    const newItemId = addedItemId.current;
+    if (!newItemId || view !== "list") return;
+
+    const titleInput = titleInputs.current.get(newItemId);
+    if (!titleInput) return;
+
+    titleInput.scrollIntoView({ behavior: "smooth", block: "center" });
+    titleInput.focus();
+    addedItemId.current = null;
+  }, [sortedItems, view]);
 
   function clearFeedback() { setError(""); setNotice(""); setConflictTarget(null); }
 
@@ -348,7 +363,11 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
 
   function addItem() {
     if (saving || loadingWbs || !courseReady) return;
-    setItems((current) => [...ordered(current), emptyItem(current.length)]);
+    setItems((current) => {
+      const newItem = emptyItem(current.length);
+      addedItemId.current = newItem.id;
+      return [...ordered(current), newItem];
+    });
     setDirty(true);
     setView("list");
     clearFeedback();
@@ -729,7 +748,10 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
                       <div className="flex items-start gap-2">
                         <span draggable={!saving} onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", item.id); setDraggedItemId(item.id); setDropTarget(null); }} onDragEnd={() => { setDraggedItemId(null); setDropTarget(null); }} title="드래그하여 순서 변경" aria-hidden="true" className="flex h-10 w-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground active:cursor-grabbing"><GripVertical className="size-4" /></span>
                         <div className="min-w-0 flex-1">
-                          <Input value={item.title} onChange={(event) => editItem(item.id, { title: event.target.value })} placeholder="업무 제목" aria-label={`${index + 1}번째 업무 제목`} className={item.completed ? "line-through" : ""} disabled={saving || item.id === WEBINAR_ITEM_ID} />
+                          <Input ref={(element) => {
+                            if (element) titleInputs.current.set(item.id, element);
+                            else titleInputs.current.delete(item.id);
+                          }} value={item.title} onChange={(event) => editItem(item.id, { title: event.target.value })} placeholder="업무 제목" aria-label={`${index + 1}번째 업무 제목`} className={item.completed ? "line-through" : ""} disabled={saving || item.id === WEBINAR_ITEM_ID} />
                           {item.id === WEBINAR_ITEM_ID ? <p className="mt-1 text-xs text-muted-foreground">날짜는 강의 상세의 무료웨비나 일정과 연결됩니다.</p> : null}
                           <Textarea value={item.description ?? ""} onChange={(event) => editItem(item.id, { description: event.target.value })} placeholder="업무 설명 또는 세부 체크 내용" aria-label={`${index + 1}번째 업무 설명`} rows={2} className="mt-2 min-h-14 resize-y text-xs" disabled={saving} />
                         </div>
