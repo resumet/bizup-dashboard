@@ -36,7 +36,7 @@ test("recent 30 engagement migration backfills legacy channels without changing 
         )
       from generate_series(1, 35) n;
     `);
-    const migration = await readFile("supabase/migrations/202609270007_youtube_recent30_engagement_backfill.sql", "utf8");
+    const migration = await readFile("supabase/migrations_archive/20260929/202609270007_youtube_recent30_engagement_backfill.sql", "utf8");
     await db.exec(migration);
     await db.exec(migration);
     const result = await db.query<{ channel_id: string; metrics: Record<string, number | null> }>(

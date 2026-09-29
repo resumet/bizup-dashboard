@@ -31,7 +31,7 @@ test("날짜별 업무보고는 사용자마다 한 건을 저장하고 워크�
       insert into public.workspaces values ('${workspaceA}'), ('${workspaceB}');
       insert into public.workspace_members values ('${workspaceA}', '${userA}'), ('${workspaceB}', '${userB}');
     `);
-    const migration = await readFile("supabase/migrations/202609280003_work_daily_reports.sql", "utf8");
+    const migration = await readFile("supabase/migrations_archive/20260929/202609280003_work_daily_reports.sql", "utf8");
     await db.exec(migration);
     await db.exec(migration);
 

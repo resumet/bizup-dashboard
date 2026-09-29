@@ -38,6 +38,7 @@ yarn-error.log*
 # temporary and editor files
 /tmp/
 /temp/
+/backups/supabase/
 /.cache/
 *.tmp
 *.temp

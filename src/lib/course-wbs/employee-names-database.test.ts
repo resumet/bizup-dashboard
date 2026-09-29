@@ -23,7 +23,7 @@ test("WBS employee names include unlinked employed staff and stay workspace scop
       [personnelFixtureIds.workspace, otherWorkspace],
     );
 
-    const migration = await readFile("supabase/migrations/202609270003_course_wbs_employee_names.sql", "utf8");
+    const migration = await readFile("supabase/migrations_archive/20260929/202609270003_course_wbs_employee_names.sql", "utf8");
     await db.exec(migration);
 
     assert.equal((await db.query<{ allowed: boolean }>(

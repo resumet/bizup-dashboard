@@ -25,7 +25,7 @@ export async function createPersonnelFixture() {
     if (id !== ids.outsider) await db.query("insert into public.workspace_members(workspace_id,user_id,role) values($1,$2,$3)", [ids.workspace, id, role]);
   }
   for (const name of ["202609190002_work_tasks", "202609190003_work_task_reviews_and_security", "202609190004_work_task_atomic_commands", "202609190005_work_task_edit_command", "202609210002_hr_leave_management", "202609220001_hr_leave_year_reset", "202609230001_workspace_personnel", "202609230002_personnel_payroll"]) {
-    await db.exec(await readFile(`supabase/migrations/${name}.sql`, "utf8"));
+    await db.exec(await readFile(`supabase/migrations_archive/20260929/${name}.sql`, "utf8"));
   }
   await db.exec("grant usage on schema public,auth to authenticated,service_role; grant select on public.workspace_members to authenticated; grant select on public.work_tasks,public.work_task_events,public.work_daily_reviews to authenticated; grant all on all tables in schema public to service_role;");
   return db;

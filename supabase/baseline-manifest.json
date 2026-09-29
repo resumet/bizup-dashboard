@@ -1,0 +1,14 @@
+{
+  "version": "202609290002",
+  "file": "202609290002_production_baseline.sql",
+  "capturedAt": "2026-09-29T12:08:13.272085+00:00",
+  "sha256": "123e815cc2e9c0fadfdeab535cf694226acc1b234b6e57d2f052df032f293023",
+  "schemas": [
+    "public",
+    "hr",
+    "personnel_private"
+  ],
+  "catalogFacts": 2259,
+  "archivedFiles": 91,
+  "previousHistoryRows": 8
+}

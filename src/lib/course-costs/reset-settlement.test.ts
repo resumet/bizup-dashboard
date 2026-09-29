@@ -9,7 +9,7 @@ test("cost save resets only its settlement atomically and preserves source files
   const workspace = "00000000-0000-4000-8000-000000000002";
   const course = "00000000-0000-4000-8000-000000000003";
   const other = "00000000-0000-4000-8000-000000000004";
-  const sql = (name: string) => readFile(`supabase/migrations/${name}.sql`, "utf8");
+  const sql = (name: string) => readFile(`supabase/migrations_archive/20260929/${name}.sql`, "utf8");
   try {
     await db.exec(`create schema auth; create role service_role; create role anon; create role authenticated;
       create table auth.users (id uuid primary key);

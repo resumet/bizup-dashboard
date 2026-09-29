@@ -12,7 +12,7 @@
 
 ## 운영 반영 순서
 
-1. Supabase SQL Editor에서 `supabase/migrations/202609180001_paid_roster_removal_review.sql` 전체를 실행한다. 기존 `paid_roster_snapshot` 및 `apply_paid_roster_changes` 함수가 있는 DB를 대상으로 한다.
+1. 승인 적용용 함수는 현재 운영 기준 파일에 포함되어 있다. [DB 마이그레이션 안내](database-migrations.md)에 따라 `supabase db push --linked --dry-run`으로 검토하고 `supabase db push --linked`로 새 마이그레이션만 적용한다. 기존 운영 DB에 기준 파일이나 `migrations_archive`의 과거 SQL을 다시 실행하지 않는다.
 2. 앱 변경을 배포한다. 새 함수가 없는 상태에서는 제외 적용 시 DB 업데이트 필요 오류를 표시하며 기존 명단을 변경하지 않는다.
 
-SQL은 승인 적용용 함수를 추가하며, 실행 자체로 수강생 데이터를 변경하지 않는다. 새 함수는 서버 service role만 실행할 수 있고 내부에서 워크스페이스 권한을 확인한다.
+승인 적용용 함수는 서버 service role만 실행할 수 있고 내부에서 워크스페이스 권한을 확인한다.

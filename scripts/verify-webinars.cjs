@@ -31,7 +31,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'C:/Users/re
     await db.query("insert into public.workspace_members values($1,$2)", [workspace, owner]);
     await db.query("insert into public.courses values($1,$3,'첫 번째 웨비나','강사 하나','2026-09-15T10:00:00Z'),($2,$3,'두 번째 웨비나','강사 둘','2026-09-14T10:00:00Z')", [first, second, workspace]);
     await db.query("insert into public.courses select gen_random_uuid(),$1,'과거 강의 '||n,'과거 강사','2026-08-01T00:00:00Z' from generate_series(1,499) n", [workspace]);
-    await db.exec(await fs.readFile('supabase/migrations/202609150001_course_webinar_metrics.sql', 'utf8'));
+    // Historical fixture only: db is the isolated, in-memory PGlite instance above.
+    await db.exec(await fs.readFile('supabase/migrations_archive/20260929/202609150001_course_webinar_metrics.sql', 'utf8'));
     async function query(sql, values = []) {
       return db.transaction(async tx => {
         await tx.query("select set_config('request.jwt.claim.sub',$1,true)", [sessions.getStore()?.user?.id ?? '']);

@@ -27,8 +27,8 @@ test("휴가 DB가 기본 부여·사용 신청·추가휴가를 서로 분리�
         ('${workspaceId}', '${adminId}', 'admin'),
         ('${workspaceId}', '${employeeId}', 'user');
     `);
-    await db.exec(await readFile("supabase/migrations/202609210002_hr_leave_management.sql", "utf8"));
-    await db.exec(await readFile("supabase/migrations/202609220001_hr_leave_year_reset.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations_archive/20260929/202609210002_hr_leave_management.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations_archive/20260929/202609220001_hr_leave_year_reset.sql", "utf8"));
     await db.query(
       `insert into public.hr_leave_profiles
         (workspace_id,user_id,employment_start_date,created_by,updated_by)

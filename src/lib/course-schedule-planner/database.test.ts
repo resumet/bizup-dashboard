@@ -75,7 +75,7 @@ test("예비 강의 전용 테이블이 기존 로그를 이전하고 전체 필
 
     await db.exec(
       await readFile(
-        "supabase/migrations/202609210001_course_schedule_drafts.sql",
+        "supabase/migrations_archive/20260929/202609210001_course_schedule_drafts.sql",
         "utf8",
       ),
     );

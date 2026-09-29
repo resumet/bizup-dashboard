@@ -17,7 +17,7 @@ WORK 메인의 **라이브 웨비나 대시보드** 서비스 카드를 누르�
 
 ## 운영 적용
 
-기존 DB에 `supabase/migrations/202609150001_course_webinar_metrics.sql` 전체를 SQL Editor의 `postgres` 역할 또는 기존 마이그레이션 배포 절차로 적용한 뒤 앱을 배포한다. 별도 환경변수는 없다. 기존 강의·워크스페이스 테이블과 `is_workspace_member` 함수를 사용하며 입력 전의 강의 행은 만들지 않는다.
+웨비나 DB 구조는 현재 운영 기준 파일에 포함되어 있다. [DB 마이그레이션 안내](database-migrations.md)에 따라 `supabase db push --linked --dry-run`으로 검토하고 `supabase db push --linked`로 새 마이그레이션만 적용한 뒤 앱을 배포한다. 기존 운영 DB에서 기준 파일을 다시 실행하거나 `migrations_archive`의 과거 SQL을 배포하지 않는다. 별도 환경변수는 없다. 기존 강의·워크스페이스 테이블과 `is_workspace_member` 함수를 사용하며 입력 전의 강의 행은 만들지 않는다.
 
 저장용 테이블은 강의당 한 행이며 강의 삭제 시 함께 제거된다. 세션 인증과 워크스페이스 권한을 확인하고, 조회는 RLS로 제한하며 저장은 검증하는 RPC만 허용한다. 이전 저장 버전과 다르면 409로 거절한다. 충돌 시 입력값은 화면에 유지되고 `새로 불러오기`로 최신 데이터를 가져올 수 있다. DB 적용 전에는 로딩 오류와 재시도 버튼을 표시하고 WORK의 다른 도구는 사용할 수 있다.
 

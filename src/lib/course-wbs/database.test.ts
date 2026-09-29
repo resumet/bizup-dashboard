@@ -31,7 +31,7 @@ test("WBS 마이그레이션은 강의와 워크스페이스 연결 및 템플�
     await db.query("insert into public.workspaces values ($1), ($2)", [workspaceA, workspaceB]);
     await db.query("insert into public.workspace_members values ($1, $2), ($3, $4)", [workspaceA, userA, workspaceB, userB]);
     await db.query("insert into public.courses values ($1, $2), ($3, $4)", [courseA, workspaceA, courseB, workspaceA]);
-    await db.exec(await readFile("supabase/migrations/202609270001_course_wbs.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations_archive/20260929/202609270001_course_wbs.sql", "utf8"));
 
     await assert.rejects(
       db.query("insert into public.course_wbs (course_id, workspace_id) values ($1, $2)", [courseA, workspaceB]),

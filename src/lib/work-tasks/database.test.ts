@@ -27,10 +27,10 @@ test("새 HR 업무 명령은 변경과 히스토리를 한 트랜잭션에 저�
       insert into public.workspace_members values ('${workspaceId}', '${creatorId}'), ('${workspaceId}', '${teammateId}');
     `);
     for (const migration of [
-      "supabase/migrations/202609190002_work_tasks.sql",
-      "supabase/migrations/202609190003_work_task_reviews_and_security.sql",
-      "supabase/migrations/202609190004_work_task_atomic_commands.sql",
-      "supabase/migrations/202609190005_work_task_edit_command.sql",
+      "supabase/migrations_archive/20260929/202609190002_work_tasks.sql",
+      "supabase/migrations_archive/20260929/202609190003_work_task_reviews_and_security.sql",
+      "supabase/migrations_archive/20260929/202609190004_work_task_atomic_commands.sql",
+      "supabase/migrations_archive/20260929/202609190005_work_task_edit_command.sql",
     ]) await db.exec(await readFile(migration, "utf8"));
 
     const created = await db.query<{ task: { id: string; assignee_id: string; status: string } }>(

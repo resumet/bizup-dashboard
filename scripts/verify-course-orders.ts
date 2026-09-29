@@ -15,7 +15,7 @@ async function main() {
   const errors = results.flatMap((result, index) => result.error ? [{ table: index === 0 ? "course_orders" : "course_order_imports", code: result.error.code }] : []);
   console.log(JSON.stringify({ available: !errors.length, errors }));
   if (errors.length) {
-    throw new Error("supabase/migrations/202609120001_course_orders.sql을 적용해 주세요.");
+    throw new Error("주문 DB 구조가 필요합니다. docs/database-migrations.md의 절차로 연결 프로젝트와 supabase db push --dry-run 결과를 확인해 주세요. 과거 SQL이나 운영 기준 파일을 다시 실행하지 마세요.");
   }
 }
 

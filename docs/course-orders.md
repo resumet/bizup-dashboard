@@ -4,7 +4,7 @@
 
 ## DB 적용
 
-기존 강의 운영 DB에 `supabase/migrations/202609120001_course_orders.sql`을 적용합니다. Supabase SQL Editor에서 해당 파일의 SQL 전체를 실행합니다. 주문 내역·가져오기 이력 테이블, 워크스페이스 구성원 조회 정책, 서버 전용 원자적 가져오기 함수를 만듭니다.
+주문 내역·가져오기 이력 테이블, 워크스페이스 구성원 조회 정책, 서버 전용 원자적 가져오기 함수는 현재 운영 기준 파일에 포함되어 있습니다. [DB 마이그레이션 안내](database-migrations.md)에 따라 `supabase db push --linked --dry-run`으로 변경을 검토하고 `supabase db push --linked`로 새 마이그레이션만 적용합니다. 기존 운영 DB에는 기준 파일을 다시 실행하지 않으며, `migrations_archive`의 과거 SQL은 배포하지 않습니다.
 
 적용 후 `npx tsx scripts/verify-course-orders.ts`로 테이블과 필수 열을 읽기 전용으로 확인합니다. `.env.local`의 Supabase 서버 환경변수를 사용하며 실제 개인정보는 출력하지 않습니다.
 

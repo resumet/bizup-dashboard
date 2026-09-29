@@ -24,7 +24,7 @@ test("webinar database enforces access, persistence, versions and validation acr
     const workspace = randomUUID();
     await db.query("insert into public.courses values($1,$3),($2,$3)", [course1, course2, workspace]);
     await db.query("insert into public.workspace_members values($1,$2)", [workspace, user]);
-    await db.exec(await readFile("supabase/migrations/202609150001_course_webinar_metrics.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations_archive/20260929/202609150001_course_webinar_metrics.sql", "utf8"));
     await login(user);
     const record = (await save(course1, { group_chat_count: 1000, communication_count: 400, live_start_count: 200, live_peak_count: 300, hours_to_peak: 1.5, live_end_count: 150, ad_spend: 1000000, payment_count: 20, revenue: 5000000 }, 0)).rows[0].value;
     assert.equal(record.course_id, course1); assert.equal(record.version, 1); assert.equal(Number(record.hours_to_peak), 1.5);

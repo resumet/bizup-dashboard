@@ -11,7 +11,7 @@ test("channels accumulate in first-seen order and reanalysis updates only the ma
       create table public.workspace_members(workspace_id uuid,user_id uuid);
       create function auth.uid() returns uuid language sql stable as $$ select current_setting('test.user')::uuid $$;
       grant usage on schema public,auth to authenticated; grant select on workspace_members to authenticated;`);
-    await db.exec(await readFile("supabase/migrations/202609230007_youtube_channel_analyzer.sql","utf8"));
+    await db.exec(await readFile("supabase/migrations_archive/20260929/202609230007_youtube_channel_analyzer.sql","utf8"));
 
     const user="00000000-0000-0000-0000-000000000001";
     const workspace="00000000-0000-0000-0000-000000000002";
@@ -29,17 +29,17 @@ test("channels accumulate in first-seen order and reanalysis updates only the ma
       "select public.save_youtube_analysis($1,$2,$3,$4,$5,$6)",
       [firstBatch,JSON.stringify({id:"channel-a",name:"Original"}),JSON.stringify({count:1}),"[]","2026-01-01",JSON.stringify([{id:"old-video",publishedAt:"2026-01-01",views:10}])],
     );
-    await db.exec(await readFile("supabase/migrations/202609230008_youtube_channel_accumulation.sql","utf8"));
-    const emailMigration=await readFile("supabase/migrations/202609270005_youtube_channel_email.sql","utf8");
+    await db.exec(await readFile("supabase/migrations_archive/20260929/202609230008_youtube_channel_accumulation.sql","utf8"));
+    const emailMigration=await readFile("supabase/migrations_archive/20260929/202609270005_youtube_channel_email.sql","utf8");
     await db.exec(emailMigration);
     await db.exec(emailMigration);
-    const attributesMigration=await readFile("supabase/migrations/202609270006_youtube_channel_attributes.sql","utf8");
+    const attributesMigration=await readFile("supabase/migrations_archive/20260929/202609270006_youtube_channel_attributes.sql","utf8");
     await db.exec(attributesMigration);
     await db.exec(attributesMigration);
-    const memoMigration=await readFile("supabase/migrations/202609280001_youtube_channel_memo.sql","utf8");
+    const memoMigration=await readFile("supabase/migrations_archive/20260929/202609280001_youtube_channel_memo.sql","utf8");
     await db.exec(memoMigration);
     await db.exec(memoMigration);
-    const exclusionMigration=await readFile("supabase/migrations/202609280002_youtube_exclude_updates.sql","utf8");
+    const exclusionMigration=await readFile("supabase/migrations_archive/20260929/202609280002_youtube_exclude_updates.sql","utf8");
     await db.exec(exclusionMigration);
     await db.exec(exclusionMigration);
 

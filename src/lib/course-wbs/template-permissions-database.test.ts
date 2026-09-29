@@ -30,7 +30,7 @@ test("workspace members may read WBS templates but cannot write them directly", 
     await db.query("insert into auth.users values ($1), ($2)", [userA, userB]);
     await db.query("insert into public.workspaces values ($1), ($2)", [workspaceA, workspaceB]);
     await db.query("insert into public.workspace_members values ($1, $2), ($3, $4)", [workspaceA, userA, workspaceB, userB]);
-    await db.exec(await readFile("supabase/migrations/202609270001_course_wbs.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations_archive/20260929/202609270001_course_wbs.sql", "utf8"));
     await db.query(
       "insert into public.course_wbs_templates (workspace_id, id, name) values ($1, 'template', 'Workspace A'), ($2, 'template', 'Workspace B')",
       [workspaceA, workspaceB],
@@ -39,7 +39,7 @@ test("workspace members may read WBS templates but cannot write them directly", 
     // Simulate inherited PUBLIC access as well as explicit API-role grants.
     // The service role keeps its own grant for server-authorized saves.
     await db.exec("grant select, insert, update, delete on public.course_wbs_templates to public, authenticated, service_role");
-    const migration = await readFile("supabase/migrations/202609270004_course_wbs_template_permissions.sql", "utf8");
+    const migration = await readFile("supabase/migrations_archive/20260929/202609270004_course_wbs_template_permissions.sql", "utf8");
     await db.exec(migration);
     await db.exec(migration);
 

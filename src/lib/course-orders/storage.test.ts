@@ -31,7 +31,7 @@ test("실제 SQL로 필드 저장·재업로드 갱신·강의 격리·실패 �
       grant usage on schema public, auth to authenticated;
       grant select on public.courses, public.workspace_members to authenticated;
     `);
-    await db.exec(await readFile("supabase/migrations/202609120001_course_orders.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations_archive/20260929/202609120001_course_orders.sql", "utf8"));
     const save = (records: unknown[], course = courseId, user = userId) => db.query(
       "select public.import_course_orders($1, $2, $3, $4::jsonb)", [course, user, "orders.xlsx", JSON.stringify(records)],
     );

@@ -16,14 +16,14 @@ test("주문 명단 저장은 강의별로 격리하고 반복 저장·추가·�
     await db.exec(`create role anon; create role authenticated; create role service_role;
       create schema auth; create table auth.users(id uuid primary key);
       create function auth.uid() returns uuid language sql as $$ select nullif(current_setting('test.user_id',true),'')::uuid $$;`);
-    const foundation = await readFile("supabase/migrations/202608260001_foundation.sql", "utf8");
+    const foundation = await readFile("supabase/migrations_archive/20260929/202608260001_foundation.sql", "utf8");
     await db.exec(foundation.split("create function public.handle_new_user")[0].replace('create extension if not exists "pgcrypto";', ""));
     await db.exec(`create table public.courses(id uuid primary key, workspace_id uuid not null references workspaces, name text not null);
       alter table public.course_jobs add column course_id uuid references public.courses on delete set null;
       alter table public.job_enrollments add column is_extra_participant boolean not null default false, add column is_manually_added boolean not null default false;
       create unique index on public.job_enrollments(job_id,version,source_row_number);`);
-    await db.exec(await readFile("supabase/migrations/202609120001_course_orders.sql", "utf8"));
-    await db.exec(await readFile("supabase/migrations/202609160002_paid_course_rosters.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations_archive/20260929/202609120001_course_orders.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations_archive/20260929/202609160002_paid_course_rosters.sql", "utf8"));
     await db.query("insert into auth.users values ($1),($2)", [user, outsider]);
     await db.query("insert into workspaces(id,name) values($1,'Test')", [workspace]);
     await db.query("insert into workspace_members(workspace_id,user_id) values($1,$2)", [workspace, user]);

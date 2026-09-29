@@ -5,7 +5,7 @@
 ## 설치와 초기 관리자
 
 1. 기존 환경과 동일하게 `npm install`을 실행한다.
-2. Supabase의 마이그레이션 배포 절차로 `202609140001_hr_core.sql`부터 `202609140008_work_hr_account_sync.sql`까지 순서대로 적용한다. 이미 적용한 파일은 재실행하지 않는다. 다른 기능의 미적용 마이그레이션은 해당 배포 계획에 맞춰 처리한다.
+2. [DB 마이그레이션 안내](database-migrations.md)에 따라 `supabase db push --linked --dry-run`으로 변경을 검토하고 `supabase db push --linked`로 새 마이그레이션만 적용한다. HR DB 구조는 현재 운영 기준 파일에 포함되어 있다. 기존 운영 DB에서 기준 파일을 다시 실행하거나 `migrations_archive`의 과거 HR SQL을 배포하지 않는다.
 3. 서버 환경에 기존 Supabase URL·anon key·service role key를 설정한다. 초대 링크의 기본 주소는 `https://bizup-dashboard.vercel.app`이며 `HR_APP_URL`로 변경할 수 있다. localhost 개발 시 HTTP를 허용한다. 비밀키는 `NEXT_PUBLIC_` 변수에 넣지 않는다.
 4. 초기 관리자의 기존 인증 계정 이메일을 `HR_INITIAL_ADMIN_EMAIL`, 표시 이름을 `HR_INITIAL_ADMIN_NAME`, 입사일을 `HR_INITIAL_ADMIN_START_DATE`로 지정한다. 선택적으로 `HR_ORGANIZATION_NAME`을 지정한다.
 5. `npx tsx scripts/hr/setup.ts`를 한 번 실행한다. 기존 인증 계정을 HR 관리자에 연결하며 초대 메일을 보내지 않는다. 이미 HR 조직이 있으면 초기화를 거절한다.
@@ -13,17 +13,17 @@
 
 초기 기본값은 서울 시간대, 월~금 09:00~18:00, 휴게 12:00~13:00, 반차 경계 14:00, 지각 여유 0분이다. 공휴일은 자동 수집하지 않는다. 관리자 설정에서 회사의 휴무일을 등록한다.
 
-### SQL Editor에서 최초 설치
+### DB 초기화와 기존 운영 DB
 
-DB 연결 문자열 없이 설치하려면 `.env.local`에 초기 관리자 이메일을 설정하고 `npx tsx scripts/hr/build-install.ts`를 실행한다. 생성된 `tmp/hr-install.sql` 전체를 해당 Supabase 프로젝트의 SQL Editor에 붙여 넣고 `postgres` 역할로 한 번 실행한다. 이 파일은 마이그레이션 8개와 초기 관리자 연결·WORK 기존 계정 추가를 한 트랜잭션으로 처리하며, 실패 시 전체를 되돌린다. 이미 HR 스키마가 있으면 실행을 거절한다. 성공 시 위의 `setup.ts`는 별도로 실행하지 않는다.
+새 빈 DB의 스키마 초기화와 별도 초기 설정은 [DB 마이그레이션 안내](database-migrations.md)를 따른다. 과거 HR 마이그레이션 8개를 묶어 SQL Editor에서 실행하는 설치 방식은 사용하지 않는다. 기존 운영 DB의 HR 구조와 데이터는 그대로 유지하며 기준 파일을 다시 실행하지 않는다.
 
-이어서 `supabase/hr_schedule.sql`을 실행하면 매분 내부 알림과 정리 안내를 처리한다. 기존 HTTP 스케줄러를 사용한다면 SQL 스케줄러는 생략한다. `npx tsx scripts/hr/check-install.ts --admin`으로 RPC 설치 여부와 기존 관리자 인증 계정 존재 여부를 읽기 전용으로 확인할 수 있다. 관리자 계정 존재만으로 HR 관리자 연결까지 완료된 것은 아니다.
+현재 기준 파일에는 매분 내부 알림과 정리 안내를 처리하는 `bizup-hr-notifications` cron 작업이 포함되어 있다. 기존 운영 DB의 작업을 유지하므로 과거 스케줄러 SQL을 별도로 실행하거나 `migrations_archive`의 SQL을 배포하지 않는다. HTTP 스케줄러도 사용하는 환경에서는 중복 실행 여부를 확인한다. `npx tsx scripts/hr/check-install.ts --admin`으로 RPC 설치 여부와 기존 관리자 인증 계정 존재 여부를 읽기 전용으로 확인할 수 있다. 관리자 계정 존재만으로 HR 관리자 연결까지 완료된 것은 아니다.
 
 ## 직원 초대와 인증
 
 ### WORK 계정 자동 연동
 
-기존 HR 설치에는 `supabase/migrations/202609140008_work_hr_account_sync.sql` 전체만 SQL Editor에서 `postgres` 역할로 실행한다. 최초 설치 파일을 다시 실행하지 않는다. 적용 즉시 기존 WORK 계정을 일괄 연결하고 이후 `auth.users` 생성·삭제 트리거가 같은 트랜잭션에서 HR 직원을 처리한다. 앱 재배포나 별도 스케줄러는 필요 없다. 실행 결과의 `added`, `total`, `unlinked_or_deleted`는 추가 직원 수, 보관 기록을 포함한 총 직원 수, 이메일 누락·충돌·삭제 등 미연결 계정 수다.
+WORK 계정 자동 연동 함수와 `auth.users` 생성·삭제 트리거는 현재 운영 기준 파일에 포함되어 있다. 과거 `202609140008_work_hr_account_sync.sql`을 다시 실행하지 않는다. 이력 통합은 기존 계정의 일괄 연동을 재실행하지 않으며, 이후 트리거는 같은 트랜잭션에서 HR 직원을 처리한다. 별도 변경이 필요하면 [DB 마이그레이션 안내](database-migrations.md)에 따라 새 마이그레이션으로 처리한다.
 
 - 새 WORK 계정은 HR 일반 직원으로 추가한다. 이름은 인증 프로필 이름, 없으면 이메일 앞부분이며 입사일은 등록일이다. HR 관리자가 미리 만든 초대가 있으면 그 초대의 이름·부서·권한·입사일을 사용한다. 사용자 프로필의 `role` 값으로 관리자 권한을 부여하지 않는다.
 - 이미 연결된 직원의 이름·권한·활성 상태는 유지한다. HR에서 수동 비활성화한 직원이 로그인하거나 프로필을 수정해도 자동 활성화되지 않는다. WORK 계정의 이름·이메일 변경이나 로그인 차단/해제는 기존 HR 직원 정보를 변경하지 않는다.
@@ -61,7 +61,7 @@ Authorization: Bearer <CRON_SECRET>
 
 API 성공 응답 뒤에도 outbox 처리를 시도한다. 정기 작업은 앱이 닫혀 있어도 퇴근 전 정리 안내를 생성하고 미처리 이벤트를 재시도한다. 작업 실패는 원본 업무·휴가·근태 저장을 취소하지 않는다. 수신자별 유일성으로 중복 알림을 막는다. 오류 시 30초부터 최대 1시간까지 재시도 간격을 늘리며 성공할 때까지 보관한다.
 
-Supabase에서 `pg_cron`을 사용할 경우 HTTP 스케줄러 대신 `supabase/hr_schedule.sql`을 운영자가 적용할 수 있다. DB 내부에서 매분 실행되며 URL·서비스 키를 작업 본문에 저장하지 않는다. 두 방식 중 하나를 설정하고 작업 실행 기록을 확인한다. 예약·실행 기록 확인 방법은 [Supabase Cron 공식 문서](https://supabase.com/docs/guides/cron/quickstart)를 따른다.
+현재 기준 파일은 Supabase `pg_cron`의 `bizup-hr-notifications` 작업을 포함한다. 기존 운영 DB에서는 이 작업을 유지하며 기준 파일이나 과거 스케줄러 SQL을 다시 실행하지 않는다. DB 내부에서 매분 실행되며 URL·서비스 키를 작업 본문에 저장하지 않는다. HTTP 스케줄러를 추가하기 전에 기존 cron 작업과 중복되지 않는지 확인하고 한 가지 방식의 실행 기록을 점검한다. 변경이 필요하면 [DB 마이그레이션 안내](database-migrations.md)에 따라 새 마이그레이션을 만든다. 예약·실행 기록 확인 방법은 [Supabase Cron 공식 문서](https://supabase.com/docs/guides/cron/quickstart)를 따른다.
 
 관리자 설정의 알림 처리 대기에서 시도 횟수·다음 처리 시각·오류 코드를 확인한다. 재가동 후 cron URL을 다시 호출하면 처리 시각이 된 이벤트부터 진행한다. SQL 관리자 작업으로 특정 outbox의 `next_retry_at`을 현재로 바꾸면 즉시 재처리할 수 있다. 성공 이벤트와 알림을 삭제해서 재처리하지 않는다.
 

@@ -35,9 +35,9 @@ test("강의마다 하나의 광고성과 대시보드와 날짜별 지표를 �
       insert into public.workspace_members values ('${workspaceId}', '${userId}');
       insert into public.courses values ('${courseId}', '${workspaceId}', '마케팅 강의', '김강사', '2026-10-01T00:00:00Z');
     `);
-    await db.exec(await readFile("supabase/migrations/202609230004_ad_performance_dashboard.sql", "utf8"));
-    await db.exec(await readFile("supabase/migrations/202609230005_course_ad_performance_dashboards.sql", "utf8"));
-    await db.exec(await readFile("supabase/migrations/202609230006_ad_chat_room_members.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations_archive/20260929/202609230004_ad_performance_dashboard.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations_archive/20260929/202609230005_course_ad_performance_dashboards.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations_archive/20260929/202609230006_ad_chat_room_members.sql", "utf8"));
 
     await db.query(
       `insert into public.ad_performance_dashboards

@@ -30,7 +30,7 @@ test("WBS people migration backfills exact choices and restricts them by workspa
     await db.query("insert into public.workspaces values ($1), ($2)", [workspaceA, workspaceB]);
     await db.query("insert into public.workspace_members values ($1, $2), ($3, $4)", [workspaceA, userA, workspaceB, userB]);
     await db.query("insert into public.courses values ($1, $2)", [courseA, workspaceA]);
-    await db.exec(await readFile("supabase/migrations/202609270001_course_wbs.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations_archive/20260929/202609270001_course_wbs.sql", "utf8"));
 
     await db.query(
       "insert into public.course_wbs (course_id, workspace_id, items) values ($1, $2, $3::jsonb)",
@@ -45,7 +45,7 @@ test("WBS people migration backfills exact choices and restricts them by workspa
         workspaceB, JSON.stringify([{ owner: "다른 담당자" }])],
     );
 
-    const migration = await readFile("supabase/migrations/202609270002_course_wbs_people.sql", "utf8");
+    const migration = await readFile("supabase/migrations_archive/20260929/202609270002_course_wbs_people.sql", "utf8");
     await db.exec(migration);
     await db.exec(migration);
 

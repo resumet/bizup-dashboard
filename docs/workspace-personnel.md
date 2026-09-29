@@ -17,22 +17,16 @@ Normal list/detail responses still exclude resident numbers. Explicit administra
 
 ## Migration
 
-This project's historical migration ledger is incomplete. In particular, version `202609220001` was previously recorded for legacy personnel, while the current repository uses that version for annual leave reset. Do not blindly run `db push`, replay old migrations, or rewrite the historical ledger.
-
-The dedicated command checks the linked project against `NEXT_PUBLIC_SUPABASE_URL`, verifies prerequisites, and applies only `202609230001_workspace_personnel.sql` transactionally. It records that exact SQL in migration history, rejects mismatched already-applied SQL, and leaves legacy `hr.personnel` and contract-document tables untouched.
+The production schema is now managed from `supabase/migrations/202609290002_production_baseline.sql`. Personnel and payroll objects are included in that baseline. Follow the [database migration guide](database-migrations.md); never execute the baseline again on the existing production database or deploy historical SQL from `supabase/migrations_archive/20260929`.
 
 ```sh
-npm run db:personnel -- --dry-run
-npm run db:personnel
-npm run db:personnel -- --payroll --dry-run
-npm run db:personnel -- --payroll
+supabase db push --linked --dry-run
+supabase db push --linked
 ```
 
-The payroll flag applies only `202609230002_personnel_payroll.sql` after the initial personnel migration. Existing migration files/history remain unchanged. The payroll migration refuses to proceed if encrypted resident numbers exist, rather than losing those values or treating ciphertext as plaintext. This database had zero encrypted resident numbers when the change was applied; other installations must convert any existing encrypted values securely before proceeding.
+Review the target project and planned changes before the second command. Only new migrations should be applied to an existing, baselined production database. The old `npm run db:personnel` command and its `--payroll` / `--with-missing-baseline` options are retired; the script exits without loading credentials or contacting the database.
 
-If baseline task migrations are absent, the command stops. After reviewing the missing SQL, use `--with-missing-baseline` (also supported with `--dry-run`). This narrowly allows the three task migrations `202609190003` through `202609190005`, and only when their objects and ledger entries are absent. Partial application is rejected. Those dependencies and the personnel migration are then applied in one transaction, without rewriting existing history.
-
-Initial records are populated from current workspace accounts and attendance employment dates. Historical records in the legacy HR schema are not migrated automatically. Inspect any legacy data before adopting this command on another database.
+The archived payroll SQL is retained for historical regression tests. Its original encrypted-value checks and data transformations must not be bypassed or replayed on production. The baseline records the current schema; it does not copy employee data, initialize accounts, or automatically migrate legacy HR records on a new installation. Consult the migration guide before preparing another database.
 
 ## Verification
 

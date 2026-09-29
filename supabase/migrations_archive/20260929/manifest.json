@@ -1,0 +1,461 @@
+{
+  "archivedAt": "2026-09-29",
+  "baseline": "202609290002_production_baseline.sql",
+  "files": [
+    {
+      "file": "202608260001_foundation.sql",
+      "sha256": "3c77bbd80d7f7ac1b9f7bf8f831d89fa088a7c6f1a52ca7715e0013834a14aed",
+      "sha256Normalized": "3c77bbd80d7f7ac1b9f7bf8f831d89fa088a7c6f1a52ca7715e0013834a14aed"
+    },
+    {
+      "file": "202608260002_roster_messages.sql",
+      "sha256": "fae4d5416ee0ed212fb4dda6153b940dec20226bf3e43f92a186f47e3101cef6",
+      "sha256Normalized": "fae4d5416ee0ed212fb4dda6153b940dec20226bf3e43f92a186f47e3101cef6"
+    },
+    {
+      "file": "202608260003_message_automation.sql",
+      "sha256": "98e9f8332e97a4d0d50aa11193baf46daba7599abc1c985d1999d199d142694e",
+      "sha256Normalized": "98e9f8332e97a4d0d50aa11193baf46daba7599abc1c985d1999d199d142694e"
+    },
+    {
+      "file": "202608260004_message_studio.sql",
+      "sha256": "c8f4ac6da5f2d3756d31c26f3f42b4763893c4545db77885fe7d9a404ddc5e7b",
+      "sha256Normalized": "c8f4ac6da5f2d3756d31c26f3f42b4763893c4545db77885fe7d9a404ddc5e7b"
+    },
+    {
+      "file": "202608280001_query_performance_indexes.sql",
+      "sha256": "c75e16c8bfe1c66f853056e07352222694f6152ce15b49ff6d4efd9b86f18b9b",
+      "sha256Normalized": "c75e16c8bfe1c66f853056e07352222694f6152ce15b49ff6d4efd9b86f18b9b"
+    },
+    {
+      "file": "202608280002_message_template_variables.sql",
+      "sha256": "e7ff3d62fd74cc071d70ae68ec037ed9461b5890bfb7b99b8a3f77dbc2c3133a",
+      "sha256Normalized": "e7ff3d62fd74cc071d70ae68ec037ed9461b5890bfb7b99b8a3f77dbc2c3133a"
+    },
+    {
+      "file": "202608280003_course_operations.sql",
+      "sha256": "f1390b8e9bbe127cbd158dbb56b934f6f7d814ee335742f3fabc22f83a33ae92",
+      "sha256Normalized": "f1390b8e9bbe127cbd158dbb56b934f6f7d814ee335742f3fabc22f83a33ae92"
+    },
+    {
+      "file": "202608280004_course_free_address_book.sql",
+      "sha256": "f1f404f1c7a9beb7d4d9a254a5a70c40f5ded643737b6b5f1d71aa63a63cac62",
+      "sha256Normalized": "f1f404f1c7a9beb7d4d9a254a5a70c40f5ded643737b6b5f1d71aa63a63cac62"
+    },
+    {
+      "file": "202608280005_course_links.sql",
+      "sha256": "c18d9bd8a53a2c9130c444b40f56604072502f08135d9cbe86a6030076c8965b",
+      "sha256Normalized": "c18d9bd8a53a2c9130c444b40f56604072502f08135d9cbe86a6030076c8965b"
+    },
+    {
+      "file": "202608290001_replace_default_message_template.sql",
+      "sha256": "8270c9e2a83136f17f23dc7a24c79ddb81787ae70bfef514f12ba19e647dd5d0",
+      "sha256Normalized": "8270c9e2a83136f17f23dc7a24c79ddb81787ae70bfef514f12ba19e647dd5d0"
+    },
+    {
+      "file": "202608290002_message_template_send_type.sql",
+      "sha256": "97299772c1870ffdc3c1a5c687f38099711bf6fa57aee1d5723b87f635aa4156",
+      "sha256Normalized": "97299772c1870ffdc3c1a5c687f38099711bf6fa57aee1d5723b87f635aa4156"
+    },
+    {
+      "file": "202608290003_template_code_primary_key.sql",
+      "sha256": "c1c933e4fcc5cb5a2d6e59dc5c7abc29f9ba922a40169a6598ceaaba9a2d9bd1",
+      "sha256Normalized": "c1c933e4fcc5cb5a2d6e59dc5c7abc29f9ba922a40169a6598ceaaba9a2d9bd1"
+    },
+    {
+      "file": "202608290004_message_studio_default_templates.sql",
+      "sha256": "b6250fa235268ee7a6d76971072ebfee9964c50759ec55d8104bb325b355464b",
+      "sha256Normalized": "b6250fa235268ee7a6d76971072ebfee9964c50759ec55d8104bb325b355464b"
+    },
+    {
+      "file": "202608290005_settlement_analysis_service.sql",
+      "sha256": "827da32c6804124694981b48c04ee3277901a2b0e28c13168c6765c6052c9f44",
+      "sha256Normalized": "827da32c6804124694981b48c04ee3277901a2b0e28c13168c6765c6052c9f44"
+    },
+    {
+      "file": "202608290006_course_option_invites.sql",
+      "sha256": "bbbf3d2dc67273f1e1adaeeb0df6b695dc57b94da1d3fdaf4071742c97b6417f",
+      "sha256Normalized": "bbbf3d2dc67273f1e1adaeeb0df6b695dc57b94da1d3fdaf4071742c97b6417f"
+    },
+    {
+      "file": "202608300001_settlement_reports.sql",
+      "sha256": "dfc53b49a8554664a9e01fe5fb0a1695d3d433afcb560a62e5b07819f25ef044",
+      "sha256Normalized": "dfc53b49a8554664a9e01fe5fb0a1695d3d433afcb560a62e5b07819f25ef044"
+    },
+    {
+      "file": "202608300002_purchase_analysis_service.sql",
+      "sha256": "260985ea34819977bc9409f48fd3fc69762b0681289eb196ed50be260c6d4a6c",
+      "sha256Normalized": "260985ea34819977bc9409f48fd3fc69762b0681289eb196ed50be260c6d4a6c"
+    },
+    {
+      "file": "202608300003_kakao_ad_maker_service.sql",
+      "sha256": "4b846c9ee9eef6324f52d960714cefa2b17aec33db6ab8a85fe1efe3d1c8f059",
+      "sha256Normalized": "4b846c9ee9eef6324f52d960714cefa2b17aec33db6ab8a85fe1efe3d1c8f059"
+    },
+    {
+      "file": "202608310001_course_settlements.sql",
+      "sha256": "b673b79af8698cac7b8131d9f51e3282a2a615281b6148c6489b0614fee38047",
+      "sha256Normalized": "b673b79af8698cac7b8131d9f51e3282a2a615281b6148c6489b0614fee38047"
+    },
+    {
+      "file": "202609010001_course_job_notes.sql",
+      "sha256": "9fd6aaa9295422252053c53a6453125d1f8aa3e5e85530cd780fde4037678130",
+      "sha256Normalized": "9fd6aaa9295422252053c53a6453125d1f8aa3e5e85530cd780fde4037678130"
+    },
+    {
+      "file": "202609010002_course_required_tasks.sql",
+      "sha256": "79ffcdd03fa3e60a71a23146028a2f98850da9629956d3e6e2e5a3fb10394359",
+      "sha256Normalized": "79ffcdd03fa3e60a71a23146028a2f98850da9629956d3e6e2e5a3fb10394359"
+    },
+    {
+      "file": "202609010003_course_materials_link.sql",
+      "sha256": "ef3d62ccce21ba97816f3fd4a41e8781d514b1fc57a53818e8ea8723682700e7",
+      "sha256Normalized": "ef3d62ccce21ba97816f3fd4a41e8781d514b1fc57a53818e8ea8723682700e7"
+    },
+    {
+      "file": "202609010004_course_notes.sql",
+      "sha256": "2b51fd50aac97ea4cfb76a8518d7635965de9b9cecad0db4388c9de1d88299b6",
+      "sha256Normalized": "2b51fd50aac97ea4cfb76a8518d7635965de9b9cecad0db4388c9de1d88299b6"
+    },
+    {
+      "file": "202609010005_phone_sales_jobs.sql",
+      "sha256": "0691df29b3af3ad4a4287509780bfb2f5c030ff4c89f423499b2590b7f6e4984",
+      "sha256Normalized": "dda60dfbb42a35bb46c08a50a3b227f54576cf31cc220bc39ebceed1b7a124ce"
+    },
+    {
+      "file": "202609020001_course_live_videos.sql",
+      "sha256": "f0c914d4d45af65116887ff74392fe8304406dc120d7c69c72a25b76ce26f54a",
+      "sha256Normalized": "f0c914d4d45af65116887ff74392fe8304406dc120d7c69c72a25b76ce26f54a"
+    },
+    {
+      "file": "202609020001_enrollment_extra_participant.sql",
+      "sha256": "7fe686a685d29782494a7b243896b594b6dc377914c61427da5cc731ddcb142e",
+      "sha256Normalized": "b6c1ae97f7c7ffb8279a6a4e50436e832ecd7bc25bff3af98a8e9d9abc21fe80"
+    },
+    {
+      "file": "202609020002_course_landing_page_link.sql",
+      "sha256": "c58e9dd18ce31f15646d4181d522d1422a0f1df8212e8dabf7460ce59065ef7a",
+      "sha256Normalized": "c58e9dd18ce31f15646d4181d522d1422a0f1df8212e8dabf7460ce59065ef7a"
+    },
+    {
+      "file": "202609020003_course_custom_links.sql",
+      "sha256": "e762cfdeebaff396038d6093931f0eb682acbdbc4520cf449d6e0ca0c4de4d5a",
+      "sha256Normalized": "e762cfdeebaff396038d6093931f0eb682acbdbc4520cf449d6e0ca0c4de4d5a"
+    },
+    {
+      "file": "202609020004_shared_workspace.sql",
+      "sha256": "91503a991d338e5543ec9b30f17e66ffe9694b60c39ab8f18efe2a58f7d0791f",
+      "sha256Normalized": "91503a991d338e5543ec9b30f17e66ffe9694b60c39ab8f18efe2a58f7d0791f"
+    },
+    {
+      "file": "202609020005_message_provider_metadata.sql",
+      "sha256": "62d8b6269acf7fb9caf0f23d8a547cdebf182e123b247b62dcedc8adbe746f4c",
+      "sha256Normalized": "57760406a173ed6e2d9a71492c3f58f291226beb766663e17b3c2e1f474fefb7"
+    },
+    {
+      "file": "202609020006_message_delivery_results.sql",
+      "sha256": "6b618dcaa237c41eac00ad0ce6a7819809f7f89d84da665ca4b569078eced400",
+      "sha256Normalized": "4f2470ff7c4a5d78cc0ec5da6a9563c70a834f98d2ab8cbef6c84a25bedeebfc"
+    },
+    {
+      "file": "202609020007_directalk_message_batches.sql",
+      "sha256": "6a5207a1056a8956b849952464d9226f0b057bc79de822e6fc30b1036e17fad2",
+      "sha256Normalized": "177d9f4bb89dc2833d90ee6be47fb2972a1cac2160992027cf8bd1a030dfbb5e"
+    },
+    {
+      "file": "202609030000_account_role_values.sql",
+      "sha256": "63a82d7af1b28b78e890ef42e0bf67d6e277a4c38cf73851d50043191e5e0c8f",
+      "sha256Normalized": "397a7311d2161fe7869e21564cb62e29d05cde6fcfbc0dbfb393c7a455d20881"
+    },
+    {
+      "file": "202609030001_user_role_management.sql",
+      "sha256": "793bb4cfb0067e799062ea4d0fec532ac7dfa9477db0d2701b80c1aa355a73ff",
+      "sha256Normalized": "98746dee98f3be2f38f34d1ef0b84c93d8237534d63abaf59b998070cd36434d"
+    },
+    {
+      "file": "202609030002_course_settlement_course_storage.sql",
+      "sha256": "de6da786e933577587b1a8efa0da23a04e58720f6b2f609e7a356348763daa76",
+      "sha256Normalized": "60623d95cf7d0d7a4af39308cef3c3a0bd4b5075e2a75b7e47b4df549e700232"
+    },
+    {
+      "file": "202609030003_course_cost_management.sql",
+      "sha256": "9104068ae76420e1d30825de478862c4c824894bbabb6e1fa1f1906f228b33c8",
+      "sha256Normalized": "9104068ae76420e1d30825de478862c4c824894bbabb6e1fa1f1906f228b33c8"
+    },
+    {
+      "file": "202609030004_simplify_course_cost_inputs.sql",
+      "sha256": "0c8cc7dd1cfe62faaef83813b91dc15064f5dc5520bb57bbc8402c54a2641c6d",
+      "sha256Normalized": "0c8cc7dd1cfe62faaef83813b91dc15064f5dc5520bb57bbc8402c54a2641c6d"
+    },
+    {
+      "file": "202609030005_normalize_course_cost_categories.sql",
+      "sha256": "b2113c6cdebca040dd23f67f177350df1fdaefb894d4da58d61c1fd957056aa6",
+      "sha256Normalized": "b2113c6cdebca040dd23f67f177350df1fdaefb894d4da58d61c1fd957056aa6"
+    },
+    {
+      "file": "202609030006_bulk_save_course_costs.sql",
+      "sha256": "5a50bc2d00475cee9ff978fda4035ccae6d3a58ca3efba442a1ee8106d5de4fe",
+      "sha256Normalized": "5a50bc2d00475cee9ff978fda4035ccae6d3a58ca3efba442a1ee8106d5de4fe"
+    },
+    {
+      "file": "202609030007_cash_flow_service.sql",
+      "sha256": "f5dcefba16915f7a56b8bbc4e3d37a785f0379e1bdd3603fe289b8e25d1270eb",
+      "sha256Normalized": "f5dcefba16915f7a56b8bbc4e3d37a785f0379e1bdd3603fe289b8e25d1270eb"
+    },
+    {
+      "file": "202609070001_course_banner_images.sql",
+      "sha256": "91cf6e83fe532d08c4193a0646830a17c019d60875d24817b2f73fd0742678c4",
+      "sha256Normalized": "91cf6e83fe532d08c4193a0646830a17c019d60875d24817b2f73fd0742678c4"
+    },
+    {
+      "file": "202609070002_course_youtube_landing_utm.sql",
+      "sha256": "a238dfe2cee481852bcbbb174e101429041e351023390e56ba2e845e28d9b010",
+      "sha256Normalized": "a238dfe2cee481852bcbbb174e101429041e351023390e56ba2e845e28d9b010"
+    },
+    {
+      "file": "202609070003_course_differentiation.sql",
+      "sha256": "810a822f3f4c70e6b009d4b5c2dc5f34e70eef4d19db8cc4599c3beec910076c",
+      "sha256Normalized": "810a822f3f4c70e6b009d4b5c2dc5f34e70eef4d19db8cc4599c3beec910076c"
+    },
+    {
+      "file": "202609100001_message_template_previews.sql",
+      "sha256": "a8fdd25c1d8731cd662cba5db301e930629a08977712d756c02eb907c47c99cd",
+      "sha256Normalized": "8432bd5b7d09df0d5e008d58d522ae879ada6680298a0db5e6eef1e51010e502"
+    },
+    {
+      "file": "202609110001_roster_message_sources.sql",
+      "sha256": "3170f89d997efdb9eceb21f1c69255613bd1522e2a9920d23fdb69fe928bb58c",
+      "sha256Normalized": "b13de8b5e290ba26a0701fed9bbacb87fa030a8c42b0a21ef943b0be40ebe267"
+    },
+    {
+      "file": "202609110002_course_files_xlsx.sql",
+      "sha256": "0ed496d80a9ca429b5b3bd276e30b40db11682dd12508c81faf0dd4047f9195a",
+      "sha256Normalized": "0ed496d80a9ca429b5b3bd276e30b40db11682dd12508c81faf0dd4047f9195a"
+    },
+    {
+      "file": "202609110003_manual_enrollment_names.sql",
+      "sha256": "cea7df7ddaa1784dbb42644a7c339ef01e8cedcf8bfef64103b2ede78ebaac07",
+      "sha256Normalized": "cea7df7ddaa1784dbb42644a7c339ef01e8cedcf8bfef64103b2ede78ebaac07"
+    },
+    {
+      "file": "202609110004_allow_reapplying_roster_files.sql",
+      "sha256": "db9244d1710fa1fcaccebbcbb2c975a52e681207dd95ec26a00d430cf5472d48",
+      "sha256Normalized": "db9244d1710fa1fcaccebbcbb2c975a52e681207dd95ec26a00d430cf5472d48"
+    },
+    {
+      "file": "202609120001_course_orders.sql",
+      "sha256": "317d2fcd6776b822acf24ecad292a0c8312e8a21042a749f495119db41f22661",
+      "sha256Normalized": "317d2fcd6776b822acf24ecad292a0c8312e8a21042a749f495119db41f22661"
+    },
+    {
+      "file": "202609140001_hr_core.sql",
+      "sha256": "1e87b4b492b2d7937de591af43f7bf4f6bce886fa10bcbd6ed6dfb7199bc96c8",
+      "sha256Normalized": "2559e068290bc439bb463b269468f3b153ee32daf6e66f7c4e82b55b31ff378d"
+    },
+    {
+      "file": "202609140002_hr_tasks.sql",
+      "sha256": "c3e8258f013cea12f357e5f3872d40f1192afbba824622c540022940048412f6",
+      "sha256Normalized": "3dde02a6039839f632e93a08dafe35e95679e079eb9a0acd6cdf3b3bfac13a12"
+    },
+    {
+      "file": "202609140003_hr_attendance_leave.sql",
+      "sha256": "323810a51c9e67b42501b29d7b7dcd05cc3c5164de263527cb76cea45716247e",
+      "sha256Normalized": "60bc5b96fbbc3c1402e152d0410ec3871bbd941cc5ecc194ca57b581d9bd5e14"
+    },
+    {
+      "file": "202609140004_hr_administration.sql",
+      "sha256": "9b5b6077c299cd04098bb460db2da4f3c1857ff449f6af06f629af6fc728d01a",
+      "sha256Normalized": "928cda2787db5bae1219fad9766590fcc85c02d40ff6f75200ff454353318de0"
+    },
+    {
+      "file": "202609140005_hr_queries_notifications.sql",
+      "sha256": "78c205f8b94107ba9fb9acaff53f7f2bde3c3d082df6bb5cb19c0a8975a58c7a",
+      "sha256Normalized": "27399d9b905c96920bfc21d307408ec9d6e816fbfffcec7b3ff897abc3b28ac6"
+    },
+    {
+      "file": "202609140006_hr_invitation_delivery.sql",
+      "sha256": "51c2feeed75887a8278a6c02682550a7128c972d9efa05484c204a32fbad8b57",
+      "sha256Normalized": "e176dd709ef3a66ac00152a89b3136863ffc25f4b59528ef3fe3a55040768275"
+    },
+    {
+      "file": "202609140007_hr_history_guards.sql",
+      "sha256": "f8d0cf8205a0df001b6e2ee631d4a0f08ae383fb8810b44dec5bb015a48d7cb3",
+      "sha256Normalized": "93e1304d85acec2ce5ae9adaf9bec5387730c497ad3587d4f8494042ef771475"
+    },
+    {
+      "file": "202609140008_work_hr_account_sync.sql",
+      "sha256": "52d86097daf6a6e50586336e28bd216f2c99c3eda88de1940e09db67ab2edd57",
+      "sha256Normalized": "46c9acf38d9ccf4d6632cdb7df3db23d8eb14ba90524bf62a755ebd7cd170d7d"
+    },
+    {
+      "file": "202609150001_course_webinar_metrics.sql",
+      "sha256": "486834fb45a47975f3599ddbbc7cfc05f5facc188279aa69e8c66ed74c971580",
+      "sha256Normalized": "279168bf80e89521885a57ba5446a722fead56fd03d20ecc0de291fa613e32b1"
+    },
+    {
+      "file": "202609160001_course_order_share_settings.sql",
+      "sha256": "26ce517c7eac20d47abfd8dea5218a5d75b052d853a07ea702ece3ed7a3208cf",
+      "sha256Normalized": "26ce517c7eac20d47abfd8dea5218a5d75b052d853a07ea702ece3ed7a3208cf"
+    },
+    {
+      "file": "202609160002_paid_course_rosters.sql",
+      "sha256": "9818d42212b2f84f07eb88f00d28d5947461fc42e22af525e9f5ba9abd1273fb",
+      "sha256Normalized": "9818d42212b2f84f07eb88f00d28d5947461fc42e22af525e9f5ba9abd1273fb"
+    },
+    {
+      "file": "202609160003_paid_course_chat_link.sql",
+      "sha256": "9355390f2032a1b6e5b0cba50689636c473f33970179e9e50aa0a7c82b6b5460",
+      "sha256Normalized": "9355390f2032a1b6e5b0cba50689636c473f33970179e9e50aa0a7c82b6b5460"
+    },
+    {
+      "file": "202609160004_roster_invites_and_sharing.sql",
+      "sha256": "6aab3ad7a3baa403a04da5affef0d5ee0c1f5d0478d70cd3cde2aa9294645018",
+      "sha256Normalized": "6aab3ad7a3baa403a04da5affef0d5ee0c1f5d0478d70cd3cde2aa9294645018"
+    },
+    {
+      "file": "202609160005_paid_roster_reconciliation.sql",
+      "sha256": "b09b71d7aeb43a64391dd26176775a32d7c8d20010d1567859915c2d00f7ec6b",
+      "sha256Normalized": "b09b71d7aeb43a64391dd26176775a32d7c8d20010d1567859915c2d00f7ec6b"
+    },
+    {
+      "file": "202609180001_paid_roster_removal_review.sql",
+      "sha256": "4b4451caa4fee77f5ea7e2a9eecfea7db5615d91df765efa5dc1c74a68567aec",
+      "sha256Normalized": "62447f968ef87e9a16f2b30bf8ca999976bf9353da4af4df7539c490daf63e7d"
+    },
+    {
+      "file": "202609190001_course_payment_summary.sql",
+      "sha256": "b241c7a33011defc7ee6144f28395f74e9cdb9aa521c1d6c44d10e933f45bfe4",
+      "sha256Normalized": "5a298c03bdf730a0a37a449a64e51c6ef4a9e03e34ea43cc1d02f5e9492c1588"
+    },
+    {
+      "file": "202609190002_work_tasks.sql",
+      "sha256": "9f19f90147bb30e96b25312d68c7aa30d003757126954cfbe634c85b2ff77097",
+      "sha256Normalized": "fd6914735d48c8e619e6f286d929eb8d2b5370eecdc621b876d8682e42ff0ec3"
+    },
+    {
+      "file": "202609190003_work_task_reviews_and_security.sql",
+      "sha256": "f9fcffe4456a228f9ae762de760de44ce049a2ba2147642d88453a8d89ffa712",
+      "sha256Normalized": "a096a9818d1e697ab5e535f9e7adebc1bbb654b8f20cae6031c9d33384f877e4"
+    },
+    {
+      "file": "202609190004_work_task_atomic_commands.sql",
+      "sha256": "362321d4670e16e01deb49ed95caefaa6edf170f967691113f4a470271ac5101",
+      "sha256Normalized": "f034382d3386d7c9f3de690276a7129149bb8b3e90189c4bbaf7a24464570b5b"
+    },
+    {
+      "file": "202609190005_work_task_edit_command.sql",
+      "sha256": "854d9ffc9b0b37323456a38769b21a416c8a8033bf4ed29f56cc1b1a92c55025",
+      "sha256Normalized": "1699cb70e22b7fc5e33c703f5514940f55879e03d1d5795e3578f6a7dc1952f4"
+    },
+    {
+      "file": "202609210001_course_schedule_drafts.sql",
+      "sha256": "1aa679a308ba18d7bb01168996d95ea7e15033caee40220d8e5e5194dd2161e3",
+      "sha256Normalized": "2e6c34b5a4c5b8d0bbb7f7a98aa42131bb926723ccdd4f83d541cbb42becf2bf"
+    },
+    {
+      "file": "202609210002_hr_leave_management.sql",
+      "sha256": "d78879e641e5f4dd4650a952a342f8a2e2b8e8c49416632c048debf7a7972513",
+      "sha256Normalized": "f8048b59efe28a5e125d46e0125f12e260ef204a3b908e50c9a8f35d25f4b16b"
+    },
+    {
+      "file": "202609220001_hr_leave_year_reset.sql",
+      "sha256": "b5182b974b93e2f61db457856b40407be0d0222d1ebaa8d73baa52bbb01847a8",
+      "sha256Normalized": "3888b8dbdce0e83d72c809762d9ab23d15631884686c9e89024eb06fac5ecdc4"
+    },
+    {
+      "file": "202609230001_workspace_personnel.sql",
+      "sha256": "4612a70f1f9f82272c11ae2757a51abe5539c6bde8da2cbee6685c3a0aa046f0",
+      "sha256Normalized": "4612a70f1f9f82272c11ae2757a51abe5539c6bde8da2cbee6685c3a0aa046f0"
+    },
+    {
+      "file": "202609230002_personnel_payroll.sql",
+      "sha256": "8d51825ef65d12e6f7c5f3ef946de587f6f199a6cd547cb2dc768b4eeb723789",
+      "sha256Normalized": "8d51825ef65d12e6f7c5f3ef946de587f6f199a6cd547cb2dc768b4eeb723789"
+    },
+    {
+      "file": "202609230003_cost_changes_reset_settlement.sql",
+      "sha256": "97cf60f9d69fa1538a58b83e0d9246431348b0ebeb23456c3182818c57855924",
+      "sha256Normalized": "97cf60f9d69fa1538a58b83e0d9246431348b0ebeb23456c3182818c57855924"
+    },
+    {
+      "file": "202609230004_ad_performance_dashboard.sql",
+      "sha256": "14b4150a60df01a5484c2382b56f476d5de47dfd67922b37f52ddd3e1aa4d0a3",
+      "sha256Normalized": "dddae028d2db4dd34a196493a186b6c440139ca1b6ba645acaa52b3436dd9b29"
+    },
+    {
+      "file": "202609230005_course_ad_performance_dashboards.sql",
+      "sha256": "61e83502f17cde4cff6468a68b0560835cfae860e0b91e8e587916a74e10eb8a",
+      "sha256Normalized": "5ac9c7e4ba8383544269168974e68648c8bd7d9270e27648d4756d8141cd6bd1"
+    },
+    {
+      "file": "202609230006_ad_chat_room_members.sql",
+      "sha256": "4b9cc5d95d2f8aa7fdccfbf6aeb2a719d68d58d35596628c7f412a45c1ec2e35",
+      "sha256Normalized": "4b9cc5d95d2f8aa7fdccfbf6aeb2a719d68d58d35596628c7f412a45c1ec2e35"
+    },
+    {
+      "file": "202609230007_youtube_channel_analyzer.sql",
+      "sha256": "596b0ede502fa9cff52abbb21db055badf17bcced8397a3c027507f010fe83ea",
+      "sha256Normalized": "596b0ede502fa9cff52abbb21db055badf17bcced8397a3c027507f010fe83ea"
+    },
+    {
+      "file": "202609230008_youtube_channel_accumulation.sql",
+      "sha256": "55fea855c2c15e394dbd3fd3a1ebc54b460b6e801dc2e564e5d8b345b1d3dd59",
+      "sha256Normalized": "9be54db3ea49fa4a8d0cd320b6d5639794d4afd7952445e4e41e489669a0b858"
+    },
+    {
+      "file": "202609270001_course_wbs.sql",
+      "sha256": "ca28652323b3f161554863afc85df5e93000b4087c73d36d6ecb52b305106eaa",
+      "sha256Normalized": "ffc0110f7eb2fa55dbae44010020e5bb3fa71361267fa9445f1f4ac2ad3884fa"
+    },
+    {
+      "file": "202609270002_course_wbs_people.sql",
+      "sha256": "636a5a4f488f22a54c768109d850f5d02b46034a87ce2acccdb411f03d10e328",
+      "sha256Normalized": "de3144347ea7728127e81d61d8bbf41090fe050711adab8ffc006460cca0e256"
+    },
+    {
+      "file": "202609270003_course_wbs_employee_names.sql",
+      "sha256": "590287aade685aadeed1b4e87f7e008b0a3e841f47b10a21d7bb6dc2220538e2",
+      "sha256Normalized": "d3e1ddb2bf479551af6da9852fc26502e7ce864c5022d7675f9988269af46346"
+    },
+    {
+      "file": "202609270004_course_wbs_template_permissions.sql",
+      "sha256": "287639edd993af6415a3ed3623ddc7b6a8dc8cf8d0e3a8b8eeed8306ec8a72f0",
+      "sha256Normalized": "6468a594c6c9b8b84ca2e3652760d843d9eac278607a77f20a2a7d3d46200f95"
+    },
+    {
+      "file": "202609270005_youtube_channel_email.sql",
+      "sha256": "5c447fb349dbe8014e86561c714e20eb7ba3b88fdad427807ebb642558b73c4c",
+      "sha256Normalized": "f64eb608cf8f301ca47ce0ce97527e7d9db8c6a8422c002fac709121d604e24e"
+    },
+    {
+      "file": "202609270006_youtube_channel_attributes.sql",
+      "sha256": "2d495736ba4558b04b2dfbe848852b5a306d244847eb4fae6e712cb5ae9f1cf8",
+      "sha256Normalized": "c81c2eec76e14020cbbb040e265860e4fefae8524da6279c5d974862cb106f2b"
+    },
+    {
+      "file": "202609270007_youtube_recent30_engagement_backfill.sql",
+      "sha256": "79f357cc4993a1de5f2dbc6b5c6c2a9c59e5b788a1363940ed23f160c97861e9",
+      "sha256Normalized": "d56d6dc8c48b807a122f192abee8bb89f9669e39b4d7b867166f8ab47cbf5054"
+    },
+    {
+      "file": "202609280001_youtube_channel_memo.sql",
+      "sha256": "57c906fab3a4e72b0b125ed6b7b54a89419496699fdcceeaf6e8812053aeb0b0",
+      "sha256Normalized": "57c906fab3a4e72b0b125ed6b7b54a89419496699fdcceeaf6e8812053aeb0b0"
+    },
+    {
+      "file": "202609280002_youtube_exclude_updates.sql",
+      "sha256": "82147e96531fdc09c2653c4055d1999949238f0ddc807385787d0e820237486b",
+      "sha256Normalized": "a422e89ad6755d09850b8e03d7daf288744c2baed83362773d54340a6099bd02"
+    },
+    {
+      "file": "202609280003_work_daily_reports.sql",
+      "sha256": "b49811bf625073efcd8625db3690703e371ce740e44682977fda04b819defef6",
+      "sha256Normalized": "accd23d228229105681560732c7a59bae4423c980d9041566e8b74afb0d7bea9"
+    },
+    {
+      "file": "202609290001_course_instagram_materials.sql",
+      "sha256": "9d5accc279557d80e2f26f404b27c246ee9928b28a911819994f5a50ed9949c5",
+      "sha256Normalized": "9d5accc279557d80e2f26f404b27c246ee9928b28a911819994f5a50ed9949c5"
+    }
+  ]
+}
