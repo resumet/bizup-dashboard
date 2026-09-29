@@ -6,9 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   BookOpenCheck,
-  BellRing,
   CalendarDays,
-  CircleCheck,
   Grid2X2,
   List,
   Loader2,
@@ -46,7 +44,7 @@ import type { CourseSummary } from "@/lib/course-operations/types";
 import type { CoursePaymentSummary } from "@/lib/course-operations/payment-summary";
 import type { CoursePaidStudentSummary } from "@/lib/course-operations/paid-student-summary";
 import { courseBannerUrl } from "@/lib/course-operations/banner";
-import { getCourseMissingItems, partitionCoursesByWebinarStatus } from "@/lib/course-operations/course-list-status";
+import { partitionCoursesByWebinarStatus } from "@/lib/course-operations/course-list-status";
 import { sortByFarthestWebinar } from "@/lib/course-operations/webinar-proximity";
 
 type ViewMode = "cards" | "list" | "calendar" | "payments" | "students";
@@ -141,8 +139,6 @@ export function CourseOperationsList({
   );
   const cardOngoingCourses = useMemo(() => sortByFarthestWebinar(ongoingCourses), [ongoingCourses]);
   const cardCompletedCourses = useMemo(() => sortByFarthestWebinar(completedCourses), [completedCourses]);
-  const courseAlerts = useMemo(() => ongoingCourses.map((course) => ({ course, items: getCourseMissingItems(course) })).filter(({ items }) => items.length), [ongoingCourses]);
-  const missingItemCount = courseAlerts.reduce((sum, alert) => sum + alert.items.length, 0);
   const paidStudentCounts = useMemo(
     () => new Map((paidStudentSummaries ?? []).map((summary) => [summary.course_id, summary.paid_student_count])),
     [paidStudentSummaries],
@@ -206,17 +202,6 @@ export function CourseOperationsList({
 
   return (
     <>
-      <section className="mb-6 rounded-xl border border-amber-200 bg-amber-50/60 p-5 dark:border-amber-900 dark:bg-amber-950/20" aria-label="진행 중 강의 입력 알림">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-start gap-3"><span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"><BellRing className="size-4" /></span><div><h2 className="font-semibold">진행 중 강의 알림</h2><p className="mt-1 text-sm text-muted-foreground">현재 진행 중인 강의에서 채우거나 완료해야 할 운영 항목을 확인하세요.</p></div></div>
-          <Badge variant="outline" className="bg-background/70">{missingItemCount}개 항목</Badge>
-        </div>
-        {courseAlerts.length ? <div className="mt-4 grid gap-3 lg:grid-cols-2">{courseAlerts.map(({ course, items }) => <Link key={course.id} href={`/services/course-operations/${course.id}`} className="rounded-lg border bg-background/85 p-4 transition-colors hover:border-amber-400 hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate font-semibold">{course.name}</p><p className="mt-1 text-xs text-muted-foreground">{course.cohort ? `${course.cohort}기 · ` : ""}{course.instructor_name} · 웨비나 {formatDate(course.free_webinar_at)}</p></div><Badge className="shrink-0 bg-amber-600 text-white hover:bg-amber-600">{items.length}개</Badge></div>
-          <div className="mt-3 flex flex-wrap gap-1.5">{items.map((item) => <span key={item.key} className="rounded-md border bg-muted/50 px-2 py-1 text-xs text-muted-foreground">{item.label}</span>)}</div>
-        </Link>)}</div> : <div className="mt-4 flex items-center gap-2 rounded-lg border bg-background/80 px-4 py-5 text-sm text-emerald-700 dark:text-emerald-300"><CircleCheck className="size-4" />진행 중 강의의 필수 운영 항목이 모두 채워져 있습니다.</div>}
-      </section>
-
       <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="inline-flex self-start rounded-lg border bg-background p-1" aria-label="강의 운영 자료">
           <Button

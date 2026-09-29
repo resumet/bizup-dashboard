@@ -20,6 +20,7 @@ import {
 
 import { CourseRosterSections } from "@/components/course-operations/course-roster-sections";
 import { CourseNotesCard } from "@/components/course-operations/course-notes-card";
+import { CourseInstagramMaterials } from "@/components/course-operations/course-instagram-materials";
 import { CourseShareDialog } from "@/components/course-operations/course-share-dialog";
 import { CourseSettlementManager } from "@/components/course-settlements/course-settlement-manager";
 import { CourseCostManager } from "@/components/course-costs/course-cost-manager";
@@ -216,8 +217,9 @@ type CourseEditorTab =
   | "costs"
   | "orders"
   | "paid-students"
+  | "instagram"
   | "settlement";
-type DeferredCourseEditorTab = Exclude<CourseEditorTab, "information" | "costs" | "settlement" | "orders" | "webinar" | "paid-students">;
+type DeferredCourseEditorTab = Exclude<CourseEditorTab, "information" | "costs" | "settlement" | "orders" | "webinar" | "paid-students" | "instagram">;
 type SectionLoadStatus = "idle" | "loading" | "loaded" | "error";
 
 function DeferredSectionState({
@@ -369,7 +371,7 @@ export function CourseOperationsEditor({
   notesLoadError?: string;
   loadError?: string;
   deferDetailSections?: boolean;
-  initialTab?: "information" | "students" | "costs" | "settlement" | "orders" | "webinar" | "paid-students";
+  initialTab?: "information" | "students" | "costs" | "settlement" | "orders" | "webinar" | "paid-students" | "instagram";
   paidRoster?: ReactNode;
 }) {
   const router = useRouter();
@@ -526,7 +528,7 @@ export function CourseOperationsEditor({
     setActiveTab(nextTab);
     if (nextTab === "information") {
       void loadDetailSection("videos");
-    } else if (nextTab !== "costs" && nextTab !== "settlement" && nextTab !== "orders" && nextTab !== "webinar" && nextTab !== "paid-students") {
+    } else if (nextTab !== "costs" && nextTab !== "settlement" && nextTab !== "orders" && nextTab !== "webinar" && nextTab !== "paid-students" && nextTab !== "instagram") {
       void loadDetailSection(nextTab);
     }
   }
@@ -955,7 +957,7 @@ export function CourseOperationsEditor({
         onValueChange={changeTab}
         className="gap-6"
       >
-        <TabsList className="grid w-full grid-cols-2 grid-rows-4 group-data-horizontal/tabs:h-[11rem] md:grid-cols-4 md:grid-rows-2 md:group-data-horizontal/tabs:h-[5.5rem] 2xl:grid-cols-8 2xl:grid-rows-1 2xl:group-data-horizontal/tabs:h-12">
+        <TabsList className="grid w-full grid-cols-2 grid-rows-5 group-data-horizontal/tabs:h-[13.75rem] md:grid-cols-3 md:grid-rows-3 md:group-data-horizontal/tabs:h-[8.25rem] 2xl:grid-cols-9 2xl:grid-rows-1 2xl:group-data-horizontal/tabs:h-12">
           <TabsTrigger value="information" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             정보
           </TabsTrigger>
@@ -969,6 +971,7 @@ export function CourseOperationsEditor({
             주문 내역
           </TabsTrigger>
           <TabsTrigger value="paid-students" disabled={!courseId} className="h-10 min-w-0 px-2">유료수강생</TabsTrigger>
+          <TabsTrigger value="instagram" disabled={!courseId} className="h-10 min-w-0 px-2">인스타그램</TabsTrigger>
           <TabsTrigger value="messages" className="hidden">
             단톡방문자
           </TabsTrigger>
@@ -2222,6 +2225,10 @@ export function CourseOperationsEditor({
 
         <TabsContent value="paid-students" className="mt-0">{paidRoster}</TabsContent>
 
+        <TabsContent value="instagram" className="mt-0">
+          {courseId ? <CourseInstagramMaterials courseId={courseId} /> : null}
+        </TabsContent>
+
         <TabsContent value="orders" className="mt-0">
           {courseId ? <CourseOrdersManager courseId={courseId} courseName={draft.name} onRosterSaved={() => changeTab("paid-students")} onCourseNameChange={(name) => setDraft((current) => ({ ...current, name }))} /> : null}
         </TabsContent>
@@ -2245,7 +2252,7 @@ export function CourseOperationsEditor({
         </TabsContent>
       </Tabs>
 
-      {activeTab !== "costs" && activeTab !== "settlement" && activeTab !== "orders" && activeTab !== "webinar" ? (
+      {activeTab !== "costs" && activeTab !== "settlement" && activeTab !== "orders" && activeTab !== "webinar" && activeTab !== "instagram" ? (
         <div className="flex justify-end border-t pt-6">
           <Button className="min-h-10" onClick={saveCourse} disabled={saving}>
             {saving ? <Loader2 className="animate-spin" /> : <Save />}
