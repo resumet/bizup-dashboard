@@ -222,7 +222,7 @@ export function AdPerformanceMetricDialog({
                 disabled={busy}
               />
               <div className="min-w-0 space-y-1.5">
-                <Label htmlFor="ad-metric-chat-members">채팅방 인원</Label>
+                <Label htmlFor="ad-metric-chat-members">톡방 인원</Label>
                 <Input
                   id="ad-metric-chat-members"
                   inputMode="numeric"

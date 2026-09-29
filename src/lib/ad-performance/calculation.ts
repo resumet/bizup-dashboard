@@ -21,7 +21,7 @@ export function calculateDailyAdSpend(metrics: AdPerformanceDailyMetric[]) {
       googleLeadCostDifference: googleLandingLeadCost !== null && googleAdLeadCost !== null ? googleLandingLeadCost - googleAdLeadCost : null,
       metaLeadCostDifference: metaLandingLeadCost !== null && metaAdLeadCost !== null ? metaLandingLeadCost - metaAdLeadCost : null,
       chatRoomEntrants,
-      chatRoomLeadCost: chatRoomEntrants === null ? null : unitCost(totalSpend, chatRoomEntrants),
+      chatRoomMemberCost: metric.chatRoomMembers === null ? null : unitCost(totalSpend, metric.chatRoomMembers),
       totalLandingLeadCost: unitCost(totalSpend, metric.googleLandingLeads + metric.metaLandingLeads),
     };
   });
