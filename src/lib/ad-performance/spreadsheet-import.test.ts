@@ -36,15 +36,16 @@ function row(cells: string[]) {
 }
 
 test("선택한 날짜의 엑셀 행만 광고·오가닉 원시값으로 반영한다", () => {
-  const headers = Array.from({ length: 24 }, () => "");
+  const headers = Array.from({ length: 25 }, () => "");
   headers[17] = "꿈꾸사";
   headers[18] = "초월 스토리";
   headers[19] = "두부";
   headers[20] = "인스타";
+  headers[24] = "톡방 인원";
   const values = [
     "9월28일", "₩468,047", "4,452", "23,040", "16", "231", "0.36%", "1.00%",
     "0.00%", "8.66%", "₩18,659", "₩449,388", "0", "20", "1", "21", "22",
-    "30", "5", "0", "2", "37", "59", "242",
+    "30", "5", "0", "2", "37", "59", "242", "148",
   ];
   const spreadsheet = [row(headers), row(values)].join("\n");
 
@@ -65,6 +66,7 @@ test("선택한 날짜의 엑셀 행만 광고·오가닉 원시값으로 반영
     googleLandingLeads: 1,
     metaLandingLeads: 21,
     adminCumulativeLeads: 242,
+    chatRoomMembers: 148,
     organicLeads: {
       "00000000-0000-4000-8000-000000000001": 30,
       "00000000-0000-4000-8000-000000000002": 5,

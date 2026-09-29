@@ -86,6 +86,27 @@ function parseNumber(value: string | undefined) {
   return Number.isSafeInteger(parsed) ? parsed : Number.MAX_SAFE_INTEGER;
 }
 
+function parseNullableNumber(value: string | undefined) {
+  const digits = value?.replace(/\D/gu, "") ?? "";
+  return digits ? parseNumber(value) : null;
+}
+
+function findHeaderColumnIndex(
+  rows: string[][],
+  dataRowIndex: number,
+  labels: readonly string[],
+) {
+  const normalizedLabels = new Set(labels.map(normalizeLabel));
+  for (let rowIndex = dataRowIndex - 1; rowIndex >= 0; rowIndex -= 1) {
+    const columnIndex = rows[rowIndex].findIndex((cell) =>
+      normalizedLabels.has(normalizeLabel(cell)),
+    );
+    if (columnIndex >= 0) return columnIndex;
+  }
+
+  return undefined;
+}
+
 function findOrganicColumnIndexes(
   rows: string[][],
   dataRowIndex: number,
@@ -144,6 +165,16 @@ export function importAdPerformanceSpreadsheet(
   paidColumnMap.forEach(([field, columnIndex]) => {
     nextMetric[field] = parseNumber(dataRow[columnIndex]);
   });
+
+  const chatRoomMembersColumnIndex = findHeaderColumnIndex(rows, dataRowIndex, [
+    "톡방인원",
+    "채팅방인원",
+  ]);
+  if (chatRoomMembersColumnIndex !== undefined) {
+    nextMetric.chatRoomMembers = parseNullableNumber(
+      dataRow[chatRoomMembersColumnIndex],
+    );
+  }
 
   const organicColumnIndexes = findOrganicColumnIndexes(rows, dataRowIndex, channels);
   const importedOrganicChannelNames: string[] = [];
