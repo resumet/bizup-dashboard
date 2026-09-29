@@ -54,7 +54,8 @@ export type WbsDashboard = {
   savedWbsCount: number;
   totalItemCount: number;
   completedItemCount: number;
-  urgentTasks: WbsDashboardTask[];
+  overdueTasks: WbsDashboardTask[];
+  upcomingTasks: WbsDashboardTask[];
   closestUnstartedCourseId: string | null;
 };
 

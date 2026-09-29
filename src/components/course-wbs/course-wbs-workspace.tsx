@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
-  ArrowDown, ArrowLeft, ArrowUp, CalendarDays, ChevronDown, ClipboardList, Clock3, ExternalLink, GripVertical,
+  ArrowDown, ArrowLeft, ArrowUp, CalendarDays, ChevronDown, ClipboardList, ExternalLink, GripVertical,
   LoaderCircle, Plus, Save, Trash2,
 } from "lucide-react";
 
@@ -13,13 +13,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { toKoreaDate, toKoreaTime } from "@/lib/course-operations/schedule";
 import { reorderWbsItems } from "@/lib/course-wbs/reorder";
 import { selectablePeople } from "@/lib/course-wbs/people";
 import { datesForStartOffset, dueDateForOffset, dueDateForStartDate, WBS_DUE_OFFSETS, WBS_START_OFFSETS } from "@/lib/course-wbs/schedule-options";
 import { reusableItems } from "@/lib/course-wbs/template-items";
-import type { CourseWbs, CourseWbsBootstrap, WbsCourse, WbsDashboard, WbsItem, WbsSummary, WbsTemplate } from "@/lib/course-wbs/types";
+import type { CourseWbs, CourseWbsBootstrap, WbsCourse, WbsDashboard, WbsDashboardTask, WbsItem, WbsSummary, WbsTemplate } from "@/lib/course-wbs/types";
 import { applyTemplateToCourse, syncWebinarItem, webinarDateFromTimestamp, webinarDayLabel, WEBINAR_ITEM_ID } from "@/lib/course-wbs/webinar-date";
 
 type WbsResponse = { wbs: CourseWbs | null; webinarAt: string | null };
@@ -28,7 +29,8 @@ const EMPTY_DASHBOARD: WbsDashboard = {
   savedWbsCount: 0,
   totalItemCount: 0,
   completedItemCount: 0,
-  urgentTasks: [],
+  overdueTasks: [],
+  upcomingTasks: [],
   closestUnstartedCourseId: null,
 };
 
@@ -76,6 +78,32 @@ function taskScheduleLabel(scheduledDate: string, today: string) {
   if (days === 0) return "오늘까지";
   if (days < 0) return `${Math.abs(days)}일 지연`;
   return `${days}일 남음`;
+}
+
+function taskDateLabel(task: WbsDashboardTask) {
+  return task.dueDate ? `마감 ${task.dueDate}` : `시작 ${task.startDate}`;
+}
+
+function DashboardTaskList({ title, description, emptyMessage, tasks, coursesById, today, onSelectCourse, delayed }: {
+  title: string;
+  description: string;
+  emptyMessage: string;
+  tasks: WbsDashboardTask[];
+  coursesById: Map<string, WbsCourse>;
+  today: string;
+  onSelectCourse: (courseId: string) => void;
+  delayed: boolean;
+}) {
+  return <section className={`rounded-xl border bg-background p-5 shadow-sm ${delayed ? "border-red-200 dark:border-red-900" : "border-amber-200 dark:border-amber-900"}`}>
+    <div className="flex items-start justify-between gap-3"><div><h4 className="font-semibold">{title}</h4><p className="mt-1 text-xs text-muted-foreground">{description}</p></div><Badge variant="outline" className={delayed ? "border-red-300 text-red-700 dark:border-red-800 dark:text-red-300" : "border-amber-300 text-amber-800 dark:border-amber-800 dark:text-amber-300"}>{tasks.length}개</Badge></div>
+    {tasks.length ? <ol className="mt-4 divide-y rounded-lg border">{tasks.map((task) => {
+      const linkedCourse = coursesById.get(task.courseId);
+      return <li key={`${task.courseId}-${task.itemId}`}><button type="button" onClick={() => onSelectCourse(task.courseId)} className="block w-full px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate font-medium">{task.title}</p><p className="mt-1 truncate text-xs text-muted-foreground">{linkedCourse ? courseLabel(linkedCourse) : "연결된 강의 없음"}{task.owner ? ` · 담당 ${task.owner}` : " · 담당 미정"}</p></div><span className={delayed ? "shrink-0 text-xs font-semibold text-destructive" : "shrink-0 text-xs font-semibold text-amber-700 dark:text-amber-300"}>{taskScheduleLabel(task.scheduledDate, today)}</span></div>
+        <p className="mt-1 text-xs text-muted-foreground">{taskDateLabel(task)}</p>
+      </button></li>;
+    })}</ol> : <p className="mt-4 rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">{emptyMessage}</p>}
+  </section>;
 }
 
 function withSavedPeople(people: string[], items: WbsItem[]) {
@@ -153,6 +181,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
   const [courses, setCourses] = useState<WbsCourse[]>([]);
   const [wbsSummaries, setWbsSummaries] = useState<WbsSummary[]>([]);
   const [dashboard, setDashboard] = useState<WbsDashboard>(EMPTY_DASHBOARD);
+  const [overviewTab, setOverviewTab] = useState<"manage" | "analysis">("manage");
   const [newCourseId, setNewCourseId] = useState("");
   const [people, setPeople] = useState<string[]>([]);
   const [employeeNames, setEmployeeNames] = useState<string[]>([]);
@@ -518,7 +547,12 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
         <p className="mt-2 text-sm text-muted-foreground">강의를 만든 뒤 WBS를 연결할 수 있습니다.</p>
         <Button className="mt-5" asChild><Link href="/services/course-operations/new"><Plus /> 강의 만들기</Link></Button>
       </div>
-    ) : !courseId ? <>
+    ) : !courseId ? <Tabs value={overviewTab} onValueChange={(value) => setOverviewTab(value as "manage" | "analysis")}>
+      <TabsList aria-label="강의 WBS 화면">
+        <TabsTrigger value="manage"><ClipboardList /> WBS 관리</TabsTrigger>
+        <TabsTrigger value="analysis"><CalendarDays /> 업무 현황</TabsTrigger>
+      </TabsList>
+      <TabsContent value="analysis" className="mt-6">
       <section className="mb-8" aria-label="WBS 대시보드">
         <div className="mb-4">
           <h3 className="text-xl font-semibold">WBS 대시보드</h3>
@@ -547,21 +581,15 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
             </button> : <p className="mt-4 text-sm text-muted-foreground">예정된 강의 중 아직 시작하지 않은 WBS가 없습니다.</p>}
           </div>
         </div>
-        <div className="mt-4 rounded-xl border bg-background p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-3"><div><h4 className="font-semibold">지금 해야 할 가장 급한 일 3개</h4><p className="mt-1 text-xs text-muted-foreground">완료하지 않은 업무를 데드라인과 시작일 순으로 제안합니다.</p></div><Clock3 className="size-5 text-amber-600" /></div>
-          {dashboard.urgentTasks.length ? <div className="mt-4 grid gap-3 lg:grid-cols-3">{dashboard.urgentTasks.map((task, index) => {
-            const linkedCourse = coursesById.get(task.courseId);
-            const delayed = Boolean(task.scheduledDate && task.scheduledDate < today);
-            return <button key={`${task.courseId}-${task.itemId}`} type="button" onClick={() => selectCourse(task.courseId)} className="rounded-lg border p-4 text-left transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <div className="flex items-center justify-between gap-2"><Badge variant="outline">우선순위 {index + 1}</Badge><span className={delayed ? "text-xs font-semibold text-destructive" : "text-xs font-medium text-amber-700 dark:text-amber-300"}>{taskScheduleLabel(task.scheduledDate, today)}</span></div>
-              <p className="mt-3 font-semibold">{task.title}</p>
-              <p className="mt-2 truncate text-xs text-muted-foreground">{linkedCourse ? courseLabel(linkedCourse) : "연결된 강의"}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{task.scheduledDate || "날짜 미정"}{task.owner ? ` · 담당 ${task.owner}` : " · 담당자 미정"}</p>
-            </button>;
-          })}</div> : <p className="mt-4 rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">완료하지 않은 업무가 없습니다.</p>}
+        <div className="mt-4 grid gap-4 xl:grid-cols-2">
+          <DashboardTaskList title="일정 지연 업무" description="예정일이 지난 미완료 업무입니다. 오래 지연된 순서로 표시합니다." emptyMessage="일정이 지연된 업무가 없습니다." tasks={dashboard.overdueTasks} coursesById={coursesById} today={today} onSelectCourse={selectCourse} delayed />
+          <DashboardTaskList title="7일 이내 일정" description="오늘부터 7일 안에 시작하거나 마감하는 미완료 업무입니다." emptyMessage="7일 이내 예정된 업무가 없습니다." tasks={dashboard.upcomingTasks} coursesById={coursesById} today={today} onSelectCourse={selectCourse} delayed={false} />
         </div>
+        <p className="mt-3 text-right text-xs text-muted-foreground">지연·임박 업무는 합계 최대 20개까지 표시합니다.</p>
       </section>
+      </TabsContent>
 
+      <TabsContent value="manage" className="mt-6">
       <section aria-label="저장된 강의 WBS">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -610,7 +638,8 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
           <Button size="sm" variant="outline" asChild><Link href="/services/course-operations/new"><Plus /> 강의 만들기</Link></Button>
         </div>}
       </section>
-    </> : <>
+      </TabsContent>
+    </Tabs> : <>
       <section className="mb-4 rounded-xl border bg-background p-5 shadow-sm" aria-label="연결된 강의">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-64 flex-1">
