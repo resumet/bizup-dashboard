@@ -18,7 +18,12 @@ import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -140,13 +145,9 @@ export default async function AdminUsersPage({
       <div className="mx-auto max-w-[1900px] space-y-6 px-5 py-8 lg:px-8">
         <CommonLinksManager />
         <section>
-          <Badge variant="secondary" className="mb-3">최고관리자 전용</Badge>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             사용자 계정과 정보 설정하기
           </h1>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            등록된 계정의 이름과 권한, 인증 상태, 최근 로그인 기록을 관리합니다.
-          </p>
         </section>
 
         {result.error ? (

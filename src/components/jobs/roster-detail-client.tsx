@@ -132,8 +132,6 @@ export function RosterDetailClient({
   courseId,
   jobId,
   jobName,
-  jobVersion,
-  jobStatus,
   defaultCourseName,
   rows: initialRows,
   messageHistory,
@@ -403,15 +401,9 @@ export function RosterDetailClient({
     <div className="space-y-5">
       <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
         <div className="min-w-0">
-          <Badge variant="outline" className="mb-3">
-            v{jobVersion} · {jobStatus === "ready" ? "분석 완료" : jobStatus}
-          </Badge>
           <h1 className="text-3xl font-semibold tracking-tight">
             {paidRoster ? "유료수강생" : <>{jobName}{courseName ? ` (${courseName})` : ""}</>}
           </h1>
-          <p className="hidden">
-            최신 명단을 조회하고 필터링하거나 메시지를 발송할 수 있습니다.
-          </p>
         </div>
         <div className="flex flex-wrap gap-2 lg:max-w-[62%] lg:justify-end">
           {paidRoster && courseId && <CourseRosterShareDialog courseId={courseId} />}

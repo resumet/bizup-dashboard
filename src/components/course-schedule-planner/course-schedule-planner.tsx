@@ -323,7 +323,7 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
 
   return <main className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8 lg:py-10">
     <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-      <div><Badge variant="outline" className="mb-3">강의 일정 시뮬레이션</Badge><h1 className="text-3xl font-semibold tracking-tight">강의 일정 플래너</h1><p className="mt-2 text-muted-foreground">예비 강의를 달력에 배치해 전체 강의 흐름을 미리 확인합니다.</p></div>
+      <h1 className="text-3xl font-semibold tracking-tight">강의 일정 플래너</h1>
       <div className="flex flex-wrap gap-2"><Badge variant="secondary">예비 강의 {drafts.length}개</Badge><Badge variant="outline">대형 {largeCourseCount}개</Badge><Badge variant="outline">소형 {smallCourseCount}개</Badge><Badge variant="secondary">일정 배정 {scheduledCount}개</Badge><Badge variant="outline">확정 강의 {initialData.confirmedCourses.length}개</Badge></div>
     </div>
 

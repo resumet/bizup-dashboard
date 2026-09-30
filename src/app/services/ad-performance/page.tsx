@@ -19,10 +19,10 @@ export default async function AdPerformancePage() {
   return (
     <main className="min-h-screen">
       <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
-        <Button variant="ghost" size="sm" asChild className="mb-5"><BackLink href="/work"><ArrowLeft />뒤로가기</BackLink></Button>
-        <Badge variant="outline" className="mb-3"><BarChart3 />강의별 광고 운영</Badge>
-        <h1 className="text-3xl font-semibold tracking-tight">광고성과 서비스</h1>
-        <p className="mt-2 text-muted-foreground">관리할 성과 항목을 선택해 주세요.</p>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon-sm" asChild><BackLink href="/work"><ArrowLeft />뒤로가기</BackLink></Button>
+          <h1 className="text-3xl font-semibold tracking-tight">광고성과 서비스</h1>
+        </div>
 
         <div className="mt-8 grid max-w-6xl gap-5 md:grid-cols-2">
           <Link href="/services/ad-performance/daily" className="group block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">

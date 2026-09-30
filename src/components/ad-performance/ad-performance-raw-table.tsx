@@ -62,20 +62,20 @@ export function AdPerformanceRawTable({ metrics, channels, onEdit, disabled = fa
           <tr>
             <th scope="col" className={columnHead}>노출</th>
             <th scope="col" className={columnHead}>클릭</th>
-            <th scope="col" className={columnHead}>광고 DB</th>
+            <th scope="col" className={columnHead}>광고접수 DB</th>
             <th scope="col" className={columnHead}>광고비</th>
-            <th scope="col" className={columnHead}>광고 DB당 단가</th>
-            <th scope="col" className={columnHead}>랜딩 DB</th>
-            <th scope="col" className={columnHead}>랜딩 DB당 단가</th>
+            <th scope="col" className={columnHead}>광고접수 DB당 단가</th>
+            <th scope="col" className={columnHead}>랜딩접수 DB</th>
+            <th scope="col" className={columnHead}>랜딩접수 DB당 단가</th>
             <th scope="col" className={columnHead}>노출</th>
             <th scope="col" className={columnHead}>클릭</th>
-            <th scope="col" className={columnHead}>광고 DB</th>
+            <th scope="col" className={columnHead}>광고접수 DB</th>
             <th scope="col" className={columnHead}>광고비</th>
-            <th scope="col" className={columnHead}>광고 DB당 단가</th>
-            <th scope="col" className={columnHead}>랜딩 DB</th>
-            <th scope="col" className={columnHead}>랜딩 DB당 단가</th>
+            <th scope="col" className={columnHead}>광고접수 DB당 단가</th>
+            <th scope="col" className={columnHead}>랜딩접수 DB</th>
+            <th scope="col" className={columnHead}>랜딩접수 DB당 단가</th>
             <th scope="col" className={`${columnHead} bg-blue-50/70 font-semibold text-blue-950`}>광고집행비용</th>
-            <th scope="col" className={`${columnHead} bg-blue-50/70 font-semibold text-blue-950`}>랜딩 DB</th>
+            <th scope="col" className={`${columnHead} bg-blue-50/70 font-semibold text-blue-950`}>랜딩접수 DB</th>
           </tr>
         </thead>
         <tbody>

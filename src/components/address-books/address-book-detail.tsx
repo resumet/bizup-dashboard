@@ -276,15 +276,7 @@ export function AddressBookDetail({
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <Badge variant="outline">
-            {book.contact_count.toLocaleString("ko-KR")}명
-          </Badge>
-          <h1 className="mt-3 text-3xl font-semibold">{book.name}</h1>
-          <p className="mt-2 text-muted-foreground">
-            {mode === "manager"
-              ? "주소록의 연락처를 검색하고 파일로 업데이트합니다."
-              : "템플릿과 변수를 설정해 주소록 전체에 알림톡·문자를 발송합니다."}
-          </p>
+          <h1 className="text-3xl font-semibold">{book.name}</h1>
         </div>
         {mode === "manager" ? (
           <div className="flex gap-2">

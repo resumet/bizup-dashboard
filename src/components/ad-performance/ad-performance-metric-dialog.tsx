@@ -32,9 +32,9 @@ const number = new Intl.NumberFormat("ko-KR");
 const pairedFields: { label: string; google: NumericMetricField; meta: NumericMetricField; money?: boolean }[] = [
   { label: "노출수", google: "googleImpressions", meta: "metaImpressions" },
   { label: "클릭수", google: "googleClicks", meta: "metaClicks" },
-  { label: "광고 DB", google: "googleAdLeads", meta: "metaAdLeads" },
+  { label: "광고접수 DB", google: "googleAdLeads", meta: "metaAdLeads" },
   { label: "광고비", google: "googleSpend", meta: "metaSpend", money: true },
-  { label: "랜딩 DB", google: "googleLandingLeads", meta: "metaLandingLeads" },
+  { label: "랜딩접수 DB", google: "googleLandingLeads", meta: "metaLandingLeads" },
 ];
 
 function parseNonnegativeInteger(value: string) {
@@ -198,7 +198,7 @@ export function AdPerformanceMetricDialog({
           </section>
 
           <section aria-labelledby="ad-metric-organic-heading" className="space-y-4">
-            <h3 id="ad-metric-organic-heading" className="border-b pb-2 text-sm font-semibold">유입 채널별 랜딩 DB</h3>
+            <h3 id="ad-metric-organic-heading" className="border-b pb-2 text-sm font-semibold">유입 채널별 랜딩접수 DB</h3>
             {channels.length ? <div className="grid gap-4 sm:grid-cols-2">
               {channels.map((channel) => <MetricNumberInput
                 key={channel.id}

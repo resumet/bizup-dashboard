@@ -78,9 +78,7 @@ export function RosterComparison({ mode = "comparison" }: { mode?: "comparison" 
   return (
     <div className="space-y-6">
       <div>
-        <Badge variant="outline" className="mb-3">간편 도구</Badge>
         <h1 className="text-3xl font-semibold tracking-tight">{duplicatesMode ? "수강생 명단 중복 검사" : "결제자·수강생 명단 비교"}</h1>
-        <p className="mt-2 text-muted-foreground">{duplicatesMode ? "선택한 명단 안에서, 또는 여러 명단에 걸쳐 반복된 사람과 원본 행을 확인합니다." : "결제자 엑셀·CSV와 저장된 수강생 명단들을 비교해, 양쪽에 각각 없는 사람을 확인합니다."}</p>
       </div>
       <div className="grid items-start gap-5 lg:grid-cols-2">
         <Card>

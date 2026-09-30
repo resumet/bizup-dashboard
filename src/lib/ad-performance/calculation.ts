@@ -2,6 +2,8 @@ import type { AdPerformanceDailyMetric, AdPerformanceSummary } from "./types";
 
 export function calculateDailyAdSpend(metrics: AdPerformanceDailyMetric[]) {
   let cumulativeSpend = 0;
+  let cumulativePaidLandingLeads = 0;
+  let cumulativeOrganicLandingLeads = 0;
   const membersByDate = new Map(metrics.map(metric => [metric.metricDate, metric.chatRoomMembers]));
   return [...metrics].sort((a, b) => a.metricDate.localeCompare(b.metricDate)).map((metric) => {
     const totalSpend = metric.googleSpend + metric.metaSpend;
@@ -12,6 +14,9 @@ export function calculateDailyAdSpend(metrics: AdPerformanceDailyMetric[]) {
     );
     const totalDatabaseLeads = paidLandingLeads + organicLandingLeads;
     cumulativeSpend += totalSpend;
+    cumulativePaidLandingLeads += paidLandingLeads;
+    cumulativeOrganicLandingLeads += organicLandingLeads;
+    const cumulativeTotalDatabaseLeads = cumulativePaidLandingLeads + cumulativeOrganicLandingLeads;
     const previousDate = new Date(`${metric.metricDate}T00:00:00Z`);
     previousDate.setUTCDate(previousDate.getUTCDate() - 1);
     const previousMembers = membersByDate.get(previousDate.toISOString().slice(0, 10));
@@ -28,6 +33,9 @@ export function calculateDailyAdSpend(metrics: AdPerformanceDailyMetric[]) {
       paidLandingLeads,
       organicLandingLeads,
       totalDatabaseLeads,
+      cumulativePaidLandingLeads,
+      cumulativeOrganicLandingLeads,
+      cumulativeTotalDatabaseLeads,
       googleAdLeadCost, metaAdLeadCost, googleLandingLeadCost, metaLandingLeadCost,
       googleLeadCostDifference: googleLandingLeadCost !== null && googleAdLeadCost !== null ? googleLandingLeadCost - googleAdLeadCost : null,
       metaLeadCostDifference: metaLandingLeadCost !== null && metaAdLeadCost !== null ? metaLandingLeadCost - metaAdLeadCost : null,
@@ -79,7 +87,12 @@ export function summarizeAdPerformance(
   const impressions = total.googleImpressions + total.metaImpressions;
   const clicks = total.googleClicks + total.metaClicks;
   const adLeads = total.googleAdLeads + total.metaAdLeads;
-  const latestMetric = [...metrics].sort((a, b) => b.metricDate.localeCompare(a.metricDate))[0];
+  const dailyMetrics = calculateDailyAdSpend(metrics);
+  const latestMetric = dailyMetrics.at(-1);
+  const chatRoomEntrants = dailyMetrics.reduce(
+    (sum, metric) => sum + (metric.chatRoomEntrants ?? 0),
+    0,
+  );
 
   return {
     ...total,
@@ -88,6 +101,8 @@ export function summarizeAdPerformance(
     adLeads,
     totalDatabaseLeads: total.paidLandingLeads + total.organicLandingLeads,
     adminCumulativeLeads: latestMetric?.adminCumulativeLeads ?? 0,
+    chatRoomEntrants,
+    chatRoomEntrantCost: unitCost(total.spend, chatRoomEntrants),
     remainingBudget: totalBudget - total.spend,
     googleClickConversionRate: ratio(total.googleClicks, total.googleImpressions),
     metaClickConversionRate: ratio(total.metaClicks, total.metaImpressions),

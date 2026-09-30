@@ -30,7 +30,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -447,16 +446,9 @@ export function PhoneSalesListMaker({
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
-          <Badge className="mb-3 bg-emerald-600 text-white hover:bg-emerald-600">
-            SALES LIST
-          </Badge>
           <h1 className="text-3xl font-semibold tracking-tight">
             전화세일즈 명단 만들기
           </h1>
-          <p className="mt-2 max-w-3xl text-muted-foreground">
-            무료강의 신청자 명단을 합치고 유료강의 신청자를 제외해 전화로
-            세일즈할 대상 목록을 저장합니다.
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" asChild>
@@ -761,15 +753,9 @@ export function PhoneSalesJobList({
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
-          <Badge className="mb-3 bg-emerald-600 text-white hover:bg-emerald-600">
-            SALES LIST
-          </Badge>
           <h1 className="text-3xl font-semibold tracking-tight">
             전화세일즈 명단 만들기
           </h1>
-          <p className="mt-2 max-w-3xl text-muted-foreground">
-            저장된 전화세일즈 작업을 다시 확인하고 다운로드할 수 있습니다.
-          </p>
         </div>
         <Button className="bg-emerald-600 text-white hover:bg-emerald-700" asChild>
           <Link href="/services/phone-sales-list/new">

@@ -148,19 +148,9 @@ export function CombinedCourseRosterClient({
     <div className="space-y-5">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
-          <div className="mb-3 flex flex-wrap gap-2">
-            <Badge variant="outline">연결 명단 {rosterJobs.length}개</Badge>
-            <Badge variant="secondary">전체 {rows.length.toLocaleString()}명</Badge>
-            <Badge variant={selected.size ? "default" : "outline"}>
-              선택 {selected.size.toLocaleString()}명
-            </Badge>
-          </div>
           <h1 className="text-3xl font-semibold tracking-tight">
             {courseName} 통합 수강생 명단
           </h1>
-          <p className="mt-2 text-muted-foreground">
-            연결된 모든 명단을 한곳에서 확인하고 선택한 사람에게 메시지를 보냅니다.
-          </p>
         </div>
         {primaryJob ? (
           <MessageDialog

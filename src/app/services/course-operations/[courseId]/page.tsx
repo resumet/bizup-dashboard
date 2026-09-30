@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { BackLink } from "@/components/layout/back-link";
-import { PaidCourseRoster } from "@/components/course-operations/paid-course-roster";
 import { CourseOperationsEditor } from "@/components/course-operations/course-editor";
 import { PendingLinkLabel } from "@/components/navigation/pending-link-label";
 import { Button } from "@/components/ui/button";
@@ -24,6 +23,16 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
   const renderStartedAt = performance.now();
   const { courseId } = await params;
   const { tab } = await searchParams;
+  if (
+    tab === "orders" ||
+    tab === "paid-students" ||
+    tab === "costs" ||
+    tab === "settlement"
+  ) {
+    redirect(
+      `/services/course-operations/students-settlements/${courseId}?tab=${tab}`,
+    );
+  }
   const supabase = await createClient();
   const user = await getAuthenticatedUser(supabase);
   if (!user) redirect("/login");
@@ -150,7 +159,6 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
       <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
         <CourseOperationsEditor
           courseId={courseId}
-          paidRoster={<PaidCourseRoster courseId={courseId} />}
           initialDraft={draft}
           initialBannerUrl={
             course.banner_image_path
@@ -163,7 +171,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
           initialNotes={notes}
           notesLoadError={notesLoadError}
           loadError={loadError}
-          initialTab={tab === "instagram" ? "instagram" : tab === "paid-students" ? "paid-students" : tab === "students" ? "students" : tab === "webinar" ? "webinar" : tab === "settlement" ? "settlement" : tab === "costs" ? "costs" : tab === "orders" ? "orders" : "information"}
+          initialTab={tab === "instagram" ? "instagram" : tab === "students" ? "students" : tab === "webinar" ? "webinar" : "information"}
         />
       </div>
     </main>

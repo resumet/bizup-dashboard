@@ -1,6 +1,8 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { loadAdPerformanceSheetState } from "./sheet-server";
+import { currentSeoulDate } from "./sheet-workspace";
 import type {
   AdPerformanceCourse,
   AdPerformanceDailyMetric,
@@ -139,11 +141,13 @@ export async function loadAdPerformanceDashboard(
   if (dashboardResult.error) throw new Error(`광고성과 조회 실패: ${dashboardResult.error.code}`);
   if (!dashboardResult.data) return null;
   const dashboard = dashboardResult.data as DashboardRow;
-  const [courseResult, metricsResult, channelsResult, organicValuesResult] = await Promise.all([
+  const exclusiveEndDate = currentSeoulDate();
+  const [courseResult, metricsResult, channelsResult, organicValuesResult, sheetState] = await Promise.all([
     admin.from("courses").select("id,name,instructor_name,starts_at").eq("workspace_id", workspaceId).eq("id", dashboard.course_id).maybeSingle(),
     admin.from("ad_performance_dashboard_metrics").select(metricColumns).eq("dashboard_id", dashboardId).order("metric_date", { ascending: true }),
     admin.from("ad_performance_organic_channels").select("id,name,sort_order").eq("dashboard_id", dashboardId).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
     admin.from("ad_performance_organic_metric_values").select("channel_id,metric_date,lead_count").eq("dashboard_id", dashboardId),
+    loadAdPerformanceSheetState(dashboardId, dashboard.start_date),
   ]);
   if (courseResult.error || !courseResult.data) throw new Error(`연결된 강의 조회 실패: ${courseResult.error?.code ?? "NOT_FOUND"}`);
   if (metricsResult.error) throw new Error(`광고성과 지표 조회 실패: ${metricsResult.error.code}`);
@@ -165,6 +169,14 @@ export async function loadAdPerformanceDashboard(
       name: channel.name,
       sortOrder: channel.sort_order,
     })),
-    metrics: ((metricsResult.data ?? []) as MetricRow[]).map((metric) => toAdPerformanceMetric(metric, organicByDate.get(metric.metric_date) ?? {})),
+    metrics: ((metricsResult.data ?? []) as MetricRow[])
+      .filter((metric) => metric.metric_date < exclusiveEndDate)
+      .map((metric) =>
+        toAdPerformanceMetric(
+          metric,
+          organicByDate.get(metric.metric_date) ?? {},
+        ),
+      ),
+    sheetState,
   };
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, BarChart3, BookOpenCheck, CalendarDays, Loader2, Plus, Trash2, WalletCards } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, BookOpenCheck, CalendarDays, Loader2, Plus, Trash2, WalletCards } from "lucide-react";
 
 import { BackLink } from "@/components/layout/back-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -53,7 +53,7 @@ function DashboardCard({ dashboard, busy, onDelete }: {
         <div><p className="text-xs text-muted-foreground">랜딩접수 DB(광고)</p><p className="mt-1 font-semibold tabular-nums">{number.format(dashboard.paidLandingLeads)}건</p></div>
         <div><p className="text-xs text-muted-foreground">랜딩접수 DB(오가닉)</p><p className="mt-1 font-semibold tabular-nums">{number.format(dashboard.organicLandingLeads)}건</p></div>
         <div><p className="text-xs text-muted-foreground">DB 총합</p><p className="mt-1 font-semibold tabular-nums">{number.format(dashboard.paidLandingLeads + dashboard.organicLandingLeads)}건</p></div>
-        <div><p className="text-xs text-muted-foreground">어드민 누적 DB</p><p className="mt-1 font-semibold tabular-nums">{number.format(dashboard.adminCumulativeLeads)}건</p></div>
+        <div><p className="text-xs text-muted-foreground">비즈업에 등록된 DB 갯수</p><p className="mt-1 font-semibold tabular-nums">{number.format(dashboard.adminCumulativeLeads)}건</p></div>
         <Button asChild className="col-span-2 mt-1"><Link href={`/services/ad-performance/${dashboard.id}`}>대시보드 열기 <ArrowRight /></Link></Button>
       </CardContent>
     </Card>
@@ -113,8 +113,10 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
 
   return <main className="min-h-screen">
     <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
-      <Button variant="ghost" size="sm" asChild className="mb-5"><BackLink href="/services/ad-performance"><ArrowLeft />뒤로가기</BackLink></Button>
-      <div><Badge variant="outline" className="mb-3"><BarChart3 />강의별 광고 운영</Badge><h1 className="text-3xl font-semibold tracking-tight">광고성과 관리</h1><p className="mt-2 text-muted-foreground">저장된 강의에 광고성과를 연결하고 강의별 집행 현황을 관리합니다.</p></div>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon-sm" asChild><BackLink href="/services/ad-performance"><ArrowLeft />뒤로가기</BackLink></Button>
+        <h1 className="text-3xl font-semibold tracking-tight">광고성과 관리</h1>
+      </div>
       {error ? <Alert variant="destructive" className="mt-6"><AlertTriangle /><AlertTitle>확인이 필요합니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
 
       <section className="mt-6 grid gap-4 sm:grid-cols-3">
@@ -134,7 +136,7 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
       </Card>
 
       <section className="mt-8">
-        <div><h2 className="text-xl font-semibold">강의별 광고성과</h2><p className="mt-1 text-sm text-muted-foreground">각 강의의 예산과 누적 성과를 한눈에 확인합니다.</p></div>
+        <h2 className="text-xl font-semibold">강의별 광고성과</h2>
         {dashboards.length ? <div className="mt-4 grid gap-5 md:grid-cols-2 xl:grid-cols-3">{dashboards.map((dashboard) => <DashboardCard key={dashboard.id} dashboard={dashboard} busy={deletingId === dashboard.id} onDelete={() => void deleteDashboard(dashboard)} />)}</div> : (
           <Card className="mt-4"><CardContent className="flex min-h-64 flex-col items-center justify-center text-center"><span className="mb-4 grid size-12 place-items-center rounded-full bg-primary/10 text-primary"><BookOpenCheck className="size-5" /></span><h3 className="font-semibold">아직 광고성과 대시보드가 없습니다</h3><p className="mt-2 max-w-md text-sm text-muted-foreground">위에서 저장된 강의를 선택해 첫 광고성과 대시보드를 만들어 보세요.</p>{!initialData.courses.length ? <Button asChild variant="outline" className="mt-5"><Link href="/services/course-operations/new"><Plus />강의 먼저 만들기</Link></Button> : null}</CardContent></Card>
         )}

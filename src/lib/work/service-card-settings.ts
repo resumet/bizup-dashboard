@@ -1,10 +1,14 @@
 import { z } from "zod";
 
+import { WORK_QUICK_TOOL_LINKS } from "./quick-tools";
+
 export const WORK_SERVICE_CARD_GROUPS = [
   {
     title:"강의운영",
     items:[
       {route:"/services/course-operations",title:"강의 운영 자동화"},
+      {route:"/services/instagram-management",title:"인스타그램 관리"},
+      {route:"/services/course-operations/students-settlements",title:"수강생관리 및 정산"},
       {route:"/services/course-wbs",title:"강의 WBS"},
       {route:"/services/course-schedule-planner",title:"강의 일정 플래너"},
       {route:"/services/course-webinars",title:"라이브 웨비나 대시보드"},
@@ -23,23 +27,16 @@ export const WORK_SERVICE_CARD_GROUPS = [
       {route:"/services/message-automation",title:"알림톡·문자 자동화"},
     ],
   },
-  {
-    title:"간편도구",
-    items:[
-      {route:"/services/roster-duplicates",title:"수강생 명단 중복 검사"},
-      {route:"/services/roster-comparison",title:"결제자·수강생 명단 비교"},
-      {route:"/tools/settlement-calculator",title:"강의 정산 계산기"},
-      {route:"/services/contact-csv",title:"연락처 CSV 추출"},
-      {route:"/services/youtube-download",title:"유튜브 영상 다운로드"},
-      {route:"/services/nova-settlement-validator",title:"노바 정산서 검증하기"},
-    ],
-  },
 ] as const;
 
 const routes=WORK_SERVICE_CARD_GROUPS.flatMap(group=>group.items.map(item=>item.route));
-const routeSchema=z.enum(routes as [string,...string[]]);
+const acceptedRoutes=[...routes,...WORK_QUICK_TOOL_LINKS.map(item=>item.href)];
+const routeSchema=z.enum(acceptedRoutes as [string,...string[]]);
+const currentRouteSet=new Set<string>(routes);
 export const workServiceCardSettingsSchema=z.object({
-  hiddenRoutes:z.array(routeSchema).max(routes.length).transform(value=>[...new Set(value)]),
+  hiddenRoutes:z.array(routeSchema).max(acceptedRoutes.length).transform(value=>
+    [...new Set(value)].filter(route=>currentRouteSet.has(route)),
+  ),
 });
 export type WorkServiceCardSettings=z.infer<typeof workServiceCardSettingsSchema>;
 export const DEFAULT_WORK_SERVICE_CARD_SETTINGS:WorkServiceCardSettings={hiddenRoutes:[]};

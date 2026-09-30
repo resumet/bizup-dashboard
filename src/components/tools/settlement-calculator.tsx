@@ -72,12 +72,10 @@ export function SettlementCalculator() {
   return (
     <div className="mx-auto max-w-[1900px] px-4 py-6 sm:px-6 sm:py-8">
       <header className="mb-6">
-        <p className="text-sm font-semibold text-[#244fdd]">bizupclass 비즈업클래스</p>
-        <div className="mt-2 flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight sm:text-3xl"><Calculator aria-hidden="true" />강의 정산 계산기</h1>
           <span className="rounded-full border border-[#d7e0f7] bg-white px-3 py-1 text-xs font-semibold text-[#244fdd]">강사 50% / 회사 50%</span>
         </div>
-        <p className="mt-2 text-[#66738a]">가격과 판매 수량을 바꾸며 예상 정산금을 확인하세요.</p>
       </header>
 
       <div className="grid items-start gap-5 min-[900px]:grid-cols-[minmax(0,0.85fr)_minmax(0,1.4fr)]">

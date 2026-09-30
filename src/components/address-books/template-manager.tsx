@@ -286,11 +286,7 @@ export function TemplateManager({
     <div className="space-y-7">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-primary">SHOONG TEMPLATES</p>
-          <h1 className="mt-2 text-3xl font-semibold">템플릿 관리</h1>
-          <p className="mt-2 text-muted-foreground">
-            Shoong API 연동 가이드를 붙여넣어 발송 템플릿을 등록합니다.
-          </p>
+          <h1 className="text-3xl font-semibold">템플릿 관리</h1>
         </div>
         <Dialog open={open} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>

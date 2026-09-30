@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   Copy,
@@ -22,9 +22,6 @@ import { CourseRosterSections } from "@/components/course-operations/course-rost
 import { CourseNotesCard } from "@/components/course-operations/course-notes-card";
 import { CourseInstagramMaterials } from "@/components/course-operations/course-instagram-materials";
 import { CourseShareDialog } from "@/components/course-operations/course-share-dialog";
-import { CourseSettlementManager } from "@/components/course-settlements/course-settlement-manager";
-import { CourseCostManager } from "@/components/course-costs/course-cost-manager";
-import { CourseOrdersManager } from "@/components/course-operations/course-orders-manager";
 import { CourseWebinarEditor } from "@/components/course-operations/course-webinar-editor";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -214,12 +211,11 @@ type CourseEditorTab =
   | "students"
   | "messages"
   | "videos"
-  | "costs"
-  | "orders"
-  | "paid-students"
-  | "instagram"
-  | "settlement";
-type DeferredCourseEditorTab = Exclude<CourseEditorTab, "information" | "costs" | "settlement" | "orders" | "webinar" | "paid-students" | "instagram">;
+  | "instagram";
+type DeferredCourseEditorTab = Exclude<
+  CourseEditorTab,
+  "information" | "webinar" | "instagram"
+>;
 type SectionLoadStatus = "idle" | "loading" | "loaded" | "error";
 
 function DeferredSectionState({
@@ -352,7 +348,6 @@ export function CourseOperationsEditor({
   loadError,
   deferDetailSections = false,
   initialTab = "information",
-  paidRoster,
 }: {
   courseId?: string;
   sourceScheduleDraftId?: string;
@@ -371,8 +366,7 @@ export function CourseOperationsEditor({
   notesLoadError?: string;
   loadError?: string;
   deferDetailSections?: boolean;
-  initialTab?: "information" | "students" | "costs" | "settlement" | "orders" | "webinar" | "paid-students" | "instagram";
-  paidRoster?: ReactNode;
+  initialTab?: "information" | "students" | "webinar" | "instagram";
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState(() => {
@@ -528,7 +522,7 @@ export function CourseOperationsEditor({
     setActiveTab(nextTab);
     if (nextTab === "information") {
       void loadDetailSection("videos");
-    } else if (nextTab !== "costs" && nextTab !== "settlement" && nextTab !== "orders" && nextTab !== "webinar" && nextTab !== "paid-students" && nextTab !== "instagram") {
+    } else if (nextTab !== "webinar" && nextTab !== "instagram") {
       void loadDetailSection(nextTab);
     }
   }
@@ -889,9 +883,6 @@ export function CourseOperationsEditor({
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <Badge variant="outline" className="hidden">
-            COURSE ID · {courseId ?? "생성 전"}
-          </Badge>
           <h1 className="text-3xl font-semibold tracking-tight">
             {courseId
               ? draft.name
@@ -957,7 +948,7 @@ export function CourseOperationsEditor({
         onValueChange={changeTab}
         className="gap-6"
       >
-        <TabsList className="grid w-full grid-cols-2 grid-rows-5 group-data-horizontal/tabs:h-[13.75rem] md:grid-cols-3 md:grid-rows-3 md:group-data-horizontal/tabs:h-[8.25rem] 2xl:grid-cols-9 2xl:grid-rows-1 2xl:group-data-horizontal/tabs:h-12">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 md:grid-cols-5">
           <TabsTrigger value="information" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             정보
           </TabsTrigger>
@@ -967,25 +958,11 @@ export function CourseOperationsEditor({
           <TabsTrigger value="students" className="h-10 min-w-0 px-2 md:min-w-32 md:px-5">
             기존 수강생명단
           </TabsTrigger>
-          <TabsTrigger value="orders" disabled={!courseId} className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
-            주문 내역
-          </TabsTrigger>
-          <TabsTrigger value="paid-students" disabled={!courseId} className="h-10 min-w-0 px-2">유료수강생</TabsTrigger>
           <TabsTrigger value="instagram" disabled={!courseId} className="h-10 min-w-0 px-2">인스타그램</TabsTrigger>
           <TabsTrigger value="messages" className="hidden">
             단톡방문자
           </TabsTrigger>
           <TabsTrigger value="webinar" disabled={!courseId} className="h-10 min-w-0 px-2">라이브 웨비나</TabsTrigger>
-          <TabsTrigger value="costs" disabled={!courseId} className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
-            비용
-          </TabsTrigger>
-          <TabsTrigger
-            value="settlement"
-            disabled={!courseId}
-            className="h-10 min-w-0 px-2 md:min-w-28 md:px-5"
-          >
-            정산
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="information" className="mt-0 space-y-6">
@@ -2223,36 +2200,12 @@ export function CourseOperationsEditor({
           {courseId ? <CourseWebinarEditor key={courseId} courseId={courseId} /> : null}
         </TabsContent>
 
-        <TabsContent value="paid-students" className="mt-0">{paidRoster}</TabsContent>
-
         <TabsContent value="instagram" className="mt-0">
           {courseId ? <CourseInstagramMaterials courseId={courseId} /> : null}
         </TabsContent>
-
-        <TabsContent value="orders" className="mt-0">
-          {courseId ? <CourseOrdersManager courseId={courseId} courseName={draft.name} onRosterSaved={() => changeTab("paid-students")} onCourseNameChange={(name) => setDraft((current) => ({ ...current, name }))} /> : null}
-        </TabsContent>
-
-        <TabsContent value="costs" className="mt-0">
-          {courseId ? <CourseCostManager courseId={courseId} /> : null}
-        </TabsContent>
-
-        <TabsContent value="settlement" className="mt-0">
-          {courseId ? (
-            <CourseSettlementManager
-              courseId={courseId}
-              courseName={initialDraft.name}
-              instructorName={initialDraft.instructorName}
-            />
-          ) : (
-            <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-              강의를 먼저 만든 뒤 정산 자료를 등록할 수 있습니다.
-            </div>
-          )}
-        </TabsContent>
       </Tabs>
 
-      {activeTab !== "costs" && activeTab !== "settlement" && activeTab !== "orders" && activeTab !== "webinar" && activeTab !== "instagram" ? (
+      {activeTab !== "webinar" && activeTab !== "instagram" ? (
         <div className="flex justify-end border-t pt-6">
           <Button className="min-h-10" onClick={saveCourse} disabled={saving}>
             {saving ? <Loader2 className="animate-spin" /> : <Save />}

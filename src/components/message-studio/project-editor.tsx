@@ -373,26 +373,13 @@ export function MessageStudioProjectEditor({
   const exampleCount = resources.filter((resource) =>
     resource.exampleText.trim(),
   ).length;
-  const generatedCount = resources.filter((resource) =>
-    resource.generatedText.trim(),
-  ).length;
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
         <div>
-          <div className="mb-3 flex flex-wrap gap-2">
-            <Badge variant="outline">예시 {exampleCount}/30</Badge>
-            <Badge variant={generatedCount === 30 ? "default" : "secondary"}>
-              신규 {generatedCount}/30
-            </Badge>
-          </div>
           <h1 className="text-3xl font-semibold tracking-tight">
             {project.course_name || "새 강의"}
           </h1>
-          <p className="mt-2 text-muted-foreground">
-            기존 문자와 같은 역할을 하는 신규 문자 30개를 제작합니다.
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={save} disabled={busy !== null}>

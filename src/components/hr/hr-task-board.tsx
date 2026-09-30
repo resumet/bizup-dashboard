@@ -342,9 +342,7 @@ export function HrTaskBoard({
   return <div className="mx-auto max-w-[1900px] space-y-6 px-5 py-8 lg:px-8 lg:py-10">
     <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
       <div>
-        <Badge variant="outline">{today}</Badge>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight">팀 업무 대시보드</h1>
-        <p className="mt-2 text-muted-foreground">모든 직원의 오늘 업무와 이월 업무를 한눈에 확인합니다.</p>
+        <h1 className="text-3xl font-semibold tracking-tight">팀 업무 대시보드</h1>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" onClick={() => void checkout()} disabled={busy === "checkout"}>{busy === "checkout" ? <Loader2 className="animate-spin" /> : <Check />}내 업무 퇴근 확인</Button>

@@ -66,8 +66,7 @@ export default async function PublicCourseRosterPage({ params }: Props) {
           <div className="flex items-start gap-3">
             <div className="mt-1 rounded-lg bg-primary/10 p-2 text-primary"><ShieldCheck className="size-5" /></div>
             <div>
-              <p className="text-sm text-muted-foreground">공유된 수강생 명단</p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight">{course.name}</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">{course.name}</h1>
               {course.instructor_name ? <p className="mt-1 text-sm text-muted-foreground">강사 {course.instructor_name}</p> : null}
             </div>
           </div>

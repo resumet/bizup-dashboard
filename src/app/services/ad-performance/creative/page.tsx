@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
-import { ArrowLeft, BarChart3, ImageIcon } from "lucide-react";
+import { ArrowLeft, ImageIcon } from "lucide-react";
 
 import { BackLink } from "@/components/layout/back-link";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
@@ -18,10 +17,10 @@ export default async function AdCreativePerformancePage() {
   return (
     <main className="min-h-screen">
       <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
-        <Button variant="ghost" size="sm" asChild className="mb-5"><BackLink href="/services/ad-performance"><ArrowLeft />뒤로가기</BackLink></Button>
-        <Badge variant="outline" className="mb-3"><BarChart3 />강의별 광고 운영</Badge>
-        <h1 className="text-3xl font-semibold tracking-tight">소재성과 관리</h1>
-        <p className="mt-2 text-muted-foreground">광고 소재별 성과를 관리합니다.</p>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon-sm" asChild><BackLink href="/services/ad-performance"><ArrowLeft />뒤로가기</BackLink></Button>
+          <h1 className="text-3xl font-semibold tracking-tight">소재성과 관리</h1>
+        </div>
 
         <Card className="mt-8">
           <CardContent className="flex min-h-72 flex-col items-center justify-center px-6 py-12 text-center">

@@ -78,7 +78,6 @@ export function IntakeCourseForm() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">강의 자동 생성</h1>
-          <p className="mt-2 text-muted-foreground">기본 정보를 입력하면 강의 운영 목록에 즉시 등록됩니다.</p>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={logout} disabled={loggingOut}>
           {loggingOut ? <Loader2 className="animate-spin" /> : <LogOut />}

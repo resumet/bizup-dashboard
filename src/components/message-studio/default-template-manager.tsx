@@ -98,12 +98,7 @@ export function DefaultTemplateManager({
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <Badge variant="outline">{visible.length}/30 사용 중</Badge>
-          <h1 className="mt-3 text-3xl font-semibold">기본 문자 템플릿</h1>
-          <p className="mt-2 text-muted-foreground">
-            새 문자 제작 프로젝트의 왼쪽 예시 영역에 적용될 기본 문자를
-            관리합니다.
-          </p>
+          <h1 className="text-3xl font-semibold">기본 문자 템플릿</h1>
         </div>
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger asChild>

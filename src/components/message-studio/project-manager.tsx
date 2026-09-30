@@ -89,16 +89,9 @@ export function MessageStudioProjectManager({
     <div className="space-y-8">
       <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div>
-          <Badge variant="outline" className="mb-3">
-            AI 카피라이팅
-          </Badge>
           <h1 className="text-3xl font-semibold tracking-tight">
             문자 생성·제작 프로그램
           </h1>
-          <p className="mt-2 max-w-2xl text-muted-foreground">
-            강의마다 예시 문자 30개를 저장하고, 같은 목적의 신규 문자를 AI로
-            제작합니다.
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>

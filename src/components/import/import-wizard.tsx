@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, CheckCircle2, FileSpreadsheet, Loader2, ShieldCheck, Upload, X } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -91,9 +90,7 @@ export function ImportWizard() {
   }
 
   return <>
-    <Badge variant="outline" className="mb-3">{preview ? "2 / 4 단계" : "1 / 4 단계"}</Badge>
     <h1 className="text-3xl font-semibold tracking-tight">{preview ? "컬럼 매핑과 검증 결과" : "새 명단 가져오기"}</h1>
-    <p className="mt-2 text-muted-foreground">{preview ? "자동 매핑 결과와 오류를 확인한 뒤 저장하세요." : "작업 정보를 입력하고 분석할 CSV 파일을 선택하세요."}</p>
     {error && <Alert variant="destructive" className="mt-6"><AlertCircle /><AlertTitle>처리할 수 없습니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
 
     {!preview ? <form onSubmit={previewFile} className="mt-8 grid gap-6 md:grid-cols-[1fr_280px]">

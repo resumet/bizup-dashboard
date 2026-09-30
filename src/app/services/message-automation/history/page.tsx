@@ -62,10 +62,7 @@ export default async function MessageAutomationHistoryPage() {
         </div>
       </header>
       <div className="mx-auto max-w-[1900px] px-5 py-10 lg:px-8">
-        <h1 className="text-3xl font-semibold">알림톡·문자 발송 이력</h1>
-        <p className="mt-2 mb-8 text-muted-foreground">
-          최근 발송 작업 200건을 확인합니다.
-        </p>
+        <h1 className="mb-8 text-3xl font-semibold">알림톡·문자 발송 이력</h1>
         <Card>
           <CardHeader>
             <CardTitle>기존 발송 내역</CardTitle>

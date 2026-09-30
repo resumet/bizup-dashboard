@@ -61,7 +61,7 @@ export default async function CourseRosterPage() {
   return <main className="min-h-screen">
     <header className="border-b bg-background"><div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8"><Button variant="ghost" size="sm" asChild><BackLink href="/"><ArrowLeft />뒤로가기</BackLink></Button><div className="mx-3 h-5 w-px bg-border" /><span className="font-semibold">수강생 명단 분석</span></div></header>
     <div className="mx-auto max-w-[1900px] px-5 py-10 lg:px-8">
-      <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><Badge variant="outline" className="mb-3">수강생 데이터</Badge><h1 className="text-3xl font-semibold tracking-tight">작업 목록</h1><p className="mt-2 text-muted-foreground">Supabase에 저장된 신청자 명단과 분석 상태입니다.</p></div><Button asChild><Link href="/services/course-roster/new"><Plus />새 작업</Link></Button></div>
+      <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><h1 className="text-3xl font-semibold tracking-tight">작업 목록</h1><Button asChild><Link href="/services/course-roster/new"><Plus />새 작업</Link></Button></div>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
         <Metric title="전체 작업" value={`${jobs.length}건`} note="현재 워크스페이스" icon={<FileSpreadsheet className="size-4" />} />

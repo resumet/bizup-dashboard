@@ -543,9 +543,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
   return <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8 lg:py-10">
     <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <Badge variant="outline" className="mb-3 bg-background">강의 준비 · 웨비나 운영</Badge>
         <h2 className="text-3xl font-semibold tracking-tight">강의 WBS</h2>
-        <p className="mt-2 text-sm text-muted-foreground">강의별 WBS를 선택해 업무와 일정을 관리하세요.</p>
       </div>
       {courseId ? <Button size="sm" variant="outline" onClick={() => selectCourse("")} disabled={saving}><ArrowLeft /> WBS 목록</Button> : null}
     </div>

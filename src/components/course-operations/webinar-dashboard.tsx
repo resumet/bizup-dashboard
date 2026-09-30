@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatMetric, ratio, ratioDefinitions, summarizeWebinars, webinarFields, type WebinarCourse } from "@/lib/course-webinars/metrics";
 
@@ -49,7 +49,6 @@ export function WebinarDashboard() {
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3"><CardTitle className="text-xl">라이브 웨비나 대시보드</CardTitle><Button variant="outline" size="sm" disabled={loading} onClick={() => { setLoading(true); setReload(value => value + 1); }}>실적 새로고침</Button></div>
-        <CardDescription>접근 가능한 모든 강의의 라이브 실적과 전환율을 비교합니다. 강의명을 누르면 입력 탭으로 이동합니다.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="flex flex-wrap gap-3">

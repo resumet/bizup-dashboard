@@ -21,6 +21,36 @@ export type AdPerformanceOrganicChannel = {
   sortOrder: number;
 };
 
+export type AdPerformanceSheetManualInput = {
+  bizupDbCumulative: number | null;
+  chatMembersCumulative: number | null;
+};
+
+export type AdPerformanceTrackingDailyValues = {
+  fullDate: string;
+  googleLandingDb: number;
+  metaLandingDb: number;
+  organicByChannel: Record<string, number>;
+};
+
+export type AdPerformanceTrackingImport = {
+  dailyByDate: Record<string, AdPerformanceTrackingDailyValues>;
+  organicChannels: string[];
+  matchedRowCount: number;
+};
+
+export type AdPerformanceSheetState = {
+  spreadsheetUrl: string;
+  spreadsheetId: string;
+  sheetName: string;
+  sourceRows: string[][];
+  trackingFileName: string | null;
+  tracking: AdPerformanceTrackingImport | null;
+  manualInputs: Record<string, AdPerformanceSheetManualInput>;
+  version: number;
+  updatedAt: string;
+};
+
 export type AdPerformanceDashboardData = {
   id: string;
   course: AdPerformanceCourse;
@@ -28,6 +58,7 @@ export type AdPerformanceDashboardData = {
   totalBudget: number;
   organicChannels: AdPerformanceOrganicChannel[];
   metrics: AdPerformanceDailyMetric[];
+  sheetState: AdPerformanceSheetState | null;
   loadError?: string;
 };
 
@@ -75,6 +106,8 @@ export type AdPerformanceSummary = {
   organicLandingLeads: number;
   totalDatabaseLeads: number;
   adminCumulativeLeads: number;
+  chatRoomEntrants: number;
+  chatRoomEntrantCost: number | null;
   remainingBudget: number;
   googleClickConversionRate: number | null;
   metaClickConversionRate: number | null;

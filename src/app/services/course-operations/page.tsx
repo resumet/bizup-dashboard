@@ -8,10 +8,8 @@ import {
 
 import { BackLink } from "@/components/layout/back-link";
 import { CourseOperationsList } from "@/components/course-operations/course-list";
-import type { CoursePaymentSummary } from "@/lib/course-operations/payment-summary";
 import { hasAdminAccess } from "@/lib/admin/access";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getCachedCourseSummaries } from "@/lib/course-operations/list-cache";
@@ -28,7 +26,6 @@ export default async function CourseOperationsPage() {
   const membership = await requireCourseOperationsMembership(user.id);
 
   let courses: CourseSummary[] = [];
-  const paymentSummaries: CoursePaymentSummary[] = [];
   let loadError = "";
   try {
     courses = await getCachedCourseSummaries(membership.workspace_id);
@@ -56,12 +53,7 @@ export default async function CourseOperationsPage() {
       <div className="mx-auto max-w-[1900px] px-5 py-10 lg:px-8">
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
-            <Badge variant="outline" className="mb-3">강의 중심 관리</Badge>
             <h1 className="text-3xl font-semibold tracking-tight">강의 목록</h1>
-            <p className="hidden">
-              강의 ID를 기준으로 일정, 옵션, 수강생 명단과 문자 제작물을 한곳에서
-              관리합니다.
-            </p>
           </div>
           <Button asChild className="min-h-10">
             <Link href="/services/course-operations/new">
@@ -105,7 +97,6 @@ export default async function CourseOperationsPage() {
             <CourseOperationsList
               courses={courses}
               canDelete={hasAdminAccess(user.email, membership.role)}
-              paymentSummaries={paymentSummaries}
               todayKoreaDate={toKoreaDate(new Date().toISOString())}
             />
           </div>

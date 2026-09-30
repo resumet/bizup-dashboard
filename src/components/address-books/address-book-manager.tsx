@@ -212,11 +212,7 @@ export function AddressBookManager({
     <>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-primary">ADDRESS BOOKS</p>
-          <h1 className="mt-2 text-3xl font-semibold">주소록 매니저</h1>
-          <p className="mt-2 text-muted-foreground">
-            Excel 또는 CSV로 주소록을 만들고 업데이트합니다.
-          </p>
+          <h1 className="text-3xl font-semibold">주소록 매니저</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <Dialog open={mergeOpen} onOpenChange={changeMergeDialog}>

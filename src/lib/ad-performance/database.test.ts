@@ -16,6 +16,8 @@ test("강의마다 하나의 광고성과 대시보드와 날짜별 지표를 �
   try {
     await db.exec(`
       create role authenticated;
+      create role anon;
+      create role service_role;
       create schema auth;
       create table auth.users(id uuid primary key);
       create table public.workspaces(id uuid primary key);
@@ -38,6 +40,7 @@ test("강의마다 하나의 광고성과 대시보드와 날짜별 지표를 �
     await db.exec(await readFile("supabase/migrations_archive/20260929/202609230004_ad_performance_dashboard.sql", "utf8"));
     await db.exec(await readFile("supabase/migrations_archive/20260929/202609230005_course_ad_performance_dashboards.sql", "utf8"));
     await db.exec(await readFile("supabase/migrations_archive/20260929/202609230006_ad_chat_room_members.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations/202609300001_ad_performance_sheet_workspace.sql", "utf8"));
 
     await db.query(
       `insert into public.ad_performance_dashboards
@@ -109,6 +112,77 @@ test("강의마다 하나의 광고성과 대시보드와 날짜별 지표를 �
       admin_cumulative_leads: 28,
     });
 
+    const savedVersion = await db.query<{ save_ad_performance_sheet_state: number }>(
+      `select public.save_ad_performance_sheet_state(
+        $1, $2, 0,
+        'https://docs.google.com/spreadsheets/d/1234567890abcdef/edit',
+        '1234567890abcdef',
+        '첫번째 시트',
+        '[["날짜"],["헤더"],["9월1일"]]'::jsonb,
+        'tracking.xlsx',
+        '{"dailyByDate":{},"organicChannels":["새채널"],"matchedRowCount":1}'::jsonb,
+        '{"2026-09-01":{"bizupDbCumulative":40,"chatMembersCumulative":150}}'::jsonb,
+        '[{"metricDate":"2026-09-01","googleImpressions":9000,"metaImpressions":3000,"googleClicks":210,"metaClicks":110,"googleAdLeads":21,"metaAdLeads":11,"googleSpend":310000,"metaSpend":210000,"googleLandingLeads":19,"metaLandingLeads":8,"adminCumulativeLeads":40,"chatRoomMembers":150,"organicLeadsByName":{"새채널":4}}]'::jsonb
+      )`,
+      [dashboardId, userId],
+    );
+    assert.equal(Number(savedVersion.rows[0].save_ad_performance_sheet_state), 1);
+    const state = await db.query<{ version: number; sheet_name: string }>(
+      "select version,sheet_name from public.ad_performance_sheet_states where dashboard_id=$1",
+      [dashboardId],
+    );
+    assert.deepEqual(state.rows[0], { version: 1, sheet_name: "첫번째 시트" });
+    const managedMetric = await db.query<{
+      google_impressions: string;
+      google_landing_leads: string;
+      admin_cumulative_leads: string;
+      chat_room_members: string;
+      managed_by_sheet: boolean;
+    }>(
+      "select google_impressions,google_landing_leads,admin_cumulative_leads,chat_room_members,managed_by_sheet from public.ad_performance_dashboard_metrics where dashboard_id=$1 and metric_date='2026-09-01'",
+      [dashboardId],
+    );
+    assert.deepEqual(
+      {
+        ...managedMetric.rows[0],
+        google_impressions: Number(managedMetric.rows[0].google_impressions),
+        google_landing_leads: Number(managedMetric.rows[0].google_landing_leads),
+        admin_cumulative_leads: Number(managedMetric.rows[0].admin_cumulative_leads),
+        chat_room_members: Number(managedMetric.rows[0].chat_room_members),
+      },
+      {
+        google_impressions: 9000,
+        google_landing_leads: 19,
+        admin_cumulative_leads: 40,
+        chat_room_members: 150,
+        managed_by_sheet: true,
+      },
+    );
+    assert.equal(
+      Number(
+        (
+          await db.query<{ lead_count: string }>(
+            `select value.lead_count
+             from public.ad_performance_organic_metric_values value
+             join public.ad_performance_organic_channels channel on channel.id=value.channel_id
+             where value.dashboard_id=$1 and channel.name='새채널'`,
+            [dashboardId],
+          )
+        ).rows[0].lead_count,
+      ),
+      4,
+    );
+    await assert.rejects(
+      db.query(
+        `select public.save_ad_performance_sheet_state(
+          $1,$2,0,'https://docs.google.com/spreadsheets/d/1234567890abcdef/edit',
+          '1234567890abcdef','첫번째 시트','[]'::jsonb,null,null,'{}'::jsonb,'[]'::jsonb
+        )`,
+        [dashboardId, userId],
+      ),
+      /다른 사용자가 시트 데이터를 변경했습니다/,
+    );
+
     await assert.rejects(
       db.query(
         `insert into public.ad_performance_dashboards
@@ -132,6 +206,7 @@ test("강의마다 하나의 광고성과 대시보드와 날짜별 지표를 �
     assert.equal((await db.query("select * from public.ad_performance_dashboard_metrics")).rows.length, 0);
     assert.equal((await db.query("select * from public.ad_performance_organic_channels")).rows.length, 0);
     assert.equal((await db.query("select * from public.ad_performance_organic_metric_values")).rows.length, 0);
+    assert.equal((await db.query("select * from public.ad_performance_sheet_states")).rows.length, 0);
   } finally {
     await db.close();
   }

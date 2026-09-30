@@ -49,11 +49,12 @@ export default async function PublicInstagramNotionPage({ params }: Props) {
   return <main className="flex min-h-screen flex-col bg-muted/20">
     <header className="border-b bg-background">
       <div className="mx-auto flex w-full max-w-[96rem] flex-wrap items-center justify-between gap-4 px-5 py-5 lg:px-8">
-        <div>
-          <Link className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground" href={`/public/instagram/${shareId}`}><ArrowLeft className="size-4" />전체 자료로 돌아가기</Link>
-          <p className="mt-4 text-sm font-medium text-primary">{courseResult.data.name} · {String(position).padStart(2, "0")}</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight">{title}</h1>
+        <div className="flex items-center gap-2">
+          <Link className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" href={`/public/instagram/${shareId}`} aria-label="전체 자료로 돌아가기" title="전체 자료로 돌아가기"><ArrowLeft className="size-4" aria-hidden="true" /><span className="sr-only">전체 자료로 돌아가기</span></Link>
+          <div>
+          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
           {courseResult.data.instructor_name ? <p className="mt-1 text-sm text-muted-foreground">강사 {courseResult.data.instructor_name}</p> : null}
+          </div>
         </div>
         <a className="inline-flex h-9 items-center justify-center gap-2 rounded-md border bg-background px-4 text-sm font-medium shadow-xs transition-colors hover:bg-muted" href={notionUrl} target="_blank" rel="noopener noreferrer"><ExternalLink className="size-4" />Notion에서 열기</a>
       </div>

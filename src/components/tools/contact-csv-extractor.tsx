@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -73,16 +72,9 @@ export function ContactCsvExtractor() {
   return (
     <div className="space-y-6">
       <div>
-        <Badge className="mb-3 bg-teal-600 text-white hover:bg-teal-600">
-          간편 도구
-        </Badge>
         <h1 className="text-3xl font-semibold tracking-tight">
           연락처 CSV 추출
         </h1>
-        <p className="mt-2 text-muted-foreground">
-          엑셀의 이름, 전화번호, 이메일 3열을 순서대로 붙여넣으면 CSV
-          파일로 만듭니다.
-        </p>
       </div>
 
       {error ? (

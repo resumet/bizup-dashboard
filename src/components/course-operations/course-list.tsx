@@ -57,9 +57,9 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function CourseSectionHeading({ title, description, count }: { title: string; description: string; count: number }) {
+function CourseSectionHeading({ title, count }: { title: string; count: number }) {
   return <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-    <div><h2 className="text-xl font-semibold">{title}</h2><p className="mt-1 text-sm text-muted-foreground">{description}</p></div>
+    <h2 className="text-xl font-semibold">{title}</h2>
     <Badge variant="secondary">{count}개</Badge>
   </div>;
 }
@@ -261,13 +261,13 @@ export function CourseOperationsList({
 
       {viewMode === "cards" ? (
         <div className="space-y-10">
-          <section aria-label="진행 중 강의"><CourseSectionHeading title="진행 중" description="웨비나 D+2까지의 현재 운영 강의입니다." count={cardOngoingCourses.length} /><CourseCards courses={cardOngoingCourses} canDelete={canDelete} onDelete={openDeleteDialog} /></section>
-          <section aria-label="완료된 강의"><CourseSectionHeading title="완료" description="무료 웨비나가 끝난 지 3일 이상 지난 강의입니다." count={cardCompletedCourses.length} /><CourseCards courses={cardCompletedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></section>
+          <section aria-label="진행 중 강의"><CourseSectionHeading title="진행 중" count={cardOngoingCourses.length} /><CourseCards courses={cardOngoingCourses} canDelete={canDelete} onDelete={openDeleteDialog} /></section>
+          <section aria-label="완료된 강의"><CourseSectionHeading title="완료" count={cardCompletedCourses.length} /><CourseCards courses={cardCompletedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></section>
         </div>
       ) : viewMode === "list" ? (
         <div className="space-y-10">
-          <section aria-label="진행 중 강의"><CourseSectionHeading title="진행 중" description="웨비나 D+2까지의 현재 운영 강의입니다." count={ongoingCourses.length} /><CourseTable courses={ongoingCourses} canDelete={canDelete} onDelete={openDeleteDialog} /></section>
-          <section aria-label="완료된 강의"><CourseSectionHeading title="완료" description="무료 웨비나가 끝난 지 3일 이상 지난 강의입니다." count={completedCourses.length} /><CourseTable courses={completedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></section>
+          <section aria-label="진행 중 강의"><CourseSectionHeading title="진행 중" count={ongoingCourses.length} /><CourseTable courses={ongoingCourses} canDelete={canDelete} onDelete={openDeleteDialog} /></section>
+          <section aria-label="완료된 강의"><CourseSectionHeading title="완료" count={completedCourses.length} /><CourseTable courses={completedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></section>
         </div>
       ) : viewMode === "students" ? (
         paidStudentLoading ? (
@@ -278,12 +278,12 @@ export function CourseOperationsList({
           <Card className="overflow-hidden">
             <Table>
               <TableHeader><TableRow><TableHead>강의명</TableHead><TableHead>기수</TableHead><TableHead>강사명</TableHead><TableHead className="text-right">유료수강생</TableHead><TableHead className="text-right">관리</TableHead></TableRow></TableHeader>
-              <TableBody>{courses.map((course) => <TableRow key={course.id}><TableCell className="font-medium"><Link href={`/services/course-operations/${course.id}`} className="hover:underline">{course.name}</Link></TableCell><TableCell>{course.cohort ? `${course.cohort}기` : "-"}</TableCell><TableCell>{course.instructor_name || "-"}</TableCell><TableCell className="text-right tabular-nums">{(paidStudentCounts.get(course.id) ?? 0).toLocaleString("ko-KR")}명</TableCell><TableCell className="text-right"><Button size="sm" variant="outline" asChild><Link href={`/services/course-operations/${course.id}?tab=paid-students`}>명단 바로가기</Link></Button></TableCell></TableRow>)}</TableBody>
+              <TableBody>{courses.map((course) => <TableRow key={course.id}><TableCell className="font-medium"><Link href={`/services/course-operations/${course.id}`} className="hover:underline">{course.name}</Link></TableCell><TableCell>{course.cohort ? `${course.cohort}기` : "-"}</TableCell><TableCell>{course.instructor_name || "-"}</TableCell><TableCell className="text-right tabular-nums">{(paidStudentCounts.get(course.id) ?? 0).toLocaleString("ko-KR")}명</TableCell><TableCell className="text-right"><Button size="sm" variant="outline" asChild><Link href={`/services/course-operations/students-settlements/${course.id}?tab=paid-students`}>명단 바로가기</Link></Button></TableCell></TableRow>)}</TableBody>
             </Table>
           </Card>
         )
       ) : viewMode === "calendar" ? (
-        <div className="space-y-10"><section aria-label="진행 중 강의 일정"><CourseSectionHeading title="진행 중" description="완료되지 않은 강의 일정만 달력에 표시합니다." count={ongoingCourses.length} />{ongoingCourses.length ? <CourseListCalendar courses={ongoingCourses} /> : <div className="rounded-xl border border-dashed px-5 py-10 text-center text-sm text-muted-foreground">진행 중인 강의가 없습니다.</div>}</section><section aria-label="완료된 강의"><CourseSectionHeading title="완료" description="무료 웨비나가 끝난 지 3일 이상 지난 강의입니다." count={completedCourses.length} /><CourseTable courses={completedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></section></div>
+        <div className="space-y-10"><section aria-label="진행 중 강의 일정"><CourseSectionHeading title="진행 중" count={ongoingCourses.length} />{ongoingCourses.length ? <CourseListCalendar courses={ongoingCourses} /> : <div className="rounded-xl border border-dashed px-5 py-10 text-center text-sm text-muted-foreground">진행 중인 강의가 없습니다.</div>}</section><section aria-label="완료된 강의"><CourseSectionHeading title="완료" count={completedCourses.length} /><CourseTable courses={completedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></section></div>
       ) : (
         <>{paymentLoading ? <p className="py-12 text-center text-muted-foreground">결제내역을 불러오는 중입니다.</p> : <CoursePaymentSummaryTable summaries={loadedPaymentSummaries} />}</>
       )}

@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 
 import { PurchaseAnalysisDashboard } from "@/components/purchases/purchase-analysis-dashboard";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -29,11 +28,7 @@ export default async function PurchaseAnalysisPage() {
         </div>
       </header>
       <div className="mx-auto max-w-[1900px] px-5 py-10 lg:px-8">
-        <Badge variant="outline">PURCHASE ANALYTICS</Badge>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight">주문결제 매출분석</h1>
-        <p className="mt-2 mb-8 text-muted-foreground">
-          주문결제 원장의 실결제·환불·광고 유입을 분석합니다. 기존 매출정산 서비스와 독립적으로 비교해 사용할 수 있습니다.
-        </p>
+        <h1 className="mb-8 text-3xl font-semibold tracking-tight">주문결제 매출분석</h1>
         <PurchaseAnalysisDashboard />
       </div>
     </main>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, CheckCircle2, Landmark, Loader2, RefreshCw, Save, TrendingDown, TrendingUp, WalletCards } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, Landmark, Loader2, RefreshCw, Save, TrendingDown, TrendingUp } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BackLink } from "@/components/layout/back-link";
@@ -113,15 +113,12 @@ export function CashFlowDashboard({ initialData }: { initialData: CashFlowDashbo
   return (
     <main className="min-h-screen">
       <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
-        <Button variant="ghost" size="sm" asChild className="mb-5">
-          <BackLink href="/"><ArrowLeft />뒤로가기</BackLink>
-        </Button>
-
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-          <div>
-            <Badge variant="outline" className="mb-3"><WalletCards />회사 자금 관리</Badge>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon-sm" asChild>
+              <BackLink href="/"><ArrowLeft />뒤로가기</BackLink>
+            </Button>
             <h1 className="text-3xl font-semibold tracking-tight">자금 흐름</h1>
-            <p className="mt-2 max-w-3xl text-muted-foreground">현재 통장 잔액에 강의별 노바 입금·강사 지급과 매월 고정지출을 반영해 향후 12개월 잔액을 예측합니다.</p>
           </div>
           <Button onClick={save} disabled={saving || Boolean(initialData.loadError)} className="min-h-10">
             {saving ? <Loader2 className="animate-spin" /> : <Save />}변경사항 저장
@@ -166,7 +163,7 @@ export function CashFlowDashboard({ initialData }: { initialData: CashFlowDashbo
                 {plans.map((plan) => (
                   <TableRow key={plan.courseId}>
                     <TableCell className="text-center"><input type="checkbox" checked={plan.isIncluded} onChange={(event) => patchPlan(plan.courseId, { isIncluded: event.target.checked })} aria-label={`${plan.courseName} 예측 반영`} className="size-4 accent-primary" /></TableCell>
-                    <TableCell><Link href={`/services/course-operations/${plan.courseId}?tab=settlement`} className="font-medium hover:underline">{plan.courseName}</Link><p className="text-xs text-muted-foreground">{plan.instructorName}</p></TableCell>
+                    <TableCell><Link href={`/services/course-operations/students-settlements/${plan.courseId}?tab=settlement`} className="font-medium hover:underline">{plan.courseName}</Link><p className="text-xs text-muted-foreground">{plan.instructorName}</p></TableCell>
                     <TableCell><Input type="month" value={plan.expectedMonth} onChange={(event) => patchPlan(plan.courseId, { expectedMonth: event.target.value })} aria-label={`${plan.courseName} 예상 월`} className="min-w-36" /></TableCell>
                     <TableCell><MoneyInput value={plan.novaInflow} onChange={(value) => patchPlan(plan.courseId, { novaInflow: value })} ariaLabel={`${plan.courseName} 노바 입금액`} /></TableCell>
                     <TableCell><MoneyInput value={plan.instructorPayout} onChange={(value) => patchPlan(plan.courseId, { instructorPayout: value })} ariaLabel={`${plan.courseName} 강사 지급액`} /></TableCell>

@@ -7,7 +7,6 @@ import {
   FileSpreadsheet,
   Loader2,
   RotateCcw,
-  ShieldCheck,
   UploadCloud,
   XCircle,
 } from "lucide-react";
@@ -20,7 +19,6 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   analyzeWorkbook,
-  SETTLEMENT_ENGINE_VERSION,
   type MonthlyAnalysis,
   type WorkbookInput,
 } from "@/lib/course-settlements/engine";
@@ -98,15 +96,7 @@ export function NovaSettlementValidator() {
     <div className="space-y-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge className="bg-teal-600 hover:bg-teal-600"><ShieldCheck /> 숫자 자동 검증</Badge>
-            <Badge variant="outline">엔진 {SETTLEMENT_ENGINE_VERSION}</Badge>
-          </div>
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight">노바 정산서 검증하기</h1>
-          <p className="mt-2 max-w-3xl leading-7 text-muted-foreground">
-            노바에서 받은 정산 엑셀을 올리면 원본 거래를 다시 계산해 강사별
-            매출·비용과 전체 요약 금액이 맞는지 확인합니다.
-          </p>
+          <h1 className="text-3xl font-semibold tracking-tight">노바 정산서 검증하기</h1>
         </div>
         {analysis || error ? <Button variant="outline" onClick={reset}><RotateCcw /> 다른 파일 검증</Button> : null}
       </section>

@@ -25,7 +25,7 @@ import {
 import { formatPhone } from "@/lib/jobs/filter";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
-import { messageHistorySourceName, messageSourceMatches } from "@/lib/messages/recipient-source";
+import { messageSourceMatches } from "@/lib/messages/recipient-source";
 
 type PageProps = {
   params: Promise<{ bookId: string; messageId: string }>;
@@ -140,15 +140,9 @@ export default async function AddressMessageHistoryDetailPage({
       </header>
 
       <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
-        <Badge variant="outline" className="mb-3">
-          {scopeLabel(message.target_scope)}
-        </Badge>
         <h1 className="text-3xl font-semibold">
           {template?.name ?? message.template_code}
         </h1>
-        <p className="mt-2 text-muted-foreground">
-          {messageHistorySourceName(message)} · {formatDateTime(message.created_at)}
-        </p>
 
         <div className="mt-7 grid gap-4 sm:grid-cols-4">
           <Metric title="발송 대상" value={message.requested_count} icon={<MessageSquareText />} />
@@ -272,12 +266,6 @@ function StatusBadge({ status }: { status: string }) {
   if (status === "failed") return <Badge variant="destructive"><XCircle />실패</Badge>;
   if (status === "partial_failed") return <Badge variant="destructive">일부 실패</Badge>;
   return <Badge variant="secondary"><Clock3 />확인 중</Badge>;
-}
-function scopeLabel(scope: string) {
-  if (scope === "test") return "테스트 발송";
-  if (scope === "selected") return "선택 수신자";
-  if (scope === "filtered") return "필터 결과";
-  return "전체 수신자";
 }
 function finalMessageTypeLabel(value: string | null) {
   if (value === "AT") return "알림톡";

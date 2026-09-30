@@ -255,7 +255,7 @@ export function SettlementStatement({ instructor, monthlyAnalyses, courseId, cou
         <div className="space-y-2"><Label>강사 배분율 (%)</Label><Input disabled={confirmed} type="number" min="0" max="100" step="0.1" value={draft.instructorRatioPercent} onChange={(event) => patchDraft({ instructorRatioPercent: Number(event.target.value) })} /></div>
       </CardContent></Card>
 
-      <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><div><CardTitle>비용 상세</CardTitle><CardDescription>정산에 반영된 지급 완료 비용을 부담 주체별로 구분했습니다.</CardDescription></div><Button asChild variant="outline"><Link href={`/services/course-operations/${courseId}?tab=costs`}>비용 관리로 이동</Link></Button></div></CardHeader><CardContent className="space-y-4">
+      <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><div><CardTitle>비용 상세</CardTitle><CardDescription>정산에 반영된 지급 완료 비용을 부담 주체별로 구분했습니다.</CardDescription></div><Button asChild variant="outline"><Link href={`/services/course-operations/students-settlements/${courseId}?tab=costs`}>비용 관리로 이동</Link></Button></div></CardHeader><CardContent className="space-y-4">
         <CostTable title="공동 부담액" description="회사와 강사가 설정 비율로 함께 부담" burden="SHARED" costs={appliedCourseCosts} />
         <CostTable title="회사 부담액" description="회사 단독 부담 비용" burden="COMPANY" costs={appliedCourseCosts} />
         <CostTable title="강사 부담액" description="강사 단독 부담 비용" burden="INSTRUCTOR" costs={appliedCourseCosts} />

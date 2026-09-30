@@ -334,11 +334,7 @@ export function MessageAutomationManager({
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-primary">SHOONG AUTOMATION</p>
-          <h1 className="mt-2 text-3xl font-semibold">알림톡·문자 자동화</h1>
-          <p className="mt-2 text-muted-foreground">
-            대상 주소록부터 선택한 뒤 템플릿과 변수를 설정해 발송하세요.
-          </p>
+          <h1 className="text-3xl font-semibold">알림톡·문자 자동화</h1>
         </div>
         <Button variant="outline" asChild>
           <Link href="/services/message-automation/templates">

@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function SettlementCalculatorPage() {
   return <main className="min-h-screen bg-[#f4f6fa] text-[#192641]">
-    <nav aria-label="서비스 이동" className="border-b border-[#e4e9f1] bg-white"><div className="mx-auto max-w-[1900px] px-4 py-3 sm:px-6"><BackLink href="/" className="inline-flex items-center gap-2 rounded-lg px-2 py-1 text-sm hover:bg-[#f4f6fa] focus-visible:outline-2 focus-visible:outline-[#244fdd]"><ArrowLeft className="size-4" />뒤로가기</BackLink></div></nav>
+    <nav aria-label="서비스 이동" className="border-b border-[#e4e9f1] bg-white"><div className="mx-auto flex h-18 max-w-[1900px] items-center gap-3 px-4 sm:px-6"><BackLink href="/" className="inline-flex rounded-lg hover:bg-[#f4f6fa] focus-visible:outline-2 focus-visible:outline-[#244fdd]"><ArrowLeft className="size-4" />뒤로가기</BackLink><span className="font-semibold">강의 정산 계산기</span></div></nav>
     <SettlementCalculator />
   </main>;
 }

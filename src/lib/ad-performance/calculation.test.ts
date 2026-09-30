@@ -57,6 +57,16 @@ test("톡방 입장은 실제 전일 대비로, 톡방 접수 단가는 톡방�
   assert.equal(rows[1].totalLandingLeadCost, 500_000 / 25);
   assert.equal(rows[1].googleLeadCostDifference, 300_000 / 18 - 300_000 / 20);
   assert.equal(rows[1].metaLeadCostDifference, 200_000 / 7 - 200_000 / 10);
+
+  const summary = summarizeAdPerformance(
+    [
+      { ...metric, metricDate: "2026-09-30", chatRoomMembers: 100 },
+      { ...metric, metricDate: "2026-10-01", chatRoomMembers: 130 },
+    ],
+    0,
+  );
+  assert.equal(summary.chatRoomEntrants, 30);
+  assert.equal(summary.chatRoomEntrantCost, 1_000_000 / 30);
 });
 
 test("DB당 단가는 매체별 광고비와 해당 접수 건수로 계산한다", () => {
@@ -68,6 +78,9 @@ test("DB당 단가는 매체별 광고비와 해당 접수 건수로 계산한�
   assert.equal(row.paidLandingLeads, 25);
   assert.equal(row.organicLandingLeads, 8);
   assert.equal(row.totalDatabaseLeads, 33);
+  assert.equal(row.cumulativePaidLandingLeads, 25);
+  assert.equal(row.cumulativeOrganicLandingLeads, 8);
+  assert.equal(row.cumulativeTotalDatabaseLeads, 33);
   const [empty] = calculateDailyAdSpend([{ ...metric, googleAdLeads: 0, metaAdLeads: 0, googleLandingLeads: 0, metaLandingLeads: 0 }]);
   assert.deepEqual([empty.googleAdLeadCost, empty.metaAdLeadCost, empty.googleLandingLeadCost, empty.metaLandingLeadCost], [null, null, null, null]);
   assert.equal(empty.googleLeadCostDifference, null);
@@ -83,6 +96,25 @@ test("매체별 누적광고비 합계는 전체 누적광고비와 일치한다
   const empty = summarizeAdPerformance([], 0);
   assert.equal(empty.googleSpend, 0);
   assert.equal(empty.metaSpend, 0);
+});
+
+test("랜딩접수·오가닉·전체 DB 누적값은 날짜순으로 합산한다", () => {
+  const rows = calculateDailyAdSpend([
+    { ...metric, metricDate: "2026-09-25", googleLandingLeads: 3, metaLandingLeads: 2, organicLeads: { blog: 4 } },
+    { ...metric, metricDate: "2026-09-24", googleLandingLeads: 5, metaLandingLeads: 1, organicLeads: { blog: 2, youtube: 1 } },
+  ]);
+  assert.deepEqual(
+    rows.map((row) => [
+      row.metricDate,
+      row.cumulativePaidLandingLeads,
+      row.cumulativeOrganicLandingLeads,
+      row.cumulativeTotalDatabaseLeads,
+    ]),
+    [
+      ["2026-09-24", 6, 3, 9],
+      ["2026-09-25", 11, 7, 18],
+    ],
+  );
 });
 
 test("Google과 Meta 광고 원시값을 합산해 핵심 성과를 계산한다", () => {
@@ -104,6 +136,8 @@ test("Google과 Meta 광고 원시값을 합산해 핵심 성과를 계산한다
   assert.equal(result.organicLandingLeads, 8);
   assert.equal(result.totalDatabaseLeads, 33);
   assert.equal(result.adminCumulativeLeads, 28);
+  assert.equal(result.chatRoomEntrants, 0);
+  assert.equal(result.chatRoomEntrantCost, null);
 });
 
 test("분모가 없는 전환율과 단가는 null로 반환한다", () => {

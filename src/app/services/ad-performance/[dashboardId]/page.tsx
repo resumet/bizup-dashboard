@@ -16,5 +16,10 @@ export default async function AdPerformanceDetailPage({ params }: { params: Prom
   ]);
   const data = await loadAdPerformanceDashboard(membership.workspace_id, dashboardId);
   if (!data) notFound();
-  return <AdPerformanceDashboard initialData={data} />;
+  return (
+    <AdPerformanceDashboard
+      key={data.sheetState?.updatedAt ?? "no-sheet-state"}
+      initialData={data}
+    />
+  );
 }
