@@ -1,36 +1,63 @@
 "use client";
 
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { Extension, Node as TiptapNode, type Editor, type JSONContent } from "@tiptap/core";
+import ImageExtension from "@tiptap/extension-image";
+import LinkExtension from "@tiptap/extension-link";
+import Placeholder from "@tiptap/extension-placeholder";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import { Plugin } from "@tiptap/pm/state";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  ArrowDown,
-  ArrowUp,
+  Bold,
   Check,
   Eye,
   Heading1,
   Heading2,
   ImagePlus,
+  Italic,
   Link2,
   List,
   ListOrdered,
   Loader2,
+  LockKeyhole,
   Megaphone,
   Pilcrow,
-  Plus,
+  Quote,
+  Redo2,
   Save,
-  Trash2,
+  Underline,
+  Undo2,
+  Unlink,
 } from "lucide-react";
 
 import { DocumentRenderer } from "@/components/course-documents/document-renderer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import type { CourseDocumentBlock, CourseDocumentDetail, CourseDocumentStatus } from "@/lib/course-documents/types";
+import {
+  blocksToRichTextDocument,
+  richTextCharacterCount,
+  richTextDocumentToBlocks,
+} from "@/lib/course-documents/rich-text";
+import type {
+  CourseDocumentBlock,
+  CourseDocumentDetail,
+  CourseDocumentStatus,
+  RichTextNode,
+} from "@/lib/course-documents/types";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -41,114 +68,254 @@ type Props = {
   document?: CourseDocumentDetail;
 };
 
-type TextBlock = Extract<CourseDocumentBlock, { type: "heading1" | "heading2" | "paragraph" }>;
-type ListBlock = Extract<CourseDocumentBlock, { type: "unordered_list" | "ordered_list" }>;
-
-const BLOCK_LABELS: Record<CourseDocumentBlock["type"], string> = {
-  heading1: "큰 제목",
-  heading2: "작은 제목",
-  paragraph: "본문",
-  unordered_list: "목록",
-  ordered_list: "번호 목록",
-  image: "이미지",
-  link: "링크",
-  cta: "버튼",
-};
-
-const ADD_ACTIONS: Array<{
-  type: Exclude<CourseDocumentBlock["type"], "image">;
-  label: string;
-  icon: typeof Heading1;
-}> = [
-  { type: "heading1", label: "큰 제목", icon: Heading1 },
-  { type: "heading2", label: "작은 제목", icon: Heading2 },
-  { type: "paragraph", label: "본문", icon: Pilcrow },
-  { type: "unordered_list", label: "목록", icon: List },
-  { type: "ordered_list", label: "번호 목록", icon: ListOrdered },
-  { type: "link", label: "링크", icon: Link2 },
-  { type: "cta", label: "버튼", icon: Megaphone },
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const TOP_LEVEL_BLOCKS = [
+  "paragraph",
+  "heading",
+  "bulletList",
+  "orderedList",
+  "blockquote",
+  "codeBlock",
+  "horizontalRule",
+  "image",
+  "buttonLink",
 ];
 
-function newBlock(type: CourseDocumentBlock["type"]): CourseDocumentBlock {
-  const id = crypto.randomUUID();
-  if (type === "unordered_list" || type === "ordered_list") return { id, type, items: [""] };
-  if (type === "image") return { id, type, url: "", alt: "" };
-  if (type === "link") return { id, type, label: "", url: "" };
-  if (type === "cta") return { id, type, label: "자세히 보기", url: "" };
-  return { id, type, content: "" };
+const BlockIdentity = Extension.create({
+  name: "blockIdentity",
+  addGlobalAttributes() {
+    return [{
+      types: TOP_LEVEL_BLOCKS,
+      attributes: {
+        blockId: {
+          default: null,
+          parseHTML: (element) => element.getAttribute("data-block-id"),
+          renderHTML: (attributes) => attributes.blockId ? { "data-block-id": attributes.blockId } : {},
+        },
+      },
+    }];
+  },
+  addProseMirrorPlugins() {
+    return [new Plugin({
+      appendTransaction: (_transactions, _oldState, newState) => {
+        const seen = new Set<string>();
+        const transaction = newState.tr;
+        let changed = false;
+        newState.doc.forEach((node, offset) => {
+          const candidate = node.attrs.blockId;
+          if (typeof candidate === "string" && UUID_PATTERN.test(candidate) && !seen.has(candidate)) {
+            seen.add(candidate);
+            return;
+          }
+          const blockId = crypto.randomUUID();
+          seen.add(blockId);
+          transaction.setNodeMarkup(offset, undefined, { ...node.attrs, blockId }, node.marks);
+          changed = true;
+        });
+        return changed ? transaction : null;
+      },
+    })];
+  },
+});
+
+const ButtonLink = TiptapNode.create({
+  name: "buttonLink",
+  group: "block",
+  atom: true,
+  selectable: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      label: { default: "자세히 보기" },
+      url: { default: "" },
+    };
+  },
+  parseHTML() {
+    return [{ tag: "div[data-course-document-button]" }];
+  },
+  renderHTML({ node }) {
+    return [
+      "div",
+      {
+        "data-course-document-button": "",
+        "data-label": node.attrs.label,
+        "data-url": node.attrs.url,
+        "data-block-id": node.attrs.blockId,
+      },
+      ["span", {}, node.attrs.label],
+    ];
+  },
+});
+
+function normalizeExternalUrl(value: string) {
+  const normalized = /^https?:\/\//iu.test(value.trim()) ? value.trim() : `https://${value.trim()}`;
+  const url = new URL(normalized);
+  if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("http 또는 https 주소를 입력해 주세요.");
+  return url.toString();
 }
 
-function insertAfter(blocks: CourseDocumentBlock[], block: CourseDocumentBlock, afterBlockId: string | null) {
-  const index = afterBlockId ? blocks.findIndex((item) => item.id === afterBlockId) : -1;
-  if (index < 0) return [...blocks, block];
-  const next = [...blocks];
-  next.splice(index + 1, 0, block);
-  return next;
+function editorBlocks(editor: Editor) {
+  return richTextDocumentToBlocks(editor.getJSON() as { content?: RichTextNode[] });
 }
 
-function focusKey(block: CourseDocumentBlock) {
-  if (block.type === "unordered_list" || block.type === "ordered_list") return `${block.id}:0`;
-  return block.id;
+function imageFileFromTransfer(data: DataTransfer | null) {
+  if (!data) return null;
+  const directFile = Array.from(data.files).find((item) => item.type.startsWith("image/"));
+  if (directFile) return directFile;
+  for (const item of Array.from(data.items)) {
+    if (item.kind !== "file" || !item.type.startsWith("image/")) continue;
+    const file = item.getAsFile();
+    if (file) return file;
+  }
+  return null;
 }
 
-function focusEditor(target: string, atEnd = false) {
-  window.requestAnimationFrame(() => {
-    const element = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[data-editor-focus="${target}"]`);
-    if (!element) return;
-    element.focus();
-    const position = atEnd ? element.value.length : 0;
-    element.setSelectionRange(position, position);
-  });
-}
-
-function prepareBlocks(blocks: CourseDocumentBlock[]) {
-  return blocks.flatMap<CourseDocumentBlock>((block) => {
-    if (block.type === "heading1" || block.type === "heading2" || block.type === "paragraph") {
-      return block.content.trim() ? [block] : [];
-    }
-    if (block.type === "unordered_list" || block.type === "ordered_list") {
-      const items = block.items.filter((item) => item.trim());
-      return items.length ? [{ ...block, items }] : [];
-    }
-    return [block];
-  });
-}
-
-function textClass(type: TextBlock["type"]) {
-  if (type === "heading1") return "text-3xl font-bold leading-tight tracking-tight sm:text-4xl";
-  if (type === "heading2") return "text-2xl font-semibold leading-snug tracking-tight";
-  return "text-base leading-8";
+function ToolbarButton({
+  active = false,
+  label,
+  disabled = false,
+  onClick,
+  children,
+}: {
+  active?: boolean;
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Button
+      type="button"
+      size="icon-sm"
+      variant={active ? "secondary" : "ghost"}
+      aria-label={label}
+      title={label}
+      aria-pressed={active}
+      disabled={disabled}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onClick}
+    >
+      {children}
+    </Button>
+  );
 }
 
 export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, document }: Props) {
-  const router = useRouter();
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<Editor | null>(null);
   const [title, setTitle] = useState(document?.title ?? "");
   const [blocks, setBlocks] = useState<CourseDocumentBlock[]>(document?.content ?? []);
   const [status, setStatus] = useState<CourseDocumentStatus>(document?.status ?? "draft");
   const [leadGateAfterBlockId, setLeadGateAfterBlockId] = useState<string | null>(
     document?.leadGateEnabled ? document.leadGateAfterBlockId : null,
   );
-  const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const leadGateEnabled = mode === "admin" && Boolean(leadGateAfterBlockId);
-  const returnHref = mode === "admin" ? "/services/instagram-management" : `/write/${accessToken}`;
+  const [selectionRevision, setSelectionRevision] = useState(0);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkText, setLinkText] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [buttonDialogOpen, setButtonDialogOpen] = useState(false);
+  const [buttonLabel, setButtonLabel] = useState("자세히 보기");
+  const [buttonUrl, setButtonUrl] = useState("");
+  const [gateDialogOpen, setGateDialogOpen] = useState(false);
 
-  const characterCount = useMemo(() => blocks.reduce((sum, block) => {
-    if (block.type === "heading1" || block.type === "heading2" || block.type === "paragraph") {
-      return sum + block.content.length;
+  const initialContent = useMemo(() => blocksToRichTextDocument(document?.content ?? []) as JSONContent, [document?.content]);
+  const leadGateEnabled = mode === "admin" && Boolean(leadGateAfterBlockId);
+  const characterCount = useMemo(() => richTextCharacterCount(blocks), [blocks]);
+
+  const uploadImage = useCallback(async (file: File, insertAt?: number) => {
+    setUploading(true);
+    setError("");
+    setNotice("");
+    try {
+      const formData = new FormData();
+      formData.set("file", file);
+      let endpoint = `/api/write/${accessToken}/images`;
+      if (mode === "admin") {
+        endpoint = "/api/instagram-management/images";
+        formData.set("courseId", courseId);
+      }
+      const response = await fetch(endpoint, { method: "POST", body: formData });
+      const body = await response.json() as { url?: string; message?: string };
+      if (!response.ok || !body.url) throw new Error(body.message ?? "이미지를 업로드하지 못했습니다.");
+      const activeEditor = editorRef.current;
+      if (!activeEditor || activeEditor.isDestroyed) return;
+      const chain = activeEditor.chain().focus();
+      if (typeof insertAt === "number") chain.setTextSelection(insertAt);
+      chain.insertContent({
+        type: "image",
+        attrs: { src: body.url, alt: file.name.replace(/\.[^.]+$/u, ""), title: null, blockId: crypto.randomUUID() },
+      }).run();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "이미지를 업로드하지 못했습니다.");
+    } finally {
+      setUploading(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
     }
-    if (block.type === "unordered_list" || block.type === "ordered_list") {
-      return sum + block.items.join("").length;
-    }
-    if (block.type === "link" || block.type === "cta") return sum + block.label.length;
-    return sum;
-  }, 0), [blocks]);
+  }, [accessToken, courseId, mode]);
+
+  const editor = useEditor({
+    immediatelyRender: false,
+    extensions: [
+      StarterKit.configure({ heading: { levels: [1, 2] }, link: false }),
+      LinkExtension.configure({
+        openOnClick: false,
+        autolink: true,
+        linkOnPaste: true,
+        defaultProtocol: "https",
+        HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" },
+      }),
+      ImageExtension.configure({ inline: false, allowBase64: false }),
+      Placeholder.configure({ placeholder: "본문을 입력하거나 이미지를 붙여넣으세요" }),
+      ButtonLink,
+      BlockIdentity,
+    ],
+    content: initialContent,
+    editorProps: {
+      attributes: {
+        class: "course-rich-text-editor",
+        "aria-label": "문서 본문",
+      },
+      handlePaste: (_view, event) => {
+        const file = imageFileFromTransfer(event.clipboardData);
+        if (!file) return false;
+        event.preventDefault();
+        void uploadImage(file);
+        return true;
+      },
+      handleDrop: (view, event) => {
+        const file = imageFileFromTransfer(event.dataTransfer);
+        if (!file) return false;
+        event.preventDefault();
+        const position = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos;
+        void uploadImage(file, position);
+        return true;
+      },
+    },
+    onCreate: ({ editor: createdEditor }) => {
+      editorRef.current = createdEditor;
+    },
+    onUpdate: ({ editor: updatedEditor }) => {
+      const nextBlocks = editorBlocks(updatedEditor);
+      setBlocks(nextBlocks);
+      setLeadGateAfterBlockId((current) => {
+        if (!current) return null;
+        const index = nextBlocks.findIndex((block) => block.id === current);
+        return index >= 0 && index < nextBlocks.length - 1 ? current : null;
+      });
+      setDirty(true);
+      setNotice("");
+    },
+    onSelectionUpdate: () => setSelectionRevision((value) => value + 1),
+    onDestroy: () => {
+      editorRef.current = null;
+    },
+  }, [document?.id, uploadImage]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -163,182 +330,66 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
     setNotice("");
   }
 
-  function updateBlock(id: string, updater: (block: CourseDocumentBlock) => CourseDocumentBlock) {
-    setBlocks((current) => current.map((block) => block.id === id ? updater(block) : block));
-    setDirty(true);
-    setNotice("");
+  function openLinkDialog() {
+    if (!editor) return;
+    const { from, to, empty } = editor.state.selection;
+    setLinkText(empty ? "" : editor.state.doc.textBetween(from, to, " "));
+    const attrs = editor.getAttributes("link");
+    setLinkUrl(typeof attrs.href === "string" ? attrs.href : "");
+    setLinkDialogOpen(true);
   }
 
-  function addBlock(type: Exclude<CourseDocumentBlock["type"], "image">, afterBlockId = activeBlockId) {
-    const block = newBlock(type);
-    setBlocks((current) => insertAfter(current, block, afterBlockId));
-    setActiveBlockId(block.id);
-    setDirty(true);
-    setNotice("");
-    focusEditor(focusKey(block));
-  }
-
-  function removeBlock(block: CourseDocumentBlock) {
-    const index = blocks.findIndex((item) => item.id === block.id);
-    const previous = blocks[index - 1];
-    const next = blocks.filter((item) => item.id !== block.id);
-    setBlocks(next);
-    if (leadGateAfterBlockId === block.id || next.at(-1)?.id === leadGateAfterBlockId) {
-      setLeadGateAfterBlockId(null);
-    }
-    setActiveBlockId(previous?.id ?? null);
-    setDirty(true);
-    setNotice("");
-    if (previous) focusEditor(focusKey(previous), true);
-  }
-
-  function moveBlock(index: number, offset: -1 | 1) {
-    const target = index + offset;
-    if (target < 0 || target >= blocks.length) return;
-    const next = [...blocks];
-    [next[index], next[target]] = [next[target], next[index]];
-    setBlocks(next);
-    if (next.at(-1)?.id === leadGateAfterBlockId) setLeadGateAfterBlockId(null);
-    setDirty(true);
-    setNotice("");
-  }
-
-  function changeTextBlock(block: TextBlock, value: string) {
-    if (block.type === "paragraph") {
-      const shortcut = value.startsWith("## ")
-        ? { type: "heading2" as const, content: value.slice(3) }
-        : value.startsWith("# ")
-          ? { type: "heading1" as const, content: value.slice(2) }
-          : value.startsWith("- ") || value.startsWith("* ")
-            ? { type: "unordered_list" as const, items: [value.slice(2)] }
-            : value.startsWith("1. ")
-              ? { type: "ordered_list" as const, items: [value.slice(3)] }
-              : null;
-      if (shortcut) {
-        updateBlock(block.id, () => ({ id: block.id, ...shortcut }));
-        focusEditor(shortcut.type === "unordered_list" || shortcut.type === "ordered_list" ? `${block.id}:0` : block.id, true);
-        return;
-      }
-    }
-    updateBlock(block.id, () => ({ ...block, content: value }));
-  }
-
-  function splitTextBlock(event: KeyboardEvent<HTMLTextAreaElement>, block: TextBlock, index: number) {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      const start = event.currentTarget.selectionStart;
-      const end = event.currentTarget.selectionEnd;
-      const nextBlock = newBlock("paragraph") as TextBlock;
-      nextBlock.content = block.content.slice(end);
-      const next = [...blocks];
-      next[index] = { ...block, content: block.content.slice(0, start) };
-      next.splice(index + 1, 0, nextBlock);
-      setBlocks(next);
-      setActiveBlockId(nextBlock.id);
-      setDirty(true);
-      setNotice("");
-      focusEditor(nextBlock.id);
-      return;
-    }
-    if (
-      event.key === "Backspace"
-      && !block.content
-      && event.currentTarget.selectionStart === 0
-      && blocks.length > 1
-    ) {
-      event.preventDefault();
-      removeBlock(block);
-    }
-  }
-
-  function updateListItem(block: ListBlock, itemIndex: number, value: string) {
-    updateBlock(block.id, () => {
-      const items = [...block.items];
-      items[itemIndex] = value;
-      return { ...block, items };
-    });
-  }
-
-  function handleListKey(event: KeyboardEvent<HTMLInputElement>, block: ListBlock, blockIndex: number, itemIndex: number) {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      const start = event.currentTarget.selectionStart ?? block.items[itemIndex]?.length ?? 0;
-      const end = event.currentTarget.selectionEnd ?? start;
-      const currentValue = block.items[itemIndex] ?? "";
-      if (!currentValue.trim()) {
-        const remaining = block.items.filter((_, index) => index !== itemIndex);
-        const paragraph = newBlock("paragraph") as TextBlock;
-        const next = [...blocks];
-        if (remaining.length) next[blockIndex] = { ...block, items: remaining };
-        else next.splice(blockIndex, 1);
-        const insertionIndex = remaining.length ? blockIndex + 1 : blockIndex;
-        next.splice(insertionIndex, 0, paragraph);
-        setBlocks(next);
-        setActiveBlockId(paragraph.id);
-        setDirty(true);
-        setNotice("");
-        focusEditor(paragraph.id);
-        return;
-      }
-      const items = [...block.items];
-      items[itemIndex] = currentValue.slice(0, start);
-      items.splice(itemIndex + 1, 0, currentValue.slice(end));
-      setBlocks((current) => current.map((item) => item.id === block.id ? { ...block, items } : item));
-      setDirty(true);
-      setNotice("");
-      focusEditor(`${block.id}:${itemIndex + 1}`);
-      return;
-    }
-    if (event.key === "Backspace" && !block.items[itemIndex] && (event.currentTarget.selectionStart ?? 0) === 0) {
-      event.preventDefault();
-      if (block.items.length === 1) {
-        updateBlock(block.id, () => ({ id: block.id, type: "paragraph", content: "" }));
-        focusEditor(block.id);
-        return;
-      }
-      const items = block.items.filter((_, index) => index !== itemIndex);
-      updateBlock(block.id, () => ({ ...block, items }));
-      focusEditor(`${block.id}:${Math.max(0, itemIndex - 1)}`, true);
-    }
-  }
-
-  async function uploadImage(file: File) {
-    const insertionAnchorId = activeBlockId;
-    setUploading(true);
-    setError("");
+  function applyLink() {
+    if (!editor) return;
     try {
-      const formData = new FormData();
-      formData.set("file", file);
-      let endpoint = `/api/write/${accessToken}/images`;
-      if (mode === "admin") {
-        endpoint = "/api/instagram-management/images";
-        formData.set("courseId", courseId);
+      const href = normalizeExternalUrl(linkUrl);
+      if (editor.state.selection.empty) {
+        if (!linkText.trim()) throw new Error("링크 문구를 입력해 주세요.");
+        editor.chain().focus().insertContent({
+          type: "text",
+          text: linkText.trim(),
+          marks: [{ type: "link", attrs: { href, target: "_blank", rel: "noopener noreferrer" } }],
+        }).run();
+      } else {
+        editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
       }
-      const response = await fetch(endpoint, { method: "POST", body: formData });
-      const body = await response.json() as { url?: string; message?: string };
-      if (!response.ok || !body.url) throw new Error(body.message ?? "이미지를 업로드하지 못했습니다.");
-      const imageBlock: CourseDocumentBlock = {
-        id: crypto.randomUUID(),
-        type: "image",
-        url: body.url,
-        alt: "",
-      };
-      setBlocks((current) => insertAfter(current, imageBlock, insertionAnchorId));
-      setActiveBlockId(imageBlock.id);
-      setDirty(true);
-      setNotice("");
-      focusEditor(imageBlock.id);
+      setLinkDialogOpen(false);
+      setError("");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "이미지를 업로드하지 못했습니다.");
-    } finally {
-      setUploading(false);
-      if (imageInputRef.current) imageInputRef.current.value = "";
+      setError(caught instanceof Error ? caught.message : "링크 주소를 확인해 주세요.");
     }
   }
 
-  function acceptDroppedImage(files: FileList) {
-    const file = Array.from(files).find((item) => item.type.startsWith("image/"));
-    if (file) void uploadImage(file);
+  function removeLink() {
+    editor?.chain().focus().extendMarkRange("link").unsetLink().run();
+    setLinkDialogOpen(false);
+  }
+
+  function openButtonDialog() {
+    const attrs = editor?.getAttributes("buttonLink");
+    setButtonLabel(typeof attrs?.label === "string" ? attrs.label : "자세히 보기");
+    setButtonUrl(typeof attrs?.url === "string" ? attrs.url : "");
+    setButtonDialogOpen(true);
+  }
+
+  function applyButtonLink() {
+    if (!editor) return;
+    try {
+      if (!buttonLabel.trim()) throw new Error("버튼 문구를 입력해 주세요.");
+      const url = normalizeExternalUrl(buttonUrl);
+      if (editor.isActive("buttonLink")) {
+        editor.chain().focus().updateAttributes("buttonLink", { label: buttonLabel.trim(), url }).run();
+      } else {
+        editor.chain().focus().insertContent([
+          { type: "buttonLink", attrs: { label: buttonLabel.trim(), url, blockId: crypto.randomUUID() } },
+          { type: "paragraph", attrs: { blockId: crypto.randomUUID() } },
+        ]).run();
+      }
+      setButtonDialogOpen(false);
+      setError("");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "버튼 정보를 확인해 주세요.");
+    }
   }
 
   async function save() {
@@ -348,7 +399,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
     setNotice("");
     try {
       if (!title.trim()) throw new Error("문서 제목을 입력해 주세요.");
-      const normalizedBlocks = prepareBlocks(blocks);
+      const normalizedBlocks = editor ? editorBlocks(editor) : blocks;
       const gateIndex = normalizedBlocks.findIndex((block) => block.id === leadGateAfterBlockId);
       const normalizedLeadGateAfterBlockId = gateIndex >= 0 && gateIndex < normalizedBlocks.length - 1
         ? leadGateAfterBlockId
@@ -379,8 +430,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
       setLeadGateAfterBlockId(normalizedLeadGateAfterBlockId);
       setDirty(false);
       setNotice("저장했습니다.");
-      if (!document && body.id && mode === "external") router.replace(`/write/${accessToken}/${body.id}`);
-      router.refresh();
+      if (!document && body.id && mode === "external") window.location.replace(`/write/${accessToken}/${body.id}`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "문서를 저장하지 못했습니다.");
     } finally {
@@ -388,115 +438,12 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
     }
   }
 
-  function renderBlock(block: CourseDocumentBlock, index: number) {
-    return (
-      <div key={block.id}>
-        {mode === "admin" && index > 0 ? (
-          <button
-            type="button"
-            className={cn(
-              "group/gate my-2 flex w-full items-center gap-3 text-xs font-medium transition-colors",
-              leadGateAfterBlockId === blocks[index - 1]?.id
-                ? "text-primary"
-                : "text-muted-foreground/50 hover:text-muted-foreground",
-            )}
-            onClick={() => {
-              setLeadGateAfterBlockId(leadGateAfterBlockId === blocks[index - 1]?.id ? null : blocks[index - 1]?.id ?? null);
-              setDirty(true);
-              setNotice("");
-            }}
-          >
-            <span className="h-px flex-1 bg-current/25" />
-            {leadGateAfterBlockId === blocks[index - 1]?.id ? "리드게이트 해제" : "리드게이트"}
-            <span className="h-px flex-1 bg-current/25" />
-          </button>
-        ) : null}
-
-        <article
-          className={cn(
-            "group relative rounded-lg px-3 py-2 transition-colors",
-            activeBlockId === block.id ? "bg-muted/35" : "hover:bg-muted/20",
-          )}
-          onFocusCapture={() => setActiveBlockId(block.id)}
-          onClick={() => setActiveBlockId(block.id)}
-        >
-          <span className="absolute top-3 -left-7 hidden text-[10px] font-semibold tracking-wide text-muted-foreground/55 uppercase lg:block">
-            {BLOCK_LABELS[block.type]}
-          </span>
-          <div className="absolute top-1.5 right-1.5 z-10 flex rounded-md border bg-background/95 p-0.5 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-            <Button type="button" size="icon-xs" variant="ghost" title="아래에 본문 추가" aria-label="아래에 본문 추가" onClick={() => addBlock("paragraph", block.id)}><Plus /></Button>
-            <Button type="button" size="icon-xs" variant="ghost" title="위로 이동" aria-label="위로 이동" disabled={index === 0} onClick={() => moveBlock(index, -1)}><ArrowUp /></Button>
-            <Button type="button" size="icon-xs" variant="ghost" title="아래로 이동" aria-label="아래로 이동" disabled={index === blocks.length - 1} onClick={() => moveBlock(index, 1)}><ArrowDown /></Button>
-            <Button type="button" size="icon-xs" variant="ghost" className="text-muted-foreground hover:text-destructive" title="삭제" aria-label="블록 삭제" onClick={() => removeBlock(block)}><Trash2 /></Button>
-          </div>
-
-          {(block.type === "heading1" || block.type === "heading2" || block.type === "paragraph") ? (
-            <Textarea
-              data-editor-focus={block.id}
-              rows={1}
-              value={block.content}
-              onChange={(event) => changeTextBlock(block, event.target.value)}
-              onKeyDown={(event) => splitTextBlock(event, block, index)}
-              placeholder={block.type === "paragraph" ? "본문을 입력하세요" : BLOCK_LABELS[block.type]}
-              className={cn(
-                "field-sizing-content min-h-10 resize-none overflow-hidden border-0 bg-transparent px-0 py-1 pr-28 shadow-none focus-visible:border-transparent focus-visible:ring-0 dark:bg-transparent",
-                textClass(block.type),
-              )}
-            />
-          ) : null}
-
-          {(block.type === "unordered_list" || block.type === "ordered_list") ? (
-            <div className="space-y-1 py-1 pr-28">
-              {block.items.map((item, itemIndex) => (
-                <div key={`${block.id}-${itemIndex}`} className="flex items-start gap-3">
-                  <span className="w-5 shrink-0 pt-1.5 text-right leading-7 text-muted-foreground tabular-nums">
-                    {block.type === "ordered_list" ? `${itemIndex + 1}.` : "•"}
-                  </span>
-                  <Input
-                    data-editor-focus={`${block.id}:${itemIndex}`}
-                    value={item}
-                    onChange={(event) => updateListItem(block, itemIndex, event.target.value)}
-                    onKeyDown={(event) => handleListKey(event, block, index, itemIndex)}
-                    placeholder="목록 항목"
-                    className="h-9 border-0 bg-transparent px-0 text-base leading-7 shadow-none focus-visible:border-transparent focus-visible:ring-0 dark:bg-transparent md:text-base"
-                  />
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {block.type === "image" ? (
-            <figure className="overflow-hidden rounded-xl border bg-muted/15">
-              <Image className="max-h-[34rem] w-full object-contain" src={block.url} alt={block.alt} width={1200} height={675} unoptimized />
-              <Input
-                data-editor-focus={block.id}
-                value={block.alt}
-                onChange={(event) => updateBlock(block.id, (current) => ({ ...current, alt: event.target.value }) as CourseDocumentBlock)}
-                placeholder="이미지 설명"
-                className="rounded-none border-0 border-t bg-background px-4 text-center text-sm shadow-none focus-visible:ring-0"
-              />
-            </figure>
-          ) : null}
-
-          {(block.type === "link" || block.type === "cta") ? (
-            <div className={cn(
-              "grid gap-3 rounded-lg border p-4 pr-28 sm:grid-cols-[minmax(10rem,0.7fr)_minmax(0,1.3fr)]",
-              block.type === "cta" ? "bg-primary/5" : "bg-muted/15",
-            )}>
-              <div className="space-y-1.5">
-                <Label htmlFor={`${block.id}-label`}>{block.type === "cta" ? "버튼 문구" : "링크 문구"}</Label>
-                <Input id={`${block.id}-label`} data-editor-focus={block.id} value={block.label} onChange={(event) => updateBlock(block.id, (current) => ({ ...current, label: event.target.value }) as CourseDocumentBlock)} placeholder={block.type === "cta" ? "자세히 보기" : "링크 이름"} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor={`${block.id}-url`}>주소</Label>
-                <Input id={`${block.id}-url`} type="url" value={block.url} onChange={(event) => updateBlock(block.id, (current) => ({ ...current, url: event.target.value }) as CourseDocumentBlock)} placeholder="https://" />
-              </div>
-            </div>
-          ) : null}
-        </article>
-      </div>
-    );
-  }
+  const currentBlockStyle = editor?.isActive("heading", { level: 1 })
+    ? "heading1"
+    : editor?.isActive("heading", { level: 2 })
+      ? "heading2"
+      : "paragraph";
+  void selectionRevision;
 
   return (
     <div
@@ -505,13 +452,6 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
         if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
           event.preventDefault();
           void save();
-        }
-      }}
-      onPaste={(event) => {
-        const file = Array.from(event.clipboardData.files).find((item) => item.type.startsWith("image/"));
-        if (file) {
-          event.preventDefault();
-          void uploadImage(file);
         }
       }}
     >
@@ -532,23 +472,33 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
         </div>
 
         {!preview ? (
-          <div
-            className="flex items-center gap-1 overflow-x-auto border-t px-2 py-1.5"
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              event.preventDefault();
-              acceptDroppedImage(event.dataTransfer.files);
-            }}
-          >
-            {ADD_ACTIONS.map((action, index) => {
-              const Icon = action.icon;
-              return (
-                <div key={action.type} className="flex items-center">
-                  {index === 3 || index === 5 ? <span className="mx-1 h-5 w-px bg-border" /> : null}
-                  <Button type="button" size="sm" variant="ghost" title={`${action.label} 추가`} onClick={() => addBlock(action.type)}><Icon /><span className="hidden sm:inline">{action.label}</span></Button>
-                </div>
-              );
-            })}
+          <div className="flex items-center gap-1 overflow-x-auto border-t px-2 py-1.5">
+            <Select
+              value={currentBlockStyle}
+              onValueChange={(value) => {
+                if (!editor) return;
+                if (value === "heading1") editor.chain().focus().toggleHeading({ level: 1 }).run();
+                else if (value === "heading2") editor.chain().focus().toggleHeading({ level: 2 }).run();
+                else editor.chain().focus().setParagraph().run();
+              }}
+            >
+              <SelectTrigger className="h-8 w-[7.25rem] border-0 bg-transparent shadow-none"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="paragraph"><span className="flex items-center gap-2"><Pilcrow className="size-4" />본문</span></SelectItem>
+                <SelectItem value="heading1"><span className="flex items-center gap-2"><Heading1 className="size-4" />큰 제목</span></SelectItem>
+                <SelectItem value="heading2"><span className="flex items-center gap-2"><Heading2 className="size-4" />작은 제목</span></SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="mx-1 h-5 w-px shrink-0 bg-border" />
+            <ToolbarButton label="굵게" active={Boolean(editor?.isActive("bold"))} onClick={() => editor?.chain().focus().toggleBold().run()}><Bold /></ToolbarButton>
+            <ToolbarButton label="기울임" active={Boolean(editor?.isActive("italic"))} onClick={() => editor?.chain().focus().toggleItalic().run()}><Italic /></ToolbarButton>
+            <ToolbarButton label="밑줄" active={Boolean(editor?.isActive("underline"))} onClick={() => editor?.chain().focus().toggleUnderline().run()}><Underline /></ToolbarButton>
+            <ToolbarButton label="링크" active={Boolean(editor?.isActive("link"))} onClick={openLinkDialog}><Link2 /></ToolbarButton>
+            <span className="mx-1 h-5 w-px shrink-0 bg-border" />
+            <ToolbarButton label="글머리 목록" active={Boolean(editor?.isActive("bulletList"))} onClick={() => editor?.chain().focus().toggleBulletList().run()}><List /></ToolbarButton>
+            <ToolbarButton label="번호 목록" active={Boolean(editor?.isActive("orderedList"))} onClick={() => editor?.chain().focus().toggleOrderedList().run()}><ListOrdered /></ToolbarButton>
+            <ToolbarButton label="인용문" active={Boolean(editor?.isActive("blockquote"))} onClick={() => editor?.chain().focus().toggleBlockquote().run()}><Quote /></ToolbarButton>
+            <span className="mx-1 h-5 w-px shrink-0 bg-border" />
             <input
               ref={imageInputRef}
               className="hidden"
@@ -559,7 +509,11 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
                 if (file) void uploadImage(file);
               }}
             />
-            <Button type="button" size="sm" variant="ghost" disabled={uploading} title="이미지 추가" onClick={() => imageInputRef.current?.click()}>{uploading ? <Loader2 className="animate-spin" /> : <ImagePlus />}<span className="hidden sm:inline">이미지</span></Button>
+            <ToolbarButton label="이미지 넣기" disabled={uploading} onClick={() => imageInputRef.current?.click()}>{uploading ? <Loader2 className="animate-spin" /> : <ImagePlus />}</ToolbarButton>
+            <ToolbarButton label="버튼 넣기" active={Boolean(editor?.isActive("buttonLink"))} onClick={openButtonDialog}><Megaphone /></ToolbarButton>
+            <span className="mx-1 h-5 w-px shrink-0 bg-border" />
+            <ToolbarButton label="실행 취소" disabled={!editor?.can().undo()} onClick={() => editor?.chain().focus().undo().run()}><Undo2 /></ToolbarButton>
+            <ToolbarButton label="다시 실행" disabled={!editor?.can().redo()} onClick={() => editor?.chain().focus().redo().run()}><Redo2 /></ToolbarButton>
           </div>
         ) : null}
       </header>
@@ -572,10 +526,10 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
           {preview ? (
             <div className="mx-auto w-full max-w-3xl px-6 py-12 sm:px-12">
               <h1 className="mb-10 text-4xl font-bold tracking-tight text-balance sm:text-5xl">{title || "제목 없음"}</h1>
-              <DocumentRenderer blocks={prepareBlocks(blocks)} />
+              <DocumentRenderer blocks={blocks} />
             </div>
           ) : (
-            <div className="mx-auto w-full max-w-4xl px-5 py-10 sm:px-10 lg:px-16 lg:py-14">
+            <div className="mx-auto w-full max-w-4xl px-6 py-10 sm:px-12 lg:px-16 lg:py-14">
               <Input
                 value={title}
                 maxLength={200}
@@ -584,25 +538,17 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
                 onKeyDown={(event) => {
                   if (event.key !== "Enter") return;
                   event.preventDefault();
-                  if (blocks[0]) focusEditor(focusKey(blocks[0]));
-                  else addBlock("paragraph", null);
+                  editor?.commands.focus("start");
                 }}
                 placeholder="문서 제목"
                 aria-label="문서 제목"
-                className="h-auto rounded-none border-0 bg-transparent px-3 py-2 text-4xl font-bold tracking-tight shadow-none placeholder:text-muted-foreground/45 focus-visible:border-transparent focus-visible:ring-0 sm:text-5xl md:text-5xl dark:bg-transparent"
+                className="h-auto rounded-none border-0 bg-transparent px-0 py-2 text-4xl font-bold tracking-tight shadow-none placeholder:text-muted-foreground/45 focus-visible:border-transparent focus-visible:ring-0 sm:text-5xl dark:bg-transparent"
               />
-
-              <div className="mt-8">
-                {blocks.map(renderBlock)}
-                {!blocks.length ? (
-                  <button type="button" className="flex min-h-56 w-full items-start rounded-lg px-3 py-3 text-left text-base text-muted-foreground/55 transition-colors hover:bg-muted/20 hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => addBlock("paragraph", null)}>본문을 입력하세요</button>
-                ) : null}
-              </div>
+              <EditorContent editor={editor} className="mt-8" />
             </div>
           )}
 
-          <footer className="flex items-center justify-between border-t px-5 py-3 text-xs text-muted-foreground sm:px-8">
-            <span>블록 {prepareBlocks(blocks).length.toLocaleString("ko-KR")}개</span>
+          <footer className="flex items-center justify-end border-t px-5 py-3 text-xs text-muted-foreground sm:px-8">
             <span>{characterCount.toLocaleString("ko-KR")}자</span>
           </footer>
         </section>
@@ -622,13 +568,77 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
           )}
 
           {mode === "admin" ? (
-            <div className="flex items-center justify-between gap-3 border-t pt-4"><span className="text-sm font-medium">리드게이트</span><Badge variant={leadGateEnabled ? "default" : "secondary"}>{leadGateEnabled ? "사용" : "사용 안 함"}</Badge></div>
+            <div className="space-y-3 border-t pt-4">
+              <div className="flex items-center justify-between gap-3"><span className="text-sm font-medium">리드게이트</span><Badge variant={leadGateEnabled ? "default" : "secondary"}>{leadGateEnabled ? "사용" : "사용 안 함"}</Badge></div>
+              <Button type="button" variant="outline" className="w-full" disabled={blocks.length < 2} onClick={() => setGateDialogOpen(true)}><LockKeyhole />{leadGateEnabled ? "위치 변경" : "설정"}</Button>
+            </div>
           ) : null}
 
           {document?.slug && status === "published" ? <Button asChild variant="outline" className="w-full"><a href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><Eye />공개 페이지</a></Button> : null}
-          <Button type="button" variant="ghost" className="w-full" onClick={() => router.push(returnHref)}>목록으로</Button>
         </aside>
       </div>
+
+      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>링크</DialogTitle><DialogDescription className="sr-only">선택한 텍스트에 링크를 적용합니다.</DialogDescription></DialogHeader>
+          <div className="space-y-4 py-2">
+            {editor?.state.selection.empty ? <div className="space-y-2"><Label htmlFor="document-link-text">링크 문구</Label><Input id="document-link-text" value={linkText} onChange={(event) => setLinkText(event.target.value)} /></div> : null}
+            <div className="space-y-2"><Label htmlFor="document-link-url">주소</Label><Input id="document-link-url" type="url" autoFocus value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} placeholder="https://" onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); applyLink(); } }} /></div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button variant="outline">취소</Button></DialogClose>
+            {editor?.isActive("link") ? <Button type="button" variant="ghost" onClick={removeLink}><Unlink />링크 해제</Button> : null}
+            <Button type="button" onClick={applyLink}>적용</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={buttonDialogOpen} onOpenChange={setButtonDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>버튼</DialogTitle><DialogDescription className="sr-only">문서에 표시할 버튼을 설정합니다.</DialogDescription></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2"><Label htmlFor="document-button-label">버튼 문구</Label><Input id="document-button-label" value={buttonLabel} onChange={(event) => setButtonLabel(event.target.value)} /></div>
+            <div className="space-y-2"><Label htmlFor="document-button-url">주소</Label><Input id="document-button-url" type="url" value={buttonUrl} onChange={(event) => setButtonUrl(event.target.value)} placeholder="https://" onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); applyButtonLink(); } }} /></div>
+          </div>
+          <DialogFooter><DialogClose asChild><Button variant="outline">취소</Button></DialogClose><Button type="button" onClick={applyButtonLink}>적용</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={gateDialogOpen} onOpenChange={setGateDialogOpen}>
+        <DialogContent className="max-h-[88dvh] overflow-hidden sm:max-w-3xl">
+          <DialogHeader><DialogTitle>리드게이트 위치</DialogTitle><DialogDescription className="sr-only">공개할 내용과 정보 입력 후 공개할 내용의 경계를 선택합니다.</DialogDescription></DialogHeader>
+          <div className="overflow-y-auto rounded-xl border bg-background px-5 py-6 sm:px-8">
+            {blocks.map((block, index) => (
+              <div key={block.id}>
+                <DocumentRenderer blocks={[block]} />
+                {index < blocks.length - 1 ? (
+                  <button
+                    type="button"
+                    className={cn(
+                      "group my-5 flex w-full items-center gap-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      leadGateAfterBlockId === block.id ? "text-primary" : "text-muted-foreground/55 hover:text-foreground",
+                    )}
+                    onClick={() => {
+                      setLeadGateAfterBlockId(block.id);
+                      setDirty(true);
+                      setNotice("");
+                    }}
+                  >
+                    <span className="h-px flex-1 bg-current/30" />
+                    <LockKeyhole className="size-3.5" />
+                    {leadGateAfterBlockId === block.id ? "리드게이트 위치" : "여기에 리드게이트 설정"}
+                    <span className="h-px flex-1 bg-current/30" />
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            {leadGateAfterBlockId ? <Button type="button" variant="ghost" onClick={() => { setLeadGateAfterBlockId(null); setDirty(true); setNotice(""); }}>리드게이트 해제</Button> : null}
+            <DialogClose asChild><Button>완료</Button></DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

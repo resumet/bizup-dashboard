@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { RichTextNode } from "./types";
+
 const blockIdSchema = z.uuid("블록 식별자가 올바르지 않습니다.");
 const textSchema = z.string().trim().max(20_000, "블록 내용은 20,000자까지 입력할 수 있습니다.");
 const safeUrlSchema = z
@@ -48,17 +50,66 @@ const ctaBlockSchema = z.object({
   url: safeUrlSchema,
 });
 
+const richTextAttributeSchema = z.union([z.string().max(20_000), z.number(), z.boolean(), z.null()]);
+const richTextMarkSchema = z.object({
+  type: z.enum(["bold", "italic", "underline", "strike", "code", "link"]),
+  attrs: z.record(z.string(), richTextAttributeSchema).optional(),
+});
+const richTextNodeSchema: z.ZodType<RichTextNode> = z.lazy(() => z.object({
+  type: z.enum([
+    "paragraph",
+    "heading",
+    "bulletList",
+    "orderedList",
+    "listItem",
+    "blockquote",
+    "codeBlock",
+    "horizontalRule",
+    "hardBreak",
+    "text",
+    "image",
+    "buttonLink",
+  ]),
+  attrs: z.record(z.string(), richTextAttributeSchema).optional(),
+  content: z.array(richTextNodeSchema).max(500).optional(),
+  marks: z.array(richTextMarkSchema).max(20).optional(),
+  text: z.string().max(200_000).optional(),
+}).superRefine((node, context) => {
+  if (node.type === "text" && typeof node.text !== "string") {
+    context.addIssue({ code: "custom", path: ["text"], message: "텍스트 내용이 올바르지 않습니다." });
+  }
+  if (node.type === "heading" && node.attrs?.level !== 1 && node.attrs?.level !== 2) {
+    context.addIssue({ code: "custom", path: ["attrs", "level"], message: "제목 단계가 올바르지 않습니다." });
+  }
+  const urls: unknown[] = [];
+  if (node.type === "image") urls.push(node.attrs?.src);
+  if (node.type === "buttonLink") urls.push(node.attrs?.url);
+  for (const mark of node.marks ?? []) if (mark.type === "link") urls.push(mark.attrs?.href);
+  for (const value of urls) {
+    if (typeof value !== "string" || !safeUrlSchema.safeParse(value).success) {
+      context.addIssue({ code: "custom", path: ["attrs"], message: "문서에 올바르지 않은 URL이 있습니다." });
+    }
+  }
+}));
+
+const richTextBlockSchema = z.object({
+  id: blockIdSchema,
+  type: z.literal("rich_text"),
+  content: richTextNodeSchema,
+});
+
 export const courseDocumentBlockSchema = z.discriminatedUnion("type", [
   textBlockSchema,
   listBlockSchema,
   imageBlockSchema,
   linkBlockSchema,
   ctaBlockSchema,
+  richTextBlockSchema,
 ]);
 
 export const courseDocumentContentSchema = z
   .array(courseDocumentBlockSchema)
-  .max(200, "문서에는 블록을 최대 200개까지 추가할 수 있습니다.")
+  .max(500, "문서에는 문단을 최대 500개까지 추가할 수 있습니다.")
   .superRefine((blocks, context) => {
     const ids = new Set<string>();
     for (const [index, block] of blocks.entries()) {

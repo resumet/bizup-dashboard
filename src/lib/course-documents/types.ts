@@ -31,12 +31,46 @@ export type CtaDocumentBlock = {
   url: string;
 };
 
+export type RichTextAttributeValue = string | number | boolean | null;
+
+export type RichTextMark = {
+  type: "bold" | "italic" | "underline" | "strike" | "code" | "link";
+  attrs?: Record<string, RichTextAttributeValue>;
+};
+
+export type RichTextNode = {
+  type:
+    | "paragraph"
+    | "heading"
+    | "bulletList"
+    | "orderedList"
+    | "listItem"
+    | "blockquote"
+    | "codeBlock"
+    | "horizontalRule"
+    | "hardBreak"
+    | "text"
+    | "image"
+    | "buttonLink";
+  attrs?: Record<string, RichTextAttributeValue>;
+  content?: RichTextNode[];
+  marks?: RichTextMark[];
+  text?: string;
+};
+
+export type RichTextDocumentBlock = {
+  id: string;
+  type: "rich_text";
+  content: RichTextNode;
+};
+
 export type CourseDocumentBlock =
   | TextDocumentBlock
   | ListDocumentBlock
   | ImageDocumentBlock
   | LinkDocumentBlock
-  | CtaDocumentBlock;
+  | CtaDocumentBlock
+  | RichTextDocumentBlock;
 
 export type CourseDocumentStatus = "draft" | "published";
 

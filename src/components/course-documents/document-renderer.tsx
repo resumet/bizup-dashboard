@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 
-import type { CourseDocumentBlock } from "@/lib/course-documents/types";
+import type { CourseDocumentBlock, RichTextMark, RichTextNode } from "@/lib/course-documents/types";
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/gu;
 
@@ -22,10 +22,71 @@ function linkedText(value: string) {
   return parts;
 }
 
+function safeExternalUrl(value: unknown) {
+  if (typeof value !== "string") return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function applyMarks(content: ReactNode, marks: RichTextMark[] | undefined, key: string): ReactNode {
+  return (marks ?? []).reduce<ReactNode>((child, mark, index) => {
+    const markKey = `${key}-mark-${index}`;
+    if (mark.type === "bold") return <strong key={markKey}>{child}</strong>;
+    if (mark.type === "italic") return <em key={markKey}>{child}</em>;
+    if (mark.type === "underline") return <u key={markKey} className="decoration-foreground/35 underline-offset-3">{child}</u>;
+    if (mark.type === "strike") return <s key={markKey}>{child}</s>;
+    if (mark.type === "code") return <code key={markKey} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.9em]">{child}</code>;
+    if (mark.type === "link") {
+      const href = safeExternalUrl(mark.attrs?.href);
+      return href ? <a key={markKey} className="font-medium text-primary underline decoration-primary/35 underline-offset-4 transition-colors hover:decoration-primary" href={href} target="_blank" rel="noopener noreferrer">{child}</a> : child;
+    }
+    return child;
+  }, content);
+}
+
+function renderRichTextNode(node: RichTextNode, key: string): ReactNode {
+  if (node.type === "text") return applyMarks(node.text ?? "", node.marks, key);
+  if (node.type === "hardBreak") return <br key={key} />;
+  if (node.type === "horizontalRule") return <hr key={key} className="my-10 border-black/10" />;
+
+  if (node.type === "image") {
+    const src = safeExternalUrl(node.attrs?.src);
+    if (!src) return null;
+    const alt = typeof node.attrs?.alt === "string" ? node.attrs.alt : "";
+    return <figure key={key} className="my-8 overflow-hidden rounded-2xl border bg-muted/20"><Image src={src} alt={alt} width={1200} height={675} sizes="(max-width: 768px) 100vw, 768px" className="h-auto w-full object-contain" unoptimized /></figure>;
+  }
+
+  if (node.type === "buttonLink") {
+    const href = safeExternalUrl(node.attrs?.url);
+    const label = typeof node.attrs?.label === "string" ? node.attrs.label : "자세히 보기";
+    if (!href) return null;
+    return <p key={key} className="py-3 text-center"><a className="inline-flex min-h-12 items-center justify-center rounded-xl bg-primary px-6 font-semibold text-primary-foreground transition-opacity hover:opacity-90" href={href} target="_blank" rel="noopener noreferrer">{label}</a></p>;
+  }
+
+  const children = node.content?.map((child, index) => renderRichTextNode(child, `${key}-${index}`)) ?? null;
+  if (node.type === "heading") {
+    return node.attrs?.level === 1
+      ? <h2 key={key} className="pt-5 text-3xl font-bold tracking-tight text-balance sm:text-4xl">{children}</h2>
+      : <h3 key={key} className="pt-4 text-2xl font-semibold tracking-tight text-balance">{children}</h3>;
+  }
+  if (node.type === "paragraph") return <p key={key} className="min-h-4 whitespace-pre-wrap leading-8 text-pretty">{children}</p>;
+  if (node.type === "bulletList") return <ul key={key} className="list-disc space-y-2 pl-6 leading-7">{children}</ul>;
+  if (node.type === "orderedList") return <ol key={key} className="list-decimal space-y-2 pl-6 leading-7">{children}</ol>;
+  if (node.type === "listItem") return <li key={key} className="pl-1">{children}</li>;
+  if (node.type === "blockquote") return <blockquote key={key} className="border-l-3 border-primary/35 pl-5 text-muted-foreground">{children}</blockquote>;
+  if (node.type === "codeBlock") return <pre key={key} className="overflow-x-auto rounded-xl bg-neutral-950 p-5 font-mono text-sm leading-7 text-neutral-100"><code>{children}</code></pre>;
+  return null;
+}
+
 export function DocumentRenderer({ blocks }: { blocks: CourseDocumentBlock[] }) {
   return (
     <div className="space-y-6">
       {blocks.map((block) => {
+        if (block.type === "rich_text") return renderRichTextNode(block.content, block.id);
         if (block.type === "heading1") return <h2 key={block.id} className="pt-4 text-3xl font-bold tracking-tight text-balance sm:text-4xl">{block.content}</h2>;
         if (block.type === "heading2") return <h3 key={block.id} className="pt-3 text-2xl font-semibold tracking-tight text-balance">{block.content}</h3>;
         if (block.type === "paragraph") return <p key={block.id} className="whitespace-pre-wrap leading-8 text-pretty">{linkedText(block.content)}</p>;

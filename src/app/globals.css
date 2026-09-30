@@ -130,3 +130,114 @@
     font-size: 18px;
   }
 }
+
+@layer components {
+  .course-rich-text-editor {
+    min-height: 34rem;
+    outline: none;
+    color: var(--foreground);
+  }
+
+  .course-rich-text-editor > * + * {
+    margin-top: 1rem;
+  }
+
+  .course-rich-text-editor p {
+    min-height: 1.75rem;
+    line-height: 1.9;
+    text-wrap: pretty;
+  }
+
+  .course-rich-text-editor h1,
+  .course-rich-text-editor h2 {
+    margin-top: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    text-wrap: balance;
+  }
+
+  .course-rich-text-editor h1 {
+    font-size: clamp(1.75rem, 3vw, 2.25rem);
+    line-height: 1.25;
+  }
+
+  .course-rich-text-editor h2 {
+    font-size: clamp(1.35rem, 2.5vw, 1.7rem);
+    line-height: 1.35;
+  }
+
+  .course-rich-text-editor ul,
+  .course-rich-text-editor ol {
+    padding-left: 1.6rem;
+  }
+
+  .course-rich-text-editor ul {
+    list-style: disc;
+  }
+
+  .course-rich-text-editor ol {
+    list-style: decimal;
+  }
+
+  .course-rich-text-editor li {
+    margin-block: 0.35rem;
+    padding-left: 0.25rem;
+  }
+
+  .course-rich-text-editor blockquote {
+    border-left: 3px solid color-mix(in oklab, var(--primary) 35%, transparent);
+    padding-left: 1.2rem;
+    color: var(--muted-foreground);
+  }
+
+  .course-rich-text-editor a {
+    color: var(--primary);
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--primary) 35%, transparent);
+    text-underline-offset: 0.22rem;
+  }
+
+  .course-rich-text-editor img {
+    margin-block: 1.75rem;
+    max-height: 34rem;
+    width: 100%;
+    border-radius: 0.85rem;
+    object-fit: contain;
+  }
+
+  .course-rich-text-editor pre {
+    overflow-x: auto;
+    border-radius: 0.75rem;
+    background: #171717;
+    padding: 1.1rem;
+    color: #f5f5f5;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+  }
+
+  .course-rich-text-editor div[data-course-document-button] {
+    margin-block: 1.5rem;
+    cursor: pointer;
+    border-radius: 0.75rem;
+    background: var(--primary);
+    padding: 0.75rem 1.5rem;
+    color: var(--primary-foreground);
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .course-rich-text-editor .ProseMirror-selectednode {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+
+  .course-rich-text-editor .is-editor-empty:first-child::before {
+    float: left;
+    height: 0;
+    color: var(--muted-foreground);
+    content: attr(data-placeholder);
+    pointer-events: none;
+    opacity: 0.6;
+  }
+}

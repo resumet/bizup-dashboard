@@ -38,6 +38,23 @@ test("문서 블록은 중복 UUID와 위험한 URL을 거부한다", () => {
     { id, type: "paragraph", content: "본문" },
     { id, type: "cta", label: "클릭", url: "javascript:alert(1)" },
   ]).success, false);
+
+test("리치 텍스트 안의 이미지와 링크도 안전한 URL만 허용한다", () => {
+  const id = "00000000-0000-4000-8000-000000000001";
+  assert.equal(courseDocumentContentSchema.safeParse([{
+    id,
+    type: "rich_text",
+    content: {
+      type: "paragraph",
+      attrs: { blockId: id },
+      content: [{
+        type: "text",
+        text: "위험한 링크",
+        marks: [{ type: "link", attrs: { href: "javascript:alert(1)" } }],
+      }],
+    },
+  }]).success, false);
+});
 });
 
 test("문서 제목으로 읽을 수 있는 slug 앞부분을 만든다", () => {
