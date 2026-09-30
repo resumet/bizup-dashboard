@@ -5,6 +5,12 @@ export function calculateDailyAdSpend(metrics: AdPerformanceDailyMetric[]) {
   const membersByDate = new Map(metrics.map(metric => [metric.metricDate, metric.chatRoomMembers]));
   return [...metrics].sort((a, b) => a.metricDate.localeCompare(b.metricDate)).map((metric) => {
     const totalSpend = metric.googleSpend + metric.metaSpend;
+    const paidLandingLeads = metric.googleLandingLeads + metric.metaLandingLeads;
+    const organicLandingLeads = Object.values(metric.organicLeads).reduce(
+      (sum, value) => sum + value,
+      0,
+    );
+    const totalDatabaseLeads = paidLandingLeads + organicLandingLeads;
     cumulativeSpend += totalSpend;
     const previousDate = new Date(`${metric.metricDate}T00:00:00Z`);
     previousDate.setUTCDate(previousDate.getUTCDate() - 1);
@@ -16,13 +22,18 @@ export function calculateDailyAdSpend(metrics: AdPerformanceDailyMetric[]) {
     const googleLandingLeadCost = unitCost(metric.googleSpend, metric.googleLandingLeads);
     const metaLandingLeadCost = unitCost(metric.metaSpend, metric.metaLandingLeads);
     return {
-      ...metric, totalSpend, cumulativeSpend,
+      ...metric,
+      totalSpend,
+      cumulativeSpend,
+      paidLandingLeads,
+      organicLandingLeads,
+      totalDatabaseLeads,
       googleAdLeadCost, metaAdLeadCost, googleLandingLeadCost, metaLandingLeadCost,
       googleLeadCostDifference: googleLandingLeadCost !== null && googleAdLeadCost !== null ? googleLandingLeadCost - googleAdLeadCost : null,
       metaLeadCostDifference: metaLandingLeadCost !== null && metaAdLeadCost !== null ? metaLandingLeadCost - metaAdLeadCost : null,
       chatRoomEntrants,
       chatRoomEntrantCost: chatRoomEntrants === null ? null : unitCost(totalSpend, chatRoomEntrants),
-      totalLandingLeadCost: unitCost(totalSpend, metric.googleLandingLeads + metric.metaLandingLeads),
+      totalLandingLeadCost: unitCost(totalSpend, paidLandingLeads),
     };
   });
 }

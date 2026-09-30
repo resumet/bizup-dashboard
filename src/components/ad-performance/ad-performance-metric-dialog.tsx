@@ -153,7 +153,7 @@ export function AdPerformanceMetricDialog({
           <section aria-labelledby="ad-metric-spreadsheet-heading" className="space-y-2 rounded-lg border bg-muted/20 p-4">
             <div>
               <h3 id="ad-metric-spreadsheet-heading" className="text-sm font-semibold">엑셀 표 붙여넣기</h3>
-              <p className="mt-1 text-xs text-muted-foreground">엑셀에서 복사한 표를 붙여넣으면 현재 선택 날짜({metric.metricDate || "날짜 미선택"}) 행의 Google·Meta·오가닉·어드민 누적 DB·톡방 인원 값이 아래 입력창에 반영됩니다.</p>
+              <p className="mt-1 text-xs text-muted-foreground">엑셀에서 복사한 표를 붙여넣으면 현재 선택 날짜({metric.metricDate || "날짜 미선택"}) 행의 Google·Meta·오가닉·누적DB어드민(Y열)·톡방 인원 값이 아래 입력창에 반영됩니다.</p>
             </div>
             <Textarea
               id="ad-metric-spreadsheet"

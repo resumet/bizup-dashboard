@@ -65,6 +65,9 @@ test("DB당 단가는 매체별 광고비와 해당 접수 건수로 계산한�
   assert.equal(row.metaAdLeadCost, 200_000 / 10);
   assert.equal(row.googleLandingLeadCost, 300_000 / 18);
   assert.equal(row.metaLandingLeadCost, 200_000 / 7);
+  assert.equal(row.paidLandingLeads, 25);
+  assert.equal(row.organicLandingLeads, 8);
+  assert.equal(row.totalDatabaseLeads, 33);
   const [empty] = calculateDailyAdSpend([{ ...metric, googleAdLeads: 0, metaAdLeads: 0, googleLandingLeads: 0, metaLandingLeads: 0 }]);
   assert.deepEqual([empty.googleAdLeadCost, empty.metaAdLeadCost, empty.googleLandingLeadCost, empty.metaLandingLeadCost], [null, null, null, null]);
   assert.equal(empty.googleLeadCostDifference, null);

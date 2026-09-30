@@ -13,8 +13,7 @@ type ImportedPaidField =
   | "googleAdLeads"
   | "metaAdLeads"
   | "googleLandingLeads"
-  | "metaLandingLeads"
-  | "adminCumulativeLeads";
+  | "metaLandingLeads";
 
 type SpreadsheetImportResult =
   | {
@@ -35,7 +34,6 @@ const paidColumnMap: readonly (readonly [ImportedPaidField, number])[] = [
   ["metaAdLeads", 13],
   ["googleLandingLeads", 14],
   ["metaLandingLeads", 15],
-  ["adminCumulativeLeads", 23],
 ];
 
 function normalizeLabel(value: string) {
@@ -102,6 +100,16 @@ function findHeaderColumnIndex(
       normalizedLabels.has(normalizeLabel(cell)),
     );
     if (columnIndex >= 0) return columnIndex;
+  }
+
+  const headerRows = rows.slice(0, dataRowIndex);
+  const columnCount = Math.max(0, ...headerRows.map((row) => row.length));
+  for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
+    const combinedLabel = headerRows
+      .map((row) => normalizeLabel(row[columnIndex] ?? ""))
+      .filter(Boolean)
+      .join("");
+    if (normalizedLabels.has(combinedLabel)) return columnIndex;
   }
 
   return undefined;
@@ -175,6 +183,15 @@ export function importAdPerformanceSpreadsheet(
       dataRow[chatRoomMembersColumnIndex],
     );
   }
+
+  const adminCumulativeLeadsColumnIndex = findHeaderColumnIndex(rows, dataRowIndex, [
+    "누적DB어드민",
+    "관리자누적DB",
+    "어드민누적DB",
+  ]) ?? (dataRow.length >= 25 && chatRoomMembersColumnIndex !== 24 ? 24 : 23);
+  nextMetric.adminCumulativeLeads = parseNumber(
+    dataRow[adminCumulativeLeadsColumnIndex],
+  );
 
   const organicColumnIndexes = findOrganicColumnIndexes(rows, dataRowIndex, channels);
   const importedOrganicChannelNames: string[] = [];

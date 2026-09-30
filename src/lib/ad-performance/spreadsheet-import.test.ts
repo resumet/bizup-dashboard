@@ -35,17 +35,18 @@ function row(cells: string[]) {
   return cells.join("\t");
 }
 
-test("선택한 날짜의 엑셀 행만 광고·오가닉 원시값으로 반영한다", () => {
-  const headers = Array.from({ length: 25 }, () => "");
+test("선택한 날짜의 엑셀 행과 Y열 누적DB어드민 값을 원시값으로 반영한다", () => {
+  const headers = Array.from({ length: 26 }, () => "");
   headers[17] = "꿈꾸사";
   headers[18] = "초월 스토리";
   headers[19] = "두부";
   headers[20] = "인스타";
-  headers[24] = "톡방 인원";
+  headers[24] = "누적DB어드민";
+  headers[25] = "톡방 인원";
   const values = [
     "9월28일", "₩468,047", "4,452", "23,040", "16", "231", "0.36%", "1.00%",
     "0.00%", "8.66%", "₩18,659", "₩449,388", "0", "20", "1", "21", "22",
-    "30", "5", "0", "2", "37", "59", "242", "148",
+    "30", "5", "0", "2", "37", "59", "999", "242", "148",
   ];
   const spreadsheet = [row(headers), row(values)].join("\n");
 
