@@ -25,3 +25,36 @@ test("내용 없는 편집기는 빈 문서로 저장한다", () => {
   const document = blocksToRichTextDocument([]);
   assert.deepEqual(richTextDocumentToBlocks(document), []);
 });
+
+test("빈 표와 체크박스도 문서 내용으로 보존한다", () => {
+  const tableId = "00000000-0000-4000-8000-000000000005";
+  const taskId = "00000000-0000-4000-8000-000000000006";
+  const converted = richTextDocumentToBlocks({
+    content: [
+      {
+        type: "table",
+        attrs: { blockId: tableId },
+        content: [{
+          type: "tableRow",
+          content: [{
+            type: "tableCell",
+            attrs: { colspan: 1, rowspan: 1, colwidth: [120] },
+            content: [{ type: "paragraph" }],
+          }],
+        }],
+      },
+      {
+        type: "taskList",
+        attrs: { blockId: taskId },
+        content: [{
+          type: "taskItem",
+          attrs: { checked: false },
+          content: [{ type: "paragraph" }],
+        }],
+      },
+    ],
+  });
+
+  assert.deepEqual(converted.map((block) => block.id), [tableId, taskId]);
+  assert.equal(courseDocumentContentSchema.safeParse(converted).success, true);
+});

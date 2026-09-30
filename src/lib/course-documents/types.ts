@@ -31,7 +31,7 @@ export type CtaDocumentBlock = {
   url: string;
 };
 
-export type RichTextAttributeValue = string | number | boolean | null;
+export type RichTextAttributeValue = string | number | boolean | number[] | null;
 
 export type RichTextMark = {
   type: "bold" | "italic" | "underline" | "strike" | "code" | "link";
@@ -45,12 +45,18 @@ export type RichTextNode = {
     | "bulletList"
     | "orderedList"
     | "listItem"
+    | "taskList"
+    | "taskItem"
     | "blockquote"
     | "codeBlock"
     | "horizontalRule"
     | "hardBreak"
     | "text"
     | "image"
+    | "table"
+    | "tableRow"
+    | "tableHeader"
+    | "tableCell"
     | "buttonLink";
   attrs?: Record<string, RichTextAttributeValue>;
   content?: RichTextNode[];

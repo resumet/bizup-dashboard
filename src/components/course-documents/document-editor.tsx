@@ -4,6 +4,9 @@ import { Extension, Node as TiptapNode, type Editor, type JSONContent } from "@t
 import ImageExtension from "@tiptap/extension-image";
 import LinkExtension from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
+import TaskItem from "@tiptap/extension-task-item";
+import TaskList from "@tiptap/extension-task-list";
+import { TableKit } from "@tiptap/extension-table";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Plugin } from "@tiptap/pm/state";
@@ -11,21 +14,27 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import {
   Bold,
   Check,
+  Columns3,
   Eye,
   Heading1,
   Heading2,
+  Heading3,
   ImagePlus,
   Italic,
   Link2,
   List,
   ListOrdered,
+  ListChecks,
   Loader2,
   LockKeyhole,
   Megaphone,
   Pilcrow,
   Quote,
   Redo2,
+  Rows3,
   Save,
+  Table2,
+  Trash2,
   Underline,
   Undo2,
   Unlink,
@@ -44,6 +53,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -52,6 +68,7 @@ import {
   richTextCharacterCount,
   richTextDocumentToBlocks,
 } from "@/lib/course-documents/rich-text";
+import { normalizeRichTextPasteHtml } from "@/lib/course-documents/rich-text-paste";
 import type {
   CourseDocumentBlock,
   CourseDocumentDetail,
@@ -74,10 +91,12 @@ const TOP_LEVEL_BLOCKS = [
   "heading",
   "bulletList",
   "orderedList",
+  "taskList",
   "blockquote",
   "codeBlock",
   "horizontalRule",
   "image",
+  "table",
   "buttonLink",
 ];
 
@@ -262,7 +281,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2] }, link: false }),
+      StarterKit.configure({ heading: { levels: [1, 2, 3] }, link: false }),
       LinkExtension.configure({
         openOnClick: false,
         autolink: true,
@@ -271,6 +290,11 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
         HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" },
       }),
       ImageExtension.configure({ inline: false, allowBase64: false }),
+      TableKit.configure({
+        table: { resizable: true, renderWrapper: true, allowTableNodeSelection: true },
+      }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder: "본문을 입력하거나 이미지를 붙여넣으세요" }),
       ButtonLink,
       BlockIdentity,
@@ -281,9 +305,11 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
         class: "course-rich-text-editor",
         "aria-label": "문서 본문",
       },
+      transformPastedHTML: normalizeRichTextPasteHtml,
       handlePaste: (_view, event) => {
         const file = imageFileFromTransfer(event.clipboardData);
-        if (!file) return false;
+        const html = event.clipboardData?.getData("text/html").trim();
+        if (!file || html) return false;
         event.preventDefault();
         void uploadImage(file);
         return true;
@@ -442,7 +468,9 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
     ? "heading1"
     : editor?.isActive("heading", { level: 2 })
       ? "heading2"
-      : "paragraph";
+      : editor?.isActive("heading", { level: 3 })
+        ? "heading3"
+        : "paragraph";
   void selectionRevision;
 
   return (
@@ -479,6 +507,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
                 if (!editor) return;
                 if (value === "heading1") editor.chain().focus().toggleHeading({ level: 1 }).run();
                 else if (value === "heading2") editor.chain().focus().toggleHeading({ level: 2 }).run();
+                else if (value === "heading3") editor.chain().focus().toggleHeading({ level: 3 }).run();
                 else editor.chain().focus().setParagraph().run();
               }}
             >
@@ -487,6 +516,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
                 <SelectItem value="paragraph"><span className="flex items-center gap-2"><Pilcrow className="size-4" />본문</span></SelectItem>
                 <SelectItem value="heading1"><span className="flex items-center gap-2"><Heading1 className="size-4" />큰 제목</span></SelectItem>
                 <SelectItem value="heading2"><span className="flex items-center gap-2"><Heading2 className="size-4" />작은 제목</span></SelectItem>
+                <SelectItem value="heading3"><span className="flex items-center gap-2"><Heading3 className="size-4" />소제목</span></SelectItem>
               </SelectContent>
             </Select>
             <span className="mx-1 h-5 w-px shrink-0 bg-border" />
@@ -497,8 +527,38 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
             <span className="mx-1 h-5 w-px shrink-0 bg-border" />
             <ToolbarButton label="글머리 목록" active={Boolean(editor?.isActive("bulletList"))} onClick={() => editor?.chain().focus().toggleBulletList().run()}><List /></ToolbarButton>
             <ToolbarButton label="번호 목록" active={Boolean(editor?.isActive("orderedList"))} onClick={() => editor?.chain().focus().toggleOrderedList().run()}><ListOrdered /></ToolbarButton>
+            <ToolbarButton label="체크박스 목록" active={Boolean(editor?.isActive("taskList"))} onClick={() => editor?.chain().focus().toggleTaskList().run()}><ListChecks /></ToolbarButton>
             <ToolbarButton label="인용문" active={Boolean(editor?.isActive("blockquote"))} onClick={() => editor?.chain().focus().toggleBlockquote().run()}><Quote /></ToolbarButton>
             <span className="mx-1 h-5 w-px shrink-0 bg-border" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant={editor?.isActive("table") ? "secondary" : "ghost"}
+                  aria-label="표"
+                  title="표"
+                >
+                  <Table2 />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuItem
+                  disabled={Boolean(editor?.isActive("table"))}
+                  onSelect={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+                >
+                  <Table2 />3×3 표 넣기
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem disabled={!editor?.isActive("table")} onSelect={() => editor?.chain().focus().addRowAfter().run()}><Rows3 />아래 행 추가</DropdownMenuItem>
+                <DropdownMenuItem disabled={!editor?.isActive("table")} onSelect={() => editor?.chain().focus().addColumnAfter().run()}><Columns3 />오른쪽 열 추가</DropdownMenuItem>
+                <DropdownMenuItem disabled={!editor?.isActive("table")} onSelect={() => editor?.chain().focus().toggleHeaderRow().run()}><Rows3 />헤더 행 전환</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem disabled={!editor?.isActive("table")} onSelect={() => editor?.chain().focus().deleteRow().run()}><Trash2 />현재 행 삭제</DropdownMenuItem>
+                <DropdownMenuItem disabled={!editor?.isActive("table")} onSelect={() => editor?.chain().focus().deleteColumn().run()}><Trash2 />현재 열 삭제</DropdownMenuItem>
+                <DropdownMenuItem variant="destructive" disabled={!editor?.isActive("table")} onSelect={() => editor?.chain().focus().deleteTable().run()}><Trash2 />표 삭제</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <input
               ref={imageInputRef}
               className="hidden"

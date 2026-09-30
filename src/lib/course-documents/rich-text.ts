@@ -77,7 +77,13 @@ function blockIdFor(node: RichTextNode, usedIds: Set<string>) {
 }
 
 function hasVisibleContent(node: RichTextNode): boolean {
-  if (node.type === "image" || node.type === "horizontalRule" || node.type === "buttonLink") return true;
+  if (
+    node.type === "image"
+    || node.type === "horizontalRule"
+    || node.type === "buttonLink"
+    || node.type === "table"
+    || node.type === "taskList"
+  ) return true;
   if (node.type === "text") return Boolean(node.text?.trim());
   return Boolean(node.content?.some(hasVisibleContent));
 }

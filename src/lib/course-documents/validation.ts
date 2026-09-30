@@ -50,7 +50,13 @@ const ctaBlockSchema = z.object({
   url: safeUrlSchema,
 });
 
-const richTextAttributeSchema = z.union([z.string().max(20_000), z.number(), z.boolean(), z.null()]);
+const richTextAttributeSchema = z.union([
+  z.string().max(20_000),
+  z.number(),
+  z.boolean(),
+  z.array(z.number()).max(100),
+  z.null(),
+]);
 const richTextMarkSchema = z.object({
   type: z.enum(["bold", "italic", "underline", "strike", "code", "link"]),
   attrs: z.record(z.string(), richTextAttributeSchema).optional(),
@@ -62,12 +68,18 @@ const richTextNodeSchema: z.ZodType<RichTextNode> = z.lazy(() => z.object({
     "bulletList",
     "orderedList",
     "listItem",
+    "taskList",
+    "taskItem",
     "blockquote",
     "codeBlock",
     "horizontalRule",
     "hardBreak",
     "text",
     "image",
+    "table",
+    "tableRow",
+    "tableHeader",
+    "tableCell",
     "buttonLink",
   ]),
   attrs: z.record(z.string(), richTextAttributeSchema).optional(),
@@ -78,7 +90,7 @@ const richTextNodeSchema: z.ZodType<RichTextNode> = z.lazy(() => z.object({
   if (node.type === "text" && typeof node.text !== "string") {
     context.addIssue({ code: "custom", path: ["text"], message: "텍스트 내용이 올바르지 않습니다." });
   }
-  if (node.type === "heading" && node.attrs?.level !== 1 && node.attrs?.level !== 2) {
+  if (node.type === "heading" && node.attrs?.level !== 1 && node.attrs?.level !== 2 && node.attrs?.level !== 3) {
     context.addIssue({ code: "custom", path: ["attrs", "level"], message: "제목 단계가 올바르지 않습니다." });
   }
   const urls: unknown[] = [];

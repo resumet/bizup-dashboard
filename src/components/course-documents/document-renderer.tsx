@@ -68,10 +68,34 @@ function renderRichTextNode(node: RichTextNode, key: string): ReactNode {
   }
 
   const children = node.content?.map((child, index) => renderRichTextNode(child, `${key}-${index}`)) ?? null;
+  if (node.type === "table") {
+    return (
+      <div key={key} className="my-7 overflow-x-auto rounded-xl border">
+        <table className="w-full min-w-[32rem] border-collapse text-left text-sm"><tbody>{children}</tbody></table>
+      </div>
+    );
+  }
+  if (node.type === "tableRow") return <tr key={key} className="border-b last:border-b-0">{children}</tr>;
+  if (node.type === "tableHeader") {
+    return <th key={key} colSpan={typeof node.attrs?.colspan === "number" ? node.attrs.colspan : 1} rowSpan={typeof node.attrs?.rowspan === "number" ? node.attrs.rowspan : 1} className="border-r bg-muted/60 px-3 py-2.5 font-semibold last:border-r-0">{children}</th>;
+  }
+  if (node.type === "tableCell") {
+    return <td key={key} colSpan={typeof node.attrs?.colspan === "number" ? node.attrs.colspan : 1} rowSpan={typeof node.attrs?.rowspan === "number" ? node.attrs.rowspan : 1} className="border-r px-3 py-2.5 align-top last:border-r-0">{children}</td>;
+  }
+  if (node.type === "taskList") return <ul key={key} className="space-y-2">{children}</ul>;
+  if (node.type === "taskItem") {
+    const checked = node.attrs?.checked === true;
+    return (
+      <li key={key} className="flex items-start gap-2.5">
+        <input type="checkbox" checked={checked} readOnly aria-label={checked ? "완료됨" : "미완료"} className="mt-1.5 size-4 shrink-0 accent-primary" />
+        <div className={checked ? "min-w-0 flex-1 text-muted-foreground line-through" : "min-w-0 flex-1"}>{children}</div>
+      </li>
+    );
+  }
   if (node.type === "heading") {
-    return node.attrs?.level === 1
-      ? <h2 key={key} className="pt-5 text-3xl font-bold tracking-tight text-balance sm:text-4xl">{children}</h2>
-      : <h3 key={key} className="pt-4 text-2xl font-semibold tracking-tight text-balance">{children}</h3>;
+    if (node.attrs?.level === 1) return <h2 key={key} className="pt-5 text-3xl font-bold tracking-tight text-balance sm:text-4xl">{children}</h2>;
+    if (node.attrs?.level === 2) return <h3 key={key} className="pt-4 text-2xl font-semibold tracking-tight text-balance">{children}</h3>;
+    return <h4 key={key} className="pt-3 text-xl font-semibold tracking-tight text-balance">{children}</h4>;
   }
   if (node.type === "paragraph") return <p key={key} className="min-h-4 whitespace-pre-wrap leading-8 text-pretty">{children}</p>;
   if (node.type === "bulletList") return <ul key={key} className="list-disc space-y-2 pl-6 leading-7">{children}</ul>;
