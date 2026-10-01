@@ -23,8 +23,6 @@ export default async function CourseSchedulePlannerPage() {
               뒤로가기
             </BackLink>
           </Button>
-          <div className="mx-3 h-5 w-px bg-border" />
-          <span className="font-semibold">강의 일정 플래너</span>
         </div>
       </header>
       <CourseSchedulePlanner initialData={data} />

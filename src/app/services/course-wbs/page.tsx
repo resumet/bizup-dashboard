@@ -22,6 +22,8 @@ export default async function CourseWbsPage({
       <header className="border-b bg-background">
         <div className="mx-auto flex h-18 max-w-[1900px] items-center gap-3 px-5 lg:px-8">
           <Button variant="ghost" size="sm" asChild><BackLink href="/work"><ArrowLeft /> 뒤로가기</BackLink></Button>
+          <div className="h-5 w-px bg-border" />
+          <span className="min-w-0 text-base font-semibold">강의 WBS</span>
         </div>
       </header>
       <CourseWbsWorkspace initialCourseId={courseId ?? ""} canSaveTemplate={isSuperAdminEmail(user.email)} />

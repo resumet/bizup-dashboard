@@ -166,9 +166,6 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
     () => drafts.filter((draft) => draft.scheduledDate).sort((a, b) => (a.scheduledDate ?? "").localeCompare(b.scheduledDate ?? "")),
     [drafts],
   );
-  const scheduledCount = drafts.filter((draft) => draft.scheduledDate).length;
-  const largeCourseCount = drafts.filter((draft) => draft.courseSize === "large").length;
-  const smallCourseCount = drafts.length - largeCourseCount;
   const draggingDraft = draggingId ? drafts.find((draft) => draft.id === draggingId) : null;
 
   function startDrag(event: DragEvent<HTMLElement>, draft: CourseScheduleDraft) {
@@ -322,15 +319,10 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
   }
 
   return <main className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8 lg:py-10">
-    <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-      <h1 className="text-3xl font-semibold tracking-tight">강의 일정 플래너</h1>
-      <div className="flex flex-wrap gap-2"><Badge variant="secondary">예비 강의 {drafts.length}개</Badge><Badge variant="outline">대형 {largeCourseCount}개</Badge><Badge variant="outline">소형 {smallCourseCount}개</Badge><Badge variant="secondary">일정 배정 {scheduledCount}개</Badge><Badge variant="outline">확정 강의 {initialData.confirmedCourses.length}개</Badge></div>
-    </div>
+    {error ? <p role="alert" className="mb-5 rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
+    {notice ? <p role="status" className="mb-5 rounded-xl bg-sky-50 p-3 text-sm text-sky-900">{notice}</p> : null}
 
-    {error ? <p role="alert" className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
-    {notice ? <p role="status" className="mt-5 rounded-xl bg-sky-50 p-3 text-sm text-sky-900">{notice}</p> : null}
-
-    <div className="mt-6 grid items-start gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
+    <div className="grid items-start gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
       <aside className="space-y-5">
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><Plus className="size-5 text-primary" />예비 강의 만들기</CardTitle></CardHeader>

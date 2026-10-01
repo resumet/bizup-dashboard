@@ -11,19 +11,25 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
 
 const courseId = '11111111-1111-4111-8111-111111111111';
 const updatedAt = '2026-10-02T01:00:00Z';
+const courses = [
+  { id: courseId, name: '인스타그램 숏폼 대행', cohort: '1', instructorName: '김해준', webinarAt: '2026-12-14T11:00:00Z' },
+  { id: '22222222-2222-4222-8222-222222222222', name: '광고 성과 실전', cohort: '2', instructorName: '이소라', webinarAt: '2026-12-16T10:30:00Z' },
+  { id: '33333333-3333-4333-8333-333333333333', name: 'AI 업무 자동화', cohort: '3', instructorName: '박준호', webinarAt: '2026-12-18T10:00:00Z' },
+  { id: '44444444-4444-4444-8444-444444444444', name: '콘텐츠 수익화', cohort: '4', instructorName: '최유진', webinarAt: '2026-12-20T11:00:00Z' },
+  { id: '55555555-5555-4555-8555-555555555555', name: '브랜드 마케팅', cohort: '5', instructorName: '정민수', webinarAt: '2026-12-22T10:30:00Z' },
+];
 const bootstrap = {
-  courses: [{
-    id: courseId,
-    name: '인스타그램 숏폼 대행',
-    cohort: '1',
-    instructorName: '김해준',
-    webinarAt: '2026-12-14T11:00:00Z',
-  }],
-  wbsSummaries: [{ courseId, itemCount: 2, completedCount: 1, updatedAt }],
+  courses,
+  wbsSummaries: courses.map((course, index) => ({
+    courseId: course.id,
+    itemCount: 2 + index,
+    completedCount: 1,
+    updatedAt,
+  })),
   dashboard: {
-    savedWbsCount: 1,
-    totalItemCount: 2,
-    completedItemCount: 1,
+    savedWbsCount: 5,
+    totalItemCount: 20,
+    completedItemCount: 5,
     overdueTasks: [],
     upcomingTasks: [],
     closestUnstartedCourseId: null,
@@ -124,6 +130,16 @@ async function assertNoPageOverflow(page, label) {
       assert.equal(await page.getByText('저장된 WBS', { exact: true }).count(), 0);
       assert.equal(await page.getByText('연결된 강의를 선택하면 해당 WBS를 열 수 있습니다.', { exact: true }).count(), 0);
       assert.equal(await page.getByText(/마지막 저장/u).count(), 0);
+      assert.equal(await page.getByText('김해준', { exact: true }).count(), 0);
+      assert.equal(await page.getByText('1기', { exact: true }).count(), 0);
+      assert.equal(await page.getByText('무료 웨비나', { exact: true }).count(), 0);
+      const cardBoxes = await page.getByLabel('저장된 강의 WBS').locator('button').evaluateAll(cards => cards.map(card => {
+        const box = card.getBoundingClientRect();
+        return { left: Math.round(box.left), top: Math.round(box.top) };
+      }));
+      assert.equal(cardBoxes.length, 5);
+      if (width === 1440) assert.equal(new Set(cardBoxes.map(box => box.top)).size, 1, 'desktop cards are not in one five-card row');
+      else assert.equal(new Set(cardBoxes.map(box => box.left)).size, 1, 'mobile cards are not in one column');
       await assertNoPageOverflow(page, `saved WBS ${width}px`);
       await page.screenshot({ path: path.join(output, `saved-wbs-${width}.png`), fullPage: true });
 

@@ -610,17 +610,14 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
 
       <TabsContent value="manage" className="mt-6">
       <section aria-label="저장된 강의 WBS">
-        {savedWbsCards.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {savedWbsCards.length ? <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {savedWbsCards.map(({ summary, course: linkedCourse }) => {
             const cardProgress = savedWbsProgress(summary);
-            return <button key={summary.courseId} type="button" onClick={() => selectCourse(summary.courseId)} aria-label={`${courseLabel(linkedCourse)} WBS 열기`} className="group rounded-xl border bg-background p-5 text-left shadow-sm transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <Badge variant="outline" className="max-w-full whitespace-normal break-keep text-left leading-5">{savedWbsNamecard(linkedCourse)}</Badge>
-              <p className="mt-5 text-sm font-medium text-primary">{linkedCourse.instructorName || "강사 미입력"}</p>
-              <h4 className="mt-1 text-lg font-semibold group-hover:text-primary">{linkedCourse.name}</h4>
-              <p className="mt-1 text-sm text-muted-foreground">{courseCohort(linkedCourse)}</p>
-              <div className="mt-5 border-t pt-4">
-                <p className="text-sm"><span className="text-muted-foreground">무료 웨비나</span> <span className="ml-2 font-medium">{linkedCourse.webinarAt ? `${toKoreaDate(linkedCourse.webinarAt)} ${toKoreaTime(linkedCourse.webinarAt)}` : "일정 미정"}</span></p>
-                <div className="mt-4 flex items-center justify-between text-sm"><span className="text-muted-foreground">업무 {summary.itemCount}개 · 완료 {summary.completedCount}개</span><span className="font-semibold tabular-nums">{cardProgress}%</span></div>
+            return <button key={summary.courseId} type="button" onClick={() => selectCourse(summary.courseId)} aria-label={`${courseLabel(linkedCourse)} WBS 열기`} className="group rounded-xl border bg-background p-4 text-left shadow-sm transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <Badge variant="outline" className="h-auto min-h-5 max-w-full justify-start overflow-visible whitespace-normal break-keep py-1 text-left leading-4">{savedWbsNamecard(linkedCourse)}</Badge>
+              <h4 className="mt-4 text-base font-semibold group-hover:text-primary">{linkedCourse.name}</h4>
+              <div className="mt-4 border-t pt-3">
+                <div className="flex items-center justify-between gap-2 text-sm"><span className="text-muted-foreground">업무 {summary.itemCount}개 · 완료 {summary.completedCount}개</span><span className="font-semibold tabular-nums">{cardProgress}%</span></div>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${cardProgress}%` }} /></div>
               </div>
             </button>;
