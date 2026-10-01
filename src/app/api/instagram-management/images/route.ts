@@ -1,14 +1,14 @@
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 
-import { COURSE_DOCUMENT_IMAGE_BUCKET, courseDocumentErrorResponse, requireCourseDocumentAdmin } from "@/lib/course-documents/server";
+import { COURSE_DOCUMENT_IMAGE_BUCKET, courseDocumentErrorResponse, requireCourseDocumentMember } from "@/lib/course-documents/server";
 import { prepareCourseDocumentImage } from "@/lib/course-documents/image";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
-    const { membership, admin } = await requireCourseDocumentAdmin();
+    const { membership, admin } = await requireCourseDocumentMember();
     const formData = await request.formData();
     const courseId = z.uuid().parse(formData.get("courseId"));
     const file = formData.get("file");

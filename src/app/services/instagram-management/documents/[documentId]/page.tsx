@@ -4,14 +4,14 @@ import { ArrowLeft } from "lucide-react";
 import { CourseDocumentEditor } from "@/components/course-documents/document-editor";
 import { BackLink } from "@/components/layout/back-link";
 import { Button } from "@/components/ui/button";
-import { requireCourseDocumentAdmin, toDocumentDetail } from "@/lib/course-documents/server";
+import { requireCourseDocumentMember, toDocumentDetail } from "@/lib/course-documents/server";
 
 type Props = { params: Promise<{ documentId: string }> };
 
 export default async function AdminCourseDocumentPage({ params }: Props) {
   const { documentId } = await params;
   let context;
-  try { context = await requireCourseDocumentAdmin(); }
+  try { context = await requireCourseDocumentMember(); }
   catch (error) { if (error instanceof Error && error.message === "UNAUTHORIZED") redirect("/login"); throw error; }
   const { admin, membership } = context;
   const { data, error } = await admin.from("course_documents").select("id,course_id,instructor_name,title,slug,content,status,lead_gate_enabled,lead_gate_after_block_id,created_at,updated_at,published_at,courses!inner(name)").eq("id", documentId).eq("workspace_id", membership.workspace_id).is("deleted_at", null).maybeSingle();

@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 
-import { courseDocumentErrorResponse, requireCourseDocumentAdmin, toDocumentSummary } from "@/lib/course-documents/server";
+import { courseDocumentErrorResponse, requireCourseDocumentMember, toDocumentSummary } from "@/lib/course-documents/server";
 import {
   courseDocumentMaterialPositionSchema,
   courseDocumentMaterials,
@@ -28,7 +28,7 @@ const requestSchema = z.discriminatedUnion("action", [
 
 export async function GET() {
   try {
-    const { membership, admin } = await requireCourseDocumentAdmin();
+    const { membership, admin } = await requireCourseDocumentMember();
     const { data: courses, error: coursesError } = await admin
       .from("courses")
       .select("id,name,instructor_name,cohort,free_webinar_at")
@@ -127,7 +127,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { user, membership, admin } = await requireCourseDocumentAdmin();
+    const { user, membership, admin } = await requireCourseDocumentMember();
     const input = requestSchema.parse(await request.json());
 
     if (input.action === "update-course-access") {

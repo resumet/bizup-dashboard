@@ -4,11 +4,11 @@ import { ArrowLeft } from "lucide-react";
 import { InstagramManagementWorkspace } from "@/components/course-documents/instagram-management-workspace";
 import { BackLink } from "@/components/layout/back-link";
 import { Button } from "@/components/ui/button";
-import { requireCourseDocumentAdmin } from "@/lib/course-documents/server";
+import { requireCourseDocumentMember } from "@/lib/course-documents/server";
 
 export default async function InstagramManagementPage() {
   try {
-    await requireCourseDocumentAdmin();
+    await requireCourseDocumentMember();
   } catch (error) {
     if (error instanceof Error && error.message === "UNAUTHORIZED") redirect("/login");
     throw error;

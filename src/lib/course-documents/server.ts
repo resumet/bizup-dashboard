@@ -3,7 +3,6 @@ import "server-only";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { ZodError } from "zod";
 
-import { hasAdminAccess } from "@/lib/admin/access";
 import { requireCourseOperationsMembership, requireCourseOperationsUser } from "@/lib/course-operations/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -12,11 +11,10 @@ import { courseDocumentContentSchema, slugBase } from "./validation";
 
 export const COURSE_DOCUMENT_IMAGE_BUCKET = "course-document-images";
 
-export async function requireCourseDocumentAdmin() {
+export async function requireCourseDocumentMember() {
   const supabase = await createClient();
   const user = await requireCourseOperationsUser(supabase);
   const membership = await requireCourseOperationsMembership(user.id);
-  if (!hasAdminAccess(user.email, membership.role)) throw new Error("FORBIDDEN");
   return { user, membership, admin: createAdminClient() };
 }
 

@@ -1,12 +1,12 @@
 import writeXlsxFile, { type Row } from "write-excel-file/node";
 
-import { courseDocumentErrorResponse, requireCourseDocumentAdmin } from "@/lib/course-documents/server";
+import { courseDocumentErrorResponse, requireCourseDocumentMember } from "@/lib/course-documents/server";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    const { membership, admin } = await requireCourseDocumentAdmin();
+    const { membership, admin } = await requireCourseDocumentMember();
     const params = new URL(request.url).searchParams;
     let query = admin.from("course_document_leads").select("instructor_name,name,phone,utm_source,utm_medium,utm_campaign,utm_content,referrer,created_at,course_id,document_id,course_documents!inner(title),courses!inner(name)").eq("workspace_id", membership.workspace_id).order("created_at", { ascending: false });
     const courseId = params.get("courseId");
