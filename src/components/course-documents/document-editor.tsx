@@ -312,7 +312,11 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
         table: { resizable: true, renderWrapper: true, allowTableNodeSelection: true },
       }),
       TaskList,
-      TaskItem.configure({ nested: true }),
+      TaskItem.configure({
+        nested: true,
+        // The editable node view does not inherit renderHTML's data-type marker.
+        HTMLAttributes: { "data-type": "taskItem" },
+      }),
       TextStyle,
       FontSize,
       LineHeight,
