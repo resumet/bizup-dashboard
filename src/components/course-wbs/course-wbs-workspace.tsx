@@ -60,6 +60,17 @@ function courseCohort(course: WbsCourse) {
   return cohort ? `${cohort}${cohort.endsWith("기") ? "" : "기"}` : "기수 미입력";
 }
 
+function savedWbsNamecard(course: WbsCourse) {
+  const webinarDate = course.webinarAt ? toKoreaDate(course.webinarAt) : "";
+  const webinarTime = course.webinarAt ? toKoreaTime(course.webinarAt) : "";
+  return [
+    course.instructorName.trim() || "강사 미입력",
+    courseCohort(course),
+    webinarDate || "날짜 미입력",
+    webinarTime || "시간 미입력",
+  ].join(" · ");
+}
+
 function savedWbsProgress(summary: WbsSummary) {
   return summary.itemCount ? Math.round(summary.completedCount / summary.itemCount * 100) : 0;
 }
@@ -541,12 +552,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
   }
 
   return <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8 lg:py-10">
-    <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h2 className="text-3xl font-semibold tracking-tight">강의 WBS</h2>
-      </div>
-      {courseId ? <Button size="sm" variant="outline" onClick={() => selectCourse("")} disabled={saving}><ArrowLeft /> WBS 목록</Button> : null}
-    </div>
+    {courseId ? <div className="mb-7 flex justify-end"><Button size="sm" variant="outline" onClick={() => selectCourse("")} disabled={saving}><ArrowLeft /> WBS 목록</Button></div> : null}
 
     {error ? <Alert variant="destructive" className="mb-5" role="alert"><AlertDescription>
       {error}{conflictTarget ? " 현재 편집한 내용은 화면에 남아 있습니다." : ""}
@@ -571,10 +577,6 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
       </TabsList>
       <TabsContent value="analysis" className="mt-6">
       <section className="mb-8" aria-label="WBS 대시보드">
-        <div className="mb-4">
-          <h3 className="text-xl font-semibold">WBS 대시보드</h3>
-          <p className="mt-1 text-sm text-muted-foreground">저장된 WBS 전체의 진행 상황과 지금 먼저 처리할 업무입니다.</p>
-        </div>
         <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
           <div className="rounded-xl border bg-background p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
@@ -608,21 +610,11 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
 
       <TabsContent value="manage" className="mt-6">
       <section aria-label="저장된 강의 WBS">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h3 className="text-xl font-semibold">저장된 WBS</h3>
-            <p className="mt-1 text-sm text-muted-foreground">연결된 강의를 선택하면 해당 WBS를 열 수 있습니다.</p>
-          </div>
-          <Badge variant="secondary">{savedWbsCards.length}개</Badge>
-        </div>
         {savedWbsCards.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {savedWbsCards.map(({ summary, course: linkedCourse }) => {
             const cardProgress = savedWbsProgress(summary);
             return <button key={summary.courseId} type="button" onClick={() => selectCourse(summary.courseId)} aria-label={`${courseLabel(linkedCourse)} WBS 열기`} className="group rounded-xl border bg-background p-5 text-left shadow-sm transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <div className="flex items-center justify-between gap-2">
-                <Badge variant="outline">강의 WBS</Badge>
-                <span className="text-xs text-muted-foreground">마지막 저장 {new Date(summary.updatedAt).toLocaleDateString("ko-KR")}</span>
-              </div>
+              <Badge variant="outline" className="max-w-full whitespace-normal break-keep text-left leading-5">{savedWbsNamecard(linkedCourse)}</Badge>
               <p className="mt-5 text-sm font-medium text-primary">{linkedCourse.instructorName || "강사 미입력"}</p>
               <h4 className="mt-1 text-lg font-semibold group-hover:text-primary">{linkedCourse.name}</h4>
               <p className="mt-1 text-sm text-muted-foreground">{courseCohort(linkedCourse)}</p>
@@ -673,7 +665,6 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
           <div className="text-xs text-muted-foreground">
             <p>{dirty ? "저장하지 않은 변경 사항이 있습니다." : hasWbs ? "이 강의에 저장된 WBS입니다." : "아직 이 강의에 WBS가 없습니다. 템플릿을 불러오거나 항목을 추가하세요."}</p>
-            {updatedAt && !dirty ? <p className="mt-1">마지막 저장 {new Date(updatedAt).toLocaleString("ko-KR")}</p> : null}
           </div>
           <Button onClick={() => void saveWbs()} disabled={saving || loadingWbs || !courseReady || !courseId || (!dirty && hasWbs)}>
             {saving ? <LoaderCircle className="animate-spin" /> : <Save />} 강의 WBS 저장

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { ArrowLeft, ChartGantt } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 import { CourseWbsWorkspace } from "@/components/course-wbs/course-wbs-workspace";
 import { BackLink } from "@/components/layout/back-link";
@@ -22,9 +22,6 @@ export default async function CourseWbsPage({
       <header className="border-b bg-background">
         <div className="mx-auto flex h-18 max-w-[1900px] items-center gap-3 px-5 lg:px-8">
           <Button variant="ghost" size="sm" asChild><BackLink href="/work"><ArrowLeft /> 뒤로가기</BackLink></Button>
-          <div className="h-5 w-px bg-border" />
-          <ChartGantt className="size-5 text-primary" aria-hidden="true" />
-          <h1 className="min-w-0 text-base font-semibold">강의 WBS</h1>
         </div>
       </header>
       <CourseWbsWorkspace initialCourseId={courseId ?? ""} canSaveTemplate={isSuperAdminEmail(user.email)} />
