@@ -10,6 +10,7 @@ import {
 import { BackLink } from "@/components/layout/back-link";
 import { Button } from "@/components/ui/button";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
+import { formatStudentSettlementHeading } from "@/lib/course-operations/course-detail-heading";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -50,27 +51,25 @@ export default async function StudentSettlementDetailPage({
   return (
     <main className="min-h-screen">
       <header className="border-b bg-background">
-        <div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
-          <Button variant="ghost" size="sm" asChild>
+        <div className="mx-auto flex min-h-18 max-w-[1900px] items-center px-5 py-3 lg:px-8">
+          <Button variant="ghost" size="sm" className="shrink-0" asChild>
             <BackLink href="/services/course-operations/students-settlements">
               <ArrowLeft />목록으로
             </BackLink>
           </Button>
-          <div className="mx-3 h-5 w-px bg-border" />
-          <span className="truncate font-semibold">
-            {course.cohort ? `(${course.cohort}기) ` : ""}
-            {course.name}
-            {course.instructor_name ? ` - ${course.instructor_name}` : ""}
+          <div className="mx-3 h-5 w-px shrink-0 bg-border" />
+          <span className="min-w-0 break-words font-semibold">
+            {formatStudentSettlementHeading({
+              cohort: course.cohort,
+              courseName: course.name,
+              instructorName: course.instructor_name,
+              webinarAt: course.free_webinar_at,
+            })}
           </span>
         </div>
       </header>
 
       <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {course.name}
-          </h1>
-        </div>
         <StudentSettlementWorkspace
           courseId={courseId}
           initialCourseName={course.name}

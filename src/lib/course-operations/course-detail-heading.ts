@@ -34,3 +34,19 @@ export function formatCourseDetailHeading({
     WEBINAR_TIME_FORMATTER.format(webinarDate),
   ].join(" • ");
 }
+
+export function formatStudentSettlementHeading({
+  cohort,
+  instructorName,
+  courseName,
+  webinarAt,
+}: CourseDetailHeadingInput) {
+  const webinarDate = new Date(webinarAt);
+  return [
+    cohort ? `${cohort}기` : "기수 미지정",
+    courseName,
+    instructorName || "강사 미지정",
+    WEBINAR_DATE_FORMATTER.format(webinarDate),
+    WEBINAR_TIME_FORMATTER.format(webinarDate),
+  ].join(" • ");
+}

@@ -55,10 +55,6 @@ function checkbox(page, courseIndex, field) {
   });
 }
 
-async function selectTab(page, name) {
-  await page.getByRole('tab', { name, exact: true }).click();
-}
-
 async function assertContainedTable(page, width, label) {
   const geometry = await page.locator('table').evaluate(table => {
     let scroller = table.parentElement;
@@ -85,10 +81,9 @@ async function assertContainedTable(page, width, label) {
   let courses = structuredClone(fixtureCourses);
   let requests = [];
   let pendingPatches = [];
-  let pendingGets = [];
+  let unexpectedApiRequests = [];
   let holdPatches = false;
   let failNextPatch = false;
-  let holdNextGet = false;
   const output = path.resolve('tmp/student-settlements');
   await fs.mkdir(output, { recursive: true });
   console.log('Bundling the actual settlement overview...');
@@ -132,17 +127,7 @@ async function assertContainedTable(page, width, label) {
       if (pathname === '/bundle.js') send('text/javascript', bundle.outputFiles[0].text);
       else if (pathname === '/style.css') send('text/css', css.css);
       else if (pathname === '/fixture.json') json(courses);
-      else if (pathname === '/api/course-operations/payment-summary' && req.method === 'GET') {
-        // Snapshot before delaying to reproduce a stale GET arriving after a PATCH.
-        const snapshot = structuredClone(courses.map(course => ({
-          ...course, payment_count: course.order_count,
-        })));
-        const respond = () => json(snapshot);
-        if (holdNextGet) {
-          holdNextGet = false;
-          pendingGets.push(respond);
-        } else respond();
-      } else if (/^\/api\/course-operations\/[^/]+\/payment-summary$/.test(pathname) && req.method === 'PATCH') {
+      else if (/^\/api\/course-operations\/[^/]+\/payment-summary$/.test(pathname) && req.method === 'PATCH') {
         let raw = '';
         for await (const chunk of req) raw += chunk;
         const payload = JSON.parse(raw);
@@ -172,6 +157,7 @@ async function assertContainedTable(page, width, label) {
       } else if (pathname === '/') {
         send('text/html; charset=utf-8', '<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"></head><body><div id="root"></div><script type="module" src="/bundle.js"></script></body></html>');
       } else {
+        if (pathname.startsWith('/api/')) unexpectedApiRequests.push(`${req.method} ${pathname}`);
         res.statusCode = 404;
         res.end();
       }
@@ -184,10 +170,9 @@ async function assertContainedTable(page, width, label) {
       courses = structuredClone(fixtureCourses);
       requests = [];
       pendingPatches = [];
-      pendingGets = [];
+      unexpectedApiRequests = [];
       holdPatches = false;
       failNextPatch = false;
-      holdNextGet = false;
       const page = await browser.newPage({ viewport: { width, height: 1000 } });
       const errors = [];
       page.on('pageerror', error => { errors.push(error.message); console.error(error.message); });
@@ -195,6 +180,9 @@ async function assertContainedTable(page, width, label) {
       await page.goto(`http://127.0.0.1:${server.address().port}/`);
       await checkbox(page, 0, 'nova').waitFor();
 
+      assert.equal(await page.getByRole('tab').count(), 0, `${label}: obsolete tabs still rendered`);
+      assert.equal(await page.getByRole('tablist').count(), 0, `${label}: obsolete tab bar still rendered`);
+      assert.equal(await page.locator('table').count(), 1, `${label}: only the course list should render`);
       assert.deepEqual((await page.locator('thead th').allTextContents()).map(value => value.trim()), expectedHeaders);
       const firstRow = page.locator('tbody tr').first();
       const totals = await firstRow.innerText();
@@ -253,64 +241,39 @@ async function assertContainedTable(page, width, label) {
       assert.equal(courses[0].instructor_settled, false);
       assert.deepEqual(requests.at(-1).payload, { instructorSettled: true });
 
-      // Editing either table must update the other, including an already-loaded tab.
-      await selectTab(page, '전체 결제내역');
-      await checkbox(page, 0, 'nova').waitFor();
-      assert.equal(await checkbox(page, 0, 'nova').isChecked(), false);
-      assert.equal(await checkbox(page, 1, 'nova').isChecked(), true);
+      // A retry clears the error, saves the intended field, and keeps other flags.
       await checkbox(page, 0, 'instructor').click();
-      await eventually(() => courses[0].instructor_settled === true, 'payment-table save');
-      await eventually(() => checkbox(page, 0, 'instructor').isEnabled(), 'payment-table save finished');
+      await eventually(() => courses[0].instructor_settled === true, 'retry save');
+      await eventually(() => checkbox(page, 0, 'instructor').isEnabled(), 'retry save finished');
       assert.deepEqual(requests.at(-1).payload, { instructorSettled: true });
-      await selectTab(page, '강의별 현황');
+      assert.equal(await page.getByRole('alert').count(), 0);
       assert.equal(await checkbox(page, 0, 'instructor').isChecked(), true);
+
+      // Repeated changes after successful saves use the latest persisted value.
       await checkbox(page, 0, 'nova').click();
       await eventually(() => courses[0].nova_settled === true, 'course-table save');
       await eventually(() => checkbox(page, 0, 'nova').isEnabled(), 'course-table save finished');
-      await selectTab(page, '전체 결제내역');
       assert.equal(await checkbox(page, 0, 'nova').isChecked(), true);
-      await assertContainedTable(page, width, `${label} payment list`);
-      await page.screenshot({ path: path.join(output, `${label}-payments.png`), fullPage: true });
-
-      // A tab switch during a save preserves the optimistic value and row lock.
-      await selectTab(page, '강의별 현황');
-      holdPatches = true;
       await checkbox(page, 0, 'nova').click();
-      await eventually(() => pendingPatches.length === 1, 'tab-switch PATCH');
-      await selectTab(page, '전체 결제내역');
+      await eventually(() => courses[0].nova_settled === false, 'second course-table save');
+      await eventually(() => checkbox(page, 0, 'nova').isEnabled(), 'second course-table save finished');
       assert.equal(await checkbox(page, 0, 'nova').isChecked(), false);
-      assert.equal(await checkbox(page, 0, 'instructor').isDisabled(), true);
-      pendingPatches.shift()();
-      holdPatches = false;
-      await eventually(() => checkbox(page, 0, 'nova').isEnabled(), 'save across tab switch');
-      await selectTab(page, '강의별 현황');
-      assert.equal(await checkbox(page, 0, 'nova').isChecked(), false);
-
-      // A payment response captured before a newer save must not restore stale flags.
-      await page.reload();
-      await checkbox(page, 0, 'nova').waitFor();
-      holdNextGet = true;
-      await selectTab(page, '전체 결제내역');
-      await eventually(() => pendingGets.length === 1, 'held payment GET');
-      await selectTab(page, '강의별 현황');
-      await checkbox(page, 0, 'instructor').click();
-      await eventually(() => courses[0].instructor_settled === false, 'save after GET started');
-      await eventually(() => checkbox(page, 0, 'instructor').isEnabled(), 'save before stale GET');
-      pendingGets.shift()();
-      await selectTab(page, '전체 결제내역');
-      await checkbox(page, 0, 'instructor').waitFor();
-      assert.equal(await checkbox(page, 0, 'instructor').isChecked(), false);
+      assert.equal(await checkbox(page, 0, 'instructor').isChecked(), true);
       await page.reload();
       await checkbox(page, 0, 'instructor').waitFor();
-      assert.equal(await checkbox(page, 0, 'instructor').isChecked(), false);
+      assert.equal(await checkbox(page, 0, 'instructor').isChecked(), true);
       assert.equal(await checkbox(page, 0, 'nova').isChecked(), false);
       assert.equal(await checkbox(page, 1, 'nova').isChecked(), true);
+      assert.equal(await page.getByRole('tab').count(), 0);
+      assert.deepEqual(unexpectedApiRequests, [], `${label}: obsolete or unexpected API request`);
+      await assertContainedTable(page, width, `${label} reopened course list`);
+      await page.screenshot({ path: path.join(output, `${label}-reopened.png`), fullPage: true });
       assert.deepEqual(errors, []);
-      console.log(`PASS ${label}: columns, totals, existing checks, partial PATCH, concurrent rows, rollback, tab/save/GET races, persisted reload, scoped overflow`);
+      console.log(`PASS ${label}: no tabs/extra GET, columns, totals, existing checks, partial PATCH, concurrent rows, rollback/retry, repeated saves, persisted reload, scoped overflow`);
       await page.close();
     }
   } finally {
-    for (const respond of [...pendingPatches, ...pendingGets]) respond();
+    for (const respond of pendingPatches) respond();
     await browser?.close();
     if (server?.listening) {
       server.closeAllConnections();
