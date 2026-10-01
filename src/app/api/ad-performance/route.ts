@@ -1,5 +1,10 @@
 import { requireCourseOperationsMembership, requireCourseOperationsUser } from "@/lib/course-operations/server";
-import { adPerformanceErrorResponse, createDashboardSchema } from "@/lib/ad-performance/validation";
+import {
+  adPerformanceErrorResponse,
+  createDashboardSchema,
+  DEFAULT_AD_PERFORMANCE_BUDGET,
+  defaultAdPerformanceStartDate,
+} from "@/lib/ad-performance/validation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -27,8 +32,8 @@ export async function POST(request: Request) {
       .insert({
         workspace_id: membership.workspace_id,
         course_id: input.courseId,
-        start_date: input.startDate,
-        total_budget: input.totalBudget,
+        start_date: defaultAdPerformanceStartDate(),
+        total_budget: DEFAULT_AD_PERFORMANCE_BUDGET,
         created_by: user.id,
         updated_by: user.id,
       })

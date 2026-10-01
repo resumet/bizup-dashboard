@@ -28,9 +28,18 @@ export const organicChannelNameSchema = z.string().trim().min(1, "오가닉 채�
 
 export const createDashboardSchema = z.object({
   courseId: z.uuid(),
-  startDate: dateValue,
-  totalBudget: count,
 });
+
+export const DEFAULT_AD_PERFORMANCE_BUDGET = 30_000_000;
+
+export function defaultAdPerformanceStartDate(now = new Date()) {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
 
 export const updateDashboardSchema = z.object({
   startDate: dateValue,

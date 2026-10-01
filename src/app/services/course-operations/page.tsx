@@ -51,19 +51,8 @@ export default async function CourseOperationsPage() {
       </header>
 
       <div className="mx-auto max-w-[1900px] px-5 py-10 lg:px-8">
-        <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight">강의 목록</h1>
-          </div>
-          <Button asChild className="min-h-10">
-            <Link href="/services/course-operations/new">
-              <Plus />새 강의 만들기
-            </Link>
-          </Button>
-        </div>
-
         {loadError ? (
-          <Alert variant="destructive" className="mt-6">
+          <Alert variant="destructive">
             <AlertTitle>강의 목록을 불러오지 못했습니다</AlertTitle>
             <AlertDescription>
               {/PGRST205|42P01/u.test(loadError)
@@ -74,7 +63,7 @@ export default async function CourseOperationsPage() {
         ) : null}
 
         {!loadError && courses.length === 0 ? (
-          <Card className="mt-6">
+          <Card>
             <CardContent className="flex min-h-72 flex-col items-center justify-center text-center">
               <span className="mb-4 grid size-12 place-items-center rounded-full bg-primary/10 text-primary">
                 <BookOpenCheck className="size-5" />
@@ -93,7 +82,7 @@ export default async function CourseOperationsPage() {
         ) : null}
 
         {!loadError && courses.length > 0 ? (
-          <div className="mt-6">
+          <div>
             <CourseOperationsList
               courses={courses}
               canDelete={hasAdminAccess(user.email, membership.role)}

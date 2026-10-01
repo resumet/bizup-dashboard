@@ -3,29 +3,23 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, BookOpenCheck, CalendarDays, Loader2, Plus, Trash2, WalletCards } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, BookOpenCheck, CalendarDays, Loader2, Plus, Trash2 } from "lucide-react";
 
 import { BackLink } from "@/components/layout/back-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { AdPerformanceDashboardSummary, AdPerformanceIndexData } from "@/lib/ad-performance/types";
 
 const number = new Intl.NumberFormat("ko-KR");
 const won = new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW", maximumFractionDigits: 0 });
-
-function todayInSeoul() {
-  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-}
-
-function parseMoney(value: string) {
-  const parsed = Number(value.replace(/\D/gu, ""));
-  return Number.isSafeInteger(parsed) ? parsed : 0;
-}
 
 function DashboardCard({ dashboard, busy, onDelete }: {
   dashboard: AdPerformanceDashboardSummary;
@@ -63,25 +57,20 @@ function DashboardCard({ dashboard, busy, onDelete }: {
 export function AdPerformanceIndex({ initialData }: { initialData: AdPerformanceIndexData }) {
   const router = useRouter();
   const [dashboards, setDashboards] = useState(initialData.dashboards);
-  const [courseId, setCourseId] = useState("");
-  const [startDate, setStartDate] = useState(todayInSeoul());
-  const [totalBudget, setTotalBudget] = useState(0);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState("");
   const [error, setError] = useState(initialData.loadError ?? "");
   const linkedCourseIds = useMemo(() => new Set(dashboards.map((dashboard) => dashboard.course.id)), [dashboards]);
   const availableCourses = useMemo(() => initialData.courses.filter((course) => !linkedCourseIds.has(course.id)), [initialData.courses, linkedCourseIds]);
 
-  async function createDashboard() {
-    if (!courseId) return setError("연결할 강의를 선택해 주세요.");
-    if (!startDate) return setError("광고 시작일을 선택해 주세요.");
+  async function createDashboard(courseId: string) {
     setCreating(true);
     setError("");
     try {
       const response = await fetch("/api/ad-performance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ courseId, startDate, totalBudget }),
+        body: JSON.stringify({ courseId }),
       });
       const result = await response.json() as { id?: string; message?: string };
       if (!response.ok || !result.id) throw new Error(result.message || "광고성과 대시보드를 만들지 못했습니다.");
@@ -108,9 +97,6 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
     }
   }
 
-  const totalSpend = dashboards.reduce((sum, dashboard) => sum + dashboard.spend, 0);
-  const totalBudgetSum = dashboards.reduce((sum, dashboard) => sum + dashboard.totalBudget, 0);
-
   return <main className="min-h-screen">
     <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
       <div className="flex items-center gap-2">
@@ -119,21 +105,16 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
       </div>
       {error ? <Alert variant="destructive" className="mt-6"><AlertTriangle /><AlertTitle>확인이 필요합니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
 
-      <section className="mt-6 grid gap-4 sm:grid-cols-3">
-        <Card><CardHeader><CardDescription>운영 대시보드</CardDescription><CardTitle className="text-3xl tabular-nums">{number.format(dashboards.length)}개</CardTitle></CardHeader></Card>
-        <Card><CardHeader><CardDescription>전체 광고 예산</CardDescription><CardTitle className="text-3xl tabular-nums">{won.format(totalBudgetSum)}</CardTitle></CardHeader></Card>
-        <Card><CardHeader><CardDescription>전체 누적 집행비</CardDescription><CardTitle className="text-3xl tabular-nums">{won.format(totalSpend)}</CardTitle></CardHeader></Card>
-      </section>
-
-      <Card className="mt-6">
-        <CardHeader><CardTitle className="flex items-center gap-2"><Plus className="size-5" />새 광고성과 대시보드</CardTitle><CardDescription>저장된 강의 하나를 선택해 광고성과 항목을 만듭니다. 강의당 하나의 대시보드를 만들 수 있습니다.</CardDescription></CardHeader>
-        <CardContent className="grid gap-4 lg:grid-cols-[minmax(16rem,2fr)_minmax(11rem,1fr)_minmax(13rem,1fr)_auto] lg:items-end">
-          <div className="space-y-2"><Label>연결할 강의</Label><Select value={courseId} onValueChange={setCourseId} disabled={!availableCourses.length || Boolean(initialData.loadError)}><SelectTrigger className="w-full"><SelectValue placeholder={availableCourses.length ? "강의를 선택하세요" : "연결 가능한 강의가 없습니다"} /></SelectTrigger><SelectContent>{availableCourses.map((course) => <SelectItem key={course.id} value={course.id}>{course.name} · {course.instructorName}</SelectItem>)}</SelectContent></Select></div>
-          <div className="space-y-2"><Label htmlFor="new-ad-start-date">광고 시작일</Label><Input id="new-ad-start-date" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></div>
-          <div className="space-y-2"><Label htmlFor="new-ad-budget">총예산</Label><div className="relative"><WalletCards className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input id="new-ad-budget" className="pl-9 text-right tabular-nums" inputMode="numeric" value={totalBudget ? number.format(totalBudget) : ""} placeholder="0" onChange={(event) => setTotalBudget(parseMoney(event.target.value))} /></div></div>
-          <Button className="min-h-10" disabled={creating || !availableCourses.length || Boolean(initialData.loadError)} onClick={() => void createDashboard()}>{creating ? <Loader2 className="animate-spin" /> : <Plus />}대시보드 만들기</Button>
-        </CardContent>
-      </Card>
+      <div className="mt-6 flex justify-end">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="min-h-10" disabled={creating || !availableCourses.length || Boolean(initialData.loadError)}>{creating ? <Loader2 className="animate-spin" /> : <Plus />}{availableCourses.length ? "대시보드 만들기" : "연결 가능한 강의 없음"}</Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-72">
+            {availableCourses.map((course) => <DropdownMenuItem key={course.id} onSelect={() => void createDashboard(course.id)}>{course.name} · {course.instructorName || "강사 미지정"}</DropdownMenuItem>)}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       <section className="mt-8">
         <h2 className="text-xl font-semibold">강의별 광고성과</h2>

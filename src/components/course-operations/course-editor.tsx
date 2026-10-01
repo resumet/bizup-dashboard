@@ -21,7 +21,6 @@ import {
 import { CourseRosterSections } from "@/components/course-operations/course-roster-sections";
 import { CourseNotesCard } from "@/components/course-operations/course-notes-card";
 import { CourseShareDialog } from "@/components/course-operations/course-share-dialog";
-import { CourseWebinarEditor } from "@/components/course-operations/course-webinar-editor";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -204,7 +203,6 @@ function CourseLinkInput({
 }
 
 type CourseEditorTab =
-  | "webinar"
   | "information"
   | "sales"
   | "students"
@@ -212,7 +210,7 @@ type CourseEditorTab =
   | "videos";
 type DeferredCourseEditorTab = Exclude<
   CourseEditorTab,
-  "information" | "webinar"
+  "information"
 >;
 type SectionLoadStatus = "idle" | "loading" | "loaded" | "error";
 
@@ -345,7 +343,6 @@ export function CourseOperationsEditor({
   notesLoadError,
   loadError,
   deferDetailSections = false,
-  initialTab = "information",
 }: {
   courseId?: string;
   sourceScheduleDraftId?: string;
@@ -364,7 +361,6 @@ export function CourseOperationsEditor({
   notesLoadError?: string;
   loadError?: string;
   deferDetailSections?: boolean;
-  initialTab?: "information" | "webinar";
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState(() => {
@@ -394,7 +390,7 @@ export function CourseOperationsEditor({
     number | null
   >(null);
   const [notice, setNotice] = useState("");
-  const [activeTab, setActiveTab] = useState<CourseEditorTab>(initialTab);
+  const [activeTab, setActiveTab] = useState<CourseEditorTab>("information");
   const [loadedRosterJobs, setLoadedRosterJobs] = useState(rosterJobs);
   const [loadedMessageProjects, setLoadedMessageProjects] =
     useState(messageProjects);
@@ -520,7 +516,7 @@ export function CourseOperationsEditor({
     setActiveTab(nextTab);
     if (nextTab === "information") {
       void loadDetailSection("videos");
-    } else if (nextTab !== "webinar") {
+    } else {
       void loadDetailSection(nextTab);
     }
   }
@@ -911,7 +907,7 @@ export function CourseOperationsEditor({
               liveVideos: draft.liveVideos,
             }}
           />
-          <Button className={activeTab === "webinar" ? "hidden" : "min-h-10"} onClick={saveCourse} disabled={saving}>
+          <Button className="min-h-10" onClick={saveCourse} disabled={saving}>
             {saving ? <Loader2 className="animate-spin" /> : <Save />}
             {saving ? "저장 중" : courseId ? "변경사항 저장" : "강의 만들기"}
           </Button>
@@ -942,7 +938,7 @@ export function CourseOperationsEditor({
         onValueChange={changeTab}
         className="gap-6"
       >
-        <TabsList className="grid h-auto w-full grid-cols-3 gap-1">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1">
           <TabsTrigger value="information" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             정보
           </TabsTrigger>
@@ -955,7 +951,6 @@ export function CourseOperationsEditor({
           <TabsTrigger value="messages" className="hidden">
             단톡방문자
           </TabsTrigger>
-          <TabsTrigger value="webinar" disabled={!courseId} className="h-10 min-w-0 px-2">라이브 웨비나</TabsTrigger>
         </TabsList>
 
         <TabsContent value="information" className="mt-0 space-y-6">
@@ -2189,20 +2184,14 @@ export function CourseOperationsEditor({
           )}
         </TabsContent>
 
-        <TabsContent value="webinar" forceMount className="mt-0 data-[state=inactive]:hidden">
-          {courseId ? <CourseWebinarEditor key={courseId} courseId={courseId} /> : null}
-        </TabsContent>
-
       </Tabs>
 
-      {activeTab !== "webinar" ? (
-        <div className="flex justify-end border-t pt-6">
-          <Button className="min-h-10" onClick={saveCourse} disabled={saving}>
-            {saving ? <Loader2 className="animate-spin" /> : <Save />}
-            {saving ? "저장 중" : courseId ? "강의 정보 저장" : "강의 만들기"}
-          </Button>
-        </div>
-      ) : null}
+      <div className="flex justify-end border-t pt-6">
+        <Button className="min-h-10" onClick={saveCourse} disabled={saving}>
+          {saving ? <Loader2 className="animate-spin" /> : <Save />}
+          {saving ? "저장 중" : courseId ? "강의 정보 저장" : "강의 만들기"}
+        </Button>
+      </div>
     </div>
   );
 }

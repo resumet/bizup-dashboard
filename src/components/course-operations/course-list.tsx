@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   CalendarDays,
-  Ellipsis,
+  ChevronDown,
+  EllipsisVertical,
   Grid2X2,
   List,
   Loader2,
+  Plus,
   Trash2,
 } from "lucide-react";
 
@@ -27,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -82,7 +84,7 @@ function CourseActionsMenu({
           size="icon-sm"
           aria-label={`${course.name} 작업 메뉴`}
         >
-          <Ellipsis />
+          <EllipsisVertical />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -107,26 +109,54 @@ function CourseCards({ courses, canDelete, onDelete, completed = false }: {
 }) {
   if (!courses.length) return <div className="rounded-xl border border-dashed bg-background px-5 py-10 text-center text-sm text-muted-foreground">표시할 강의가 없습니다.</div>;
   return <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{courses.map((course, index) => (
-    <Card key={course.id} className={`overflow-hidden transition-shadow hover:shadow-md ${completed ? "bg-muted/35" : ""}`}>
+    <Card key={course.id} className={`relative overflow-hidden transition-shadow hover:shadow-md ${completed ? "bg-muted/35" : ""}`}>
+      <div className="absolute right-2 top-2 z-10 rounded-md bg-background/90 shadow-sm backdrop-blur-sm">
+        <CourseActionsMenu course={course} canDelete={canDelete} onDelete={onDelete} />
+      </div>
       {course.banner_image_path ? <Link href={`/services/course-operations/${course.id}`} className={`relative -mt-4 block aspect-video overflow-hidden bg-muted ${completed ? "grayscale-[35%]" : ""}`} aria-label={`${course.name} 강의 배너로 상세보기`}>
         <Image src={courseBannerUrl(course.id, course.updated_at)} alt={`${course.name} 배너`} fill unoptimized loading={index < 2 && !completed ? "eager" : "lazy"} priority={index < 2 && !completed} sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw" className="object-cover transition-transform duration-300 group-hover/card:scale-[1.02]" />
       </Link> : null}
-      <CardHeader>
-        <CardTitle className="line-clamp-2 min-h-14 pt-3 text-xl leading-7" title={course.name}>
+      <CardHeader className="pr-14">
+        <CardTitle className="line-clamp-2 text-xl leading-7" title={course.name}>
           <Link href={`/services/course-operations/${course.id}`} className="hover:underline">
             {course.name}
           </Link>
         </CardTitle>
-        <p className="truncate text-sm text-muted-foreground" title={`${course.cohort ? `${course.cohort}기 / ` : ""}${course.instructor_name}`}>{course.cohort ? `${course.cohort}기 / ` : ""}{course.instructor_name}</p>
+        <p className="truncate text-sm text-muted-foreground" title={`${course.cohort ? `${course.cohort}기` : "기수 미지정"} / ${course.instructor_name || "강사 미지정"} / ${formatDate(course.free_webinar_at)}`}>
+          ({course.cohort ? `${course.cohort}기` : "기수 미지정"} / {course.instructor_name || "강사 미지정"} / {formatDate(course.free_webinar_at)})
+        </p>
       </CardHeader>
-      <CardContent className="flex flex-1 flex-col gap-4 border-t pt-5">
-        <p className="flex items-center gap-2 text-sm"><CalendarDays className="size-4 text-muted-foreground" />무료 웨비나 {formatDate(course.free_webinar_at)}</p>
-        <div className="mt-auto flex justify-end">
-          <CourseActionsMenu course={course} canDelete={canDelete} onDelete={onDelete} />
-        </div>
-      </CardContent>
     </Card>
   ))}</div>;
+}
+
+function CompletedSection({
+  count,
+  open,
+  onToggle,
+  children,
+}: {
+  count: number;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <section aria-label="완료된 강의">
+      <Button
+        type="button"
+        variant="ghost"
+        className="mb-4 h-auto gap-2 px-0 text-xl font-semibold hover:bg-transparent"
+        aria-expanded={open}
+        onClick={onToggle}
+      >
+        완료
+        <Badge variant="secondary">{count}개</Badge>
+        <ChevronDown className={`transition-transform ${open ? "rotate-180" : ""}`} />
+      </Button>
+      {open ? children : null}
+    </section>
+  );
 }
 
 function CourseTable({ courses, canDelete, onDelete, completed = false }: {
@@ -162,6 +192,7 @@ export function CourseOperationsList({
   const [deleteTarget, setDeleteTarget] = useState<CourseSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [completedOpen, setCompletedOpen] = useState(false);
   const { ongoing: ongoingCourses, completed: completedCourses } = useMemo(
     () => partitionCoursesByWebinarStatus(courses, todayKoreaDate),
     [courses, todayKoreaDate],
@@ -200,7 +231,7 @@ export function CourseOperationsList({
 
   return (
     <>
-      <div className="mb-5 flex justify-end">
+      <div className="mb-5 flex flex-wrap justify-end gap-2">
         <div className="inline-flex self-start rounded-lg border bg-background p-1 sm:self-auto" aria-label="강의 목록 보기 방식">
           <Button
             type="button"
@@ -233,20 +264,25 @@ export function CourseOperationsList({
             캘린더
           </Button>
         </div>
+        <Button asChild className="min-h-10">
+          <Link href="/services/course-operations/new">
+            <Plus />새 강의 만들기
+          </Link>
+        </Button>
       </div>
 
       {viewMode === "cards" ? (
         <div className="space-y-10">
           <section aria-label="진행 중 강의"><CourseSectionHeading title="진행 중" count={cardOngoingCourses.length} /><CourseCards courses={cardOngoingCourses} canDelete={canDelete} onDelete={openDeleteDialog} /></section>
-          <section aria-label="완료된 강의"><CourseSectionHeading title="완료" count={cardCompletedCourses.length} /><CourseCards courses={cardCompletedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></section>
+          <CompletedSection count={cardCompletedCourses.length} open={completedOpen} onToggle={() => setCompletedOpen((current) => !current)}><CourseCards courses={cardCompletedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></CompletedSection>
         </div>
       ) : viewMode === "list" ? (
         <div className="space-y-10">
           <section aria-label="진행 중 강의"><CourseSectionHeading title="진행 중" count={ongoingCourses.length} /><CourseTable courses={ongoingCourses} canDelete={canDelete} onDelete={openDeleteDialog} /></section>
-          <section aria-label="완료된 강의"><CourseSectionHeading title="완료" count={completedCourses.length} /><CourseTable courses={completedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></section>
+          <CompletedSection count={completedCourses.length} open={completedOpen} onToggle={() => setCompletedOpen((current) => !current)}><CourseTable courses={completedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></CompletedSection>
         </div>
       ) : (
-        <div className="space-y-10"><section aria-label="진행 중 강의 일정"><CourseSectionHeading title="진행 중" count={ongoingCourses.length} />{ongoingCourses.length ? <CourseListCalendar courses={ongoingCourses} /> : <div className="rounded-xl border border-dashed px-5 py-10 text-center text-sm text-muted-foreground">진행 중인 강의가 없습니다.</div>}</section><section aria-label="완료된 강의"><CourseSectionHeading title="완료" count={completedCourses.length} /><CourseTable courses={completedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></section></div>
+        <div className="space-y-10"><section aria-label="진행 중 강의 일정"><CourseSectionHeading title="진행 중" count={ongoingCourses.length} />{ongoingCourses.length ? <CourseListCalendar courses={ongoingCourses} /> : <div className="rounded-xl border border-dashed px-5 py-10 text-center text-sm text-muted-foreground">진행 중인 강의가 없습니다.</div>}</section><CompletedSection count={completedCourses.length} open={completedOpen} onToggle={() => setCompletedOpen((current) => !current)}><CourseTable courses={completedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></CompletedSection></div>
       )}
 
       <AlertDialog

@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createDashboardSchema, metricSchema, updateDashboardSchema } from "./validation";
+import {
+  createDashboardSchema,
+  DEFAULT_AD_PERFORMANCE_BUDGET,
+  defaultAdPerformanceStartDate,
+  metricSchema,
+  updateDashboardSchema,
+} from "./validation";
 
 const metric = {
   metricDate: "2026-09-23",
@@ -27,13 +33,19 @@ test("톡방인원은 미입력과 0을 구분하고 음수 및 소수는 거부
   assert.equal(metricSchema.safeParse({ ...metric, chatRoomMembers: 1.5 }).success, false);
 });
 
-test("새 광고성과는 저장된 강의 ID와 시작일·예산을 요구한다", () => {
+test("새 광고성과는 저장된 강의 ID만 요구한다", () => {
   assert.equal(createDashboardSchema.safeParse({
     courseId: "00000000-0000-4000-8000-000000000003",
-    startDate: "2026-09-23",
-    totalBudget: 1_000_000,
   }).success, true);
-  assert.equal(createDashboardSchema.safeParse({ courseId: "invalid", startDate: "2026-09-23", totalBudget: 0 }).success, false);
+  assert.equal(createDashboardSchema.safeParse({ courseId: "invalid" }).success, false);
+});
+
+test("새 광고성과 기본값은 생성일과 3천만원이다", () => {
+  assert.equal(DEFAULT_AD_PERFORMANCE_BUDGET, 30_000_000);
+  assert.equal(
+    defaultAdPerformanceStartDate(new Date("2026-09-30T15:30:00.000Z")),
+    "2026-10-01",
+  );
 });
 
 test("날짜별 지표는 중복되거나 광고 시작일보다 빠를 수 없다", () => {

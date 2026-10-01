@@ -23,6 +23,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
   const renderStartedAt = performance.now();
   const { courseId } = await params;
   const { tab } = await searchParams;
+  if (tab === "webinar") redirect("/services/course-webinars");
   if (
     tab === "orders" ||
     tab === "paid-students" ||
@@ -171,7 +172,6 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
           initialNotes={notes}
           notesLoadError={notesLoadError}
           loadError={loadError}
-          initialTab={tab === "webinar" ? "webinar" : "information"}
         />
       </div>
     </main>
