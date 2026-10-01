@@ -6,6 +6,7 @@ import { CourseOperationsEditor } from "@/components/course-operations/course-ed
 import { PendingLinkLabel } from "@/components/navigation/pending-link-label";
 import { Button } from "@/components/ui/button";
 import { courseBannerUrl } from "@/lib/course-operations/banner";
+import { formatCourseDetailHeading } from "@/lib/course-operations/course-detail-heading";
 import { toCourseNote, type CourseNote } from "@/lib/course-operations/notes";
 import type { CourseOperationsDraft } from "@/lib/course-operations/types";
 import { normalizeRequiredTasks } from "@/lib/course-operations/required-tasks";
@@ -154,7 +155,14 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
             </BackLink>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
-          <span className="truncate font-semibold">{course.cohort ? `(${course.cohort}기) ` : ""}{course.name}{course.instructor_name ? ` - ${course.instructor_name}` : ""}</span>
+          <span className="truncate font-semibold">
+            {formatCourseDetailHeading({
+              cohort: course.cohort,
+              instructorName: course.instructor_name,
+              courseName: course.name,
+              webinarAt: course.free_webinar_at,
+            })}
+          </span>
         </div>
       </header>
       <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
