@@ -4,6 +4,8 @@ export type StudentSettlementCourseSource = {
   instructor_name: string;
   cohort: string;
   free_webinar_at: string;
+  nova_settled: boolean;
+  instructor_settled: boolean;
 };
 
 export type StudentSettlementOrderSource = {
@@ -29,6 +31,15 @@ export type StudentSettlementCourseSummary = StudentSettlementCourseSource & {
   paid_student_count: number;
   total_cost: number;
 };
+
+export function totalStudentSettlementCourses(courses: StudentSettlementCourseSummary[]) {
+  return {
+    order_count: courses.reduce((total, course) => total + course.order_count, 0),
+    payment_amount: courses.reduce((total, course) => total + Math.round(course.payment_amount * 100), 0) / 100,
+    paid_student_count: courses.reduce((total, course) => total + course.paid_student_count, 0),
+    total_cost: courses.reduce((total, course) => total + Math.round(course.total_cost * 100), 0) / 100,
+  };
+}
 
 function isCompletedOrder(status: string | null) {
   return status?.normalize("NFKC").trim() === "결제완료";

@@ -45,19 +45,13 @@ export default async function StudentSettlementsPage() {
       </header>
 
       <div className="mx-auto max-w-[1900px] px-5 py-10 lg:px-8">
-        <h1 className="text-3xl font-semibold tracking-tight">
-          수강생관리 및 정산
-        </h1>
-
         {loadError ? (
-          <Alert variant="destructive" className="mt-6">
+          <Alert variant="destructive">
             <AlertTitle>목록을 불러오지 못했습니다</AlertTitle>
             <AlertDescription>{loadError}</AlertDescription>
           </Alert>
         ) : (
-          <div className="mt-6">
-            <StudentSettlementOverview courses={courses} />
-          </div>
+          <StudentSettlementOverview courses={courses} />
         )}
       </div>
     </main>

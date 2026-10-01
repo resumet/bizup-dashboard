@@ -16,7 +16,7 @@ export async function loadStudentSettlementCourseSummaries(
   const admin = createAdminClient();
   const { data: courses, error: courseError } = await admin
     .from("courses")
-    .select("id,name,instructor_name,cohort,free_webinar_at")
+    .select("id,name,instructor_name,cohort,free_webinar_at,nova_settled,instructor_settled")
     .eq("workspace_id", workspaceId);
   if (courseError) {
     throw new Error(

@@ -3,6 +3,7 @@ import { ArrowRight, BookOpenCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { CourseSettlementCheckbox, type CourseSettlementControls } from "./course-settlement-checkbox";
 import {
   Table,
   TableBody,
@@ -11,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { StudentSettlementCourseSummary } from "@/lib/course-operations/student-settlement-summary";
+import { totalStudentSettlementCourses, type StudentSettlementCourseSummary } from "@/lib/course-operations/student-settlement-summary";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -28,9 +29,11 @@ function formatMoney(value: number) {
 
 export function StudentSettlementCourseList({
   courses,
+  savingIds,
+  onSave,
 }: {
   courses: StudentSettlementCourseSummary[];
-}) {
+} & CourseSettlementControls) {
   if (!courses.length) {
     return (
       <Card className="flex min-h-64 flex-col items-center justify-center p-8 text-center">
@@ -45,22 +48,37 @@ export function StudentSettlementCourseList({
     );
   }
 
+  const totals = totalStudentSettlementCourses(courses);
+
   return (
     <Card className="overflow-hidden py-0">
       <div className="overflow-x-auto">
-        <Table className="min-w-[940px]">
+        <Table className="min-w-[1280px]">
           <TableHeader>
             <TableRow>
               <TableHead>강의명</TableHead>
+              <TableHead>기수</TableHead>
+              <TableHead>강사명</TableHead>
               <TableHead>웨비나 날짜</TableHead>
               <TableHead className="text-right">주문</TableHead>
               <TableHead className="text-right">전체 결제금액</TableHead>
               <TableHead className="text-right">유료수강생</TableHead>
               <TableHead className="text-right">전체 비용</TableHead>
+              <TableHead>노바 정산</TableHead>
+              <TableHead>강사 정산</TableHead>
               <TableHead className="w-28 text-right">관리</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
+            <TableRow className="bg-muted/50 font-semibold">
+              <TableCell>전체 합계</TableCell>
+              <TableCell colSpan={3}>-</TableCell>
+              <TableCell className="text-right tabular-nums">{totals.order_count.toLocaleString("ko-KR")}건</TableCell>
+              <TableCell className="text-right tabular-nums">{formatMoney(totals.payment_amount)}</TableCell>
+              <TableCell className="text-right tabular-nums">{totals.paid_student_count.toLocaleString("ko-KR")}명</TableCell>
+              <TableCell className="text-right tabular-nums">{formatMoney(totals.total_cost)}</TableCell>
+              <TableCell colSpan={3}>-</TableCell>
+            </TableRow>
             {courses.map((course) => {
               const href = `/services/course-operations/students-settlements/${course.id}`;
               return (
@@ -69,11 +87,9 @@ export function StudentSettlementCourseList({
                     <Link href={href} className="font-medium hover:underline">
                       {course.name}
                     </Link>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {course.cohort ? `${course.cohort}기 · ` : ""}
-                      {course.instructor_name || "강사 미등록"}
-                    </p>
                   </TableCell>
+                  <TableCell>{course.cohort ? `${course.cohort}기` : "-"}</TableCell>
+                  <TableCell>{course.instructor_name || "-"}</TableCell>
                   <TableCell>{formatDate(course.free_webinar_at)}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {course.order_count.toLocaleString("ko-KR")}건
@@ -86,6 +102,14 @@ export function StudentSettlementCourseList({
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatMoney(course.total_cost)}
+                  </TableCell>
+                  <TableCell>
+                    <CourseSettlementCheckbox label={`${course.name} 노바 정산`} checked={course.nova_settled}
+                      saving={savingIds.has(course.id)} onCheckedChange={(value) => void onSave(course.id, { novaSettled: value })} />
+                  </TableCell>
+                  <TableCell>
+                    <CourseSettlementCheckbox label={`${course.name} 강사 정산`} checked={course.instructor_settled}
+                      saving={savingIds.has(course.id)} onCheckedChange={(value) => void onSave(course.id, { instructorSettled: value })} />
                   </TableCell>
                   <TableCell className="text-right">
                     <Button asChild size="sm" variant="outline">
