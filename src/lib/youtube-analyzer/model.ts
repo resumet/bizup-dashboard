@@ -38,6 +38,18 @@ export function calculate(videos: Video[]) {
   return { count: videos.length, top: ranked[0] ?? null, exclude1: avg(ranked.slice(1)), exclude3: avg(ranked.slice(3)), recent5: avg(recent.slice(0,5)), recent10: avg(recent.slice(0,10)), recent20: avg(recent.slice(0,20)), recent30Likes: avgAvailable(recent30.map(video => video.likes)), recent30Comments: avgAvailable(recent30.map(video => video.comments)), recent30Count: recent30.length, samples: [5,10,20].map(n => Math.min(n,videos.length)) };
 }
 export type Metrics = Omit<ReturnType<typeof calculate>, "top"> & { top: Video | null };
+export const EMAIL_SIGNATURE_MODES = ["gmail_default", "custom"] as const;
+export type EmailSignatureMode = (typeof EMAIL_SIGNATURE_MODES)[number];
+export type YoutubeEmailSettings = {
+  email_body: string | null;
+  signature_mode: EmailSignatureMode;
+  custom_signature: string | null;
+};
+export const DEFAULT_YOUTUBE_EMAIL_SETTINGS: YoutubeEmailSettings = {
+  email_body: null,
+  signature_mode: "gmail_default",
+  custom_signature: null,
+};
 export const CHANNEL_CATEGORIES = [
   "타이탄 외부채널",
   "타이탄 내부채널",
@@ -87,6 +99,22 @@ export function normalizeChannelEmail(value: unknown): string | null {
 export function normalizeChannelMemo(value: unknown): string | null {
   if (value === null) return null;
   if (typeof value !== "string" || value.length > 2000) throw new Error("INVALID_MEMO");
+  return value.trim() ? value : null;
+}
+export function normalizeYoutubeEmailBody(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value !== "string" || value.length > 5000) throw new Error("INVALID_EMAIL_BODY");
+  return value.trim() ? value : null;
+}
+export function normalizeEmailSignatureMode(value: unknown): EmailSignatureMode {
+  if (typeof value !== "string" || !EMAIL_SIGNATURE_MODES.includes(value as EmailSignatureMode)) {
+    throw new Error("INVALID_EMAIL_SIGNATURE_MODE");
+  }
+  return value as EmailSignatureMode;
+}
+export function normalizeCustomEmailSignature(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value !== "string" || value.length > 2000) throw new Error("INVALID_EMAIL_SIGNATURE");
   return value.trim() ? value : null;
 }
 export function normalizeExcludedFromUpdates(value: unknown): boolean {

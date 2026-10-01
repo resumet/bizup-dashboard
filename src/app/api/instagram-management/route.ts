@@ -1,27 +1,24 @@
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 
-import { createUniqueDocumentSlug, courseDocumentErrorResponse, requireCourseDocumentAdmin, toDocumentSummary } from "@/lib/course-documents/server";
+import { courseDocumentErrorResponse, requireCourseDocumentAdmin, toDocumentSummary } from "@/lib/course-documents/server";
 import {
-  COURSE_DOCUMENT_MATERIAL_LIMIT,
   courseDocumentMaterialPositionSchema,
   courseDocumentMaterials,
   courseDocumentMaterialTitleSchema,
 } from "@/lib/course-documents/materials";
 import type { BlockedPhone, CourseDocumentCourse, CourseDocumentLead, CourseDocumentMaterial } from "@/lib/course-documents/types";
-import { adminCourseDocumentSchema, assertValidKoreanPhone, blockedPhoneSchema, courseDocumentTitleSchema } from "@/lib/course-documents/validation";
+import { adminCourseDocumentSchema, assertValidKoreanPhone, blockedPhoneSchema } from "@/lib/course-documents/validation";
 
 export const runtime = "nodejs";
 
 const requestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("update-course-access"), courseId: z.uuid(), enabled: z.boolean(), regenerateToken: z.boolean().optional().default(false) }),
-  z.object({ action: z.literal("create-document"), courseId: z.uuid(), title: courseDocumentTitleSchema }),
   z.object({
     action: z.literal("save-material"),
     courseId: z.uuid(),
     position: courseDocumentMaterialPositionSchema,
     title: courseDocumentMaterialTitleSchema,
-    documentId: z.uuid().nullable(),
   }),
   z.object({ action: z.literal("save-document"), documentId: z.uuid(), document: adminCourseDocumentSchema }),
   z.object({ action: z.literal("delete-document"), documentId: z.uuid() }),
@@ -147,33 +144,6 @@ export async function POST(request: Request) {
       return Response.json({ setting: { enabled: data.external_edit_enabled, accessToken: data.external_access_token } });
     }
 
-    if (input.action === "create-document") {
-      const { data: course } = await admin.from("courses").select("id,instructor_name").eq("id", input.courseId).eq("workspace_id", membership.workspace_id).maybeSingle();
-      if (!course) throw new Error("NOT_FOUND");
-      const { count, error: countError } = await admin
-        .from("course_documents")
-        .select("id", { count: "exact", head: true })
-        .eq("course_id", course.id)
-        .is("deleted_at", null);
-      if (countError) throw new Error(`문서 개수 확인 실패: ${countError.code}`);
-      if ((count ?? 0) >= COURSE_DOCUMENT_MATERIAL_LIMIT) {
-        throw new Error(`인스타 자료는 강의별로 최대 ${COURSE_DOCUMENT_MATERIAL_LIMIT}개까지 만들 수 있습니다.`);
-      }
-      const slug = await createUniqueDocumentSlug(input.title);
-      const { data, error } = await admin.from("course_documents").insert({
-        workspace_id: membership.workspace_id,
-        course_id: course.id,
-        instructor_name: course.instructor_name,
-        title: input.title,
-        slug,
-        content: [],
-        created_by: user.id,
-        updated_by: user.id,
-      }).select("id").single();
-      if (error) throw new Error(`문서 생성 실패: ${error.code}`);
-      return Response.json({ id: data.id }, { status: 201 });
-    }
-
     if (input.action === "save-material") {
       const { data: course } = await admin
         .from("courses")
@@ -183,17 +153,15 @@ export async function POST(request: Request) {
         .maybeSingle();
       if (!course) throw new Error("NOT_FOUND");
 
-      if (input.documentId) {
-        const { data: document, error: documentError } = await admin
-          .from("course_documents")
-          .select("id")
-          .eq("id", input.documentId)
-          .eq("course_id", course.id)
-          .eq("workspace_id", membership.workspace_id)
-          .is("deleted_at", null)
-          .maybeSingle();
-        if (documentError) throw new Error(`강사 작성 글 확인 실패: ${documentError.code}`);
-        if (!document) throw new Error("선택한 강사 작성 글을 찾을 수 없습니다.");
+      const { data: existingMaterial, error: existingMaterialError } = await admin
+        .from("course_instagram_materials")
+        .select("document_id")
+        .eq("course_id", course.id)
+        .eq("position", input.position)
+        .maybeSingle();
+      if (existingMaterialError) throw new Error(`인스타 자료 확인 실패: ${existingMaterialError.code}`);
+      if (existingMaterial?.document_id && !input.title) {
+        throw new Error("강사가 작성한 글이 있는 항목의 제목은 비워둘 수 없습니다.");
       }
 
       const { data, error } = await admin
@@ -202,7 +170,6 @@ export async function POST(request: Request) {
           course_id: course.id,
           position: input.position,
           title: input.title,
-          document_id: input.documentId,
           updated_at: new Date().toISOString(),
         }, { onConflict: "course_id,position" })
         .select("position,title,document_id")
@@ -219,11 +186,18 @@ export async function POST(request: Request) {
     }
 
     if (input.action === "save-document") {
-      const { data: existing } = await admin.from("course_documents").select("id,status").eq("id", input.documentId).eq("workspace_id", membership.workspace_id).is("deleted_at", null).maybeSingle();
+      const { data: existing } = await admin.from("course_documents").select("id,course_id,status").eq("id", input.documentId).eq("workspace_id", membership.workspace_id).is("deleted_at", null).maybeSingle();
       if (!existing) throw new Error("NOT_FOUND");
+      const { data: material, error: materialError } = await admin
+        .from("course_instagram_materials")
+        .select("title")
+        .eq("course_id", existing.course_id)
+        .eq("document_id", input.documentId)
+        .maybeSingle();
+      if (materialError) throw new Error(`인스타 자료 확인 실패: ${materialError.code}`);
       const document = input.document;
       const values: Record<string, unknown> = {
-        title: document.title,
+        title: material?.title ?? document.title,
         content: document.content,
         status: document.status,
         lead_gate_enabled: document.leadGateEnabled,

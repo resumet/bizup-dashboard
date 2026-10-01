@@ -2,13 +2,14 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink, LoaderCircle, Mail, Play, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Eye, EyeOff, ExternalLink, LoaderCircle, Mail, Play, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { ChannelDetailsEditor } from "@/components/youtube-analyzer/channel-details-editor";
+import { EmailDraftSettings } from "@/components/youtube-analyzer/email-draft-settings";
 import { buildGmailComposeWithAccountChooser } from "@/lib/youtube-analyzer/gmail";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { CHANNEL_CATEGORIES, inputs, parseSource, errorMessages, type Analysis, type AnalysisRequest, type Batch, type ChannelCategory, type Video } from "@/lib/youtube-analyzer/model";
+import { CHANNEL_CATEGORIES, DEFAULT_YOUTUBE_EMAIL_SETTINGS, inputs, parseSource, errorMessages, type Analysis, type AnalysisRequest, type Batch, type ChannelCategory, type Video, type YoutubeEmailSettings } from "@/lib/youtube-analyzer/model";
 import { sortChannels, type ChannelSort, type SortDirection } from "@/lib/youtube-analyzer/sort";
 
 type CategoryFilter = "all" | "uncategorized" | ChannelCategory;
@@ -54,10 +55,12 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   const [reanalyzingAll,setReanalyzingAll] = useState(false);
   const [reanalysisError,setReanalysisError] = useState("");
   const [categoryFilter,setCategoryFilter] = useState<CategoryFilter>("all");
+  const [showInvalidChannels,setShowInvalidChannels] = useState(true);
   const [sortBy,setSortBy] = useState<ChannelSort>("position");
   const [sortDirection,setSortDirection] = useState<SortDirection>("desc");
   const [loadingAll,setLoadingAll] = useState(false);
   const [allLoaded,setAllLoaded] = useState(false);
+  const [emailSettings,setEmailSettings] = useState<YoutubeEmailSettings>(DEFAULT_YOUTUBE_EMAIL_SETTINGS);
   const viewVersion = useRef(0);
   const [detail,setDetail] = useState<Analysis | null>(null);
   const [videos,setVideos] = useState<Video[] | null>(null);
@@ -66,7 +69,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   const [deleting,setDeleting] = useState(false);
   const [deleteError,setDeleteError] = useState("");
   const requiresAll=sortBy!=="position" || categoryFilter!=="all";
-  const visibleRuns=useMemo(()=>sortChannels(runs.filter(run=>categoryFilter==="all" || (categoryFilter==="uncategorized" ? run.category===null : run.category===categoryFilter)),sortBy,sortDirection),[runs,categoryFilter,sortBy,sortDirection]);
+  const visibleRuns=useMemo(()=>sortChannels(runs.filter(run=>(showInvalidChannels || !run.excluded_from_updates) && (categoryFilter==="all" || (categoryFilter==="uncategorized" ? run.category===null : run.category===categoryFilter))),sortBy,sortDirection),[runs,showInvalidChannels,categoryFilter,sortBy,sortDirection]);
   const urls = inputs(text);
   const invalid = urls.flatMap(url => {
     try { parseSource(url); return []; }
@@ -110,6 +113,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
         setAllLoaded(requiresAll);
         setBatch(data.batch ?? null);
         setRequests(data.requests ?? []);
+        setEmailSettings(data.emailSettings ?? DEFAULT_YOUTUBE_EMAIL_SETTINGS);
         setError("");
         setLoading(false);
         setLoadingAll(false);
@@ -271,7 +275,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
 
   return <main className="mx-auto min-h-screen max-w-[1900px] space-y-6 px-4 py-6 sm:px-8">
     <div className="flex flex-wrap items-center justify-end gap-4 pb-5">
-      <div className="flex flex-wrap items-center gap-2"><Button variant="outline" disabled={reanalyzingAll || refreshingEngagement || submitting || analysisPending || loading || !runs.length} onClick={()=>void reanalyzeStoredChannels()} title="저장된 모든 채널을 다시 분석해 숏츠 제외 기준을 적용합니다.">{reanalyzingAll ? <LoaderCircle className="size-4 animate-spin"/> : <RefreshCw className="size-4"/>}숏츠 제외 재분석</Button><Button variant="outline" disabled={refreshingEngagement || reanalyzingAll || analysisPending} onClick={()=>void refreshEngagement()} title="저장된 영상 데이터로 모든 채널의 평균 댓글·좋아요를 다시 계산합니다.">{refreshingEngagement ? <LoaderCircle className="size-4 animate-spin"/> : <RefreshCw className="size-4"/>}전체 평균 갱신 (임시)</Button><Button onClick={openAddDialog}>{analysisPending ? <LoaderCircle className="size-4 animate-spin"/> : <Plus className="size-4"/>}{analysisPending ? "분석 중" : "채널 추가"}</Button><Button variant="outline" size="icon" title="새로고침" aria-label="새로고침" onClick={()=>setRevision(value=>value+1)}><RefreshCw className="size-4"/></Button></div>
+      <div className="flex flex-wrap items-center gap-2"><Button variant="outline" disabled={reanalyzingAll || refreshingEngagement || submitting || analysisPending || loading || !runs.length} onClick={()=>void reanalyzeStoredChannels()} title="저장된 모든 채널을 다시 분석해 숏츠 제외 기준을 적용합니다.">{reanalyzingAll ? <LoaderCircle className="size-4 animate-spin"/> : <RefreshCw className="size-4"/>}숏츠 제외 재분석</Button><Button variant="outline" disabled={refreshingEngagement || reanalyzingAll || analysisPending} onClick={()=>void refreshEngagement()} title="저장된 영상 데이터로 모든 채널의 평균 댓글·좋아요를 다시 계산합니다.">{refreshingEngagement ? <LoaderCircle className="size-4 animate-spin"/> : <RefreshCw className="size-4"/>}전체 평균 갱신 (임시)</Button><EmailDraftSettings settings={emailSettings} onSaved={setEmailSettings}/><Button onClick={openAddDialog}>{analysisPending ? <LoaderCircle className="size-4 animate-spin"/> : <Plus className="size-4"/>}{analysisPending ? "분석 중" : "채널 추가"}</Button><Button variant="outline" size="icon" title="새로고침" aria-label="새로고침" onClick={()=>setRevision(value=>value+1)}><RefreshCw className="size-4"/></Button></div>
     </div>
 
     {error && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
@@ -287,6 +291,10 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
           <p className="mt-1 text-sm text-muted-foreground">새 분석에서는 숏츠를 제외합니다. 기존 채널에도 적용하려면 상단의 숏츠 제외 재분석을 실행하세요.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" size="sm" aria-pressed={!showInvalidChannels} onClick={()=>setShowInvalidChannels(show=>!show)}>
+            {showInvalidChannels ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            {showInvalidChannels ? "유효하지 않은 채널 숨기기" : "유효하지 않은 채널 보기"}
+          </Button>
           <label htmlFor="youtube-channel-category-filter" className="text-sm font-medium">분류</label>
           <select id="youtube-channel-category-filter" className="h-9 max-w-56 rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" value={categoryFilter} onChange={event=>changeCategoryFilter(event.target.value as CategoryFilter)}>
             <option value="all">전체 분류</option>
@@ -309,12 +317,12 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
           </select>}
         </div>
       </div>
-      {loading || loadingAll ? <p role="status" className="flex items-center gap-2 py-10 text-sm"><LoaderCircle className="size-4 animate-spin"/>{loadingAll ? "전체 채널을 불러오는 중입니다." : "분석 목록을 불러오는 중입니다."}</p> : requiresAll && !allLoaded ? <div className="flex items-center gap-3 border-y py-8 text-sm"><span>전체 채널을 불러오지 못했습니다.</span><Button variant="outline" size="sm" onClick={()=>{setLoadingAll(true);setRevision(value=>value+1);}}>다시 시도</Button></div> : !runs.length ? <p className="border-y py-12 text-center text-muted-foreground">{active(batch) ? "첫 번째 채널 분석을 기다리고 있습니다." : "분석한 채널이 없습니다."}</p> : !visibleRuns.length ? <p className="border-y py-12 text-center text-muted-foreground">선택한 분류에 해당하는 채널이 없습니다.</p> : <div className="overflow-x-auto rounded-md border">
+      {loading || loadingAll ? <p role="status" className="flex items-center gap-2 py-10 text-sm"><LoaderCircle className="size-4 animate-spin"/>{loadingAll ? "전체 채널을 불러오는 중입니다." : "분석 목록을 불러오는 중입니다."}</p> : requiresAll && !allLoaded ? <div className="flex items-center gap-3 border-y py-8 text-sm"><span>전체 채널을 불러오지 못했습니다.</span><Button variant="outline" size="sm" onClick={()=>{setLoadingAll(true);setRevision(value=>value+1);}}>다시 시도</Button></div> : !runs.length ? <p className="border-y py-12 text-center text-muted-foreground">{active(batch) ? "첫 번째 채널 분석을 기다리고 있습니다." : "분석한 채널이 없습니다."}</p> : !visibleRuns.length ? <p className="border-y py-12 text-center text-muted-foreground">선택한 필터에 해당하는 채널이 없습니다.</p> : <div className="overflow-x-auto rounded-md border">
         <table className="w-full min-w-[1550px] text-sm">
           <thead className="bg-muted/60"><tr>{["채널 / 주소","이메일","출연료","RS(%)","전체 / 분석 영상","구독자","최근 20개 평균","최근 30개 평균 댓글","최근 30개 평균 좋아요","등록 / 업데이트","관리"].map(heading=><th key={heading} className="whitespace-nowrap px-3 py-3 text-left font-medium">{heading}</th>)}</tr></thead>
           <tbody>{visibleRuns.map(run=><tr key={run.channel_id} className={`border-t align-top transition-colors ${run.excluded_from_updates ? "bg-muted/70 text-muted-foreground hover:bg-muted/80" : "hover:bg-muted/20"}`}>
-            <td className="min-w-60 max-w-72 px-3 py-4"><a href={run.channel.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-semibold hover:underline">{run.channel.thumbnail && <Image unoptimized src={run.channel.thumbnail} alt="" width={36} height={36} className={`size-9 rounded-full ${run.excluded_from_updates ? "grayscale opacity-60" : ""}`} referrerPolicy="no-referrer"/>}<span className="break-words">{run.channel.name}</span><ExternalLink className="size-3 shrink-0"/></a><a href={run.channel.url} target="_blank" rel="noreferrer" className="mt-2 block break-all text-xs text-muted-foreground hover:underline">{displayUrl(run.channel.url)}</a><p className="mt-3 text-xs text-muted-foreground">분류: <span className={run.excluded_from_updates ? "font-medium" : "font-medium text-foreground"}>{run.category ?? "-"}</span></p>{run.excluded_from_updates ? <p className="mt-2 inline-flex rounded-full border bg-background/70 px-2 py-1 text-xs font-medium">의미 없는 채널 · 업데이트 제외</p> : null}<div className="mt-2"><ChannelDetailsEditor run={run} onSaved={updateDetails}/></div>{run.warnings.map(warning=><p key={warning} className="mt-2 text-xs text-amber-800">{warning}</p>)}</td>
-            <td className="min-w-52 px-3 py-4">{run.email ? <a href={buildGmailComposeWithAccountChooser(run.email)} target="_blank" rel="noreferrer" title="Google 계정을 선택해 Gmail 작성창 열기" className="flex items-start gap-1.5 break-all text-sm text-primary hover:underline"><Mail className="mt-0.5 size-3.5 shrink-0" />{run.email}</a> : null}</td>
+            <td className="min-w-60 max-w-72 px-3 py-4"><a href={run.channel.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-semibold hover:underline">{run.channel.thumbnail && <Image unoptimized src={run.channel.thumbnail} alt="" width={36} height={36} className={`size-9 rounded-full ${run.excluded_from_updates ? "grayscale opacity-60" : ""}`} referrerPolicy="no-referrer"/>}<span className="break-words">{run.channel.name}</span><ExternalLink className="size-3 shrink-0"/></a><a href={run.channel.url} target="_blank" rel="noreferrer" className="mt-2 block break-all text-xs text-muted-foreground hover:underline">{displayUrl(run.channel.url)}</a><p className="mt-3 text-xs text-muted-foreground">분류: <span className={run.excluded_from_updates ? "font-medium" : "font-medium text-foreground"}>{run.category ?? "-"}</span></p>{run.excluded_from_updates ? <p className="mt-2 inline-flex rounded-full border bg-background/70 px-2 py-1 text-xs font-medium">유효하지 않은 채널 · 업데이트 제외</p> : null}<div className="mt-2"><ChannelDetailsEditor run={run} onSaved={updateDetails}/></div>{run.warnings.map(warning=><p key={warning} className="mt-2 text-xs text-amber-800">{warning}</p>)}</td>
+            <td className="min-w-52 px-3 py-4">{run.email ? <a href={buildGmailComposeWithAccountChooser(run.email,{body:emailSettings.email_body,signatureMode:emailSettings.signature_mode,customSignature:emailSettings.custom_signature})} target="_blank" rel="noreferrer" title="저장한 본문으로 Google 계정을 선택해 Gmail 작성창 열기" className="flex items-start gap-1.5 break-all text-sm text-primary hover:underline"><Mail className="mt-0.5 size-3.5 shrink-0" />{run.email}</a> : null}</td>
             <td className="whitespace-nowrap px-3 py-4 text-right tabular-nums">{run.appearance_fee == null ? "-" : `${number(run.appearance_fee)}원`}</td>
             <td className="whitespace-nowrap px-3 py-4 text-right tabular-nums">{run.rs_percent == null ? "-" : `${run.rs_percent}%`}</td>
             <td className="px-3 py-4 tabular-nums">{number(run.channel.reported)} / {number(run.metrics.count)}</td>

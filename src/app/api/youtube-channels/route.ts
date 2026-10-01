@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireCourseOperationsMembership, requireCourseOperationsUser } from "@/lib/course-operations/server";
-import { inputs, normalizeAppearanceFee, normalizeChannelCategory, normalizeChannelEmail, normalizeChannelMemo, normalizeExcludedFromUpdates, normalizeRsPercent } from "@/lib/youtube-analyzer/model";
+import { DEFAULT_YOUTUBE_EMAIL_SETTINGS, inputs, normalizeAppearanceFee, normalizeChannelCategory, normalizeChannelEmail, normalizeChannelMemo, normalizeExcludedFromUpdates, normalizeRsPercent } from "@/lib/youtube-analyzer/model";
 import { setting } from "@/lib/youtube-analyzer/api";
 import { youtubeAnalysisWorkflow } from "@/workflows/youtube-analysis";
 
@@ -110,8 +110,15 @@ export async function GET(request: Request) {
     const requestsQuery = batchId
       ? batchRequests(admin,batchId).then(data=>({data,error:null}))
       : Promise.resolve({data:[],error:null});
-    const [result,batch,requests] = await Promise.all([channelsQuery,batchQuery,requestsQuery]);
+    const emailSettingsQuery = admin.from("youtube_channel_email_settings")
+      .select("email_body,signature_mode,custom_signature")
+      .eq("workspace_id",workspaceId)
+      .maybeSingle();
+    const [result,batch,requests,emailSettingsResult] = await Promise.all([channelsQuery,batchQuery,requestsQuery,emailSettingsQuery]);
     if (batch.error || requests.error) throw batch.error ?? requests.error;
+    if (emailSettingsResult.error && !/PGRST20[45]|42P01/u.test(emailSettingsResult.error.code ?? "")) {
+      throw emailSettingsResult.error;
+    }
     let rows = result.data;
     if (missingOptionalColumn(result.error)) {
       const withMemo = await admin.from("youtube_analyzed_channels")
@@ -160,6 +167,7 @@ export async function GET(request: Request) {
       hasMore:rows!.length>200,
       batch:batch.data,
       requests:requests.data,
+      emailSettings:emailSettingsResult.data ?? DEFAULT_YOUTUBE_EMAIL_SETTINGS,
     });
   } catch(error) { return failure(error); }
 }

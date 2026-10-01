@@ -253,6 +253,7 @@
   .course-rich-text-editor th {
     background: var(--muted);
     font-weight: 650;
+    text-align: center;
   }
 
   .course-rich-text-editor tr:last-child > * {
@@ -301,6 +302,13 @@
     text-decoration: underline;
     text-decoration-color: color-mix(in oklab, var(--primary) 35%, transparent);
     text-underline-offset: 0.22rem;
+  }
+
+  .course-rich-text-editor mark {
+    border-radius: 0.18rem;
+    background: #fef08a;
+    padding-inline: 0.12rem;
+    color: inherit;
   }
 
   .course-rich-text-editor img {

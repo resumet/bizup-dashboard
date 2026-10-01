@@ -34,7 +34,7 @@ export type CtaDocumentBlock = {
 export type RichTextAttributeValue = string | number | boolean | number[] | null;
 
 export type RichTextMark = {
-  type: "bold" | "italic" | "underline" | "strike" | "code" | "link";
+  type: "bold" | "italic" | "underline" | "strike" | "code" | "link" | "highlight" | "textStyle";
   attrs?: Record<string, RichTextAttributeValue>;
 };
 

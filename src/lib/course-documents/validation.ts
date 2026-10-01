@@ -58,7 +58,7 @@ const richTextAttributeSchema = z.union([
   z.null(),
 ]);
 const richTextMarkSchema = z.object({
-  type: z.enum(["bold", "italic", "underline", "strike", "code", "link"]),
+  type: z.enum(["bold", "italic", "underline", "strike", "code", "link", "highlight", "textStyle"]),
   attrs: z.record(z.string(), richTextAttributeSchema).optional(),
 });
 const richTextNodeSchema: z.ZodType<RichTextNode> = z.lazy(() => z.object({

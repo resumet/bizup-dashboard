@@ -42,15 +42,22 @@ test("channels accumulate in first-seen order and reanalysis updates only the ma
     const exclusionMigration=await readFile("supabase/migrations_archive/20260929/202609280002_youtube_exclude_updates.sql","utf8");
     await db.exec(exclusionMigration);
     await db.exec(exclusionMigration);
+    const emailDraftMigration=await readFile("supabase/migrations/20261001053235_youtube_channel_email_drafts.sql","utf8");
+    await db.exec(emailDraftMigration);
+    await db.exec(emailDraftMigration);
 
     const initial=await db.query<{first_analyzed_at:string}>("select first_analyzed_at from youtube_analyzed_channels where channel_id='channel-a'");
     assert.equal(initial.rows.length,1);
     assert.equal((await db.query("select * from youtube_channel_videos")).rows.length,1);
     await db.query("update youtube_analyzed_channels set email=$1, category=$2, appearance_fee=$3, rs_percent=$4, memo=$5, excluded_from_updates=true where channel_id='channel-a'",["contact@example.com","타이탄 외부채널",1000000,25.125,"영업 미팅 예정\n자료 전달 필요"]);
+    await db.query("insert into youtube_channel_email_settings(workspace_id,email_body,signature_mode,custom_signature) values($1,$2,'custom',$3)",[workspace,"안녕하세요.\n유튜브 출연을 제안드립니다.","비즈업 홍길동\n010-0000-0000"]);
     await assert.rejects(db.query("update youtube_analyzed_channels set category='unknown' where channel_id='channel-a'"),/youtube_analyzed_channels_category_valid/);
     await assert.rejects(db.query("update youtube_analyzed_channels set appearance_fee=-1 where channel_id='channel-a'"),/youtube_analyzed_channels_appearance_fee_nonnegative/);
     await assert.rejects(db.query("update youtube_analyzed_channels set rs_percent=101 where channel_id='channel-a'"),/youtube_analyzed_channels_rs_percent_range/);
     await assert.rejects(db.query("update youtube_analyzed_channels set memo=$1 where channel_id='channel-a'",["a".repeat(2001)]),/youtube_analyzed_channels_memo_length/);
+    await assert.rejects(db.query("update youtube_channel_email_settings set email_body=$1 where workspace_id=$2",["a".repeat(5001),workspace]),/youtube_channel_email_settings_body_length/);
+    await assert.rejects(db.query("update youtube_channel_email_settings set signature_mode='unknown' where workspace_id=$1",[workspace]),/youtube_channel_email_settings_signature_mode_valid/);
+    await assert.rejects(db.query("update youtube_channel_email_settings set custom_signature=null where workspace_id=$1",[workspace]),/youtube_channel_email_settings_custom_signature_required/);
 
     await db.query("insert into youtube_analysis_batches(id,workspace_id,created_by,input_count) values($1,$2,$3,1),($4,$2,$3,1)",[secondBatch,workspace,user,thirdBatch]);
     await db.query("insert into youtube_analysis_requests(batch_id,input_order,input_url,resolved_channel_id) values($1,0,'a','channel-a'),($2,0,'b','channel-b')",[secondBatch,thirdBatch]);
@@ -104,6 +111,10 @@ test("channels accumulate in first-seen order and reanalysis updates only the ma
     assert.equal(Number(retained.rs_percent),25.125);
     assert.equal(retained.memo,"영업 미팅 예정\n자료 전달 필요");
     assert.equal(retained.excluded_from_updates,true);
+    const emailSettings=(await db.query<{email_body:string;signature_mode:string;custom_signature:string}>("select email_body,signature_mode,custom_signature from youtube_channel_email_settings where workspace_id=$1",[workspace])).rows[0];
+    assert.equal(emailSettings.email_body,"안녕하세요.\n유튜브 출연을 제안드립니다.");
+    assert.equal(emailSettings.signature_mode,"custom");
+    assert.equal(emailSettings.custom_signature,"비즈업 홍길동\n010-0000-0000");
 
     // Deleting one current channel cascades only its videos. Analyzing it again
     // creates a new entry at the bottom of the cumulative list.
@@ -121,10 +132,13 @@ test("channels accumulate in first-seen order and reanalysis updates only the ma
     await db.exec(`set role authenticated; select set_config('test.user','${user}',false)`);
     assert.equal((await db.query("select * from youtube_analyzed_channels")).rows.length,2);
     assert.equal((await db.query("select * from youtube_channel_videos")).rows.length,2);
+    assert.equal((await db.query("select * from youtube_channel_email_settings")).rows.length,1);
     await assert.rejects(db.query("update youtube_analyzed_channels set email='other@example.com' where channel_id='channel-a'"),/permission denied/);
+    await assert.rejects(db.query("update youtube_channel_email_settings set email_body='other'"),/permission denied/);
     await db.exec("select set_config('test.user','00000000-0000-0000-0000-000000000099',false)");
     assert.equal((await db.query("select * from youtube_analyzed_channels")).rows.length,0);
     assert.equal((await db.query("select * from youtube_channel_videos")).rows.length,0);
+    assert.equal((await db.query("select * from youtube_channel_email_settings")).rows.length,0);
     await assert.rejects(db.query(save,[secondBatch,"{}","{}","[]","2026-05-01","[]"]),/permission denied/);
   } finally {await db.close();}
 });

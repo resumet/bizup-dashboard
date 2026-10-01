@@ -136,7 +136,7 @@ export function ChannelDetailsEditor({ run, onSaved }: {
         </div>
         <label htmlFor={`${id}-excluded`} className="flex cursor-pointer items-start gap-3 rounded-lg border bg-muted/30 p-3">
           <Checkbox id={`${id}-excluded`} checked={excludedFromUpdates} onCheckedChange={(checked) => setExcludedFromUpdates(checked === true)} disabled={saving} className="mt-0.5" />
-          <span><span className="block text-sm font-medium">의미 없는 채널로 설정</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">체크하면 전체 재분석과 평균 갱신 대상에서 제외되며, 채널 명단에 회색으로 표시됩니다.</span></span>
+          <span><span className="block text-sm font-medium">유효하지 않은 채널로 설정</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">체크하면 전체 재분석과 평균 갱신 대상에서 제외되며, 채널 명단에 회색으로 표시됩니다.</span></span>
         </label>
         {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
         <DialogFooter>

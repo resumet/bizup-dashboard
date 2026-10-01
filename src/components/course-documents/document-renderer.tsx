@@ -1,9 +1,12 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 
 import type { CourseDocumentBlock, RichTextMark, RichTextNode } from "@/lib/course-documents/types";
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/gu;
+const ALLOWED_FONT_SIZES = new Set(["12px", "14px", "16px", "18px", "20px", "24px", "28px", "32px", "40px", "48px"]);
+const ALLOWED_LINE_HEIGHTS = new Set(["1.2", "1.5", "1.8", "2"]);
+const ALLOWED_TEXT_ALIGNMENTS = new Set(["left", "center", "right", "justify"]);
 
 function linkedText(value: string) {
   const parts: ReactNode[] = [];
@@ -39,6 +42,12 @@ function applyMarks(content: ReactNode, marks: RichTextMark[] | undefined, key: 
     if (mark.type === "italic") return <em key={markKey}>{child}</em>;
     if (mark.type === "underline") return <u key={markKey} className="decoration-foreground/35 underline-offset-3">{child}</u>;
     if (mark.type === "strike") return <s key={markKey}>{child}</s>;
+    if (mark.type === "highlight") return <mark key={markKey} className="rounded-sm bg-yellow-200 px-0.5 text-inherit">{child}</mark>;
+    if (mark.type === "textStyle") {
+      const fontSize = typeof mark.attrs?.fontSize === "string" && ALLOWED_FONT_SIZES.has(mark.attrs.fontSize) ? mark.attrs.fontSize : undefined;
+      const lineHeight = typeof mark.attrs?.lineHeight === "string" && ALLOWED_LINE_HEIGHTS.has(mark.attrs.lineHeight) ? mark.attrs.lineHeight : undefined;
+      return fontSize || lineHeight ? <span key={markKey} style={{ fontSize, lineHeight }}>{child}</span> : child;
+    }
     if (mark.type === "code") return <code key={markKey} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.9em]">{child}</code>;
     if (mark.type === "link") {
       const href = safeExternalUrl(mark.attrs?.href);
@@ -46,6 +55,13 @@ function applyMarks(content: ReactNode, marks: RichTextMark[] | undefined, key: 
     }
     return child;
   }, content);
+}
+
+function textBlockStyle(attrs: RichTextNode["attrs"]): CSSProperties | undefined {
+  const textAlign = typeof attrs?.textAlign === "string" && ALLOWED_TEXT_ALIGNMENTS.has(attrs.textAlign)
+    ? attrs.textAlign as CSSProperties["textAlign"]
+    : undefined;
+  return textAlign ? { textAlign } : undefined;
 }
 
 function renderRichTextNode(node: RichTextNode, key: string): ReactNode {
@@ -77,7 +93,7 @@ function renderRichTextNode(node: RichTextNode, key: string): ReactNode {
   }
   if (node.type === "tableRow") return <tr key={key} className="border-b last:border-b-0">{children}</tr>;
   if (node.type === "tableHeader") {
-    return <th key={key} colSpan={typeof node.attrs?.colspan === "number" ? node.attrs.colspan : 1} rowSpan={typeof node.attrs?.rowspan === "number" ? node.attrs.rowspan : 1} className="border-r bg-muted/60 px-3 py-2.5 font-semibold last:border-r-0">{children}</th>;
+    return <th key={key} colSpan={typeof node.attrs?.colspan === "number" ? node.attrs.colspan : 1} rowSpan={typeof node.attrs?.rowspan === "number" ? node.attrs.rowspan : 1} className="border-r bg-muted/60 px-3 py-2.5 text-center font-semibold last:border-r-0">{children}</th>;
   }
   if (node.type === "tableCell") {
     return <td key={key} colSpan={typeof node.attrs?.colspan === "number" ? node.attrs.colspan : 1} rowSpan={typeof node.attrs?.rowspan === "number" ? node.attrs.rowspan : 1} className="border-r px-3 py-2.5 align-top last:border-r-0">{children}</td>;
@@ -93,11 +109,12 @@ function renderRichTextNode(node: RichTextNode, key: string): ReactNode {
     );
   }
   if (node.type === "heading") {
-    if (node.attrs?.level === 1) return <h2 key={key} className="pt-5 text-3xl font-bold tracking-tight text-balance sm:text-4xl">{children}</h2>;
-    if (node.attrs?.level === 2) return <h3 key={key} className="pt-4 text-2xl font-semibold tracking-tight text-balance">{children}</h3>;
-    return <h4 key={key} className="pt-3 text-xl font-semibold tracking-tight text-balance">{children}</h4>;
+    const style = textBlockStyle(node.attrs);
+    if (node.attrs?.level === 1) return <h2 key={key} style={style} className="pt-5 text-3xl font-bold tracking-tight text-balance sm:text-4xl">{children}</h2>;
+    if (node.attrs?.level === 2) return <h3 key={key} style={style} className="pt-4 text-2xl font-semibold tracking-tight text-balance">{children}</h3>;
+    return <h4 key={key} style={style} className="pt-3 text-xl font-semibold tracking-tight text-balance">{children}</h4>;
   }
-  if (node.type === "paragraph") return <p key={key} className="min-h-4 whitespace-pre-wrap leading-8 text-pretty">{children}</p>;
+  if (node.type === "paragraph") return <p key={key} style={textBlockStyle(node.attrs)} className="min-h-4 whitespace-pre-wrap leading-8 text-pretty">{children}</p>;
   if (node.type === "bulletList") return <ul key={key} className="list-disc space-y-2 pl-6 leading-7">{children}</ul>;
   if (node.type === "orderedList") return <ol key={key} className="list-decimal space-y-2 pl-6 leading-7">{children}</ol>;
   if (node.type === "listItem") return <li key={key} className="pl-1">{children}</li>;

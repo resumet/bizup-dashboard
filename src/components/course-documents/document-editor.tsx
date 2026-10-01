@@ -2,11 +2,14 @@
 
 import { Extension, Node as TiptapNode, type Editor, type JSONContent } from "@tiptap/core";
 import ImageExtension from "@tiptap/extension-image";
+import Highlight from "@tiptap/extension-highlight";
 import LinkExtension from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
 import { TableKit } from "@tiptap/extension-table";
+import TextAlign from "@tiptap/extension-text-align";
+import { FontSize, LineHeight, TextStyle } from "@tiptap/extension-text-style";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Plugin } from "@tiptap/pm/state";
@@ -16,9 +19,14 @@ import {
   Check,
   Columns3,
   Eye,
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
   Heading1,
   Heading2,
   Heading3,
+  Highlighter,
   ImagePlus,
   Italic,
   Link2,
@@ -33,6 +41,7 @@ import {
   Redo2,
   Rows3,
   Save,
+  Strikethrough,
   Table2,
   Trash2,
   Underline,
@@ -83,9 +92,17 @@ type Props = {
   courseName: string;
   accessToken?: string;
   document?: CourseDocumentDetail;
+  fixedTitle?: boolean;
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const FONT_SIZE_OPTIONS = [12, 14, 16, 18, 20, 24, 28, 32, 40, 48] as const;
+const LINE_HEIGHT_OPTIONS = [
+  { value: "1.2", label: "좁게 1.2" },
+  { value: "1.5", label: "보통 1.5" },
+  { value: "1.8", label: "넓게 1.8" },
+  { value: "2", label: "아주 넓게 2.0" },
+] as const;
 const TOP_LEVEL_BLOCKS = [
   "paragraph",
   "heading",
@@ -219,7 +236,7 @@ function ToolbarButton({
   );
 }
 
-export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, document }: Props) {
+export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, document, fixedTitle = false }: Props) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<Editor | null>(null);
   const dirtyRef = useRef(false);
@@ -296,6 +313,11 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
       }),
       TaskList,
       TaskItem.configure({ nested: true }),
+      TextStyle,
+      FontSize,
+      LineHeight,
+      Highlight,
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
       Placeholder.configure({ placeholder: "본문을 입력하거나 이미지를 붙여넣으세요" }),
       ButtonLink,
       BlockIdentity,
@@ -397,6 +419,23 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
     setLinkDialogOpen(false);
   }
 
+  function insertChecklistItem() {
+    if (!editor) return;
+    if (editor.isActive("taskItem")) {
+      editor.chain().focus().splitListItem("taskItem").run();
+      return;
+    }
+    editor.chain().focus().insertContent({
+      type: "taskList",
+      attrs: { blockId: crypto.randomUUID() },
+      content: [{
+        type: "taskItem",
+        attrs: { checked: false },
+        content: [{ type: "paragraph" }],
+      }],
+    }).run();
+  }
+
   function openButtonDialog() {
     const attrs = editor?.getAttributes("buttonLink");
     setButtonLabel(typeof attrs?.label === "string" ? attrs.label : "자세히 보기");
@@ -478,6 +517,12 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
       : editor?.isActive("heading", { level: 3 })
         ? "heading3"
         : "paragraph";
+  const currentFontSize = typeof editor?.getAttributes("textStyle").fontSize === "string"
+    ? editor.getAttributes("textStyle").fontSize
+    : "default";
+  const currentLineHeight = typeof editor?.getAttributes("textStyle").lineHeight === "string"
+    ? editor.getAttributes("textStyle").lineHeight
+    : "default";
   void selectionRevision;
 
   return (
@@ -527,14 +572,60 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
               </SelectContent>
             </Select>
             <span className="mx-1 h-5 w-px shrink-0 bg-border" />
+            <Select
+              value={currentFontSize}
+              onValueChange={(value) => {
+                if (!editor) return;
+                if (value === "default") editor.chain().focus().unsetFontSize().run();
+                else editor.chain().focus().setFontSize(value).run();
+              }}
+            >
+              <SelectTrigger className="h-8 w-[6.25rem] border-0 bg-transparent shadow-none" aria-label="글자 크기"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">기본 크기</SelectItem>
+                {FONT_SIZE_OPTIONS.map((size) => <SelectItem key={size} value={`${size}px`}>{size}px</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select
+              value={currentLineHeight}
+              onValueChange={(value) => {
+                if (!editor) return;
+                if (value === "default") editor.chain().focus().unsetLineHeight().run();
+                else editor.chain().focus().setLineHeight(value).run();
+              }}
+            >
+              <SelectTrigger className="h-8 w-[6.25rem] border-0 bg-transparent shadow-none" aria-label="행간"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">기본 행간</SelectItem>
+                {LINE_HEIGHT_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <span className="mx-1 h-5 w-px shrink-0 bg-border" />
             <ToolbarButton label="굵게" active={Boolean(editor?.isActive("bold"))} onClick={() => editor?.chain().focus().toggleBold().run()}><Bold /></ToolbarButton>
             <ToolbarButton label="기울임" active={Boolean(editor?.isActive("italic"))} onClick={() => editor?.chain().focus().toggleItalic().run()}><Italic /></ToolbarButton>
             <ToolbarButton label="밑줄" active={Boolean(editor?.isActive("underline"))} onClick={() => editor?.chain().focus().toggleUnderline().run()}><Underline /></ToolbarButton>
+            <ToolbarButton label="취소선" active={Boolean(editor?.isActive("strike"))} onClick={() => editor?.chain().focus().toggleStrike().run()}><Strikethrough /></ToolbarButton>
+            <ToolbarButton label="형광펜" active={Boolean(editor?.isActive("highlight"))} onClick={() => editor?.chain().focus().toggleHighlight().run()}><Highlighter /></ToolbarButton>
             <ToolbarButton label="링크" active={Boolean(editor?.isActive("link"))} onClick={openLinkDialog}><Link2 /></ToolbarButton>
+            <span className="mx-1 h-5 w-px shrink-0 bg-border" />
+            <ToolbarButton label="왼쪽 정렬" active={Boolean(editor && !editor.isActive({ textAlign: "center" }) && !editor.isActive({ textAlign: "right" }) && !editor.isActive({ textAlign: "justify" }))} onClick={() => editor?.chain().focus().setTextAlign("left").run()}><AlignLeft /></ToolbarButton>
+            <ToolbarButton label="가운데 정렬" active={Boolean(editor?.isActive({ textAlign: "center" }))} onClick={() => editor?.chain().focus().setTextAlign("center").run()}><AlignCenter /></ToolbarButton>
+            <ToolbarButton label="오른쪽 정렬" active={Boolean(editor?.isActive({ textAlign: "right" }))} onClick={() => editor?.chain().focus().setTextAlign("right").run()}><AlignRight /></ToolbarButton>
+            <ToolbarButton label="양쪽 정렬" active={Boolean(editor?.isActive({ textAlign: "justify" }))} onClick={() => editor?.chain().focus().setTextAlign("justify").run()}><AlignJustify /></ToolbarButton>
             <span className="mx-1 h-5 w-px shrink-0 bg-border" />
             <ToolbarButton label="글머리 목록" active={Boolean(editor?.isActive("bulletList"))} onClick={() => editor?.chain().focus().toggleBulletList().run()}><List /></ToolbarButton>
             <ToolbarButton label="번호 목록" active={Boolean(editor?.isActive("orderedList"))} onClick={() => editor?.chain().focus().toggleOrderedList().run()}><ListOrdered /></ToolbarButton>
-            <ToolbarButton label="체크박스 목록" active={Boolean(editor?.isActive("taskList"))} onClick={() => editor?.chain().focus().toggleTaskList().run()}><ListChecks /></ToolbarButton>
+            <Button
+              type="button"
+              size="sm"
+              variant={editor?.isActive("taskList") ? "secondary" : "ghost"}
+              aria-label="체크 항목 넣기"
+              title="체크 항목 넣기"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={insertChecklistItem}
+            >
+              <ListChecks />체크 항목
+            </Button>
             <ToolbarButton label="인용문" active={Boolean(editor?.isActive("blockquote"))} onClick={() => editor?.chain().focus().toggleBlockquote().run()}><Quote /></ToolbarButton>
             <span className="mx-1 h-5 w-px shrink-0 bg-border" />
             <DropdownMenu>
@@ -597,20 +688,24 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
             </div>
           ) : (
             <div className="mx-auto w-full max-w-4xl px-6 py-10 sm:px-12 lg:px-16 lg:py-14">
-              <Input
-                value={title}
-                maxLength={200}
-                autoFocus={!document}
-                onChange={(event) => changeTitle(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key !== "Enter") return;
-                  event.preventDefault();
-                  editor?.commands.focus("start");
-                }}
-                placeholder="문서 제목"
-                aria-label="문서 제목"
-                className="h-auto rounded-none border-0 bg-transparent px-0 py-2 text-4xl font-bold tracking-tight shadow-none placeholder:text-muted-foreground/45 focus-visible:border-transparent focus-visible:ring-0 sm:text-5xl dark:bg-transparent"
-              />
+              {fixedTitle ? (
+                <h1 className="py-2 text-4xl font-bold tracking-tight text-balance sm:text-5xl">{title}</h1>
+              ) : (
+                <Input
+                  value={title}
+                  maxLength={200}
+                  autoFocus={!document}
+                  onChange={(event) => changeTitle(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter") return;
+                    event.preventDefault();
+                    editor?.commands.focus("start");
+                  }}
+                  placeholder="문서 제목"
+                  aria-label="문서 제목"
+                  className="h-auto rounded-none border-0 bg-transparent px-0 py-2 text-4xl font-bold tracking-tight shadow-none placeholder:text-muted-foreground/45 focus-visible:border-transparent focus-visible:ring-0 sm:text-5xl dark:bg-transparent"
+                />
+              )}
               <EditorContent editor={editor} className="mt-8" />
             </div>
           )}

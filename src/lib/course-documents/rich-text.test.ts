@@ -58,3 +58,59 @@ test("빈 표와 체크박스도 문서 내용으로 보존한다", () => {
   assert.deepEqual(converted.map((block) => block.id), [tableId, taskId]);
   assert.equal(courseDocumentContentSchema.safeParse(converted).success, true);
 });
+
+test("체크한 항목과 입력한 내용을 함께 보존한다", () => {
+  const taskId = "00000000-0000-4000-8000-000000000007";
+  const converted = richTextDocumentToBlocks({
+    content: [{
+      type: "taskList",
+      attrs: { blockId: taskId },
+      content: [{
+        type: "taskItem",
+        attrs: { checked: true },
+        content: [{ type: "paragraph", content: [{ type: "text", text: "촬영 완료" }] }],
+      }],
+    }],
+  });
+
+  assert.equal(courseDocumentContentSchema.safeParse(converted).success, true);
+  assert.equal(converted[0]?.type, "rich_text");
+  if (converted[0]?.type !== "rich_text") return;
+  assert.equal(converted[0].content.content?.[0]?.attrs?.checked, true);
+  assert.equal(richTextCharacterCount(converted), 5);
+});
+
+test("글자 크기·행간·형광펜·정렬 서식을 저장 형식으로 보존한다", () => {
+  const blockId = "00000000-0000-4000-8000-000000000008";
+  const converted = richTextDocumentToBlocks({
+    content: [{
+      type: "paragraph",
+      attrs: { blockId, textAlign: "center" },
+      content: [{
+        type: "text",
+        text: "강조 문장",
+        marks: [
+          { type: "bold" },
+          { type: "italic" },
+          { type: "underline" },
+          { type: "strike" },
+          { type: "highlight" },
+          { type: "textStyle", attrs: { fontSize: "24px", lineHeight: "1.8" } },
+        ],
+      }],
+    }],
+  });
+
+  assert.equal(courseDocumentContentSchema.safeParse(converted).success, true);
+  assert.equal(converted[0]?.type, "rich_text");
+  if (converted[0]?.type !== "rich_text") return;
+  assert.equal(converted[0].content.attrs?.textAlign, "center");
+  assert.deepEqual(converted[0].content.content?.[0]?.marks?.map((mark) => mark.type), [
+    "bold",
+    "italic",
+    "underline",
+    "strike",
+    "highlight",
+    "textStyle",
+  ]);
+});
