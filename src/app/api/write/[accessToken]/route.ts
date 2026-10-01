@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { createUniqueDocumentSlug, courseDocumentErrorResponse, getExternalCourse, toDocumentDetail, toDocumentSummary } from "@/lib/course-documents/server";
+import { COURSE_DOCUMENT_MATERIAL_LIMIT } from "@/lib/course-documents/materials";
 import { saveCourseDocumentSchema } from "@/lib/course-documents/validation";
 
 export const runtime = "nodejs";
@@ -33,6 +34,15 @@ export async function POST(request: Request, { params }: Context) {
     const { accessToken } = await params;
     const { admin, settings, course } = await getExternalCourse(accessToken);
     const input = saveCourseDocumentSchema.parse(await request.json());
+    const { count, error: countError } = await admin
+      .from("course_documents")
+      .select("id", { count: "exact", head: true })
+      .eq("course_id", course.id)
+      .is("deleted_at", null);
+    if (countError) throw new Error(`문서 개수 확인 실패: ${countError.code}`);
+    if ((count ?? 0) >= COURSE_DOCUMENT_MATERIAL_LIMIT) {
+      throw new Error(`인스타 자료는 최대 ${COURSE_DOCUMENT_MATERIAL_LIMIT}개까지 만들 수 있습니다.`);
+    }
     const slug = await createUniqueDocumentSlug(input.title);
     const { data, error } = await admin.from("course_documents").insert({
       workspace_id: settings.workspace_id,

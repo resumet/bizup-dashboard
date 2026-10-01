@@ -2,7 +2,13 @@ import { randomBytes } from "node:crypto";
 import { z } from "zod";
 
 import { createUniqueDocumentSlug, courseDocumentErrorResponse, requireCourseDocumentAdmin, toDocumentSummary } from "@/lib/course-documents/server";
-import type { BlockedPhone, CourseDocumentCourse, CourseDocumentLead } from "@/lib/course-documents/types";
+import {
+  COURSE_DOCUMENT_MATERIAL_LIMIT,
+  courseDocumentMaterialPositionSchema,
+  courseDocumentMaterials,
+  courseDocumentMaterialTitleSchema,
+} from "@/lib/course-documents/materials";
+import type { BlockedPhone, CourseDocumentCourse, CourseDocumentLead, CourseDocumentMaterial } from "@/lib/course-documents/types";
 import { adminCourseDocumentSchema, assertValidKoreanPhone, blockedPhoneSchema, courseDocumentTitleSchema } from "@/lib/course-documents/validation";
 
 export const runtime = "nodejs";
@@ -10,6 +16,13 @@ export const runtime = "nodejs";
 const requestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("update-course-access"), courseId: z.uuid(), enabled: z.boolean(), regenerateToken: z.boolean().optional().default(false) }),
   z.object({ action: z.literal("create-document"), courseId: z.uuid(), title: courseDocumentTitleSchema }),
+  z.object({
+    action: z.literal("save-material"),
+    courseId: z.uuid(),
+    position: courseDocumentMaterialPositionSchema,
+    title: courseDocumentMaterialTitleSchema,
+    documentId: z.uuid().nullable(),
+  }),
   z.object({ action: z.literal("save-document"), documentId: z.uuid(), document: adminCourseDocumentSchema }),
   z.object({ action: z.literal("delete-document"), documentId: z.uuid() }),
   z.object({ action: z.literal("add-blocked-phone"), phone: z.string(), memo: z.string().optional() }),
@@ -41,13 +54,16 @@ export async function GET() {
       if (error && error.code !== "23505") throw new Error(`외부 작성 설정 생성 실패: ${error.code}`);
     }
 
-    const [settingsResult, documentsResult, leadsResult, blockedResult] = await Promise.all([
+    const courseIds = (courses ?? []).map((course) => course.id);
+    const materialCourseIds = courseIds.length ? courseIds : ["00000000-0000-0000-0000-000000000000"];
+    const [settingsResult, documentsResult, materialsResult, leadsResult, blockedResult] = await Promise.all([
       admin.from("course_document_settings").select("course_id,external_edit_enabled,external_access_token").eq("workspace_id", membership.workspace_id),
       admin.from("course_documents").select("id,course_id,instructor_name,title,slug,status,lead_gate_enabled,lead_gate_after_block_id,created_at,updated_at,published_at,course_document_leads(count)").eq("workspace_id", membership.workspace_id).is("deleted_at", null).order("updated_at", { ascending: false }),
+      admin.from("course_instagram_materials").select("course_id,position,title,document_id").in("course_id", materialCourseIds).order("position"),
       admin.from("course_document_leads").select("id,document_id,course_id,instructor_name,name,phone,utm_source,utm_medium,utm_campaign,utm_content,referrer,created_at,course_documents!inner(title),courses!inner(name)").eq("workspace_id", membership.workspace_id).order("created_at", { ascending: false }).limit(10_000),
       admin.from("course_document_blocked_phones").select("id,phone_normalized,memo,created_at").eq("workspace_id", membership.workspace_id).order("created_at", { ascending: false }),
     ]);
-    const queryError = settingsResult.error ?? documentsResult.error ?? leadsResult.error ?? blockedResult.error;
+    const queryError = settingsResult.error ?? documentsResult.error ?? materialsResult.error ?? leadsResult.error ?? blockedResult.error;
     if (queryError) throw new Error(`인스타그램 문서 관리 조회 실패: ${queryError.code}`);
 
     const leads: CourseDocumentLead[] = (leadsResult.data ?? []).map((row) => {
@@ -71,6 +87,20 @@ export async function GET() {
       };
     });
     const documents = (documentsResult.data ?? []).map((row) => toDocumentSummary(row));
+    const savedMaterialsByCourse = new Map<string, Array<{ position: number; title: string; documentId: string | null }>>();
+    for (const material of materialsResult.data ?? []) {
+      const saved = savedMaterialsByCourse.get(material.course_id) ?? [];
+      saved.push({
+        position: material.position,
+        title: material.title,
+        documentId: material.document_id,
+      });
+      savedMaterialsByCourse.set(material.course_id, saved);
+    }
+    const materialsByCourse = new Map<string, CourseDocumentMaterial[]>();
+    for (const courseId of courseIds) {
+      materialsByCourse.set(courseId, courseDocumentMaterials(savedMaterialsByCourse.get(courseId) ?? []));
+    }
     const settingsByCourse = new Map((settingsResult.data ?? []).map((item) => [item.course_id, item] as const));
     const courseItems: CourseDocumentCourse[] = (courses ?? []).map((course) => {
       const setting = settingsByCourse.get(course.id);
@@ -82,6 +112,7 @@ export async function GET() {
         freeWebinarAt: course.free_webinar_at,
         externalEditEnabled: setting?.external_edit_enabled ?? false,
         externalAccessToken: setting?.external_access_token ?? "",
+        materials: materialsByCourse.get(course.id) ?? courseDocumentMaterials([]),
         documents: documents.filter((document) => document.courseId === course.id),
       };
     });
@@ -119,6 +150,15 @@ export async function POST(request: Request) {
     if (input.action === "create-document") {
       const { data: course } = await admin.from("courses").select("id,instructor_name").eq("id", input.courseId).eq("workspace_id", membership.workspace_id).maybeSingle();
       if (!course) throw new Error("NOT_FOUND");
+      const { count, error: countError } = await admin
+        .from("course_documents")
+        .select("id", { count: "exact", head: true })
+        .eq("course_id", course.id)
+        .is("deleted_at", null);
+      if (countError) throw new Error(`문서 개수 확인 실패: ${countError.code}`);
+      if ((count ?? 0) >= COURSE_DOCUMENT_MATERIAL_LIMIT) {
+        throw new Error(`인스타 자료는 강의별로 최대 ${COURSE_DOCUMENT_MATERIAL_LIMIT}개까지 만들 수 있습니다.`);
+      }
       const slug = await createUniqueDocumentSlug(input.title);
       const { data, error } = await admin.from("course_documents").insert({
         workspace_id: membership.workspace_id,
@@ -132,6 +172,50 @@ export async function POST(request: Request) {
       }).select("id").single();
       if (error) throw new Error(`문서 생성 실패: ${error.code}`);
       return Response.json({ id: data.id }, { status: 201 });
+    }
+
+    if (input.action === "save-material") {
+      const { data: course } = await admin
+        .from("courses")
+        .select("id")
+        .eq("id", input.courseId)
+        .eq("workspace_id", membership.workspace_id)
+        .maybeSingle();
+      if (!course) throw new Error("NOT_FOUND");
+
+      if (input.documentId) {
+        const { data: document, error: documentError } = await admin
+          .from("course_documents")
+          .select("id")
+          .eq("id", input.documentId)
+          .eq("course_id", course.id)
+          .eq("workspace_id", membership.workspace_id)
+          .is("deleted_at", null)
+          .maybeSingle();
+        if (documentError) throw new Error(`강사 작성 글 확인 실패: ${documentError.code}`);
+        if (!document) throw new Error("선택한 강사 작성 글을 찾을 수 없습니다.");
+      }
+
+      const { data, error } = await admin
+        .from("course_instagram_materials")
+        .upsert({
+          course_id: course.id,
+          position: input.position,
+          title: input.title,
+          document_id: input.documentId,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "course_id,position" })
+        .select("position,title,document_id")
+        .single();
+      if (error?.code === "23505") throw new Error("이 글은 이미 다른 인스타 자료에 연결되어 있습니다.");
+      if (error) throw new Error(`인스타 자료 저장 실패: ${error.code}`);
+      return Response.json({
+        material: {
+          position: data.position,
+          title: data.title,
+          documentId: data.document_id,
+        } satisfies CourseDocumentMaterial,
+      });
     }
 
     if (input.action === "save-document") {

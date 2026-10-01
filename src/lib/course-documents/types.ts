@@ -99,6 +99,12 @@ export type CourseDocumentDetail = CourseDocumentSummary & {
   content: CourseDocumentBlock[];
 };
 
+export type CourseDocumentMaterial = {
+  position: number;
+  title: string;
+  documentId: string | null;
+};
+
 export type CourseDocumentCourse = {
   id: string;
   name: string;
@@ -107,6 +113,7 @@ export type CourseDocumentCourse = {
   freeWebinarAt: string;
   externalEditEnabled: boolean;
   externalAccessToken: string;
+  materials: CourseDocumentMaterial[];
   documents: CourseDocumentSummary[];
 };
 

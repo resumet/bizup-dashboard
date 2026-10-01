@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, Check, Copy, ExternalLink, FilePlus2, FileText, Loader2, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Ban, Check, Copy, ExternalLink, FilePlus2, FileText, Loader2, RefreshCw, Save, Search, Trash2 } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { BlockedPhone, CourseDocumentCourse, CourseDocumentLead } from "@/lib/course-documents/types";
+import { COURSE_DOCUMENT_MATERIAL_LIMIT } from "@/lib/course-documents/materials";
+import type { BlockedPhone, CourseDocumentCourse, CourseDocumentLead, CourseDocumentMaterial } from "@/lib/course-documents/types";
 
 type LoadResponse = { courses?: CourseDocumentCourse[]; leads?: CourseDocumentLead[]; blockedPhones?: BlockedPhone[]; message?: string };
 
@@ -38,6 +39,7 @@ export function InstagramManagementWorkspace() {
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [savingMaterialPosition, setSavingMaterialPosition] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
@@ -107,7 +109,7 @@ export function InstagramManagementWorkspace() {
 
   async function post(payload: Record<string, unknown>) {
     const response = await fetch("/api/instagram-management", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    const body = await response.json() as { id?: string; setting?: { enabled: boolean; accessToken: string }; blockedPhone?: BlockedPhone; message?: string };
+    const body = await response.json() as { id?: string; setting?: { enabled: boolean; accessToken: string }; material?: CourseDocumentMaterial; blockedPhone?: BlockedPhone; message?: string };
     if (!response.ok) throw new Error(body.message ?? "요청을 처리하지 못했습니다.");
     return body;
   }
@@ -136,6 +138,44 @@ export function InstagramManagementWorkspace() {
     finally { setBusy(false); }
   }
 
+  function updateMaterial(position: number, changes: Partial<Pick<CourseDocumentMaterial, "title" | "documentId">>) {
+    if (!selectedCourse) return;
+    setCourses((current) => current.map((course) => course.id === selectedCourse.id ? {
+      ...course,
+      materials: course.materials.map((material) => material.position === position ? { ...material, ...changes } : material),
+    } : course));
+  }
+
+  function selectMaterialDocument(position: number, documentId: string) {
+    if (!selectedCourse) return;
+    const material = selectedCourse.materials.find((item) => item.position === position);
+    const document = selectedCourse.documents.find((item) => item.id === documentId);
+    updateMaterial(position, {
+      documentId: documentId || null,
+      title: material?.title.trim() ? material.title : document?.title ?? material?.title ?? "",
+    });
+  }
+
+  async function saveMaterial(position: number) {
+    if (!selectedCourse) return;
+    const material = selectedCourse.materials.find((item) => item.position === position);
+    if (!material) return;
+    setSavingMaterialPosition(position); setError(""); setNotice("");
+    try {
+      const body = await post({
+        action: "save-material",
+        courseId: selectedCourse.id,
+        position,
+        title: material.title,
+        documentId: material.documentId,
+      });
+      if (!body.material) throw new Error("저장된 인스타 자료를 확인하지 못했습니다.");
+      updateMaterial(position, body.material);
+      setNotice(`${position}번 인스타 자료를 저장했습니다.`);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "인스타 자료를 저장하지 못했습니다."); }
+    finally { setSavingMaterialPosition(null); }
+  }
+
   async function deleteDocument(documentId: string) {
     if (!window.confirm("문서를 삭제 상태로 전환할까요? 수집된 리드는 보존됩니다.")) return;
     setBusy(true); setError("");
@@ -162,6 +202,9 @@ export function InstagramManagementWorkspace() {
   }
 
   const externalUrl = selectedCourse?.externalAccessToken ? `/write/${selectedCourse.externalAccessToken}` : "";
+  const assignedDocumentIds = new Set(selectedCourse?.materials.flatMap((material) => material.documentId ? [material.documentId] : []) ?? []);
+  const assignedMaterialCount = selectedCourse?.materials.filter((material) => material.title || material.documentId).length ?? 0;
+  const documentLimitReached = (selectedCourse?.documents.length ?? 0) >= COURSE_DOCUMENT_MATERIAL_LIMIT;
   const exportParams = new URLSearchParams();
   if (leadCourseId) exportParams.set("courseId", leadCourseId);
   if (leadDocumentId) exportParams.set("documentId", leadDocumentId);
@@ -175,13 +218,17 @@ export function InstagramManagementWorkspace() {
       {notice ? <Alert><AlertDescription className="flex items-center gap-2"><Check className="size-4 text-emerald-600" />{notice}</AlertDescription></Alert> : null}
       {loading ? <div className="flex min-h-80 items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground"><Loader2 className="animate-spin" />불러오는 중</div> : (
         <Tabs defaultValue="documents" className="gap-6">
-          <TabsList className="h-auto w-full justify-start overflow-x-auto"><TabsTrigger value="documents">문서 관리</TabsTrigger><TabsTrigger value="leads">리드 {leads.length.toLocaleString("ko-KR")}</TabsTrigger><TabsTrigger value="blocked">차단 전화번호</TabsTrigger></TabsList>
+          <TabsList className="h-auto w-full justify-start overflow-x-auto"><TabsTrigger value="documents">자료 관리</TabsTrigger><TabsTrigger value="leads">리드 {leads.length.toLocaleString("ko-KR")}</TabsTrigger><TabsTrigger value="blocked">차단 전화번호</TabsTrigger></TabsList>
           <TabsContent value="documents" className="mt-0">
             <div className="grid items-start gap-5 lg:grid-cols-[18rem_minmax(0,1fr)]">
-              <Card className="lg:sticky lg:top-6"><CardHeader className="pb-3"><CardTitle>강의</CardTitle></CardHeader><CardContent className="space-y-3"><div className="relative"><Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="강의 검색" /></div><div className="max-h-[65vh] space-y-1 overflow-y-auto pr-1">{filteredCourses.map((course) => <button key={course.id} type="button" onClick={() => setSelectedCourseId(course.id)} className={`w-full rounded-lg px-3 py-3 text-left transition-colors ${selectedCourseId === course.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}><span className="block truncate font-medium">{course.cohort ? `${course.cohort}기 · ` : ""}{course.name}</span><span className={`mt-1 block truncate text-xs ${selectedCourseId === course.id ? "text-primary-foreground/75" : "text-muted-foreground"}`}>{course.instructorName || "강사 미지정"} · 문서 {course.documents.length}</span></button>)}</div></CardContent></Card>
+              <Card className="lg:sticky lg:top-6"><CardHeader className="pb-3"><CardTitle>강의</CardTitle></CardHeader><CardContent className="space-y-3"><div className="relative"><Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="강의 검색" /></div><div className="max-h-[65vh] space-y-1 overflow-y-auto pr-1">{filteredCourses.map((course) => <button key={course.id} type="button" onClick={() => setSelectedCourseId(course.id)} className={`w-full rounded-lg px-3 py-3 text-left transition-colors ${selectedCourseId === course.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}><span className="block truncate font-medium">{course.cohort ? `${course.cohort}기 · ` : ""}{course.name}</span><span className={`mt-1 block truncate text-xs ${selectedCourseId === course.id ? "text-primary-foreground/75" : "text-muted-foreground"}`}>{course.instructorName || "강사 미지정"} · 인스타 글 {course.documents.length}</span></button>)}</div></CardContent></Card>
               {selectedCourse ? <div className="space-y-5">
-                <Card><CardContent className="flex flex-col gap-4 py-5 xl:flex-row xl:items-center"><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="truncate text-xl font-semibold">{selectedCourse.name}</h2><Badge variant={selectedCourse.externalEditEnabled ? "default" : "secondary"}>{selectedCourse.externalEditEnabled ? "외부 작성 허용" : "비활성"}</Badge></div><p className="mt-1 text-sm text-muted-foreground">{selectedCourse.instructorName || "강사 미지정"} · {shortDate(selectedCourse.freeWebinarAt)}</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" disabled={!externalUrl} onClick={() => void copyText(new URL(externalUrl, window.location.origin).toString()).then(() => setNotice("외부 작성 주소를 복사했습니다.")).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "주소를 복사하지 못했습니다."))}><Copy />주소 복사</Button><Button variant="outline" disabled={busy} onClick={() => void updateAccess(selectedCourse.externalEditEnabled, true)}><RefreshCw />재발급</Button><Button variant={selectedCourse.externalEditEnabled ? "outline" : "default"} disabled={busy} onClick={() => void updateAccess(!selectedCourse.externalEditEnabled)}>{selectedCourse.externalEditEnabled ? "비활성화" : "외부 작성 활성화"}</Button><Button onClick={() => setNewDocumentOpen(true)}><FilePlus2 />새 문서</Button></div></CardContent></Card>
-                <Card><CardHeader><CardTitle>문서 {selectedCourse.documents.length}</CardTitle></CardHeader><CardContent>{selectedCourse.documents.length ? <Table><TableHeader><TableRow><TableHead>제목</TableHead><TableHead>상태</TableHead><TableHead>리드</TableHead><TableHead>수정일</TableHead><TableHead className="text-right">작업</TableHead></TableRow></TableHeader><TableBody>{selectedCourse.documents.map((document) => <TableRow key={document.id}><TableCell><button type="button" className="font-medium hover:underline" onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}>{document.title}</button></TableCell><TableCell><Badge variant={document.status === "published" ? "default" : "secondary"}>{document.status === "published" ? "공개" : "비공개"}</Badge></TableCell><TableCell>{document.leadCount.toLocaleString("ko-KR")}</TableCell><TableCell className="text-muted-foreground">{dateTime(document.updatedAt)}</TableCell><TableCell><div className="flex justify-end gap-1"><Button variant="ghost" size="icon-sm" aria-label="문서 편집" onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}><FileText /></Button>{document.status === "published" ? <><Button variant="ghost" size="icon-sm" aria-label="공개 페이지 주소 복사" onClick={() => void copyText(new URL(`/article/${document.slug}`, window.location.origin).toString()).then(() => setNotice("공개 페이지 주소를 복사했습니다.")).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "주소를 복사하지 못했습니다."))}><Copy /></Button><Button variant="ghost" size="icon-sm" asChild><a aria-label="공개 페이지 열기" href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink /></a></Button></> : null}<Button variant="ghost" size="icon-sm" aria-label="문서 삭제" disabled={busy} onClick={() => void deleteDocument(document.id)}><Trash2 /></Button></div></TableCell></TableRow>)}</TableBody></Table> : <div className="flex min-h-56 flex-col items-center justify-center rounded-xl border border-dashed text-center"><FileText className="mb-3 size-7 text-muted-foreground" /><p className="font-medium">등록된 문서가 없습니다</p><Button className="mt-4" size="sm" onClick={() => setNewDocumentOpen(true)}><FilePlus2 />새 문서</Button></div>}</CardContent></Card>
+                <Card><CardContent className="flex flex-col gap-4 py-5 xl:flex-row xl:items-center"><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="truncate text-xl font-semibold">{selectedCourse.name}</h2><Badge variant={selectedCourse.externalEditEnabled ? "default" : "secondary"}>{selectedCourse.externalEditEnabled ? "외부 작성 허용" : "비활성"}</Badge></div><p className="mt-1 text-sm text-muted-foreground">{selectedCourse.instructorName || "강사 미지정"} · {shortDate(selectedCourse.freeWebinarAt)}</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" disabled={!externalUrl} onClick={() => void copyText(new URL(externalUrl, window.location.origin).toString()).then(() => setNotice("외부 작성 주소를 복사했습니다.")).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "주소를 복사하지 못했습니다."))}><Copy />주소 복사</Button><Button variant="outline" disabled={busy} onClick={() => void updateAccess(selectedCourse.externalEditEnabled, true)}><RefreshCw />재발급</Button><Button variant={selectedCourse.externalEditEnabled ? "outline" : "default"} disabled={busy} onClick={() => void updateAccess(!selectedCourse.externalEditEnabled)}>{selectedCourse.externalEditEnabled ? "비활성화" : "외부 작성 활성화"}</Button><Button disabled={documentLimitReached} onClick={() => setNewDocumentOpen(true)}><FilePlus2 />{documentLimitReached ? "최대 40개" : "새 글"}</Button></div></CardContent></Card>
+                <Card><CardHeader><CardTitle>인스타 자료 <span className="text-sm font-normal text-muted-foreground">{assignedMaterialCount}/{COURSE_DOCUMENT_MATERIAL_LIMIT}</span></CardTitle></CardHeader><CardContent><div className="max-h-[65vh] overflow-auto rounded-lg border"><Table><TableHeader className="sticky top-0 z-10 bg-background"><TableRow className="hover:bg-background"><TableHead className="w-16 text-center">번호</TableHead><TableHead className="min-w-64">제목</TableHead><TableHead className="min-w-72">강사가 제작한 글</TableHead><TableHead className="w-36">상태</TableHead><TableHead className="w-40 text-right">작업</TableHead></TableRow></TableHeader><TableBody>{selectedCourse.materials.map((material) => {
+                  const document = selectedCourse.documents.find((item) => item.id === material.documentId);
+                  return <TableRow key={material.position}><TableCell className="text-center font-mono text-sm text-muted-foreground">{String(material.position).padStart(2, "0")}</TableCell><TableCell><Input aria-label={`${material.position}번 자료 제목`} value={material.title} maxLength={200} placeholder="자료 제목" onChange={(event) => updateMaterial(material.position, { title: event.target.value })} /></TableCell><TableCell><select aria-label={`${material.position}번 강사 작성 글`} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" value={material.documentId ?? ""} onChange={(event) => selectMaterialDocument(material.position, event.target.value)}><option value="">글을 선택해 주세요</option>{selectedCourse.documents.map((item) => <option key={item.id} value={item.id} disabled={assignedDocumentIds.has(item.id) && item.id !== material.documentId}>{item.title} · {item.status === "published" ? "공개" : "비공개"}</option>)}</select></TableCell><TableCell>{document ? <Badge variant={document.status === "published" ? "default" : "secondary"}>{document.status === "published" ? "공개" : "비공개"}</Badge> : <span className="text-sm text-muted-foreground">미연결</span>}</TableCell><TableCell><div className="flex justify-end gap-1">{document ? <Button variant="ghost" size="icon-sm" aria-label={`${material.position}번 연결 글 편집`} onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}><FileText /></Button> : null}{document?.status === "published" ? <Button variant="ghost" size="icon-sm" asChild><a aria-label={`${material.position}번 공개 글 열기`} href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink /></a></Button> : null}<Button size="sm" disabled={savingMaterialPosition !== null} onClick={() => void saveMaterial(material.position)}>{savingMaterialPosition === material.position ? <Loader2 className="animate-spin" /> : <Save />}저장</Button></div></TableCell></TableRow>;
+                })}</TableBody></Table></div></CardContent></Card>
+                <Card><CardHeader><CardTitle>강사 작성 글 {selectedCourse.documents.length}</CardTitle></CardHeader><CardContent>{selectedCourse.documents.length ? <Table><TableHeader><TableRow><TableHead>제목</TableHead><TableHead>상태</TableHead><TableHead>리드</TableHead><TableHead>수정일</TableHead><TableHead className="text-right">작업</TableHead></TableRow></TableHeader><TableBody>{selectedCourse.documents.map((document) => <TableRow key={document.id}><TableCell><button type="button" className="font-medium hover:underline" onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}>{document.title}</button></TableCell><TableCell><Badge variant={document.status === "published" ? "default" : "secondary"}>{document.status === "published" ? "공개" : "비공개"}</Badge></TableCell><TableCell>{document.leadCount.toLocaleString("ko-KR")}</TableCell><TableCell className="text-muted-foreground">{dateTime(document.updatedAt)}</TableCell><TableCell><div className="flex justify-end gap-1"><Button variant="ghost" size="icon-sm" aria-label="문서 편집" onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}><FileText /></Button>{document.status === "published" ? <><Button variant="ghost" size="icon-sm" aria-label="공개 페이지 주소 복사" onClick={() => void copyText(new URL(`/article/${document.slug}`, window.location.origin).toString()).then(() => setNotice("공개 페이지 주소를 복사했습니다.")).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "주소를 복사하지 못했습니다."))}><Copy /></Button><Button variant="ghost" size="icon-sm" asChild><a aria-label="공개 페이지 열기" href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink /></a></Button></> : null}<Button variant="ghost" size="icon-sm" aria-label="문서 삭제" disabled={busy} onClick={() => void deleteDocument(document.id)}><Trash2 /></Button></div></TableCell></TableRow>)}</TableBody></Table> : <div className="flex min-h-56 flex-col items-center justify-center rounded-xl border border-dashed text-center"><FileText className="mb-3 size-7 text-muted-foreground" /><p className="font-medium">강사가 작성한 글이 없습니다</p><Button className="mt-4" size="sm" disabled={documentLimitReached} onClick={() => setNewDocumentOpen(true)}><FilePlus2 />새 글</Button></div>}</CardContent></Card>
               </div> : <Card><CardContent className="flex min-h-80 items-center justify-center text-muted-foreground">강의를 선택해 주세요.</CardContent></Card>}
             </div>
           </TabsContent>
@@ -197,7 +244,7 @@ export function InstagramManagementWorkspace() {
         </Tabs>
       )}
 
-      <Dialog open={newDocumentOpen} onOpenChange={setNewDocumentOpen}><DialogContent><DialogHeader><DialogTitle>새 문서</DialogTitle></DialogHeader><div className="space-y-2"><Label htmlFor="new-document-title">제목</Label><Input id="new-document-title" autoFocus value={newTitle} onChange={(event) => setNewTitle(event.target.value)} maxLength={200} onKeyDown={(event) => { if (event.key === "Enter" && newTitle.trim()) void createDocument(); }} /></div><DialogFooter><Button disabled={busy || !newTitle.trim()} onClick={() => void createDocument()}>{busy ? <Loader2 className="animate-spin" /> : <FilePlus2 />}만들기</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={newDocumentOpen} onOpenChange={setNewDocumentOpen}><DialogContent><DialogHeader><DialogTitle>새 인스타 글</DialogTitle></DialogHeader><div className="space-y-2"><Label htmlFor="new-document-title">제목</Label><Input id="new-document-title" autoFocus value={newTitle} onChange={(event) => setNewTitle(event.target.value)} maxLength={200} onKeyDown={(event) => { if (event.key === "Enter" && newTitle.trim() && !documentLimitReached) void createDocument(); }} /></div><DialogFooter><Button disabled={busy || documentLimitReached || !newTitle.trim()} onClick={() => void createDocument()}>{busy ? <Loader2 className="animate-spin" /> : <FilePlus2 />}만들기</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );
 }
