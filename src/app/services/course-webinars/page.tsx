@@ -13,6 +13,8 @@ export default async function CourseWebinarsPage() {
     <header className="border-b bg-background">
       <div className="mx-auto flex h-18 max-w-[1900px] items-center gap-3 px-5 lg:px-8">
         <Button variant="ghost" size="sm" asChild><BackLink href="/work"><ArrowLeft />뒤로가기</BackLink></Button>
+        <div className="h-5 w-px bg-border" />
+        <h1 className="truncate font-semibold">라이브 웨비나 대시보드</h1>
       </div>
     </header>
     <div className="mx-auto max-w-[1900px] px-5 pb-10 lg:px-8"><WebinarDashboard /></div>
