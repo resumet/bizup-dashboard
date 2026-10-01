@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Ban, Check, Circle, Copy, ExternalLink, FileSpreadsheet, Loader2, Pencil, RefreshCw, Save, Trash2 } from "lucide-react";
+import { Ban, Check, Circle, Copy, ExternalLink, FileSpreadsheet, Loader2, Pencil, RefreshCw, Save, Trash2, Users } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -12,12 +13,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { activeInstagramCourses, instagramCourseOptionLabel } from "@/lib/course-documents/course-options";
 import { COURSE_DOCUMENT_MATERIAL_LIMIT } from "@/lib/course-documents/materials";
-import type { BlockedPhone, CourseDocumentCourse, CourseDocumentLead, CourseDocumentMaterial } from "@/lib/course-documents/types";
+import type { BlockedPhone, CourseDocumentCourse, CourseDocumentMaterial } from "@/lib/course-documents/types";
 
-type LoadResponse = { courses?: CourseDocumentCourse[]; leads?: CourseDocumentLead[]; blockedPhones?: BlockedPhone[]; message?: string };
+type LoadResponse = { courses?: CourseDocumentCourse[]; blockedPhones?: BlockedPhone[]; message?: string };
 
 function dateTime(value: string) {
   return new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Seoul" }).format(new Date(value));
@@ -47,7 +48,6 @@ function StatusBadge({ label, color }: { label: string; color: "blue" | "yellow"
 export function InstagramManagementWorkspace() {
   const router = useRouter();
   const [courses, setCourses] = useState<CourseDocumentCourse[]>([]);
-  const [leads, setLeads] = useState<CourseDocumentLead[]>([]);
   const [blockedPhones, setBlockedPhones] = useState<BlockedPhone[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -56,16 +56,12 @@ export function InstagramManagementWorkspace() {
   const [savedMaterialsByCourse, setSavedMaterialsByCourse] = useState<Record<string, CourseDocumentMaterial[]>>({});
   const [planningSheetOpen, setPlanningSheetOpen] = useState(false);
   const [planningSheetUrl, setPlanningSheetUrl] = useState("");
+  const [blockedDialogOpen, setBlockedDialogOpen] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [leadCourseId, setLeadCourseId] = useState("");
-  const [leadDocumentId, setLeadDocumentId] = useState("");
-  const [leadInstructor, setLeadInstructor] = useState("");
-  const [leadFrom, setLeadFrom] = useState("");
-  const [leadTo, setLeadTo] = useState("");
   const [blockedPhone, setBlockedPhone] = useState("");
   const [blockedMemo, setBlockedMemo] = useState("");
-  const [renderedAt] = useState(() => Date.now());
+  const [todayKoreaDate] = useState(() => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date()));
 
   async function load() {
     setLoading(true);
@@ -73,12 +69,12 @@ export function InstagramManagementWorkspace() {
     try {
       const response = await fetch("/api/instagram-management", { cache: "no-store" });
       const body = await response.json() as LoadResponse;
-      if (!response.ok || !body.courses || !body.leads || !body.blockedPhones) throw new Error(body.message ?? "데이터를 불러오지 못했습니다.");
+      if (!response.ok || !body.courses || !body.blockedPhones) throw new Error(body.message ?? "데이터를 불러오지 못했습니다.");
+      const activeCourses = activeInstagramCourses(body.courses, todayKoreaDate);
       setCourses(body.courses);
       setSavedMaterialsByCourse(materialSnapshots(body.courses));
-      setLeads(body.leads);
       setBlockedPhones(body.blockedPhones);
-      setSelectedCourseId((current) => current && body.courses!.some((course) => course.id === current) ? current : body.courses![0]?.id ?? "");
+      setSelectedCourseId((current) => current && activeCourses.some((course) => course.id === current) ? current : activeCourses[0]?.id ?? "");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "데이터를 불러오지 못했습니다.");
     } finally {
@@ -92,31 +88,20 @@ export function InstagramManagementWorkspace() {
       .then(async (response) => ({ response, body: await response.json() as LoadResponse }))
       .then(({ response, body }) => {
         if (!active) return;
-        if (!response.ok || !body.courses || !body.leads || !body.blockedPhones) throw new Error(body.message ?? "데이터를 불러오지 못했습니다.");
+        if (!response.ok || !body.courses || !body.blockedPhones) throw new Error(body.message ?? "데이터를 불러오지 못했습니다.");
+        const activeCourses = activeInstagramCourses(body.courses, todayKoreaDate);
         setCourses(body.courses);
         setSavedMaterialsByCourse(materialSnapshots(body.courses));
-        setLeads(body.leads);
         setBlockedPhones(body.blockedPhones);
-        setSelectedCourseId(body.courses[0]?.id ?? "");
+        setSelectedCourseId(activeCourses[0]?.id ?? "");
       })
       .catch((caught: unknown) => { if (active) setError(caught instanceof Error ? caught.message : "데이터를 불러오지 못했습니다."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [todayKoreaDate]);
 
-  const selectedCourse = courses.find((course) => course.id === selectedCourseId);
-  const instructors = useMemo(() => [...new Set(courses.map((course) => course.instructorName).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ko")), [courses]);
-  const allDocuments = useMemo(() => courses.flatMap((course) => course.documents.map((document) => ({ ...document, courseName: course.name }))), [courses]);
-  const filteredLeads = useMemo(() => leads.filter((lead) => {
-    if (leadCourseId && lead.courseId !== leadCourseId) return false;
-    if (leadDocumentId && lead.documentId !== leadDocumentId) return false;
-    if (leadInstructor && lead.instructorName !== leadInstructor) return false;
-    const created = lead.createdAt.slice(0, 10);
-    return (!leadFrom || created >= leadFrom) && (!leadTo || created <= leadTo);
-  }), [leads, leadCourseId, leadDocumentId, leadInstructor, leadFrom, leadTo]);
-  const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date(renderedAt));
-  const todayLeadCount = filteredLeads.filter((lead) => lead.createdAt.slice(0, 10) === todayKey).length;
-  const lastSevenDaysLeadCount = filteredLeads.filter((lead) => new Date(lead.createdAt).getTime() >= renderedAt - 7 * 86_400_000).length;
+  const activeCourses = useMemo(() => activeInstagramCourses(courses, todayKoreaDate), [courses, todayKoreaDate]);
+  const selectedCourse = activeCourses.find((course) => course.id === selectedCourseId);
 
   async function post(payload: Record<string, unknown>) {
     const response = await fetch("/api/instagram-management", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -214,7 +199,7 @@ export function InstagramManagementWorkspace() {
     try {
       const body = await post({ action: "add-blocked-phone", phone: blockedPhone, memo: blockedMemo });
       if (!body.blockedPhone) throw new Error("저장 결과를 확인하지 못했습니다.");
-      setBlockedPhones((current) => [body.blockedPhone!, ...current]); setBlockedPhone(""); setBlockedMemo(""); setNotice("차단 전화번호를 추가했습니다.");
+      setBlockedPhones((current) => [body.blockedPhone!, ...current]); setBlockedPhone(""); setBlockedMemo(""); setBlockedDialogOpen(false); setNotice("차단 전화번호를 추가했습니다.");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "차단 전화번호를 추가하지 못했습니다."); }
     finally { setBusy(false); }
   }
@@ -237,29 +222,24 @@ export function InstagramManagementWorkspace() {
     return material.title !== (saved?.title ?? "")
       || material.referencePlanningNumber !== (saved?.referencePlanningNumber ?? "");
   }).length ?? 0;
-  const exportParams = new URLSearchParams();
-  if (leadCourseId) exportParams.set("courseId", leadCourseId);
-  if (leadDocumentId) exportParams.set("documentId", leadDocumentId);
-  if (leadInstructor) exportParams.set("instructor", leadInstructor);
-  if (leadFrom) exportParams.set("from", leadFrom);
-  if (leadTo) exportParams.set("to", leadTo);
-
   return (
     <TooltipProvider delayDuration={300}>
     <div className="space-y-6">
       {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
       {notice ? <Alert><AlertDescription className="flex items-center gap-2"><Check className="size-4 text-emerald-600" />{notice}</AlertDescription></Alert> : null}
       {loading ? <div className="flex min-h-80 items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground"><Loader2 className="animate-spin" />불러오는 중</div> : (
-        <Tabs defaultValue="documents" className="gap-6">
-          <TabsList className="h-auto w-full justify-start overflow-x-auto"><TabsTrigger value="documents">자료 관리</TabsTrigger><TabsTrigger value="leads">리드 {leads.length.toLocaleString("ko-KR")}</TabsTrigger><TabsTrigger value="blocked">차단 전화번호</TabsTrigger></TabsList>
-          <TabsContent value="documents" className="mt-0">
+        <>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="outline" asChild><Link href="/services/instagram-management/leads"><Users />리드 보기</Link></Button>
+            <Button variant="outline" onClick={() => setBlockedDialogOpen(true)}><Ban />차단 전화번호</Button>
+          </div>
             {selectedCourse ? <div className="space-y-5">
                 <Card>
                   <CardContent className="flex flex-col gap-4 py-5 xl:flex-row xl:items-center">
                     <div className="min-w-64 flex-1">
                       <label className="sr-only" htmlFor="instagram-course">강의 선택</label>
                       <select id="instagram-course" className="h-10 w-full rounded-lg border bg-background px-3 text-sm font-medium" value={selectedCourseId} onChange={(event) => setSelectedCourseId(event.target.value)}>
-                        {courses.map((course) => <option key={course.id} value={course.id}>{course.cohort ? `${course.cohort}기 · ` : ""}{course.name}</option>)}
+                        {activeCourses.map((course) => <option key={course.id} value={course.id}>{instagramCourseOptionLabel(course)}</option>)}
                       </select>
                       <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground"><span>{selectedCourse.instructorName || "강사 미지정"} · {shortDate(selectedCourse.freeWebinarAt)}</span><Badge variant={selectedCourse.externalEditEnabled ? "default" : "secondary"}>{selectedCourse.externalEditEnabled ? "외부 작성 허용" : "비활성"}</Badge></div>
                     </div>
@@ -283,19 +263,24 @@ export function InstagramManagementWorkspace() {
                 })}</TableBody></Table></div></CardContent>
                 </Card>
                 {legacyDocuments.length ? <Card><CardHeader><CardTitle>이전 방식 미연결 글 {legacyDocuments.length}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>제목</TableHead><TableHead>상태</TableHead><TableHead>수정일</TableHead><TableHead className="text-right">작업</TableHead></TableRow></TableHeader><TableBody>{legacyDocuments.map((document) => <TableRow key={document.id}><TableCell className="font-medium">{document.title}</TableCell><TableCell><Badge variant={document.status === "published" ? "default" : "secondary"}>{document.status === "published" ? "공개" : "비공개"}</Badge></TableCell><TableCell className="text-muted-foreground">{dateTime(document.updatedAt)}</TableCell><TableCell><div className="flex justify-end gap-1"><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon-sm" aria-label="문서 수정 및 리드게이트 설정" onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}><Pencil /></Button></TooltipTrigger><TooltipContent>문서 수정 및 리드게이트 설정</TooltipContent></Tooltip>{document.status === "published" ? <Button variant="ghost" size="icon-sm" asChild><a aria-label="이전 공개 글 열기" href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink /></a></Button> : null}<Button variant="ghost" size="icon-sm" aria-label="이전 글 삭제" disabled={busy} onClick={() => void deleteDocument(document.id)}><Trash2 /></Button></div></TableCell></TableRow>)}</TableBody></Table></CardContent></Card> : null}
-              </div> : <Card><CardContent className="flex min-h-80 items-center justify-center text-muted-foreground">강의를 선택해 주세요.</CardContent></Card>}
-          </TabsContent>
-          <TabsContent value="leads" className="mt-0 space-y-5">
-            <div className="grid gap-3 sm:grid-cols-3"><Card><CardContent className="py-5"><p className="text-sm text-muted-foreground">현재 결과</p><p className="mt-1 text-3xl font-semibold">{filteredLeads.length.toLocaleString("ko-KR")}</p></CardContent></Card><Card><CardContent className="py-5"><p className="text-sm text-muted-foreground">오늘</p><p className="mt-1 text-3xl font-semibold">{todayLeadCount.toLocaleString("ko-KR")}</p></CardContent></Card><Card><CardContent className="py-5"><p className="text-sm text-muted-foreground">최근 7일</p><p className="mt-1 text-3xl font-semibold">{lastSevenDaysLeadCount.toLocaleString("ko-KR")}</p></CardContent></Card></div>
-            <Card><CardContent className="grid gap-3 py-5 md:grid-cols-3 xl:grid-cols-6"><select className="h-10 rounded-lg border bg-background px-3 text-sm" value={leadInstructor} onChange={(event) => setLeadInstructor(event.target.value)}><option value="">전체 강사</option>{instructors.map((name) => <option key={name}>{name}</option>)}</select><select className="h-10 rounded-lg border bg-background px-3 text-sm" value={leadCourseId} onChange={(event) => { setLeadCourseId(event.target.value); setLeadDocumentId(""); }}><option value="">전체 강의</option>{courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}</select><select className="h-10 rounded-lg border bg-background px-3 text-sm" value={leadDocumentId} onChange={(event) => setLeadDocumentId(event.target.value)}><option value="">전체 문서</option>{allDocuments.filter((document) => !leadCourseId || document.courseId === leadCourseId).map((document) => <option key={document.id} value={document.id}>{document.title}</option>)}</select><Input type="date" aria-label="시작일" value={leadFrom} onChange={(event) => setLeadFrom(event.target.value)} /><Input type="date" aria-label="종료일" value={leadTo} onChange={(event) => setLeadTo(event.target.value)} /><Button asChild><a href={`/api/instagram-management/leads/export?${exportParams.toString()}`}><ExternalLink />Excel 다운로드</a></Button></CardContent></Card>
-            <Card><CardContent className="pt-6"><Table><TableHeader><TableRow><TableHead>등록일</TableHead><TableHead>이름</TableHead><TableHead>전화번호</TableHead><TableHead>강사</TableHead><TableHead>강의</TableHead><TableHead>문서</TableHead><TableHead>유입</TableHead></TableRow></TableHeader><TableBody>{filteredLeads.map((lead) => <TableRow key={lead.id}><TableCell className="whitespace-nowrap">{dateTime(lead.createdAt)}</TableCell><TableCell>{lead.name}</TableCell><TableCell className="font-mono">{lead.phone}</TableCell><TableCell>{lead.instructorName}</TableCell><TableCell>{lead.courseName}</TableCell><TableCell>{lead.documentTitle}</TableCell><TableCell>{lead.utmSource || lead.referrer || "-"}</TableCell></TableRow>)}</TableBody></Table>{!filteredLeads.length ? <div className="flex min-h-44 items-center justify-center text-sm text-muted-foreground">조건에 맞는 리드가 없습니다.</div> : null}</CardContent></Card>
-          </TabsContent>
-          <TabsContent value="blocked" className="mt-0 space-y-5">
-            <Card><CardHeader><CardTitle>전화번호 추가</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-[14rem_minmax(0,1fr)_auto]"><div className="space-y-2"><Label htmlFor="blocked-phone">전화번호</Label><Input id="blocked-phone" value={blockedPhone} onChange={(event) => setBlockedPhone(event.target.value)} placeholder="010-0000-0000" /></div><div className="space-y-2"><Label htmlFor="blocked-memo">메모</Label><Input id="blocked-memo" value={blockedMemo} onChange={(event) => setBlockedMemo(event.target.value)} maxLength={500} /></div><Button className="self-end" disabled={busy || !blockedPhone.trim()} onClick={() => void addBlockedPhone()}><Ban />차단</Button></CardContent></Card>
-            <Card><CardContent className="pt-6"><Table><TableHeader><TableRow><TableHead>전화번호</TableHead><TableHead>메모</TableHead><TableHead>등록일</TableHead><TableHead className="text-right">삭제</TableHead></TableRow></TableHeader><TableBody>{blockedPhones.map((item) => <TableRow key={item.id}><TableCell className="font-mono">{item.phone}</TableCell><TableCell>{item.memo || "-"}</TableCell><TableCell>{dateTime(item.createdAt)}</TableCell><TableCell className="text-right"><Button size="icon-sm" variant="ghost" aria-label="차단 전화번호 삭제" disabled={busy} onClick={() => void deleteBlockedPhone(item.id)}><Trash2 /></Button></TableCell></TableRow>)}</TableBody></Table>{!blockedPhones.length ? <div className="flex min-h-40 items-center justify-center text-sm text-muted-foreground">차단된 전화번호가 없습니다.</div> : null}</CardContent></Card>
-          </TabsContent>
-        </Tabs>
+              </div> : <Card><CardContent className="flex min-h-80 items-center justify-center text-muted-foreground">진행 중인 강의가 없습니다.</CardContent></Card>}
+        </>
       )}
+      <Dialog open={blockedDialogOpen} onOpenChange={(open) => { if (!busy) setBlockedDialogOpen(open); }}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>차단 전화번호</DialogTitle>
+            <DialogDescription className="sr-only">차단할 전화번호와 메모를 저장하고 기존 차단 전화번호를 관리합니다.</DialogDescription>
+          </DialogHeader>
+          {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
+          <form className="grid gap-3 sm:grid-cols-[14rem_minmax(0,1fr)_auto]" onSubmit={(event) => { event.preventDefault(); void addBlockedPhone(); }}>
+            <div className="space-y-2"><Label htmlFor="blocked-phone">전화번호</Label><Input id="blocked-phone" value={blockedPhone} onChange={(event) => setBlockedPhone(event.target.value)} placeholder="010-0000-0000" disabled={busy} autoFocus /></div>
+            <div className="space-y-2"><Label htmlFor="blocked-memo">메모</Label><Input id="blocked-memo" value={blockedMemo} onChange={(event) => setBlockedMemo(event.target.value)} maxLength={500} disabled={busy} /></div>
+            <Button className="self-end" type="submit" disabled={busy || !blockedPhone.trim()}>{busy ? <Loader2 className="animate-spin" /> : <Save />}저장</Button>
+          </form>
+          <div className="rounded-lg border"><Table><TableHeader><TableRow><TableHead>전화번호</TableHead><TableHead>메모</TableHead><TableHead>등록일</TableHead><TableHead className="text-right">삭제</TableHead></TableRow></TableHeader><TableBody>{blockedPhones.map((item) => <TableRow key={item.id}><TableCell className="font-mono">{item.phone}</TableCell><TableCell>{item.memo || "-"}</TableCell><TableCell>{dateTime(item.createdAt)}</TableCell><TableCell className="text-right"><Button size="icon-sm" variant="ghost" aria-label="차단 전화번호 삭제" disabled={busy} onClick={() => void deleteBlockedPhone(item.id)}><Trash2 /></Button></TableCell></TableRow>)}</TableBody></Table>{!blockedPhones.length ? <div className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">차단된 전화번호가 없습니다.</div> : null}</div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={planningSheetOpen} onOpenChange={(open) => { if (!busy) setPlanningSheetOpen(open); }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
