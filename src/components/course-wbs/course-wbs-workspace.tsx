@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
-  ArrowDown, ArrowLeft, ArrowUp, CalendarDays, ChevronDown, ClipboardList, ExternalLink, GripVertical,
+  ArrowDown, ArrowUp, CalendarDays, ChevronDown, ClipboardList, ExternalLink, GripVertical,
   LoaderCircle, Plus, Save, Trash2,
 } from "lucide-react";
 
 import { WbsGantt } from "@/components/course-wbs/wbs-gantt";
+import { BackLink } from "@/components/layout/back-link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,19 @@ function savedWbsNamecard(course: WbsCourse) {
     webinarDate || "날짜 미입력",
     webinarTime || "시간 미입력",
   ].join(" · ");
+}
+
+function courseWbsHeading(course: WbsCourse | undefined) {
+  if (!course) return "강의 정보 확인 중";
+  const webinarDate = course.webinarAt ? toKoreaDate(course.webinarAt) : "";
+  const webinarTime = course.webinarAt ? toKoreaTime(course.webinarAt) : "";
+  return [
+    course.instructorName.trim() || "강사 미입력",
+    courseCohort(course),
+    course.name,
+    webinarDate || "무료 웨비나 날짜 미입력",
+    webinarTime || "시간 미입력",
+  ].join(" • ");
 }
 
 function savedWbsProgress(summary: WbsSummary) {
@@ -295,7 +309,6 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
 
   const course = courses.find((entry) => entry.id === courseId);
   const webinarDate = webinarDateFromTimestamp(course?.webinarAt ?? null);
-  const webinarTime = course?.webinarAt ? toKoreaTime(course.webinarAt) : "";
   const completed = items.filter((item) => item.completed).length;
   const notCompleted = items.length - completed;
   const progress = items.length ? Math.round(completed / items.length * 100) : 0;
@@ -551,8 +564,17 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
     } finally { setSaving(false); }
   }
 
-  return <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8 lg:py-10">
-    {courseId ? <div className="mb-7 flex justify-end"><Button size="sm" variant="outline" onClick={() => selectCourse("")} disabled={saving}><ArrowLeft /> WBS 목록</Button></div> : null}
+  return <>
+    <header className="border-b bg-background" aria-label="강의 WBS 상단">
+      <div className="mx-auto flex min-h-18 max-w-[1900px] items-center gap-3 px-5 py-3 lg:px-8">
+        <Button variant="ghost" size="sm" asChild><BackLink href="/work">뒤로가기</BackLink></Button>
+        <div className="h-5 w-px shrink-0 bg-border" />
+        <span className="min-w-0 line-clamp-2 text-sm font-semibold leading-5 sm:text-base">
+          {courseId ? courseWbsHeading(course) : "강의 WBS"}
+        </span>
+      </div>
+    </header>
+    <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8 lg:py-10">
 
     {error ? <Alert variant="destructive" className="mb-5" role="alert"><AlertDescription>
       {error}{conflictTarget ? " 현재 편집한 내용은 화면에 남아 있습니다." : ""}
@@ -646,28 +668,16 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
       </section>
       </TabsContent>
     </Tabs> : <>
-      <section className="mb-4 rounded-xl border bg-background p-5 shadow-sm" aria-label="연결된 강의">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-64 flex-1">
-            <p className="text-xs font-medium text-muted-foreground">연결된 강의</p>
-            <h3 className="mt-2 text-xl font-semibold">{course ? courseLabel(course) : "강의 정보 확인 중"}</h3>
-            <p className="mt-2 text-sm text-muted-foreground">무료 웨비나 · {webinarDate ? `${webinarDate}${webinarTime ? ` ${webinarTime}` : ""}` : "강의 상세에서 날짜를 설정해 주세요."}</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {canSaveTemplate ? <Button size="sm" variant="outline" onClick={() => void saveTemplate()} disabled={!template || !courseReady || !items.length || loadingWbs || saving}><Save /> 템플릿으로 저장</Button> : null}
-            <Button size="sm" variant="outline" onClick={applyTemplate} disabled={!template || !courseReady || loadingWbs || saving}><ClipboardList /> 템플릿 불러오기</Button>
-            {course ? <Button variant="outline" size="sm" asChild><Link href={`/services/course-operations/${course.id}`}>강의 상세 <ExternalLink /></Link></Button> : null}
-          </div>
-        </div>
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-          <div className="text-xs text-muted-foreground">
-            <p>{dirty ? "저장하지 않은 변경 사항이 있습니다." : hasWbs ? "이 강의에 저장된 WBS입니다." : "아직 이 강의에 WBS가 없습니다. 템플릿을 불러오거나 항목을 추가하세요."}</p>
-          </div>
-          <Button onClick={() => void saveWbs()} disabled={saving || loadingWbs || !courseReady || !courseId || (!dirty && hasWbs)}>
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-2" role="group" aria-label="WBS 작업">
+        {canSaveTemplate ? <Button size="sm" variant="outline" onClick={() => void saveTemplate()} disabled={!template || !courseReady || !items.length || loadingWbs || saving}><Save /> 템플릿으로 저장</Button> : null}
+        <Button size="sm" variant="outline" onClick={applyTemplate} disabled={!template || !courseReady || loadingWbs || saving}><ClipboardList /> 템플릿 불러오기</Button>
+        <div className="flex shrink-0 items-center gap-2">
+          {course ? <Button variant="outline" size="sm" asChild><Link href={`/services/course-operations/${course.id}`}>강의 상세 <ExternalLink /></Link></Button> : null}
+          <Button size="sm" onClick={() => void saveWbs()} disabled={saving || loadingWbs || !courseReady || !courseId || (!dirty && hasWbs)}>
             {saving ? <LoaderCircle className="animate-spin" /> : <Save />} 강의 WBS 저장
           </Button>
         </div>
-      </section>
+      </div>
 
       <section className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="업무 현황">
         <div className="rounded-xl border bg-background p-4 shadow-sm"><p className="text-xs text-muted-foreground">업무 전체현황</p><p className="mt-2 text-2xl font-semibold tabular-nums">{courseReady ? `${items.length}개` : "—"}</p><p className="mt-1 text-xs text-muted-foreground">등록된 전체 항목</p></div>
@@ -684,7 +694,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
               <Button size="sm" variant={view === "compact" ? "secondary" : "ghost"} onClick={() => setView("compact")} aria-pressed={view === "compact"}><ClipboardList /> 간소화목록</Button>
               <Button size="sm" variant={view === "gantt" ? "secondary" : "ghost"} onClick={() => setView("gantt")} aria-pressed={view === "gantt"}><CalendarDays /> 간트 차트</Button>
             </div>
-            <p className="text-xs text-muted-foreground">{view === "compact" ? "완료 여부를 변경한 뒤 강의 WBS 저장을 눌러 주세요." : "담당자·관계자는 목록에서 선택하거나 새 이름을 입력한 뒤 저장할 수 있습니다."}</p>
+            {view === "compact" ? <p className="text-xs text-muted-foreground">완료 여부를 변경한 뒤 강의 WBS 저장을 눌러 주세요.</p> : null}
             {view !== "compact" ? <Button size="sm" variant="outline" onClick={addItem} disabled={loadingWbs || !courseReady || saving}><Plus /> 항목 추가</Button> : null}
           </div>
           {loadingWbs ? <div className="flex min-h-72 items-center justify-center rounded-xl border bg-background text-sm text-muted-foreground"><LoaderCircle className="mr-2 size-4 animate-spin" /> WBS를 불러오는 중...</div> : !courseReady ? <div className="rounded-xl border border-dashed bg-background px-6 py-16 text-center text-sm text-muted-foreground">이 강의의 WBS를 불러오지 못했습니다.<div><Button className="mt-4" variant="outline" onClick={() => void loadCourse(courseId)}>다시 시도</Button></div></div> : view === "gantt" ? <WbsGantt key={courseId} items={sortedItems} webinarDate={webinarDate} todayDate={today} /> : view === "compact" ? (
@@ -783,8 +793,8 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
             </div>
           )}
           {view === "gantt" && !loadingWbs ? <p className="mt-3 text-xs text-muted-foreground">일정과 완료 상태는 목록 보기에서 수정할 수 있습니다. 막대는 시작일에서 데드라인까지 표시됩니다.</p> : null}
-          {dirty && !loadingWbs ? <div className="mt-4 flex justify-end"><Button onClick={() => void saveWbs()} disabled={saving}><Save /> 강의 WBS 저장</Button></div> : null}
       </section>
     </>}
-  </div>;
+    </div>
+  </>;
 }

@@ -127,6 +127,7 @@ async function assertNoPageOverflow(page, label) {
       await page.getByText('김해준 · 1기 · 2026-12-14 · 20:00', { exact: true }).waitFor();
 
       assert.equal(await page.getByRole('heading', { name: '강의 WBS', exact: true }).count(), 0);
+      assert.equal(await page.getByLabel('강의 WBS 상단').getByText('강의 WBS', { exact: true }).count(), 1);
       assert.equal(await page.getByText('저장된 WBS', { exact: true }).count(), 0);
       assert.equal(await page.getByText('연결된 강의를 선택하면 해당 WBS를 열 수 있습니다.', { exact: true }).count(), 0);
       assert.equal(await page.getByText(/마지막 저장/u).count(), 0);
@@ -151,8 +152,21 @@ async function assertNoPageOverflow(page, label) {
 
       await page.getByRole('tab', { name: 'WBS 관리', exact: true }).click();
       await page.getByRole('button', { name: /김해준 · 인스타그램 숏폼 대행 · 1기 WBS 열기/u }).click();
-      await page.getByLabel('연결된 강의').getByRole('button', { name: '강의 WBS 저장', exact: true }).waitFor();
+      const detailHeading = '김해준 • 1기 • 인스타그램 숏폼 대행 • 2026-12-14 • 20:00';
+      await page.getByLabel('강의 WBS 상단').getByText(detailHeading, { exact: true }).waitFor();
+      const actions = page.getByRole('group', { name: 'WBS 작업', exact: true });
+      const courseDetail = actions.getByRole('link', { name: '강의 상세', exact: true });
+      const saveWbs = actions.getByRole('button', { name: '강의 WBS 저장', exact: true });
+      await saveWbs.waitFor();
+      assert.equal(await page.getByRole('button', { name: '강의 WBS 저장', exact: true }).count(), 1);
+      const [detailBox, saveBox] = await Promise.all([courseDetail.boundingBox(), saveWbs.boundingBox()]);
+      assert.ok(detailBox && saveBox && saveBox.x > detailBox.x, `${width}px: save button is not right of course detail`);
+      assert.equal(await page.getByRole('button', { name: 'WBS 목록', exact: true }).count(), 0);
+      assert.equal(await page.getByLabel('연결된 강의').count(), 0);
+      assert.equal(await page.getByText('담당자·관계자는 목록에서 선택하거나 새 이름을 입력한 뒤 저장할 수 있습니다.', { exact: true }).count(), 0);
       assert.equal(await page.getByText(/마지막 저장/u).count(), 0);
+      await assertNoPageOverflow(page, `course WBS detail ${width}px`);
+      await page.screenshot({ path: path.join(output, `course-wbs-detail-${width}.png`), fullPage: true });
       assert.deepEqual(pageErrors, [], `browser errors at ${width}px`);
       await page.close();
     }
