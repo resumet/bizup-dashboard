@@ -98,13 +98,13 @@ function renderRichTextNode(node: RichTextNode, key: string): ReactNode {
   if (node.type === "tableCell") {
     return <td key={key} colSpan={typeof node.attrs?.colspan === "number" ? node.attrs.colspan : 1} rowSpan={typeof node.attrs?.rowspan === "number" ? node.attrs.rowspan : 1} className="border-r px-3 py-2.5 align-top last:border-r-0">{children}</td>;
   }
-  if (node.type === "taskList") return <ul key={key} className="space-y-2">{children}</ul>;
+  if (node.type === "taskList") return <ul key={key} className="list-none space-y-2 p-0">{children}</ul>;
   if (node.type === "taskItem") {
     const checked = node.attrs?.checked === true;
     return (
-      <li key={key} className="flex items-start gap-2.5">
-        <input type="checkbox" checked={checked} readOnly aria-label={checked ? "완료됨" : "미완료"} className="mt-1.5 size-4 shrink-0 accent-primary" />
-        <div className={checked ? "min-w-0 flex-1 text-muted-foreground line-through" : "min-w-0 flex-1"}>{children}</div>
+      <li key={key} className="grid grid-cols-[1rem_minmax(0,1fr)] items-start gap-x-2.5">
+        <input type="checkbox" checked={checked} readOnly aria-label={checked ? "완료됨" : "미완료"} className="mt-2 block size-4 accent-primary" />
+        <div className={checked ? "col-start-2 min-w-0 text-muted-foreground line-through" : "col-start-2 min-w-0"}>{children}</div>
       </li>
     );
   }
