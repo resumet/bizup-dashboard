@@ -171,7 +171,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
           initialNotes={notes}
           notesLoadError={notesLoadError}
           loadError={loadError}
-          initialTab={tab === "instagram" ? "instagram" : tab === "students" ? "students" : tab === "webinar" ? "webinar" : "information"}
+          initialTab={tab === "webinar" ? "webinar" : "information"}
         />
       </div>
     </main>

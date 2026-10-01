@@ -5,19 +5,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
-  BookOpenCheck,
   CalendarDays,
+  Ellipsis,
   Grid2X2,
   List,
   Loader2,
-  Settings2,
   Trash2,
-  Users,
-  CircleDollarSign,
 } from "lucide-react";
 
 import { CourseListCalendar } from "@/components/course-operations/course-list-calendar";
-import { CoursePaymentSummaryTable } from "@/components/course-operations/course-payment-summary";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -33,6 +29,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -41,13 +43,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { CourseSummary } from "@/lib/course-operations/types";
-import type { CoursePaymentSummary } from "@/lib/course-operations/payment-summary";
-import type { CoursePaidStudentSummary } from "@/lib/course-operations/paid-student-summary";
 import { courseBannerUrl } from "@/lib/course-operations/banner";
 import { partitionCoursesByWebinarStatus } from "@/lib/course-operations/course-list-status";
 import { sortByFarthestWebinar } from "@/lib/course-operations/webinar-proximity";
 
-type ViewMode = "cards" | "list" | "calendar" | "payments" | "students";
+type ViewMode = "cards" | "list" | "calendar";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -64,6 +64,41 @@ function CourseSectionHeading({ title, count }: { title: string; count: number }
   </div>;
 }
 
+function CourseActionsMenu({
+  course,
+  canDelete,
+  onDelete,
+}: {
+  course: CourseSummary;
+  canDelete: boolean;
+  onDelete: (course: CourseSummary) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`${course.name} 작업 메뉴`}
+        >
+          <Ellipsis />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem
+          variant="destructive"
+          disabled={!canDelete}
+          onSelect={() => onDelete(course)}
+        >
+          <Trash2 />
+          삭제
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function CourseCards({ courses, canDelete, onDelete, completed = false }: {
   courses: CourseSummary[];
   canDelete: boolean;
@@ -72,20 +107,22 @@ function CourseCards({ courses, canDelete, onDelete, completed = false }: {
 }) {
   if (!courses.length) return <div className="rounded-xl border border-dashed bg-background px-5 py-10 text-center text-sm text-muted-foreground">표시할 강의가 없습니다.</div>;
   return <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{courses.map((course, index) => (
-    <Card key={course.id} className={`min-h-[29rem] overflow-hidden transition-shadow hover:shadow-md ${completed ? "bg-muted/35" : ""}`}>
+    <Card key={course.id} className={`overflow-hidden transition-shadow hover:shadow-md ${completed ? "bg-muted/35" : ""}`}>
       {course.banner_image_path ? <Link href={`/services/course-operations/${course.id}`} className={`relative -mt-4 block aspect-video overflow-hidden bg-muted ${completed ? "grayscale-[35%]" : ""}`} aria-label={`${course.name} 강의 배너로 상세보기`}>
         <Image src={courseBannerUrl(course.id, course.updated_at)} alt={`${course.name} 배너`} fill unoptimized loading={index < 2 && !completed ? "eager" : "lazy"} priority={index < 2 && !completed} sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw" className="object-cover transition-transform duration-300 group-hover/card:scale-[1.02]" />
       </Link> : null}
       <CardHeader>
-        <div className="hidden"><span className="grid size-11 place-items-center rounded-xl bg-primary/10 text-primary"><BookOpenCheck className="size-5" /></span><Badge variant="secondary">옵션 {course.course_options.length}개</Badge></div>
-        <CardTitle className="line-clamp-2 min-h-14 pt-3 text-xl leading-7" title={course.name}>{course.name}</CardTitle>
+        <CardTitle className="line-clamp-2 min-h-14 pt-3 text-xl leading-7" title={course.name}>
+          <Link href={`/services/course-operations/${course.id}`} className="hover:underline">
+            {course.name}
+          </Link>
+        </CardTitle>
         <p className="truncate text-sm text-muted-foreground" title={`${course.cohort ? `${course.cohort}기 / ` : ""}${course.instructor_name}`}>{course.cohort ? `${course.cohort}기 / ` : ""}{course.instructor_name}</p>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4 border-t pt-5">
         <p className="flex items-center gap-2 text-sm"><CalendarDays className="size-4 text-muted-foreground" />무료 웨비나 {formatDate(course.free_webinar_at)}</p>
-        <div className="mt-auto grid grid-cols-[1fr_auto] gap-2">
-          <Button asChild><Link href={`/services/course-operations/${course.id}`}><Settings2 />운영 정보 보기</Link></Button>
-          <Button variant="outline" className="text-destructive hover:text-destructive" disabled={!canDelete} onClick={() => onDelete(course)} aria-label={`${course.name} 삭제`}><Trash2 /></Button>
+        <div className="mt-auto flex justify-end">
+          <CourseActionsMenu course={course} canDelete={canDelete} onDelete={onDelete} />
         </div>
       </CardContent>
     </Card>
@@ -101,12 +138,11 @@ function CourseTable({ courses, canDelete, onDelete, completed = false }: {
   if (!courses.length) return <div className="rounded-xl border border-dashed bg-background px-5 py-10 text-center text-sm text-muted-foreground">표시할 강의가 없습니다.</div>;
   return <Card className={`overflow-hidden ${completed ? "bg-muted/35" : ""}`}>
     <Table>
-      <TableHeader><TableRow><TableHead>강의명</TableHead><TableHead>강사명</TableHead><TableHead>무료 웨비나</TableHead><TableHead>개강</TableHead><TableHead>연결 정보</TableHead><TableHead className="text-right">관리</TableHead></TableRow></TableHeader>
+      <TableHeader><TableRow><TableHead>강의명</TableHead><TableHead>강사명</TableHead><TableHead>무료 웨비나</TableHead><TableHead className="w-16 text-right">관리</TableHead></TableRow></TableHeader>
       <TableBody>{courses.map((course) => <TableRow key={course.id} className={completed ? "text-muted-foreground" : ""}>
         <TableCell className="font-medium"><Link href={`/services/course-operations/${course.id}`} className="hover:underline">{course.name}</Link></TableCell>
-        <TableCell>{course.instructor_name}</TableCell><TableCell>{formatDate(course.free_webinar_at)}</TableCell><TableCell>{formatDate(course.starts_at)}</TableCell>
-        <TableCell><div className="flex flex-wrap gap-1.5"><Badge variant="outline">옵션 {course.course_options.length}개</Badge><Badge variant="outline">명단 {course.course_jobs.length}개</Badge><Badge variant="outline">문자 {course.message_studio_projects.length}개</Badge></div></TableCell>
-        <TableCell><div className="flex justify-end gap-2"><Button variant="outline" size="sm" asChild><Link href={`/services/course-operations/${course.id}`}><Settings2 />보기</Link></Button><Button variant="outline" size="sm" className="text-destructive hover:text-destructive" disabled={!canDelete} onClick={() => onDelete(course)}><Trash2 />삭제</Button></div></TableCell>
+        <TableCell>{course.instructor_name}</TableCell><TableCell>{formatDate(course.free_webinar_at)}</TableCell>
+        <TableCell className="text-right"><CourseActionsMenu course={course} canDelete={canDelete} onDelete={onDelete} /></TableCell>
       </TableRow>)}</TableBody>
     </Table>
   </Card>;
@@ -115,34 +151,23 @@ function CourseTable({ courses, canDelete, onDelete, completed = false }: {
 export function CourseOperationsList({
   courses,
   canDelete,
-  paymentSummaries = [],
   todayKoreaDate,
 }: {
   courses: CourseSummary[];
   canDelete: boolean;
-  paymentSummaries?: CoursePaymentSummary[];
   todayKoreaDate: string;
 }) {
   const router = useRouter();
-  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [deleteTarget, setDeleteTarget] = useState<CourseSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
-  const [loadedPaymentSummaries, setLoadedPaymentSummaries] = useState(paymentSummaries);
-  const [paymentLoading, setPaymentLoading] = useState(false);
-  const [paidStudentSummaries, setPaidStudentSummaries] = useState<CoursePaidStudentSummary[] | null>(null);
-  const [paidStudentLoading, setPaidStudentLoading] = useState(false);
-  const [paidStudentError, setPaidStudentError] = useState("");
   const { ongoing: ongoingCourses, completed: completedCourses } = useMemo(
     () => partitionCoursesByWebinarStatus(courses, todayKoreaDate),
     [courses, todayKoreaDate],
   );
   const cardOngoingCourses = useMemo(() => sortByFarthestWebinar(ongoingCourses), [ongoingCourses]);
   const cardCompletedCourses = useMemo(() => sortByFarthestWebinar(completedCourses), [completedCourses]);
-  const paidStudentCounts = useMemo(
-    () => new Map((paidStudentSummaries ?? []).map((summary) => [summary.course_id, summary.paid_student_count])),
-    [paidStudentSummaries],
-  );
 
   async function deleteCourse() {
     if (!canDelete || !deleteTarget) return;
@@ -173,58 +198,9 @@ export function CourseOperationsList({
     setDeleteTarget(course);
   }
 
-  async function openPayments() {
-    setViewMode("payments");
-    if (loadedPaymentSummaries.length || paymentLoading) return;
-    setPaymentLoading(true);
-    try {
-      const response = await fetch("/api/course-operations/payment-summary", { cache: "no-store" });
-      if (!response.ok) throw new Error("결제내역을 불러오지 못했습니다.");
-      setLoadedPaymentSummaries(await response.json());
-    } finally { setPaymentLoading(false); }
-  }
-
-  async function openPaidStudents() {
-    setViewMode("students");
-    if (paidStudentSummaries || paidStudentLoading) return;
-    setPaidStudentLoading(true);
-    setPaidStudentError("");
-    try {
-      const response = await fetch("/api/course-operations/paid-student-summary", { cache: "no-store" });
-      if (!response.ok) throw new Error("유료수강생 인원을 불러오지 못했습니다.");
-      setPaidStudentSummaries(await response.json());
-    } catch (caught) {
-      setPaidStudentError(caught instanceof Error ? caught.message : "유료수강생 인원을 불러오지 못했습니다.");
-    } finally {
-      setPaidStudentLoading(false);
-    }
-  }
-
   return (
     <>
-      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="inline-flex self-start rounded-lg border bg-background p-1" aria-label="강의 운영 자료">
-          <Button
-            type="button"
-            variant={viewMode === "students" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => void openPaidStudents()}
-            aria-pressed={viewMode === "students"}
-          >
-            <Users />
-            유료수강생
-          </Button>
-          <Button
-            type="button"
-            variant={viewMode === "payments" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => void openPayments()}
-            aria-pressed={viewMode === "payments"}
-          >
-            <CircleDollarSign />
-            전체 결제내역
-          </Button>
-        </div>
+      <div className="mb-5 flex justify-end">
         <div className="inline-flex self-start rounded-lg border bg-background p-1 sm:self-auto" aria-label="강의 목록 보기 방식">
           <Button
             type="button"
@@ -269,23 +245,8 @@ export function CourseOperationsList({
           <section aria-label="진행 중 강의"><CourseSectionHeading title="진행 중" count={ongoingCourses.length} /><CourseTable courses={ongoingCourses} canDelete={canDelete} onDelete={openDeleteDialog} /></section>
           <section aria-label="완료된 강의"><CourseSectionHeading title="완료" count={completedCourses.length} /><CourseTable courses={completedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></section>
         </div>
-      ) : viewMode === "students" ? (
-        paidStudentLoading ? (
-          <p className="py-12 text-center text-muted-foreground">유료수강생 인원을 불러오는 중입니다.</p>
-        ) : paidStudentError ? (
-          <Alert variant="destructive"><AlertTitle>유료수강생 인원을 불러오지 못했습니다</AlertTitle><AlertDescription>{paidStudentError}</AlertDescription></Alert>
-        ) : (
-          <Card className="overflow-hidden">
-            <Table>
-              <TableHeader><TableRow><TableHead>강의명</TableHead><TableHead>기수</TableHead><TableHead>강사명</TableHead><TableHead className="text-right">유료수강생</TableHead><TableHead className="text-right">관리</TableHead></TableRow></TableHeader>
-              <TableBody>{courses.map((course) => <TableRow key={course.id}><TableCell className="font-medium"><Link href={`/services/course-operations/${course.id}`} className="hover:underline">{course.name}</Link></TableCell><TableCell>{course.cohort ? `${course.cohort}기` : "-"}</TableCell><TableCell>{course.instructor_name || "-"}</TableCell><TableCell className="text-right tabular-nums">{(paidStudentCounts.get(course.id) ?? 0).toLocaleString("ko-KR")}명</TableCell><TableCell className="text-right"><Button size="sm" variant="outline" asChild><Link href={`/services/course-operations/students-settlements/${course.id}?tab=paid-students`}>명단 바로가기</Link></Button></TableCell></TableRow>)}</TableBody>
-            </Table>
-          </Card>
-        )
-      ) : viewMode === "calendar" ? (
-        <div className="space-y-10"><section aria-label="진행 중 강의 일정"><CourseSectionHeading title="진행 중" count={ongoingCourses.length} />{ongoingCourses.length ? <CourseListCalendar courses={ongoingCourses} /> : <div className="rounded-xl border border-dashed px-5 py-10 text-center text-sm text-muted-foreground">진행 중인 강의가 없습니다.</div>}</section><section aria-label="완료된 강의"><CourseSectionHeading title="완료" count={completedCourses.length} /><CourseTable courses={completedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></section></div>
       ) : (
-        <>{paymentLoading ? <p className="py-12 text-center text-muted-foreground">결제내역을 불러오는 중입니다.</p> : <CoursePaymentSummaryTable summaries={loadedPaymentSummaries} />}</>
+        <div className="space-y-10"><section aria-label="진행 중 강의 일정"><CourseSectionHeading title="진행 중" count={ongoingCourses.length} />{ongoingCourses.length ? <CourseListCalendar courses={ongoingCourses} /> : <div className="rounded-xl border border-dashed px-5 py-10 text-center text-sm text-muted-foreground">진행 중인 강의가 없습니다.</div>}</section><section aria-label="완료된 강의"><CourseSectionHeading title="완료" count={completedCourses.length} /><CourseTable courses={completedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></section></div>
       )}
 
       <AlertDialog

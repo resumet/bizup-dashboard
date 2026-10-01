@@ -89,7 +89,7 @@ export function CoursePaymentSummaryTable({ summaries }: { summaries: CoursePaym
                 const draft = drafts.get(item.id)!;
                 const saving = savingId === item.id;
                 return <TableRow key={item.id}>
-                  <TableCell className="font-medium"><Link href={`/services/course-operations/${item.id}`} className="hover:underline">{item.name}</Link></TableCell>
+                  <TableCell className="font-medium"><Link href={`/services/course-operations/students-settlements/${item.id}?tab=orders`} className="hover:underline">{item.name}</Link></TableCell>
                   <TableCell>{formatDate(item.free_webinar_at)}</TableCell>
                   <TableCell>{item.instructor_name || "-"}</TableCell>
                   <TableCell>{item.cohort ? `${item.cohort}기` : "-"}</TableCell>

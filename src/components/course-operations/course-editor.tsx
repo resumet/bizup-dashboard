@@ -20,7 +20,6 @@ import {
 
 import { CourseRosterSections } from "@/components/course-operations/course-roster-sections";
 import { CourseNotesCard } from "@/components/course-operations/course-notes-card";
-import { CourseInstagramMaterials } from "@/components/course-operations/course-instagram-materials";
 import { CourseShareDialog } from "@/components/course-operations/course-share-dialog";
 import { CourseWebinarEditor } from "@/components/course-operations/course-webinar-editor";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -210,11 +209,10 @@ type CourseEditorTab =
   | "sales"
   | "students"
   | "messages"
-  | "videos"
-  | "instagram";
+  | "videos";
 type DeferredCourseEditorTab = Exclude<
   CourseEditorTab,
-  "information" | "webinar" | "instagram"
+  "information" | "webinar"
 >;
 type SectionLoadStatus = "idle" | "loading" | "loaded" | "error";
 
@@ -366,7 +364,7 @@ export function CourseOperationsEditor({
   notesLoadError?: string;
   loadError?: string;
   deferDetailSections?: boolean;
-  initialTab?: "information" | "students" | "webinar" | "instagram";
+  initialTab?: "information" | "webinar";
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState(() => {
@@ -522,7 +520,7 @@ export function CourseOperationsEditor({
     setActiveTab(nextTab);
     if (nextTab === "information") {
       void loadDetailSection("videos");
-    } else if (nextTab !== "webinar" && nextTab !== "instagram") {
+    } else if (nextTab !== "webinar") {
       void loadDetailSection(nextTab);
     }
   }
@@ -881,16 +879,12 @@ export function CourseOperationsEditor({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
+      <div className={`flex flex-col gap-4 sm:flex-row sm:items-end ${courseId ? "sm:justify-end" : "sm:justify-between"}`}>
+        {!courseId ? <div>
           <h1 className="text-3xl font-semibold tracking-tight">
-            {courseId
-              ? draft.name
-                ? `${draft.cohort ? `(${draft.cohort}기) ` : ""}${draft.name}${draft.instructorName ? ` - ${draft.instructorName}` : ""}`
-                : "강의 운영 정보"
-              : "새 강의 만들기"}
+            새 강의 만들기
           </h1>
-        </div>
+        </div> : null}
         <div className="flex flex-wrap gap-2">
           <CourseShareDialog
             onOpen={() => void loadDetailSection("videos")}
@@ -948,17 +942,16 @@ export function CourseOperationsEditor({
         onValueChange={changeTab}
         className="gap-6"
       >
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 md:grid-cols-5">
+        <TabsList className="grid h-auto w-full grid-cols-3 gap-1">
           <TabsTrigger value="information" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             정보
           </TabsTrigger>
           <TabsTrigger value="sales" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             판매 조건
           </TabsTrigger>
-          <TabsTrigger value="students" className="h-10 min-w-0 px-2 md:min-w-32 md:px-5">
+          <TabsTrigger value="students" className="hidden">
             기존 수강생명단
           </TabsTrigger>
-          <TabsTrigger value="instagram" disabled={!courseId} className="h-10 min-w-0 px-2">인스타그램</TabsTrigger>
           <TabsTrigger value="messages" className="hidden">
             단톡방문자
           </TabsTrigger>
@@ -2200,12 +2193,9 @@ export function CourseOperationsEditor({
           {courseId ? <CourseWebinarEditor key={courseId} courseId={courseId} /> : null}
         </TabsContent>
 
-        <TabsContent value="instagram" className="mt-0">
-          {courseId ? <CourseInstagramMaterials courseId={courseId} /> : null}
-        </TabsContent>
       </Tabs>
 
-      {activeTab !== "webinar" && activeTab !== "instagram" ? (
+      {activeTab !== "webinar" ? (
         <div className="flex justify-end border-t pt-6">
           <Button className="min-h-10" onClick={saveCourse} disabled={saving}>
             {saving ? <Loader2 className="animate-spin" /> : <Save />}

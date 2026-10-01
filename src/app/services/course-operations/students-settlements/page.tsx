@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-import { StudentSettlementCourseList } from "@/components/course-operations/student-settlement-course-list";
+import { StudentSettlementOverview } from "@/components/course-operations/student-settlement-overview";
 import { BackLink } from "@/components/layout/back-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -56,7 +56,7 @@ export default async function StudentSettlementsPage() {
           </Alert>
         ) : (
           <div className="mt-6">
-            <StudentSettlementCourseList courses={courses} />
+            <StudentSettlementOverview courses={courses} />
           </div>
         )}
       </div>
