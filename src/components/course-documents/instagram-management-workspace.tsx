@@ -24,10 +24,6 @@ function dateTime(value: string) {
   return new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Seoul" }).format(new Date(value));
 }
 
-function shortDate(value: string) {
-  return new Intl.DateTimeFormat("ko-KR", { month: "short", day: "numeric", timeZone: "Asia/Seoul" }).format(new Date(value));
-}
-
 async function copyText(value: string) {
   if (!navigator.clipboard?.writeText) throw new Error("클립보드 복사를 지원하지 않는 브라우저입니다.");
   await navigator.clipboard.writeText(value);
@@ -241,17 +237,19 @@ export function InstagramManagementWorkspace() {
                       <select id="instagram-course" className="h-10 w-full rounded-lg border bg-background px-3 text-sm font-medium" value={selectedCourseId} onChange={(event) => setSelectedCourseId(event.target.value)}>
                         {activeCourses.map((course) => <option key={course.id} value={course.id}>{instagramCourseOptionLabel(course)}</option>)}
                       </select>
-                      <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground"><span>{selectedCourse.instructorName || "강사 미지정"} · {shortDate(selectedCourse.freeWebinarAt)}</span><Badge variant={selectedCourse.externalEditEnabled ? "default" : "secondary"}>{selectedCourse.externalEditEnabled ? "외부 작성 허용" : "비활성"}</Badge></div>
                     </div>
-                    <div className="flex flex-wrap gap-2 xl:justify-end">
-                      <Button variant="outline" disabled={busy} onClick={openPlanningSheet}><FileSpreadsheet />기획시트</Button>
-                      <Button variant="outline" disabled={!externalUrl} onClick={() => void copyText(new URL(externalUrl, window.location.origin).toString()).then(() => setNotice("외부 작성 주소를 복사했습니다.")).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "주소를 복사하지 못했습니다."))}><Copy />주소 복사</Button>
-                      <Button variant="outline" disabled={busy} onClick={() => void updateAccess(selectedCourse.externalEditEnabled, true)}><RefreshCw />재발급</Button>
-                      <Button variant={selectedCourse.externalEditEnabled ? "outline" : "default"} disabled={busy} onClick={() => void updateAccess(!selectedCourse.externalEditEnabled)}>{selectedCourse.externalEditEnabled ? "비활성화" : "외부 작성 활성화"}</Button>
-                      <Button disabled={savingMaterials || materialChangeCount === 0} onClick={() => void saveMaterials()}>
-                        {savingMaterials ? <Loader2 className="animate-spin" /> : <Save />}
-                        {savingMaterials ? "저장 중" : materialChangeCount ? `저장하기 (${materialChangeCount})` : "저장됨"}
-                      </Button>
+                    <div className="flex flex-col items-end gap-2">
+                      <Badge variant={selectedCourse.externalEditEnabled ? "default" : "secondary"}>{selectedCourse.externalEditEnabled ? "외부 작성 허용" : "비활성"}</Badge>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button variant="outline" disabled={busy} onClick={openPlanningSheet}><FileSpreadsheet />기획시트</Button>
+                        <Button variant="outline" disabled={!externalUrl} onClick={() => void copyText(new URL(externalUrl, window.location.origin).toString()).then(() => setNotice("외부 작성 주소를 복사했습니다.")).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "주소를 복사하지 못했습니다."))}><Copy />주소 복사</Button>
+                        <Button variant="outline" disabled={busy} onClick={() => void updateAccess(selectedCourse.externalEditEnabled, true)}><RefreshCw />재발급</Button>
+                        <Button variant={selectedCourse.externalEditEnabled ? "outline" : "default"} disabled={busy} onClick={() => void updateAccess(!selectedCourse.externalEditEnabled)}>{selectedCourse.externalEditEnabled ? "비활성화" : "외부 작성 활성화"}</Button>
+                        <Button disabled={savingMaterials || materialChangeCount === 0} onClick={() => void saveMaterials()}>
+                          {savingMaterials ? <Loader2 className="animate-spin" /> : <Save />}
+                          {savingMaterials ? "저장 중" : materialChangeCount ? `저장하기 (${materialChangeCount})` : "저장됨"}
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
