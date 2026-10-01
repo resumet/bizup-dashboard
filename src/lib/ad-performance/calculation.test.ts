@@ -38,7 +38,7 @@ test("광고비는 날짜순으로 누적하고 빈 날짜는 이전 누적액�
   assert.deepEqual(calculateDailyAdSpend([]), []);
 });
 
-test("톡방 입장은 실제 전일 대비로, 톡방 접수 단가는 톡방입장 기준으로 계산한다", () => {
+test("톡방 일일 입장은 실제 전일 대비로 계산한다", () => {
   const rows = calculateDailyAdSpend([
     { ...metric, metricDate: "2026-10-01", chatRoomMembers: 130 },
     { ...metric, metricDate: "2026-09-30", chatRoomMembers: 100 },
@@ -57,16 +57,19 @@ test("톡방 입장은 실제 전일 대비로, 톡방 접수 단가는 톡방�
   assert.equal(rows[1].totalLandingLeadCost, 500_000 / 25);
   assert.equal(rows[1].googleLeadCostDifference, 300_000 / 18 - 300_000 / 20);
   assert.equal(rows[1].metaLeadCostDifference, 200_000 / 7 - 200_000 / 10);
+});
 
+test("상세 요약은 최종 톡방누적인원과 그 인원을 기준으로 한 단가를 표시한다", () => {
   const summary = summarizeAdPerformance(
     [
-      { ...metric, metricDate: "2026-09-30", chatRoomMembers: 100 },
       { ...metric, metricDate: "2026-10-01", chatRoomMembers: 130 },
+      { ...metric, metricDate: "2026-09-30", chatRoomMembers: 100 },
+      { ...metric, metricDate: "2026-10-02", chatRoomMembers: null },
     ],
     0,
   );
-  assert.equal(summary.chatRoomEntrants, 30);
-  assert.equal(summary.chatRoomEntrantCost, 1_000_000 / 30);
+  assert.equal(summary.latestChatRoomMembers, 130);
+  assert.equal(summary.chatRoomEntrantCost, 1_500_000 / 130);
 });
 
 test("DB당 단가는 매체별 광고비와 해당 접수 건수로 계산한다", () => {
@@ -136,7 +139,7 @@ test("Google과 Meta 광고 원시값을 합산해 핵심 성과를 계산한다
   assert.equal(result.organicLandingLeads, 8);
   assert.equal(result.totalDatabaseLeads, 33);
   assert.equal(result.adminCumulativeLeads, 28);
-  assert.equal(result.chatRoomEntrants, 0);
+  assert.equal(result.latestChatRoomMembers, 0);
   assert.equal(result.chatRoomEntrantCost, null);
 });
 

@@ -89,10 +89,9 @@ export function summarizeAdPerformance(
   const adLeads = total.googleAdLeads + total.metaAdLeads;
   const dailyMetrics = calculateDailyAdSpend(metrics);
   const latestMetric = dailyMetrics.at(-1);
-  const chatRoomEntrants = dailyMetrics.reduce(
-    (sum, metric) => sum + (metric.chatRoomEntrants ?? 0),
-    0,
-  );
+  const latestChatRoomMembers = dailyMetrics
+    .findLast((metric) => metric.chatRoomMembers !== null)
+    ?.chatRoomMembers ?? 0;
 
   return {
     ...total,
@@ -101,8 +100,8 @@ export function summarizeAdPerformance(
     adLeads,
     totalDatabaseLeads: total.paidLandingLeads + total.organicLandingLeads,
     adminCumulativeLeads: latestMetric?.adminCumulativeLeads ?? 0,
-    chatRoomEntrants,
-    chatRoomEntrantCost: unitCost(total.spend, chatRoomEntrants),
+    latestChatRoomMembers,
+    chatRoomEntrantCost: unitCost(total.spend, latestChatRoomMembers),
     remainingBudget: totalBudget - total.spend,
     googleClickConversionRate: ratio(total.googleClicks, total.googleImpressions),
     metaClickConversionRate: ratio(total.metaClicks, total.metaImpressions),

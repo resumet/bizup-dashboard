@@ -285,8 +285,8 @@ export function AdPerformanceDashboard({
           />
           <SummaryCard
             label="톡방입장인원"
-            value={`${number.format(summary.chatRoomEntrants)}건`}
-            detail="기간 내 누적 순입장"
+            value={`${number.format(summary.latestChatRoomMembers)}명`}
+            detail="최종 톡방누적인원"
           />
           <SummaryCard
             label="랜딩접수DB단가"

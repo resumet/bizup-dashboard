@@ -106,7 +106,7 @@ export type AdPerformanceSummary = {
   organicLandingLeads: number;
   totalDatabaseLeads: number;
   adminCumulativeLeads: number;
-  chatRoomEntrants: number;
+  latestChatRoomMembers: number;
   chatRoomEntrantCost: number | null;
   remainingBudget: number;
   googleClickConversionRate: number | null;
