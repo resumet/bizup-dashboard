@@ -222,6 +222,7 @@ function ToolbarButton({
 export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, document }: Props) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<Editor | null>(null);
+  const dirtyRef = useRef(false);
   const [title, setTitle] = useState(document?.title ?? "");
   const [blocks, setBlocks] = useState<CourseDocumentBlock[]>(document?.content ?? []);
   const [status, setStatus] = useState<CourseDocumentStatus>(document?.status ?? "draft");
@@ -334,6 +335,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
         const index = nextBlocks.findIndex((block) => block.id === current);
         return index >= 0 && index < nextBlocks.length - 1 ? current : null;
       });
+      dirtyRef.current = true;
       setDirty(true);
       setNotice("");
     },
@@ -345,13 +347,17 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
 
   useEffect(() => {
     if (!dirty) return;
-    const warnBeforeLeaving = (event: BeforeUnloadEvent) => event.preventDefault();
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      if (!dirtyRef.current) return;
+      event.preventDefault();
+    };
     window.addEventListener("beforeunload", warnBeforeLeaving);
     return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
   }, [dirty]);
 
   function changeTitle(value: string) {
     setTitle(value);
+    dirtyRef.current = true;
     setDirty(true);
     setNotice("");
   }
@@ -454,6 +460,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
       if (!response.ok) throw new Error(body.message ?? "문서를 저장하지 못했습니다.");
       setBlocks(normalizedBlocks);
       setLeadGateAfterBlockId(normalizedLeadGateAfterBlockId);
+      dirtyRef.current = false;
       setDirty(false);
       setNotice("저장했습니다.");
       if (!document && body.id && mode === "external") window.location.replace(`/write/${accessToken}/${body.id}`);
@@ -618,7 +625,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
           {mode === "admin" ? (
             <div className="space-y-2">
               <Label>공개 상태</Label>
-              <Select value={status} onValueChange={(value) => { setStatus(value as CourseDocumentStatus); setDirty(true); setNotice(""); }}>
+              <Select value={status} onValueChange={(value) => { setStatus(value as CourseDocumentStatus); dirtyRef.current = true; setDirty(true); setNotice(""); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent><SelectItem value="draft">비공개</SelectItem><SelectItem value="published">공개</SelectItem></SelectContent>
               </Select>
@@ -665,9 +672,10 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
       </Dialog>
 
       <Dialog open={gateDialogOpen} onOpenChange={setGateDialogOpen}>
-        <DialogContent className="max-h-[88dvh] overflow-hidden sm:max-w-3xl">
-          <DialogHeader><DialogTitle>리드게이트 위치</DialogTitle><DialogDescription className="sr-only">공개할 내용과 정보 입력 후 공개할 내용의 경계를 선택합니다.</DialogDescription></DialogHeader>
-          <div className="overflow-y-auto rounded-xl border bg-background px-5 py-6 sm:px-8">
+        <DialogContent className="flex max-h-[88dvh] flex-col overflow-hidden sm:max-w-3xl">
+          <DialogHeader className="shrink-0"><DialogTitle>리드게이트 위치</DialogTitle><DialogDescription className="sr-only">공개할 내용과 정보 입력 후 공개할 내용의 경계를 선택합니다.</DialogDescription></DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-xl border bg-background px-5 py-6 sm:px-8">
+            <h1 className="mb-8 text-3xl font-bold tracking-tight text-balance">{title || "제목 없음"}</h1>
             {blocks.map((block, index) => (
               <div key={block.id}>
                 <DocumentRenderer blocks={[block]} />
@@ -680,6 +688,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
                     )}
                     onClick={() => {
                       setLeadGateAfterBlockId(block.id);
+                      dirtyRef.current = true;
                       setDirty(true);
                       setNotice("");
                     }}
@@ -693,8 +702,8 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
               </div>
             ))}
           </div>
-          <DialogFooter>
-            {leadGateAfterBlockId ? <Button type="button" variant="ghost" onClick={() => { setLeadGateAfterBlockId(null); setDirty(true); setNotice(""); }}>리드게이트 해제</Button> : null}
+          <DialogFooter className="shrink-0">
+            {leadGateAfterBlockId ? <Button type="button" variant="ghost" onClick={() => { setLeadGateAfterBlockId(null); dirtyRef.current = true; setDirty(true); setNotice(""); }}>리드게이트 해제</Button> : null}
             <DialogClose asChild><Button>완료</Button></DialogClose>
           </DialogFooter>
         </DialogContent>

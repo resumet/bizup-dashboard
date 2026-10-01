@@ -147,6 +147,7 @@ export function MeaningSheetWorkspace({
   const [fullscreenError, setFullscreenError] = useState("");
   const [isTableFullscreen, setIsTableFullscreen] = useState(false);
   const tableFullscreenRef = useRef<HTMLDivElement>(null);
+  const sheetVersionRef = useRef(sheetState?.version ?? 0);
 
   const sourceRows = sheetState?.sourceRows ?? [];
   const tracking = sheetState?.tracking ?? null;
@@ -172,6 +173,53 @@ export function MeaningSheetWorkspace({
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, []);
+
+  useEffect(() => {
+    sheetVersionRef.current = sheetState?.version ?? 0;
+  }, [sheetState?.version]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let checking = false;
+
+    const checkSharedState = async () => {
+      if (checking || document.visibilityState === "hidden") return;
+      checking = true;
+      try {
+        const response = await fetch(
+          `/api/ad-performance/${dashboardId}/tracking-import`,
+          { cache: "no-store", signal: controller.signal },
+        );
+        if (!response.ok) return;
+        const latest = (await response.json()) as { version?: number };
+        if (
+          typeof latest.version === "number"
+          && latest.version !== sheetVersionRef.current
+        ) {
+          sheetVersionRef.current = latest.version;
+          router.refresh();
+        }
+      } catch (caught) {
+        if (caught instanceof DOMException && caught.name === "AbortError") return;
+      } finally {
+        checking = false;
+      }
+    };
+
+    const checkWhenVisible = () => {
+      if (document.visibilityState === "visible") void checkSharedState();
+    };
+    const interval = window.setInterval(() => void checkSharedState(), 15_000);
+    window.addEventListener("focus", checkSharedState);
+    document.addEventListener("visibilitychange", checkWhenVisible);
+
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+      window.removeEventListener("focus", checkSharedState);
+      document.removeEventListener("visibilitychange", checkWhenVisible);
+    };
+  }, [dashboardId, router]);
 
   async function errorFromResponse(response: Response, fallback: string) {
     const result = (await response.json().catch(() => null)) as
@@ -412,7 +460,7 @@ export function MeaningSheetWorkspace({
         </Button>
         {sheetState ? (
           <span className="text-xs text-muted-foreground">
-            {sheetState.sheetName}
+            DB 저장됨 · {sheetState.sheetName}
             {sheetState.trackingFileName
               ? ` · ${sheetState.trackingFileName}`
               : ""}

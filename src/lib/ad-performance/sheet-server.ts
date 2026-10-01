@@ -126,6 +126,25 @@ export async function loadAdPerformanceSheetState(
     : state;
 }
 
+export async function loadAdPerformanceSheetSyncState(dashboardId: string) {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("ad_performance_sheet_states")
+    .select("version,updated_at,tracking_file_name")
+    .eq("dashboard_id", dashboardId)
+    .maybeSingle();
+  if (error) {
+    if (/PGRST20[45]|42P01/u.test(error.code ?? "")) return null;
+    throw new Error(`원본 시트 동기화 상태 조회 실패: ${error.code}`);
+  }
+  if (!data) return null;
+  return {
+    version: Number(data.version),
+    updatedAt: data.updated_at as string,
+    trackingFileName: data.tracking_file_name as string | null,
+  };
+}
+
 async function responseBuffer(response: Response, maximumBytes: number) {
   const contentLength = Number(response.headers.get("content-length") ?? 0);
   if (contentLength > maximumBytes) {

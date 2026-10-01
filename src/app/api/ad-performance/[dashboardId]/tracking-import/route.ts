@@ -4,6 +4,7 @@ import { requireCourseOperationsMembership, requireCourseOperationsUser } from "
 import {
   authorizeAdPerformanceDashboard,
   loadAdPerformanceSheetState,
+  loadAdPerformanceSheetSyncState,
   parseAdPerformanceTrackingFile,
   persistAdPerformanceSheetState,
 } from "@/lib/ad-performance/sheet-server";
@@ -20,6 +21,26 @@ async function requestContext(dashboardId: string, userId: string) {
     z.uuid().parse(dashboardId),
     membership.workspace_id,
   );
+}
+
+export async function GET(_request: Request, { params }: Context) {
+  try {
+    const supabase = await createClient();
+    const user = await requireCourseOperationsUser(supabase);
+    const { dashboardId } = await params;
+    const context = await requestContext(dashboardId, user.id);
+    const current = await loadAdPerformanceSheetSyncState(context.dashboardId);
+    return Response.json(
+      {
+        version: current?.version ?? 0,
+        updatedAt: current?.updatedAt ?? null,
+        trackingFileName: current?.trackingFileName ?? null,
+      },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
+  } catch (error) {
+    return adPerformanceErrorResponse(error);
+  }
 }
 
 export async function POST(request: Request, { params }: Context) {

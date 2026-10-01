@@ -6,6 +6,8 @@ import { requireCourseOperationsMembership } from "@/lib/course-operations/serve
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdPerformanceDetailPage({ params }: { params: Promise<{ dashboardId: string }> }) {
   const supabase = await createClient();
   const user = await getAuthenticatedUser(supabase);
