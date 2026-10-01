@@ -47,7 +47,10 @@ import {
 import type { CourseSummary } from "@/lib/course-operations/types";
 import { courseBannerUrl } from "@/lib/course-operations/banner";
 import { partitionCoursesByWebinarStatus } from "@/lib/course-operations/course-list-status";
-import { sortByFarthestWebinar } from "@/lib/course-operations/webinar-proximity";
+import {
+  sortByFarthestWebinar,
+  sortByNearestWebinar,
+} from "@/lib/course-operations/webinar-proximity";
 
 type ViewMode = "cards" | "list" | "calendar";
 
@@ -168,10 +171,12 @@ function CourseTable({ courses, canDelete, onDelete, completed = false }: {
   if (!courses.length) return <div className="rounded-xl border border-dashed bg-background px-5 py-10 text-center text-sm text-muted-foreground">표시할 강의가 없습니다.</div>;
   return <Card className={`overflow-hidden ${completed ? "bg-muted/35" : ""}`}>
     <Table>
-      <TableHeader><TableRow><TableHead>강의명</TableHead><TableHead>강사명</TableHead><TableHead>무료 웨비나</TableHead><TableHead className="w-16 text-right">관리</TableHead></TableRow></TableHeader>
+      <TableHeader><TableRow><TableHead>강사명</TableHead><TableHead>기수</TableHead><TableHead>강의명</TableHead><TableHead>웨비나 날짜</TableHead><TableHead className="w-16 text-right">관리</TableHead></TableRow></TableHeader>
       <TableBody>{courses.map((course) => <TableRow key={course.id} className={completed ? "text-muted-foreground" : ""}>
-        <TableCell className="font-medium"><Link href={`/services/course-operations/${course.id}`} className="hover:underline">{course.name}</Link></TableCell>
-        <TableCell>{course.instructor_name}</TableCell><TableCell>{formatDate(course.free_webinar_at)}</TableCell>
+        <TableCell className="font-medium">{course.instructor_name || "강사 미지정"}</TableCell>
+        <TableCell>{course.cohort ? `${course.cohort}기` : "-"}</TableCell>
+        <TableCell><Link href={`/services/course-operations/${course.id}`} className="font-medium hover:underline">{course.name}</Link></TableCell>
+        <TableCell>{formatDate(course.free_webinar_at)}</TableCell>
         <TableCell className="text-right"><CourseActionsMenu course={course} canDelete={canDelete} onDelete={onDelete} /></TableCell>
       </TableRow>)}</TableBody>
     </Table>
@@ -199,6 +204,14 @@ export function CourseOperationsList({
   );
   const cardOngoingCourses = useMemo(() => sortByFarthestWebinar(ongoingCourses), [ongoingCourses]);
   const cardCompletedCourses = useMemo(() => sortByFarthestWebinar(completedCourses), [completedCourses]);
+  const listOngoingCourses = useMemo(
+    () => sortByNearestWebinar(ongoingCourses, todayKoreaDate),
+    [ongoingCourses, todayKoreaDate],
+  );
+  const listCompletedCourses = useMemo(
+    () => sortByNearestWebinar(completedCourses, todayKoreaDate),
+    [completedCourses, todayKoreaDate],
+  );
 
   async function deleteCourse() {
     if (!canDelete || !deleteTarget) return;
@@ -278,8 +291,8 @@ export function CourseOperationsList({
         </div>
       ) : viewMode === "list" ? (
         <div className="space-y-10">
-          <section aria-label="진행 중 강의"><CourseSectionHeading title="진행 중" count={ongoingCourses.length} /><CourseTable courses={ongoingCourses} canDelete={canDelete} onDelete={openDeleteDialog} /></section>
-          <CompletedSection count={completedCourses.length} open={completedOpen} onToggle={() => setCompletedOpen((current) => !current)}><CourseTable courses={completedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></CompletedSection>
+          <section aria-label="진행 중 강의"><CourseSectionHeading title="진행 중" count={listOngoingCourses.length} /><CourseTable courses={listOngoingCourses} canDelete={canDelete} onDelete={openDeleteDialog} /></section>
+          <CompletedSection count={listCompletedCourses.length} open={completedOpen} onToggle={() => setCompletedOpen((current) => !current)}><CourseTable courses={listCompletedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></CompletedSection>
         </div>
       ) : (
         <div className="space-y-10"><section aria-label="진행 중 강의 일정"><CourseSectionHeading title="진행 중" count={ongoingCourses.length} />{ongoingCourses.length ? <CourseListCalendar courses={ongoingCourses} /> : <div className="rounded-xl border border-dashed px-5 py-10 text-center text-sm text-muted-foreground">진행 중인 강의가 없습니다.</div>}</section><CompletedSection count={completedCourses.length} open={completedOpen} onToggle={() => setCompletedOpen((current) => !current)}><CourseTable courses={completedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></CompletedSection></div>
