@@ -102,9 +102,9 @@ function renderRichTextNode(node: RichTextNode, key: string): ReactNode {
   if (node.type === "taskItem") {
     const checked = node.attrs?.checked === true;
     return (
-      <li key={key} className="grid grid-cols-[1rem_minmax(0,1fr)] items-start gap-x-2.5">
-        <input type="checkbox" checked={checked} readOnly aria-label={checked ? "완료됨" : "미완료"} className="mt-2 block size-4 accent-primary" />
-        <div className={checked ? "col-start-2 min-w-0 text-muted-foreground line-through" : "col-start-2 min-w-0"}>{children}</div>
+      <li key={key} className="flex items-start gap-2.5">
+        <input type="checkbox" checked={checked} readOnly aria-label={checked ? "완료됨" : "미완료"} className="mt-2 block size-4 shrink-0 accent-primary" />
+        <div className={checked ? "min-w-0 flex-1 text-muted-foreground line-through" : "min-w-0 flex-1"}>{children}</div>
       </li>
     );
   }
