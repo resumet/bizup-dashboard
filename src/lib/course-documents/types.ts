@@ -102,6 +102,7 @@ export type CourseDocumentDetail = CourseDocumentSummary & {
 export type CourseDocumentMaterial = {
   position: number;
   title: string;
+  referencePlanningNumber: string;
   documentId: string | null;
 };
 
@@ -113,6 +114,7 @@ export type CourseDocumentCourse = {
   freeWebinarAt: string;
   externalEditEnabled: boolean;
   externalAccessToken: string;
+  planningSheetUrl: string;
   materials: CourseDocumentMaterial[];
   documents: CourseDocumentSummary[];
 };

@@ -17,7 +17,7 @@ export default async function ExternalWriterPage({ params }: Props) {
   try {
     result = await getExternalCourse(accessToken);
     const [materialsResult, documentsResult] = await Promise.all([
-      result.admin.from("course_instagram_materials").select("position,title,document_id").eq("course_id", result.course.id).order("position"),
+      result.admin.from("course_instagram_materials").select("position,title,reference_planning_number,document_id").eq("course_id", result.course.id).order("position"),
       result.admin.from("course_documents").select("id,course_id,instructor_name,title,slug,status,lead_gate_enabled,lead_gate_after_block_id,created_at,updated_at,published_at").eq("course_id", result.course.id).is("deleted_at", null),
     ]);
     const queryError = materialsResult.error ?? documentsResult.error;
@@ -25,6 +25,7 @@ export default async function ExternalWriterPage({ params }: Props) {
     materials = courseDocumentMaterials((materialsResult.data ?? []).map((row) => ({
       position: row.position,
       title: row.title,
+      referencePlanningNumber: row.reference_planning_number,
       documentId: row.document_id,
     })));
     documents = (documentsResult.data ?? []).map((row) => toDocumentSummary(row));

@@ -4,6 +4,8 @@ import { z } from "zod";
 import { courseDocumentErrorResponse, requireCourseDocumentMember, toDocumentSummary } from "@/lib/course-documents/server";
 import {
   courseDocumentMaterialPositionSchema,
+  courseDocumentPlanningSheetUrlSchema,
+  courseDocumentReferencePlanningNumberSchema,
   courseDocumentMaterials,
   courseDocumentMaterialTitleSchema,
 } from "@/lib/course-documents/materials";
@@ -15,11 +17,15 @@ export const runtime = "nodejs";
 const requestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("update-course-access"), courseId: z.uuid(), enabled: z.boolean(), regenerateToken: z.boolean().optional().default(false) }),
   z.object({
-    action: z.literal("save-material"),
+    action: z.literal("save-materials"),
     courseId: z.uuid(),
-    position: courseDocumentMaterialPositionSchema,
-    title: courseDocumentMaterialTitleSchema,
+    materials: z.array(z.object({
+      position: courseDocumentMaterialPositionSchema,
+      title: courseDocumentMaterialTitleSchema,
+      referencePlanningNumber: courseDocumentReferencePlanningNumberSchema,
+    })).min(1).max(40),
   }),
+  z.object({ action: z.literal("save-planning-sheet"), courseId: z.uuid(), url: courseDocumentPlanningSheetUrlSchema }),
   z.object({ action: z.literal("save-document"), documentId: z.uuid(), document: adminCourseDocumentSchema }),
   z.object({ action: z.literal("delete-document"), documentId: z.uuid() }),
   z.object({ action: z.literal("add-blocked-phone"), phone: z.string(), memo: z.string().optional() }),
@@ -38,7 +44,7 @@ export async function GET() {
 
     const { data: existingSettings, error: settingsError } = await admin
       .from("course_document_settings")
-      .select("course_id,external_edit_enabled,external_access_token")
+      .select("course_id,external_edit_enabled,external_access_token,planning_sheet_url")
       .eq("workspace_id", membership.workspace_id);
     if (settingsError) throw new Error(`외부 작성 설정 조회 실패: ${settingsError.code}`);
 
@@ -54,9 +60,9 @@ export async function GET() {
     const courseIds = (courses ?? []).map((course) => course.id);
     const materialCourseIds = courseIds.length ? courseIds : ["00000000-0000-0000-0000-000000000000"];
     const [settingsResult, documentsResult, materialsResult, leadsResult, blockedResult] = await Promise.all([
-      admin.from("course_document_settings").select("course_id,external_edit_enabled,external_access_token").eq("workspace_id", membership.workspace_id),
+      admin.from("course_document_settings").select("course_id,external_edit_enabled,external_access_token,planning_sheet_url").eq("workspace_id", membership.workspace_id),
       admin.from("course_documents").select("id,course_id,instructor_name,title,slug,status,lead_gate_enabled,lead_gate_after_block_id,created_at,updated_at,published_at,course_document_leads(count)").eq("workspace_id", membership.workspace_id).is("deleted_at", null).order("updated_at", { ascending: false }),
-      admin.from("course_instagram_materials").select("course_id,position,title,document_id").in("course_id", materialCourseIds).order("position"),
+      admin.from("course_instagram_materials").select("course_id,position,title,reference_planning_number,document_id").in("course_id", materialCourseIds).order("position"),
       admin.from("course_document_leads").select("id,document_id,course_id,instructor_name,name,phone,utm_source,utm_medium,utm_campaign,utm_content,referrer,created_at,course_documents!inner(title),courses!inner(name)").eq("workspace_id", membership.workspace_id).order("created_at", { ascending: false }).limit(10_000),
       admin.from("course_document_blocked_phones").select("id,phone_normalized,memo,created_at").eq("workspace_id", membership.workspace_id).order("created_at", { ascending: false }),
     ]);
@@ -84,12 +90,13 @@ export async function GET() {
       };
     });
     const documents = (documentsResult.data ?? []).map((row) => toDocumentSummary(row));
-    const savedMaterialsByCourse = new Map<string, Array<{ position: number; title: string; documentId: string | null }>>();
+    const savedMaterialsByCourse = new Map<string, Array<{ position: number; title: string; referencePlanningNumber: string; documentId: string | null }>>();
     for (const material of materialsResult.data ?? []) {
       const saved = savedMaterialsByCourse.get(material.course_id) ?? [];
       saved.push({
         position: material.position,
         title: material.title,
+        referencePlanningNumber: material.reference_planning_number,
         documentId: material.document_id,
       });
       savedMaterialsByCourse.set(material.course_id, saved);
@@ -109,6 +116,7 @@ export async function GET() {
         freeWebinarAt: course.free_webinar_at,
         externalEditEnabled: setting?.external_edit_enabled ?? false,
         externalAccessToken: setting?.external_access_token ?? "",
+        planningSheetUrl: setting?.planning_sheet_url ?? "",
         materials: materialsByCourse.get(course.id) ?? courseDocumentMaterials([]),
         documents: documents.filter((document) => document.courseId === course.id),
       };
@@ -144,7 +152,7 @@ export async function POST(request: Request) {
       return Response.json({ setting: { enabled: data.external_edit_enabled, accessToken: data.external_access_token } });
     }
 
-    if (input.action === "save-material") {
+    if (input.action === "save-planning-sheet") {
       const { data: course } = await admin
         .from("courses")
         .select("id")
@@ -153,35 +161,64 @@ export async function POST(request: Request) {
         .maybeSingle();
       if (!course) throw new Error("NOT_FOUND");
 
-      const { data: existingMaterial, error: existingMaterialError } = await admin
-        .from("course_instagram_materials")
-        .select("document_id")
-        .eq("course_id", course.id)
-        .eq("position", input.position)
+      const { data, error } = await admin
+        .from("course_document_settings")
+        .upsert({
+          course_id: course.id,
+          workspace_id: membership.workspace_id,
+          planning_sheet_url: input.url,
+        }, { onConflict: "course_id" })
+        .select("planning_sheet_url")
+        .single();
+      if (error) throw new Error(`기획시트 URL 저장 실패: ${error.code}`);
+      return Response.json({ planningSheetUrl: data.planning_sheet_url });
+    }
+
+    if (input.action === "save-materials") {
+      const { data: course } = await admin
+        .from("courses")
+        .select("id")
+        .eq("id", input.courseId)
+        .eq("workspace_id", membership.workspace_id)
         .maybeSingle();
+      if (!course) throw new Error("NOT_FOUND");
+
+      const positions = input.materials.map((material) => material.position);
+      if (new Set(positions).size !== positions.length) {
+        throw new Error("중복된 인스타 자료 번호가 있습니다.");
+      }
+
+      const { data: existingMaterials, error: existingMaterialError } = await admin
+        .from("course_instagram_materials")
+        .select("position,document_id")
+        .eq("course_id", course.id)
+        .in("position", positions);
       if (existingMaterialError) throw new Error(`인스타 자료 확인 실패: ${existingMaterialError.code}`);
-      if (existingMaterial?.document_id && !input.title) {
+      const linkedPositions = new Set((existingMaterials ?? []).filter((material) => material.document_id).map((material) => material.position));
+      if (input.materials.some((material) => linkedPositions.has(material.position) && !material.title)) {
         throw new Error("강사가 작성한 글이 있는 항목의 제목은 비워둘 수 없습니다.");
       }
 
       const { data, error } = await admin
         .from("course_instagram_materials")
-        .upsert({
+        .upsert(input.materials.map((material) => ({
           course_id: course.id,
-          position: input.position,
-          title: input.title,
+          position: material.position,
+          title: material.title,
+          reference_planning_number: material.referencePlanningNumber,
           updated_at: new Date().toISOString(),
-        }, { onConflict: "course_id,position" })
-        .select("position,title,document_id")
-        .single();
+        })), { onConflict: "course_id,position" })
+        .select("position,title,reference_planning_number,document_id")
+        .order("position");
       if (error?.code === "23505") throw new Error("이 글은 이미 다른 인스타 자료에 연결되어 있습니다.");
       if (error) throw new Error(`인스타 자료 저장 실패: ${error.code}`);
       return Response.json({
-        material: {
-          position: data.position,
-          title: data.title,
-          documentId: data.document_id,
-        } satisfies CourseDocumentMaterial,
+        materials: (data ?? []).map((material) => ({
+          position: material.position,
+          title: material.title,
+          referencePlanningNumber: material.reference_planning_number,
+          documentId: material.document_id,
+        } satisfies CourseDocumentMaterial)),
       });
     }
 
