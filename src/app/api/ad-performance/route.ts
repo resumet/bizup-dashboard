@@ -14,24 +14,16 @@ export async function POST(request: Request) {
   try {
     const supabase = await createClient();
     const user = await requireCourseOperationsUser(supabase);
-    const [membership, input] = await Promise.all([
+    const [membership] = await Promise.all([
       requireCourseOperationsMembership(user.id),
       request.json().then((body) => createDashboardSchema.parse(body)),
     ]);
     const admin = createAdminClient();
-    const { data: course, error: courseError } = await admin
-      .from("courses")
-      .select("id")
-      .eq("workspace_id", membership.workspace_id)
-      .eq("id", input.courseId)
-      .maybeSingle();
-    if (courseError) throw new Error(`강의 조회 실패: ${courseError.code}`);
-    if (!course) throw new Error("연결할 강의를 찾을 수 없습니다.");
     const { data, error } = await admin
       .from("ad_performance_dashboards")
       .insert({
         workspace_id: membership.workspace_id,
-        course_id: input.courseId,
+        course_id: null,
         start_date: defaultAdPerformanceStartDate(),
         total_budget: DEFAULT_AD_PERFORMANCE_BUDGET,
         created_by: user.id,
@@ -39,7 +31,6 @@ export async function POST(request: Request) {
       })
       .select("id")
       .single();
-    if (error?.code === "23505") throw new Error("이 강의의 광고성과 대시보드가 이미 있습니다.");
     if (error) throw new Error(`광고성과 대시보드 생성 실패: ${error.code}`);
     return Response.json({ id: data.id }, { status: 201 });
   } catch (error) {

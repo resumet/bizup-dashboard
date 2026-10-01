@@ -41,7 +41,7 @@ type CourseRow = {
 
 type DashboardRow = {
   id: string;
-  course_id: string;
+  course_id: string | null;
   start_date: string;
   total_budget: number | string;
   updated_at: string;
@@ -106,10 +106,9 @@ export async function loadAdPerformanceIndex(workspaceId: string): Promise<AdPer
   const rows = (dashboardsResult.data ?? []) as DashboardRow[];
   const courses = ((coursesResult.data ?? []) as CourseRow[]).map(toCourse);
   const courseMap = new Map(courses.map((course) => [course.id, course]));
-  const dashboards = rows.flatMap<AdPerformanceDashboardSummary>((row) => {
-    const course = courseMap.get(row.course_id);
-    if (!course) return [];
-    return [{
+  const dashboards = rows.map<AdPerformanceDashboardSummary>((row) => {
+    const course = row.course_id ? courseMap.get(row.course_id) ?? null : null;
+    return {
       id: row.id,
       course,
       startDate: row.start_date,
@@ -121,7 +120,7 @@ export async function loadAdPerformanceIndex(workspaceId: string): Promise<AdPer
       organicLandingLeads: Number(row.organic_landing_leads ?? 0),
       adminCumulativeLeads: Number(row.admin_cumulative_leads ?? 0),
       updatedAt: row.updated_at,
-    }];
+    };
   });
   return { courses, dashboards };
 }
@@ -142,14 +141,16 @@ export async function loadAdPerformanceDashboard(
   if (!dashboardResult.data) return null;
   const dashboard = dashboardResult.data as DashboardRow;
   const exclusiveEndDate = currentSeoulDate();
-  const [courseResult, metricsResult, channelsResult, organicValuesResult, sheetState] = await Promise.all([
-    admin.from("courses").select("id,name,instructor_name,starts_at").eq("workspace_id", workspaceId).eq("id", dashboard.course_id).maybeSingle(),
+  const [coursesResult, linkedDashboardsResult, metricsResult, channelsResult, organicValuesResult, sheetState] = await Promise.all([
+    admin.from("courses").select("id,name,instructor_name,starts_at").eq("workspace_id", workspaceId).order("starts_at", { ascending: false }),
+    admin.from("ad_performance_dashboards").select("course_id").eq("workspace_id", workspaceId).neq("id", dashboardId),
     admin.from("ad_performance_dashboard_metrics").select(metricColumns).eq("dashboard_id", dashboardId).order("metric_date", { ascending: true }),
     admin.from("ad_performance_organic_channels").select("id,name,sort_order").eq("dashboard_id", dashboardId).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
     admin.from("ad_performance_organic_metric_values").select("channel_id,metric_date,lead_count").eq("dashboard_id", dashboardId),
     loadAdPerformanceSheetState(dashboardId, dashboard.start_date),
   ]);
-  if (courseResult.error || !courseResult.data) throw new Error(`연결된 강의 조회 실패: ${courseResult.error?.code ?? "NOT_FOUND"}`);
+  if (coursesResult.error) throw new Error(`강의 목록 조회 실패: ${coursesResult.error.code}`);
+  if (linkedDashboardsResult.error) throw new Error(`연결 강의 조회 실패: ${linkedDashboardsResult.error.code}`);
   if (metricsResult.error) throw new Error(`광고성과 지표 조회 실패: ${metricsResult.error.code}`);
   if (channelsResult.error) throw new Error(`오가닉 채널 조회 실패: ${channelsResult.error.code}`);
   if (organicValuesResult.error) throw new Error(`오가닉 DB 조회 실패: ${organicValuesResult.error.code}`);
@@ -159,9 +160,22 @@ export async function loadAdPerformanceDashboard(
     values[value.channel_id] = Number(value.lead_count);
     organicByDate.set(value.metric_date, values);
   }
+  const linkedCourseIds = new Set(
+    (linkedDashboardsResult.data ?? []).flatMap((item) =>
+      typeof item.course_id === "string" ? [item.course_id] : [],
+    ),
+  );
+  const courses = ((coursesResult.data ?? []) as CourseRow[])
+    .map(toCourse)
+    .filter((item) => item.id === dashboard.course_id || !linkedCourseIds.has(item.id));
+  const course = dashboard.course_id
+    ? courses.find((item) => item.id === dashboard.course_id) ?? null
+    : null;
+  if (dashboard.course_id && !course) throw new Error("연결된 강의를 찾을 수 없습니다.");
   return {
     id: dashboard.id,
-    course: toCourse(courseResult.data as CourseRow),
+    course,
+    courses,
     startDate: dashboard.start_date,
     totalBudget: Number(dashboard.total_budget),
     organicChannels: ((channelsResult.data ?? []) as OrganicChannelRow[]).map<AdPerformanceOrganicChannel>((channel) => ({

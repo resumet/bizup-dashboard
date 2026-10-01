@@ -26,9 +26,7 @@ export const metricSchema = z.object({
 
 export const organicChannelNameSchema = z.string().trim().min(1, "오가닉 채널명을 입력해 주세요.").max(80, "오가닉 채널명은 80자 이하여야 합니다.");
 
-export const createDashboardSchema = z.object({
-  courseId: z.uuid(),
-});
+export const createDashboardSchema = z.object({}).strict();
 
 export const DEFAULT_AD_PERFORMANCE_BUDGET = 30_000_000;
 
@@ -42,6 +40,7 @@ export function defaultAdPerformanceStartDate(now = new Date()) {
 }
 
 export const updateDashboardSchema = z.object({
+  courseId: z.uuid(),
   startDate: dateValue,
   totalBudget: count,
   metrics: z.array(metricSchema).max(1_000),

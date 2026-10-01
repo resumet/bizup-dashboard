@@ -33,6 +33,14 @@ export async function PUT(request: Request, { params }: Context) {
     ]);
     const admin = await authorizedDashboard(dashboardId, membership.workspace_id);
     const now = new Date().toISOString();
+    const { data: course, error: courseError } = await admin
+      .from("courses")
+      .select("id")
+      .eq("workspace_id", membership.workspace_id)
+      .eq("id", input.courseId)
+      .maybeSingle();
+    if (courseError) throw new Error(`강의 조회 실패: ${courseError.code}`);
+    if (!course) throw new Error("연결할 강의를 찾을 수 없습니다.");
     const organicChannelIds = [...new Set(input.metrics.flatMap((metric) => Object.keys(metric.organicLeads)))];
     if (organicChannelIds.length) {
       const { data: channels, error: channelsError } = await admin
@@ -46,12 +54,14 @@ export async function PUT(request: Request, { params }: Context) {
     const { error: dashboardError } = await admin
       .from("ad_performance_dashboards")
       .update({
+        course_id: input.courseId,
         start_date: input.startDate,
         total_budget: input.totalBudget,
         updated_by: user.id,
         updated_at: now,
       })
       .eq("id", dashboardId);
+    if (dashboardError?.code === "23505") throw new Error("해당 강의는 이미 다른 광고성과 대시보드에 연결되어 있습니다.");
     if (dashboardError) throw new Error(`광고 설정 저장 실패: ${dashboardError.code}`);
 
     if (

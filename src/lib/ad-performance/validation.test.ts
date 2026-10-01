@@ -24,6 +24,7 @@ const metric = {
   adminCumulativeLeads: 0,
   organicLeads: {},
 };
+const courseId = "00000000-0000-4000-8000-000000000003";
 
 test("톡방인원은 미입력과 0을 구분하고 음수 및 소수는 거부한다", () => {
   assert.equal(metricSchema.parse({ ...metric, chatRoomMembers: null }).chatRoomMembers, null);
@@ -33,11 +34,9 @@ test("톡방인원은 미입력과 0을 구분하고 음수 및 소수는 거부
   assert.equal(metricSchema.safeParse({ ...metric, chatRoomMembers: 1.5 }).success, false);
 });
 
-test("새 광고성과는 저장된 강의 ID만 요구한다", () => {
-  assert.equal(createDashboardSchema.safeParse({
-    courseId: "00000000-0000-4000-8000-000000000003",
-  }).success, true);
-  assert.equal(createDashboardSchema.safeParse({ courseId: "invalid" }).success, false);
+test("새 광고성과는 사전 입력 없이 생성한다", () => {
+  assert.equal(createDashboardSchema.safeParse({}).success, true);
+  assert.equal(createDashboardSchema.safeParse({ courseId }).success, false);
 });
 
 test("새 광고성과 기본값은 생성일과 3천만원이다", () => {
@@ -49,20 +48,22 @@ test("새 광고성과 기본값은 생성일과 3천만원이다", () => {
 });
 
 test("날짜별 지표는 중복되거나 광고 시작일보다 빠를 수 없다", () => {
-  assert.equal(updateDashboardSchema.safeParse({ startDate: "2026-09-23", totalBudget: 0, metrics: [metric, metric] }).success, false);
-  assert.equal(updateDashboardSchema.safeParse({ startDate: "2026-09-24", totalBudget: 0, metrics: [metric] }).success, false);
-  assert.equal(updateDashboardSchema.safeParse({ startDate: "2026-09-23", totalBudget: 0, metrics: [{ ...metric, organicLeads: { invalid: 1 } }] }).success, false);
+  assert.equal(updateDashboardSchema.safeParse({ courseId, startDate: "2026-09-23", totalBudget: 0, metrics: [metric, metric] }).success, false);
+  assert.equal(updateDashboardSchema.safeParse({ courseId, startDate: "2026-09-24", totalBudget: 0, metrics: [metric] }).success, false);
+  assert.equal(updateDashboardSchema.safeParse({ courseId, startDate: "2026-09-23", totalBudget: 0, metrics: [{ ...metric, organicLeads: { invalid: 1 } }] }).success, false);
 });
 
 test("날짜 변경은 변경 대상 원시데이터가 포함된 경우만 허용한다", () => {
   const renamed = { ...metric, metricDate: "2026-09-24" };
   assert.equal(updateDashboardSchema.safeParse({
+    courseId,
     startDate: "2026-09-23",
     totalBudget: 0,
     metrics: [renamed],
     renamedMetricDate: { from: "2026-09-23", to: "2026-09-24" },
   }).success, true);
   assert.equal(updateDashboardSchema.safeParse({
+    courseId,
     startDate: "2026-09-23",
     totalBudget: 0,
     metrics: [metric],

@@ -53,7 +53,8 @@ export type AdPerformanceSheetState = {
 
 export type AdPerformanceDashboardData = {
   id: string;
-  course: AdPerformanceCourse;
+  course: AdPerformanceCourse | null;
+  courses: AdPerformanceCourse[];
   startDate: string;
   totalBudget: number;
   organicChannels: AdPerformanceOrganicChannel[];
@@ -71,7 +72,7 @@ export type AdPerformanceCourse = {
 
 export type AdPerformanceDashboardSummary = {
   id: string;
-  course: AdPerformanceCourse;
+  course: AdPerformanceCourse | null;
   startDate: string;
   totalBudget: number;
   metricCount: number;

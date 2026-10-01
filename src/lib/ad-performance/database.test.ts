@@ -10,6 +10,8 @@ const courseId = "00000000-0000-4000-8000-000000000003";
 const dashboardId = "00000000-0000-4000-8000-000000000004";
 const blogChannelId = "00000000-0000-4000-8000-000000000005";
 const youtubeChannelId = "00000000-0000-4000-8000-000000000006";
+const unassignedDashboardId = "00000000-0000-4000-8000-000000000007";
+const secondUnassignedDashboardId = "00000000-0000-4000-8000-000000000008";
 
 test("강의마다 하나의 광고성과 대시보드와 날짜별 지표를 저장한다", async () => {
   const db = new PGlite();
@@ -41,6 +43,28 @@ test("강의마다 하나의 광고성과 대시보드와 날짜별 지표를 �
     await db.exec(await readFile("supabase/migrations_archive/20260929/202609230005_course_ad_performance_dashboards.sql", "utf8"));
     await db.exec(await readFile("supabase/migrations_archive/20260929/202609230006_ad_chat_room_members.sql", "utf8"));
     await db.exec(await readFile("supabase/migrations/202609300001_ad_performance_sheet_workspace.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations/20261001144602_allow_unassigned_ad_performance_dashboards.sql", "utf8"));
+
+    await db.query(
+      `insert into public.ad_performance_dashboards
+        (id,workspace_id,course_id,start_date,total_budget,created_by,updated_by)
+       values ($1,$2,null,'2026-10-01',30000000,$3,$3),
+              ($4,$2,null,'2026-10-01',30000000,$3,$3)`,
+      [unassignedDashboardId, workspaceId, userId, secondUnassignedDashboardId],
+    );
+    assert.equal(
+      Number(
+        (
+          await db.query<{ count: string }>(
+            "select count(*) from public.ad_performance_dashboards where course_id is null",
+          )
+        ).rows[0].count,
+      ),
+      2,
+    );
+    await db.query(
+      "delete from public.ad_performance_dashboards where course_id is null",
+    );
 
     await db.query(
       `insert into public.ad_performance_dashboards

@@ -31,6 +31,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { summarizeAdPerformance } from "@/lib/ad-performance/calculation";
 import type { AdPerformanceDashboardData } from "@/lib/ad-performance/types";
 
@@ -168,9 +175,13 @@ export function AdPerformanceDashboard({
 }: {
   initialData: AdPerformanceDashboardData;
 }) {
+  const [courseId, setCourseId] = useState(initialData.course?.id ?? "");
   const [startDate, setStartDate] = useState(initialData.startDate);
   const [totalBudget, setTotalBudget] = useState(initialData.totalBudget);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [draftCourseId, setDraftCourseId] = useState(
+    initialData.course?.id ?? "",
+  );
   const [draftStartDate, setDraftStartDate] = useState(initialData.startDate);
   const [draftTotalBudget, setDraftTotalBudget] = useState(
     initialData.totalBudget,
@@ -183,8 +194,13 @@ export function AdPerformanceDashboard({
     () => summarizeAdPerformance(initialData.metrics, totalBudget),
     [initialData.metrics, totalBudget],
   );
+  const course = initialData.courses.find((item) => item.id === courseId) ?? null;
 
   async function saveSettings() {
+    if (!draftCourseId) {
+      setSettingsError("강의를 선택해 주세요.");
+      return;
+    }
     if (!draftStartDate) {
       setSettingsError("광고 시작일을 선택해 주세요.");
       return;
@@ -197,6 +213,7 @@ export function AdPerformanceDashboard({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          courseId: draftCourseId,
           startDate: draftStartDate,
           totalBudget: draftTotalBudget,
           metrics: initialData.metrics,
@@ -206,6 +223,7 @@ export function AdPerformanceDashboard({
       if (!response.ok) {
         throw new Error(result.message || "광고 설정을 저장하지 못했습니다.");
       }
+      setCourseId(draftCourseId);
       setStartDate(draftStartDate);
       setTotalBudget(draftTotalBudget);
       setNotice("광고 설정을 저장했습니다.");
@@ -220,6 +238,7 @@ export function AdPerformanceDashboard({
   }
 
   function openSettings() {
+    setDraftCourseId(courseId);
     setDraftStartDate(startDate);
     setDraftTotalBudget(totalBudget);
     setSettingsError("");
@@ -237,7 +256,7 @@ export function AdPerformanceDashboard({
               </BackLink>
             </Button>
             <h1 className="text-3xl font-semibold tracking-tight">
-              {initialData.course.name}
+              {course?.name ?? "강의 미설정"}
             </h1>
           </div>
           <Button variant="outline" onClick={openSettings}>
@@ -301,7 +320,6 @@ export function AdPerformanceDashboard({
         </section>
 
         <section className="mt-8">
-          <h2 className="mb-3 text-lg font-semibold">강의별 광고성과</h2>
           <AdPerformanceSheetWorkspace
             dashboardId={initialData.id}
             dashboardStartDate={startDate}
@@ -315,7 +333,7 @@ export function AdPerformanceDashboard({
           <DialogHeader>
             <DialogTitle>광고 사전설정</DialogTitle>
             <DialogDescription>
-              광고 시작일과 총예산을 설정합니다.
+              강의, 광고 시작일과 총예산을 설정합니다.
             </DialogDescription>
           </DialogHeader>
 
@@ -327,30 +345,47 @@ export function AdPerformanceDashboard({
             </Alert>
           ) : null}
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="ad-start-date">광고 시작일</Label>
-              <Input
-                id="ad-start-date"
-                type="date"
-                value={draftStartDate}
-                onChange={(event) => setDraftStartDate(event.target.value)}
-              />
+              <Label>강의</Label>
+              <Select value={draftCourseId} onValueChange={setDraftCourseId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={initialData.courses.length ? "강의를 선택하세요" : "선택할 강의가 없습니다"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {initialData.courses.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.name} · {item.instructorName || "강사 미지정"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="ad-total-budget">총예산</Label>
-              <Input
-                id="ad-total-budget"
-                inputMode="numeric"
-                className="text-right tabular-nums"
-                value={
-                  draftTotalBudget ? number.format(draftTotalBudget) : ""
-                }
-                placeholder="0"
-                onChange={(event) =>
-                  setDraftTotalBudget(parseCount(event.target.value))
-                }
-              />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="ad-start-date">광고 시작일</Label>
+                <Input
+                  id="ad-start-date"
+                  type="date"
+                  value={draftStartDate}
+                  onChange={(event) => setDraftStartDate(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ad-total-budget">총예산</Label>
+                <Input
+                  id="ad-total-budget"
+                  inputMode="numeric"
+                  className="text-right tabular-nums"
+                  value={
+                    draftTotalBudget ? number.format(draftTotalBudget) : ""
+                  }
+                  placeholder="0"
+                  onChange={(event) =>
+                    setDraftTotalBudget(parseCount(event.target.value))
+                  }
+                />
+              </div>
             </div>
           </div>
 
@@ -363,7 +398,7 @@ export function AdPerformanceDashboard({
             <Button
               type="button"
               onClick={() => void saveSettings()}
-              disabled={saving || Boolean(initialData.loadError)}
+              disabled={saving || !initialData.courses.length || Boolean(initialData.loadError)}
             >
               {saving ? <Loader2 className="animate-spin" /> : <Save />}
               저장
