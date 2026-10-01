@@ -56,6 +56,12 @@ export function ExternalDocumentList({ accessToken, initialMaterials, initialDoc
                   <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted font-mono text-sm text-muted-foreground">
                     {String(material.position).padStart(2, "0")}
                   </span>
+                  <div className="w-28 shrink-0">
+                    <p className="text-xs text-muted-foreground">기획시트번호</p>
+                    <p className="mt-1 font-mono text-sm font-medium">
+                      {material.referencePlanningNumber || "-"}
+                    </p>
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="font-semibold">{material.title}</h2>

@@ -1,7 +1,8 @@
-import { FileText } from "lucide-react";
+import { ExternalLink, FileSpreadsheet, FileText } from "lucide-react";
 
 import { ExternalDocumentList } from "@/components/course-documents/external-document-list";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { courseDocumentMaterials } from "@/lib/course-documents/materials";
 import { getExternalCourse, toDocumentSummary } from "@/lib/course-documents/server";
 import type { CourseDocumentMaterial } from "@/lib/course-documents/types";
@@ -33,5 +34,36 @@ export default async function ExternalWriterPage({ params }: Props) {
     message = error instanceof Error && error.message === "EXTERNAL_DISABLED" ? "현재 외부 문서 작성이 비활성화되어 있습니다." : "외부 작성 페이지를 찾을 수 없습니다.";
   }
   if (!result) return <main className="grid min-h-screen place-items-center bg-muted/20 p-5"><Alert className="max-w-lg" variant="destructive"><AlertDescription>{message}</AlertDescription></Alert></main>;
-  return <main className="min-h-screen bg-muted/20"><header className="border-b bg-background"><div className="mx-auto flex h-18 max-w-5xl items-center gap-3 px-5"><span className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground"><FileText className="size-4" /></span><span className="truncate font-semibold">{result.course.name}</span></div></header><div className="mx-auto max-w-5xl px-5 py-10"><h1 className="mb-6 text-3xl font-semibold tracking-tight">인스타 글</h1><ExternalDocumentList accessToken={accessToken} initialMaterials={materials} initialDocuments={documents} /></div></main>;
+  const planningSheetUrl = result.settings.planning_sheet_url?.trim() ?? "";
+
+  return (
+    <main className="min-h-screen bg-muted/20">
+      <header className="border-b bg-background">
+        <div className="mx-auto flex h-18 max-w-5xl items-center gap-3 px-5">
+          <span className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground"><FileText className="size-4" /></span>
+          <span className="truncate font-semibold">{result.course.name}</span>
+        </div>
+      </header>
+      <div className="mx-auto max-w-5xl px-5 py-10">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-3xl font-semibold tracking-tight">인스타 글</h1>
+          {planningSheetUrl ? (
+            <Button variant="outline" asChild>
+              <a href={planningSheetUrl} target="_blank" rel="noopener noreferrer">
+                <FileSpreadsheet />
+                기획시트 보기
+                <ExternalLink className="size-3.5" />
+              </a>
+            </Button>
+          ) : (
+            <Button variant="outline" disabled>
+              <FileSpreadsheet />
+              기획시트 보기
+            </Button>
+          )}
+        </div>
+        <ExternalDocumentList accessToken={accessToken} initialMaterials={materials} initialDocuments={documents} />
+      </div>
+    </main>
+  );
 }

@@ -23,7 +23,7 @@ export async function getExternalCourse(accessToken: string) {
   const admin = createAdminClient();
   const { data: settings, error: settingsError } = await admin
     .from("course_document_settings")
-    .select("course_id,workspace_id,external_edit_enabled")
+    .select("course_id,workspace_id,external_edit_enabled,planning_sheet_url")
     .eq("external_access_token", accessToken)
     .maybeSingle();
   if (settingsError) throw new Error(`외부 작성 설정 조회 실패: ${settingsError.code}`);
