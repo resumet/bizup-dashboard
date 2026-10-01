@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, Check, Copy, ExternalLink, FileSpreadsheet, Loader2, Pencil, RefreshCw, Save, Search, Trash2 } from "lucide-react";
+import { Ban, Check, Circle, Copy, ExternalLink, FileSpreadsheet, Loader2, Pencil, RefreshCw, Save, Trash2 } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +39,11 @@ function materialSnapshots(courses: CourseDocumentCourse[]) {
   ]));
 }
 
+function StatusBadge({ label, color }: { label: string; color: "blue" | "yellow" }) {
+  const colorClass = color === "blue" ? "text-blue-600" : "text-yellow-500";
+  return <Badge variant="outline"><Circle aria-hidden="true" className={`${colorClass} fill-current`} />{label}</Badge>;
+}
+
 export function InstagramManagementWorkspace() {
   const router = useRouter();
   const [courses, setCourses] = useState<CourseDocumentCourse[]>([]);
@@ -53,7 +58,6 @@ export function InstagramManagementWorkspace() {
   const [planningSheetUrl, setPlanningSheetUrl] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [search, setSearch] = useState("");
   const [leadCourseId, setLeadCourseId] = useState("");
   const [leadDocumentId, setLeadDocumentId] = useState("");
   const [leadInstructor, setLeadInstructor] = useState("");
@@ -101,10 +105,6 @@ export function InstagramManagementWorkspace() {
   }, []);
 
   const selectedCourse = courses.find((course) => course.id === selectedCourseId);
-  const filteredCourses = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return query ? courses.filter((course) => `${course.name} ${course.instructorName} ${course.cohort}`.toLowerCase().includes(query)) : courses;
-  }, [courses, search]);
   const instructors = useMemo(() => [...new Set(courses.map((course) => course.instructorName).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ko")), [courses]);
   const allDocuments = useMemo(() => courses.flatMap((course) => course.documents.map((document) => ({ ...document, courseName: course.name }))), [courses]);
   const filteredLeads = useMemo(() => leads.filter((lead) => {
@@ -253,36 +253,37 @@ export function InstagramManagementWorkspace() {
         <Tabs defaultValue="documents" className="gap-6">
           <TabsList className="h-auto w-full justify-start overflow-x-auto"><TabsTrigger value="documents">자료 관리</TabsTrigger><TabsTrigger value="leads">리드 {leads.length.toLocaleString("ko-KR")}</TabsTrigger><TabsTrigger value="blocked">차단 전화번호</TabsTrigger></TabsList>
           <TabsContent value="documents" className="mt-0">
-            <div className="grid items-start gap-5 lg:grid-cols-[18rem_minmax(0,1fr)]">
-              <Card className="lg:sticky lg:top-6"><CardHeader className="pb-3"><CardTitle>강의</CardTitle></CardHeader><CardContent className="space-y-3"><div className="relative"><Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="강의 검색" /></div><div className="max-h-[65vh] space-y-1 overflow-y-auto pr-1">{filteredCourses.map((course) => <button key={course.id} type="button" onClick={() => setSelectedCourseId(course.id)} className={`w-full rounded-lg px-3 py-3 text-left transition-colors ${selectedCourseId === course.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}><span className="block truncate font-medium">{course.cohort ? `${course.cohort}기 · ` : ""}{course.name}</span><span className={`mt-1 block truncate text-xs ${selectedCourseId === course.id ? "text-primary-foreground/75" : "text-muted-foreground"}`}>{course.instructorName || "강사 미지정"} · 인스타 자료 {course.materials.filter((material) => material.title).length}</span></button>)}</div></CardContent></Card>
-              {selectedCourse ? <div className="space-y-5">
+            {selectedCourse ? <div className="space-y-5">
                 <Card>
                   <CardContent className="flex flex-col gap-4 py-5 xl:flex-row xl:items-center">
-                    <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="truncate text-xl font-semibold">{selectedCourse.name}</h2><Badge variant={selectedCourse.externalEditEnabled ? "default" : "secondary"}>{selectedCourse.externalEditEnabled ? "외부 작성 허용" : "비활성"}</Badge></div><p className="mt-1 text-sm text-muted-foreground">{selectedCourse.instructorName || "강사 미지정"} · {shortDate(selectedCourse.freeWebinarAt)}</p></div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="min-w-64 flex-1">
+                      <label className="sr-only" htmlFor="instagram-course">강의 선택</label>
+                      <select id="instagram-course" className="h-10 w-full rounded-lg border bg-background px-3 text-sm font-medium" value={selectedCourseId} onChange={(event) => setSelectedCourseId(event.target.value)}>
+                        {courses.map((course) => <option key={course.id} value={course.id}>{course.cohort ? `${course.cohort}기 · ` : ""}{course.name}</option>)}
+                      </select>
+                      <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground"><span>{selectedCourse.instructorName || "강사 미지정"} · {shortDate(selectedCourse.freeWebinarAt)}</span><Badge variant={selectedCourse.externalEditEnabled ? "default" : "secondary"}>{selectedCourse.externalEditEnabled ? "외부 작성 허용" : "비활성"}</Badge></div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 xl:justify-end">
                       <Button variant="outline" disabled={busy} onClick={openPlanningSheet}><FileSpreadsheet />기획시트</Button>
                       <Button variant="outline" disabled={!externalUrl} onClick={() => void copyText(new URL(externalUrl, window.location.origin).toString()).then(() => setNotice("외부 작성 주소를 복사했습니다.")).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "주소를 복사하지 못했습니다."))}><Copy />주소 복사</Button>
                       <Button variant="outline" disabled={busy} onClick={() => void updateAccess(selectedCourse.externalEditEnabled, true)}><RefreshCw />재발급</Button>
                       <Button variant={selectedCourse.externalEditEnabled ? "outline" : "default"} disabled={busy} onClick={() => void updateAccess(!selectedCourse.externalEditEnabled)}>{selectedCourse.externalEditEnabled ? "비활성화" : "외부 작성 활성화"}</Button>
+                      <Button disabled={savingMaterials || materialChangeCount === 0} onClick={() => void saveMaterials()}>
+                        {savingMaterials ? <Loader2 className="animate-spin" /> : <Save />}
+                        {savingMaterials ? "저장 중" : materialChangeCount ? `저장하기 (${materialChangeCount})` : "저장됨"}
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardHeader className="flex-row items-center justify-between gap-4">
-                    <CardTitle>인스타 자료 <span className="text-sm font-normal text-muted-foreground">{assignedMaterialCount}/{COURSE_DOCUMENT_MATERIAL_LIMIT}</span></CardTitle>
-                    <Button disabled={savingMaterials || materialChangeCount === 0} onClick={() => void saveMaterials()}>
-                      {savingMaterials ? <Loader2 className="animate-spin" /> : <Save />}
-                      {materialChangeCount ? `변경사항 저장 (${materialChangeCount})` : "저장됨"}
-                    </Button>
-                  </CardHeader>
-                  <CardContent><div className="max-h-[65vh] overflow-auto rounded-lg border"><Table><TableHeader className="sticky top-0 z-10 bg-background"><TableRow className="hover:bg-background"><TableHead className="w-16 text-center">번호</TableHead><TableHead className="w-32 text-center">참고기획번호</TableHead><TableHead className="min-w-72">제목</TableHead><TableHead className="w-32">작성 상태</TableHead><TableHead className="w-28">공개 상태</TableHead><TableHead className="w-32 text-right">작업</TableHead></TableRow></TableHeader><TableBody>{selectedCourse.materials.map((material) => {
+                  <CardHeader><CardTitle>인스타 자료 <span className="text-sm font-normal text-muted-foreground">{assignedMaterialCount}/{COURSE_DOCUMENT_MATERIAL_LIMIT}</span></CardTitle></CardHeader>
+                  <CardContent><div className="rounded-lg border"><Table><TableHeader className="sticky top-0 z-10 bg-background"><TableRow className="hover:bg-background"><TableHead className="w-16 text-center">번호</TableHead><TableHead className="w-32 text-center">참고기획번호</TableHead><TableHead className="min-w-72">제목</TableHead><TableHead className="w-32">작성 상태</TableHead><TableHead className="w-28">공개 상태</TableHead><TableHead className="w-32 text-right">작업</TableHead></TableRow></TableHeader><TableBody>{selectedCourse.materials.map((material) => {
                   const document = selectedCourse.documents.find((item) => item.id === material.documentId);
-                  return <TableRow key={material.position}><TableCell className="text-center font-mono text-sm text-muted-foreground">{String(material.position).padStart(2, "0")}</TableCell><TableCell><Input className="mx-auto w-20 text-center font-mono" aria-label={`${material.position}번 참고기획번호`} value={material.referencePlanningNumber} inputMode="numeric" maxLength={2} placeholder="00" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { referencePlanningNumber: event.target.value.replace(/\D/g, "").slice(0, 2) })} /></TableCell><TableCell><Input aria-label={`${material.position}번 자료 제목`} value={material.title} maxLength={200} placeholder="강사가 작성할 글의 제목" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { title: event.target.value })} /></TableCell><TableCell>{document ? <Badge variant="secondary">작성됨</Badge> : material.title.trim() ? <Badge variant="outline">미작성</Badge> : <span className="text-sm text-muted-foreground">-</span>}</TableCell><TableCell>{document ? <Badge variant={document.status === "published" ? "default" : "secondary"}>{document.status === "published" ? "공개" : "비공개"}</Badge> : <span className="text-sm text-muted-foreground">-</span>}</TableCell><TableCell><div className="flex justify-end gap-1">{document ? <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon-sm" aria-label="문서 수정 및 리드게이트 설정" disabled={savingMaterials} onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}><Pencil /></Button></TooltipTrigger><TooltipContent>문서 수정 및 리드게이트 설정</TooltipContent></Tooltip> : null}{document?.status === "published" ? <Button variant="ghost" size="icon-sm" asChild><a aria-label={`${material.position}번 공개 글 열기`} href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink /></a></Button> : null}{document ? <Button variant="ghost" size="icon-sm" aria-label={`${material.position}번 글 삭제`} disabled={busy || savingMaterials} onClick={() => void deleteDocument(document.id)}><Trash2 /></Button> : null}</div></TableCell></TableRow>;
+                  return <TableRow key={material.position}><TableCell className="text-center font-mono text-sm text-muted-foreground">{String(material.position).padStart(2, "0")}</TableCell><TableCell><Input className="mx-auto w-20 text-center font-mono" aria-label={`${material.position}번 참고기획번호`} value={material.referencePlanningNumber} inputMode="numeric" maxLength={2} placeholder="00" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { referencePlanningNumber: event.target.value.replace(/\D/g, "").slice(0, 2) })} /></TableCell><TableCell><Input aria-label={`${material.position}번 자료 제목`} value={material.title} maxLength={200} placeholder="강사가 작성할 글의 제목" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { title: event.target.value })} /></TableCell><TableCell>{document ? <StatusBadge label="작성됨" color="blue" /> : <StatusBadge label="미작성" color="yellow" />}</TableCell><TableCell>{document ? <StatusBadge label={document.status === "published" ? "공개" : "비공개"} color={document.status === "published" ? "blue" : "yellow"} /> : <span className="text-sm text-muted-foreground">-</span>}</TableCell><TableCell><div className="flex justify-end gap-1">{document ? <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon-sm" aria-label="문서 수정 및 리드게이트 설정" disabled={savingMaterials} onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}><Pencil /></Button></TooltipTrigger><TooltipContent>문서 수정 및 리드게이트 설정</TooltipContent></Tooltip> : null}{document?.status === "published" ? <Button variant="ghost" size="icon-sm" asChild><a aria-label={`${material.position}번 공개 글 열기`} href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink /></a></Button> : null}{document ? <Button variant="ghost" size="icon-sm" aria-label={`${material.position}번 글 삭제`} disabled={busy || savingMaterials} onClick={() => void deleteDocument(document.id)}><Trash2 /></Button> : null}</div></TableCell></TableRow>;
                 })}</TableBody></Table></div></CardContent>
                 </Card>
                 {legacyDocuments.length ? <Card><CardHeader><CardTitle>이전 방식 미연결 글 {legacyDocuments.length}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>제목</TableHead><TableHead>상태</TableHead><TableHead>수정일</TableHead><TableHead className="text-right">작업</TableHead></TableRow></TableHeader><TableBody>{legacyDocuments.map((document) => <TableRow key={document.id}><TableCell className="font-medium">{document.title}</TableCell><TableCell><Badge variant={document.status === "published" ? "default" : "secondary"}>{document.status === "published" ? "공개" : "비공개"}</Badge></TableCell><TableCell className="text-muted-foreground">{dateTime(document.updatedAt)}</TableCell><TableCell><div className="flex justify-end gap-1"><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon-sm" aria-label="문서 수정 및 리드게이트 설정" onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}><Pencil /></Button></TooltipTrigger><TooltipContent>문서 수정 및 리드게이트 설정</TooltipContent></Tooltip>{document.status === "published" ? <Button variant="ghost" size="icon-sm" asChild><a aria-label="이전 공개 글 열기" href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink /></a></Button> : null}<Button variant="ghost" size="icon-sm" aria-label="이전 글 삭제" disabled={busy} onClick={() => void deleteDocument(document.id)}><Trash2 /></Button></div></TableCell></TableRow>)}</TableBody></Table></CardContent></Card> : null}
               </div> : <Card><CardContent className="flex min-h-80 items-center justify-center text-muted-foreground">강의를 선택해 주세요.</CardContent></Card>}
-            </div>
           </TabsContent>
           <TabsContent value="leads" className="mt-0 space-y-5">
             <div className="grid gap-3 sm:grid-cols-3"><Card><CardContent className="py-5"><p className="text-sm text-muted-foreground">현재 결과</p><p className="mt-1 text-3xl font-semibold">{filteredLeads.length.toLocaleString("ko-KR")}</p></CardContent></Card><Card><CardContent className="py-5"><p className="text-sm text-muted-foreground">오늘</p><p className="mt-1 text-3xl font-semibold">{todayLeadCount.toLocaleString("ko-KR")}</p></CardContent></Card><Card><CardContent className="py-5"><p className="text-sm text-muted-foreground">최근 7일</p><p className="mt-1 text-3xl font-semibold">{lastSevenDaysLeadCount.toLocaleString("ko-KR")}</p></CardContent></Card></div>
