@@ -12,6 +12,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - Page and section titles must stand on their own. Do not add explanatory subtitles, eyebrow labels, or descriptive badges directly above or below a title.
 - Put necessary guidance only where users act on it, such as field help, validation, empty states, or error messages.
+- In list and table views, when an item title already links to its detail screen, do not add a separate management/action column or open button for the same navigation.
 
 ## Deployment workflow
 

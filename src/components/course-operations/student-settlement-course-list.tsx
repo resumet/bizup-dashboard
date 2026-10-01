@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, BookOpenCheck } from "lucide-react";
+import { BookOpenCheck } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CourseSettlementCheckbox, type CourseSettlementControls } from "./course-settlement-checkbox";
 import {
@@ -53,7 +52,7 @@ export function StudentSettlementCourseList({
   return (
     <Card className="overflow-hidden py-0">
       <div className="overflow-x-auto">
-        <Table className="min-w-[1280px]">
+        <Table className="min-w-[1160px]">
           <TableHeader>
             <TableRow>
               <TableHead>강의명</TableHead>
@@ -66,7 +65,6 @@ export function StudentSettlementCourseList({
               <TableHead className="text-right">전체 비용</TableHead>
               <TableHead>노바 정산</TableHead>
               <TableHead>강사 정산</TableHead>
-              <TableHead className="w-28 text-right">관리</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -77,7 +75,7 @@ export function StudentSettlementCourseList({
               <TableCell className="text-right tabular-nums">{formatMoney(totals.payment_amount)}</TableCell>
               <TableCell className="text-right tabular-nums">{totals.paid_student_count.toLocaleString("ko-KR")}명</TableCell>
               <TableCell className="text-right tabular-nums">{formatMoney(totals.total_cost)}</TableCell>
-              <TableCell colSpan={3}>-</TableCell>
+              <TableCell colSpan={2}>-</TableCell>
             </TableRow>
             {courses.map((course) => {
               const href = `/services/course-operations/students-settlements/${course.id}`;
@@ -110,14 +108,6 @@ export function StudentSettlementCourseList({
                   <TableCell>
                     <CourseSettlementCheckbox label={`${course.name} 강사 정산`} checked={course.instructor_settled}
                       saving={savingIds.has(course.id)} onCheckedChange={(value) => void onSave(course.id, { instructorSettled: value })} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={href}>
-                        열기
-                        <ArrowRight />
-                      </Link>
-                    </Button>
                   </TableCell>
                 </TableRow>
               );

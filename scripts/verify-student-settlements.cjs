@@ -31,7 +31,7 @@ const fixtureCourses = [
 
 const expectedHeaders = [
   '강의명', '기수', '강사명', '웨비나 날짜', '주문', '전체 결제금액',
-  '유료수강생', '전체 비용', '노바 정산', '강사 정산', '관리',
+  '유료수강생', '전체 비용', '노바 정산', '강사 정산',
 ];
 
 async function eventually(check, description) {
@@ -184,16 +184,26 @@ async function assertContainedTable(page, width, label) {
       assert.equal(await page.getByRole('tablist').count(), 0, `${label}: obsolete tab bar still rendered`);
       assert.equal(await page.locator('table').count(), 1, `${label}: only the course list should render`);
       assert.deepEqual((await page.locator('thead th').allTextContents()).map(value => value.trim()), expectedHeaders);
+      assert.equal(await page.getByRole('button', { name: '열기', exact: true }).count(), 0, `${label}: duplicate management button still rendered`);
       const firstRow = page.locator('tbody tr').first();
       const totals = await firstRow.innerText();
       for (const value of ['전체 합계', '6건', '170,000.4원', '5명', '30,000.3원']) {
         assert.ok(totals.includes(value), `${label}: totals missing ${value}: ${totals}`);
       }
+      const totalCells = firstRow.locator('td');
+      assert.equal(await totalCells.count(), 7, `${label}: total row cell structure changed`);
+      assert.equal(await totalCells.nth(1).getAttribute('colspan'), '3', `${label}: course metadata total span is misaligned`);
+      assert.equal(await totalCells.nth(6).getAttribute('colspan'), '2', `${label}: settlement total span is misaligned`);
+      assert.deepEqual((await totalCells.allTextContents()).slice(2, 6).map(value => value.trim()), [
+        '6건', '170,000.4원', '5명', '30,000.3원',
+      ]);
       for (let index = 0; index < fixtureCourses.length; index++) {
         const cells = page.locator('tbody tr').nth(index + 1).locator('td');
         assert.equal((await cells.nth(0).innerText()).trim(), fixtureCourses[index].name);
         assert.equal((await cells.nth(1).innerText()).trim(), `${fixtureCourses[index].cohort}기`);
         assert.equal((await cells.nth(2).innerText()).trim(), fixtureCourses[index].instructor_name);
+        const titleLink = cells.nth(0).getByRole('link', { name: fixtureCourses[index].name, exact: true });
+        assert.equal(await titleLink.getAttribute('href'), `/services/course-operations/students-settlements/${fixtureCourses[index].id}`);
         assert.equal(await checkbox(page, index, 'nova').isChecked(), fixtureCourses[index].nova_settled);
         assert.equal(await checkbox(page, index, 'instructor').isChecked(), fixtureCourses[index].instructor_settled);
       }
