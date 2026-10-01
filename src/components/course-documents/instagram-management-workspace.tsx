@@ -231,25 +231,25 @@ export function InstagramManagementWorkspace() {
           </div>
             {selectedCourse ? <div className="space-y-5">
                 <Card>
-                  <CardContent className="flex flex-col gap-4 py-5 xl:flex-row xl:items-center">
-                    <div className="min-w-64 flex-1">
+                  <CardContent className="grid min-w-0 grid-cols-1 gap-x-4 gap-y-2 py-5 xl:grid-cols-[minmax(16rem,1fr)_auto]">
+                    <div className="min-w-0 xl:col-start-1 xl:row-start-2">
                       <label className="sr-only" htmlFor="instagram-course">강의 선택</label>
                       <select id="instagram-course" className="h-10 w-full rounded-lg border bg-background px-3 text-sm font-medium" value={selectedCourseId} onChange={(event) => setSelectedCourseId(event.target.value)}>
                         {activeCourses.map((course) => <option key={course.id} value={course.id}>{instagramCourseOptionLabel(course)}</option>)}
                       </select>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
+                    <div className="flex justify-end xl:col-start-2 xl:row-start-1">
                       <Badge variant={selectedCourse.externalEditEnabled ? "default" : "secondary"}>{selectedCourse.externalEditEnabled ? "외부 작성 허용" : "비활성"}</Badge>
-                      <div className="flex flex-wrap justify-end gap-2">
-                        <Button variant="outline" disabled={busy} onClick={openPlanningSheet}><FileSpreadsheet />기획시트</Button>
-                        <Button variant="outline" disabled={!externalUrl} onClick={() => void copyText(new URL(externalUrl, window.location.origin).toString()).then(() => setNotice("외부 작성 주소를 복사했습니다.")).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "주소를 복사하지 못했습니다."))}><Copy />주소 복사</Button>
-                        <Button variant="outline" disabled={busy} onClick={() => void updateAccess(selectedCourse.externalEditEnabled, true)}><RefreshCw />재발급</Button>
-                        <Button variant={selectedCourse.externalEditEnabled ? "outline" : "default"} disabled={busy} onClick={() => void updateAccess(!selectedCourse.externalEditEnabled)}>{selectedCourse.externalEditEnabled ? "비활성화" : "외부 작성 활성화"}</Button>
-                        <Button disabled={savingMaterials || materialChangeCount === 0} onClick={() => void saveMaterials()}>
-                          {savingMaterials ? <Loader2 className="animate-spin" /> : <Save />}
-                          {savingMaterials ? "저장 중" : materialChangeCount ? `저장하기 (${materialChangeCount})` : "저장됨"}
-                        </Button>
-                      </div>
+                    </div>
+                    <div className="flex flex-wrap justify-end gap-2 xl:col-start-2 xl:row-start-2">
+                      <Button variant="outline" disabled={busy} onClick={openPlanningSheet}><FileSpreadsheet />기획시트</Button>
+                      <Button variant="outline" disabled={!externalUrl} onClick={() => void copyText(new URL(externalUrl, window.location.origin).toString()).then(() => setNotice("외부 작성 주소를 복사했습니다.")).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "주소를 복사하지 못했습니다."))}><Copy />주소 복사</Button>
+                      <Button variant="outline" disabled={busy} onClick={() => void updateAccess(selectedCourse.externalEditEnabled, true)}><RefreshCw />재발급</Button>
+                      <Button variant={selectedCourse.externalEditEnabled ? "outline" : "default"} disabled={busy} onClick={() => void updateAccess(!selectedCourse.externalEditEnabled)}>{selectedCourse.externalEditEnabled ? "비활성화" : "외부 작성 활성화"}</Button>
+                      <Button disabled={savingMaterials || materialChangeCount === 0} onClick={() => void saveMaterials()}>
+                        {savingMaterials ? <Loader2 className="animate-spin" /> : <Save />}
+                        {savingMaterials ? "저장 중" : materialChangeCount ? `저장하기 (${materialChangeCount})` : "저장됨"}
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
