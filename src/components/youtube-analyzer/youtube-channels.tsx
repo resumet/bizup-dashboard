@@ -9,13 +9,16 @@ import { buildGmailComposeWithAccountChooser } from "@/lib/youtube-analyzer/gmai
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { CHANNEL_CATEGORIES, DEFAULT_YOUTUBE_EMAIL_SETTINGS, inputs, parseSource, errorMessages, type Analysis, type AnalysisRequest, type Batch, type ChannelCategory, type Video, type YoutubeEmailSettings } from "@/lib/youtube-analyzer/model";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CHANNEL_CATEGORIES, DEFAULT_YOUTUBE_EMAIL_SETTINGS, inputs, parseSource, errorMessages, type Analysis, type AnalysisRequest, type Batch, type ChannelCategory, type Video, type YoutubeEmailCourse, type YoutubeEmailSettings } from "@/lib/youtube-analyzer/model";
 import { sortChannels, type ChannelSort, type SortDirection } from "@/lib/youtube-analyzer/sort";
 
 type CategoryFilter = "all" | "uncategorized" | ChannelCategory;
 
 const number = (n: number | null | undefined) => n == null ? "-" : Math.round(n).toLocaleString("ko-KR");
 const date = (s: string) => new Date(s).toLocaleString("ko-KR");
+const courseDateFormatter = new Intl.DateTimeFormat("ko-KR", {timeZone:"Asia/Seoul",year:"numeric",month:"long",day:"numeric"});
+const courseDate = (s: string) => courseDateFormatter.format(new Date(s));
 const statuses: Record<string,string> = {
   pending:"대기", running:"분석 중", resolving:"채널 확인 중", fetching_channel:"채널 확인 완료",
   fetching_videos:"영상 수집 중", calculating:"통계 계산 중", saving:"저장 중", completed:"완료",
@@ -61,6 +64,10 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   const [loadingAll,setLoadingAll] = useState(false);
   const [allLoaded,setAllLoaded] = useState(false);
   const [emailSettings,setEmailSettings] = useState<YoutubeEmailSettings>(DEFAULT_YOUTUBE_EMAIL_SETTINGS);
+  const [emailCourses,setEmailCourses] = useState<YoutubeEmailCourse[]>([]);
+  const [emailTarget,setEmailTarget] = useState<Analysis | null>(null);
+  const [selectedEmailCourseId,setSelectedEmailCourseId] = useState("");
+  const [emailComposeError,setEmailComposeError] = useState("");
   const viewVersion = useRef(0);
   const [detail,setDetail] = useState<Analysis | null>(null);
   const [videos,setVideos] = useState<Video[] | null>(null);
@@ -114,6 +121,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
         setBatch(data.batch ?? null);
         setRequests(data.requests ?? []);
         setEmailSettings(data.emailSettings ?? DEFAULT_YOUTUBE_EMAIL_SETTINGS);
+        setEmailCourses(data.emailCourses ?? []);
         setError("");
         setLoading(false);
         setLoadingAll(false);
@@ -270,6 +278,34 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     setSortBy(next);
   }
 
+  function openEmailComposer(run: Analysis) {
+    setEmailTarget(run);
+    setSelectedEmailCourseId("");
+    setEmailComposeError("");
+  }
+
+  function composeEmail() {
+    if (!emailTarget?.email) return;
+    const course=emailCourses.find(item=>item.id===selectedEmailCourseId);
+    if(!course) {
+      setEmailComposeError("메일에 사용할 강의를 선택해 주세요.");
+      return;
+    }
+    const url=buildGmailComposeWithAccountChooser(emailTarget.email,{
+      subject:emailSettings.email_subject,
+      body:emailSettings.email_body,
+      signatureMode:emailSettings.signature_mode,
+      customSignature:emailSettings.custom_signature,
+      course:{
+        webinarAt:course.free_webinar_at,
+        courseName:course.name,
+        instructorName:course.instructor_name,
+      },
+    });
+    window.open(url,"_blank","noopener,noreferrer");
+    setEmailTarget(null);
+  }
+
   const completed=requests.filter(request=>["completed","failed"].includes(request.status)).length;
   const analysisPending=!!batchId && (!batch || active(batch));
 
@@ -322,7 +358,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
           <thead className="bg-muted/60"><tr>{["채널 / 주소","이메일","출연료","RS(%)","전체 / 분석 영상","구독자","최근 20개 평균","최근 30개 평균 댓글","최근 30개 평균 좋아요","등록 / 업데이트","관리"].map(heading=><th key={heading} className="whitespace-nowrap px-3 py-3 text-left font-medium">{heading}</th>)}</tr></thead>
           <tbody>{visibleRuns.map(run=><tr key={run.channel_id} className={`border-t align-top transition-colors ${run.excluded_from_updates ? "bg-muted/70 text-muted-foreground hover:bg-muted/80" : "hover:bg-muted/20"}`}>
             <td className="min-w-60 max-w-72 px-3 py-4"><a href={run.channel.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-semibold hover:underline">{run.channel.thumbnail && <Image unoptimized src={run.channel.thumbnail} alt="" width={36} height={36} className={`size-9 rounded-full ${run.excluded_from_updates ? "grayscale opacity-60" : ""}`} referrerPolicy="no-referrer"/>}<span className="break-words">{run.channel.name}</span><ExternalLink className="size-3 shrink-0"/></a><a href={run.channel.url} target="_blank" rel="noreferrer" className="mt-2 block break-all text-xs text-muted-foreground hover:underline">{displayUrl(run.channel.url)}</a><p className="mt-3 text-xs text-muted-foreground">분류: <span className={run.excluded_from_updates ? "font-medium" : "font-medium text-foreground"}>{run.category ?? "-"}</span></p>{run.excluded_from_updates ? <p className="mt-2 inline-flex rounded-full border bg-background/70 px-2 py-1 text-xs font-medium">유효하지 않은 채널 · 업데이트 제외</p> : null}<div className="mt-2"><ChannelDetailsEditor run={run} onSaved={updateDetails}/></div>{run.warnings.map(warning=><p key={warning} className="mt-2 text-xs text-amber-800">{warning}</p>)}</td>
-            <td className="min-w-52 px-3 py-4">{run.email ? <a href={buildGmailComposeWithAccountChooser(run.email,{body:emailSettings.email_body,signatureMode:emailSettings.signature_mode,customSignature:emailSettings.custom_signature})} target="_blank" rel="noreferrer" title="저장한 본문으로 Google 계정을 선택해 Gmail 작성창 열기" className="flex items-start gap-1.5 break-all text-sm text-primary hover:underline"><Mail className="mt-0.5 size-3.5 shrink-0" />{run.email}</a> : null}</td>
+            <td className="min-w-52 px-3 py-4">{run.email ? <button type="button" title="메일에 사용할 강의 선택" className="flex items-start gap-1.5 break-all text-left text-sm text-primary hover:underline" onClick={()=>openEmailComposer(run)}><Mail className="mt-0.5 size-3.5 shrink-0" />{run.email}</button> : null}</td>
             <td className="whitespace-nowrap px-3 py-4 text-right tabular-nums">{run.appearance_fee == null ? "-" : `${number(run.appearance_fee)}원`}</td>
             <td className="whitespace-nowrap px-3 py-4 text-right tabular-nums">{run.rs_percent == null ? "-" : `${run.rs_percent}%`}</td>
             <td className="px-3 py-4 tabular-nums">{number(run.channel.reported)} / {number(run.metrics.count)}</td>
@@ -337,6 +373,40 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
       </div>}
       {!requiresAll && hasMore && <Button variant="outline" disabled={loadingMore} onClick={loadMore}>{loadingMore ? <LoaderCircle className="size-4 animate-spin"/> : null}더 불러오기</Button>}
     </section>
+
+    <Dialog open={emailTarget!==null} onOpenChange={(open)=>{if(!open){setEmailTarget(null);setEmailComposeError("");}}}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>이메일 보내기</DialogTitle>
+          <DialogDescription className="sr-only">메일에 포함할 강의를 선택합니다.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <span className="text-sm font-medium">받는 사람</span>
+            <p className="break-all rounded-lg border bg-muted/30 px-3 py-2 text-sm">{emailTarget?.email}</p>
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="youtube-email-course" className="text-sm font-medium">강의</label>
+            <Select value={selectedEmailCourseId} onValueChange={(value)=>{setSelectedEmailCourseId(value);setEmailComposeError("");}}>
+              <SelectTrigger id="youtube-email-course" className="w-full">
+                <SelectValue placeholder={emailCourses.length ? "강의를 선택하세요" : "선택할 강의가 없습니다"} />
+              </SelectTrigger>
+              <SelectContent>
+                {emailCourses.map(course=><SelectItem key={course.id} value={course.id}>{course.instructor_name || "강사 미입력"} · {course.name} · {courseDate(course.free_webinar_at)}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          {emailComposeError ? <p role="alert" className="text-sm text-destructive">{emailComposeError}</p> : null}
+        </div>
+        <DialogFooter>
+          <DialogClose asChild><Button type="button" variant="outline">취소</Button></DialogClose>
+          <Button type="button" disabled={!selectedEmailCourseId || !emailCourses.length} onClick={composeEmail}>
+            <Mail className="size-4" />
+            Gmail로 작성
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <Dialog open={addOpen} onOpenChange={setAddOpen}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">

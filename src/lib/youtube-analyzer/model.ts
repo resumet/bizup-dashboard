@@ -41,11 +41,19 @@ export type Metrics = Omit<ReturnType<typeof calculate>, "top"> & { top: Video |
 export const EMAIL_SIGNATURE_MODES = ["gmail_default", "custom"] as const;
 export type EmailSignatureMode = (typeof EMAIL_SIGNATURE_MODES)[number];
 export type YoutubeEmailSettings = {
+  email_subject: string | null;
   email_body: string | null;
   signature_mode: EmailSignatureMode;
   custom_signature: string | null;
 };
+export type YoutubeEmailCourse = {
+  id: string;
+  name: string;
+  instructor_name: string;
+  free_webinar_at: string;
+};
 export const DEFAULT_YOUTUBE_EMAIL_SETTINGS: YoutubeEmailSettings = {
+  email_subject: null,
   email_body: null,
   signature_mode: "gmail_default",
   custom_signature: null,
@@ -105,6 +113,11 @@ export function normalizeYoutubeEmailBody(value: unknown): string | null {
   if (value === null) return null;
   if (typeof value !== "string" || value.length > 5000) throw new Error("INVALID_EMAIL_BODY");
   return value.trim() ? value : null;
+}
+export function normalizeYoutubeEmailSubject(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value !== "string" || value.length > 500) throw new Error("INVALID_EMAIL_SUBJECT");
+  return value.trim() || null;
 }
 export function normalizeEmailSignatureMode(value: unknown): EmailSignatureMode {
   if (typeof value !== "string" || !EMAIL_SIGNATURE_MODES.includes(value as EmailSignatureMode)) {

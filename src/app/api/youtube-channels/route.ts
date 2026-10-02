@@ -111,11 +111,15 @@ export async function GET(request: Request) {
       ? batchRequests(admin,batchId).then(data=>({data,error:null}))
       : Promise.resolve({data:[],error:null});
     const emailSettingsQuery = admin.from("youtube_channel_email_settings")
-      .select("email_body,signature_mode,custom_signature")
+      .select("email_subject,email_body,signature_mode,custom_signature")
       .eq("workspace_id",workspaceId)
       .maybeSingle();
-    const [result,batch,requests,emailSettingsResult] = await Promise.all([channelsQuery,batchQuery,requestsQuery,emailSettingsQuery]);
-    if (batch.error || requests.error) throw batch.error ?? requests.error;
+    const coursesQuery = admin.from("courses")
+      .select("id,name,instructor_name,free_webinar_at")
+      .eq("workspace_id",workspaceId)
+      .order("free_webinar_at",{ascending:false});
+    const [result,batch,requests,emailSettingsResult,coursesResult] = await Promise.all([channelsQuery,batchQuery,requestsQuery,emailSettingsQuery,coursesQuery]);
+    if (batch.error || requests.error || coursesResult.error) throw batch.error ?? requests.error ?? coursesResult.error;
     if (emailSettingsResult.error && !/PGRST20[45]|42P01/u.test(emailSettingsResult.error.code ?? "")) {
       throw emailSettingsResult.error;
     }
@@ -168,6 +172,7 @@ export async function GET(request: Request) {
       batch:batch.data,
       requests:requests.data,
       emailSettings:emailSettingsResult.data ?? DEFAULT_YOUTUBE_EMAIL_SETTINGS,
+      emailCourses:coursesResult.data ?? [],
     });
   } catch(error) { return failure(error); }
 }

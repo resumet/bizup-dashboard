@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { EmailSignatureMode, YoutubeEmailSettings } from "@/lib/youtube-analyzer/model";
 
@@ -24,6 +25,7 @@ export function EmailDraftSettings({ settings, onSaved }: {
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
+  const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [signatureMode, setSignatureMode] = useState<EmailSignatureMode>("gmail_default");
   const [customSignature, setCustomSignature] = useState("");
@@ -34,6 +36,7 @@ export function EmailDraftSettings({ settings, onSaved }: {
     if (saving) return;
     setOpen(next);
     if (next) {
+      setSubject(settings.email_subject ?? "");
       setBody(settings.email_body ?? "");
       setSignatureMode(settings.signature_mode);
       setCustomSignature(settings.custom_signature ?? "");
@@ -55,17 +58,18 @@ export function EmailDraftSettings({ settings, onSaved }: {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          emailSubject: subject,
           emailBody: body,
           signatureMode,
           customSignature: signatureMode === "custom" ? customSignature : null,
         }),
       });
       const result = await response.json() as YoutubeEmailSettings & { error?: string };
-      if (!response.ok) throw new Error(result.error ?? "이메일 본문 설정을 저장하지 못했습니다.");
+      if (!response.ok) throw new Error(result.error ?? "이메일 양식을 저장하지 못했습니다.");
       onSaved(result);
       setOpen(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "이메일 본문 설정을 저장하지 못했습니다.");
+      setError(caught instanceof Error ? caught.message : "이메일 양식을 저장하지 못했습니다.");
     } finally {
       setSaving(false);
     }
@@ -75,15 +79,29 @@ export function EmailDraftSettings({ settings, onSaved }: {
     <DialogTrigger asChild>
       <Button type="button" variant="outline">
         <FilePenLine className="size-4" />
-        본문 미리 작성
+        이메일 양식
       </Button>
     </DialogTrigger>
     <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
       <DialogHeader>
-        <DialogTitle>이메일 본문 미리 작성</DialogTitle>
-        <DialogDescription className="sr-only">채널 이메일을 열 때 사용할 공통 본문과 서명을 저장합니다.</DialogDescription>
+        <DialogTitle>이메일 양식</DialogTitle>
+        <DialogDescription className="sr-only">채널 이메일을 열 때 사용할 공통 제목, 본문과 서명을 저장합니다.</DialogDescription>
       </DialogHeader>
       <form onSubmit={(event) => void save(event)} className="space-y-5">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor={`${id}-subject`}>제목</Label>
+            <span className="text-xs text-muted-foreground">{subject.length.toLocaleString("ko-KR")} / 500</span>
+          </div>
+          <Input
+            id={`${id}-subject`}
+            value={subject}
+            onChange={(event) => setSubject(event.target.value)}
+            maxLength={500}
+            placeholder="이메일 제목을 입력하세요."
+            disabled={saving}
+          />
+        </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">
             <Label htmlFor={`${id}-body`}>본문</Label>

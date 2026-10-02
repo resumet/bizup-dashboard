@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { calculate, inputs, normalizeCustomEmailSignature, normalizeEmailSignatureMode, normalizeYoutubeEmailBody, parseSource, type Video } from "./model";
+import { calculate, inputs, normalizeCustomEmailSignature, normalizeEmailSignatureMode, normalizeYoutubeEmailBody, normalizeYoutubeEmailSubject, parseSource, type Video } from "./model";
 
 test("YouTube URL variants resolve without guessing custom channels", () => {
   for (const path of ["watch?v=abcdefghijk", "shorts/abcdefghijk", "live/abcdefghijk"]) assert.equal(parseSource(`https://www.youtube.com/${path}`).value,"abcdefghijk");
@@ -52,6 +52,9 @@ test("recent 30 engagement averages use publication order and available statisti
   assert.equal(calculate([{...video("zero",1),likes:0,comments:0}]).recent30Comments,0);
 });
 test("email draft fields preserve formatting and enforce storage limits", () => {
+  assert.equal(normalizeYoutubeEmailSubject("  출연 제안  "),"출연 제안");
+  assert.equal(normalizeYoutubeEmailSubject("  "),null);
+  assert.throws(()=>normalizeYoutubeEmailSubject("a".repeat(501)),/INVALID_EMAIL_SUBJECT/);
   assert.equal(normalizeYoutubeEmailBody("안녕하세요.\n\n제안드립니다."),"안녕하세요.\n\n제안드립니다.");
   assert.equal(normalizeYoutubeEmailBody("  "),null);
   assert.throws(()=>normalizeYoutubeEmailBody("a".repeat(5001)),/INVALID_EMAIL_BODY/);
