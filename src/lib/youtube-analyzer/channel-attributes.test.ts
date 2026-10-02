@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CHANNEL_CATEGORIES, normalizeAppearanceFee, normalizeChannelCategory, normalizeChannelMemo, normalizeExcludedFromUpdates, normalizeRsPercent } from "./model";
+import { CHANNEL_CATEGORIES, normalizeAppearanceFee, normalizeAppearanceRequestEmailSent, normalizeChannelCategory, normalizeChannelMemo, normalizeExcludedFromUpdates, normalizeRsPercent } from "./model";
 
 test("channel categories are unique and restricted to the dropdown choices", () => {
   assert.equal(CHANNEL_CATEGORIES.length, new Set(CHANNEL_CATEGORIES).size);
@@ -42,5 +42,13 @@ test("update exclusion accepts booleans only", () => {
   assert.equal(normalizeExcludedFromUpdates(false), false);
   for (const value of [null, 0, 1, "true", "false"]) {
     assert.throws(() => normalizeExcludedFromUpdates(value), /INVALID_EXCLUDED_FROM_UPDATES/);
+  }
+});
+
+test("appearance request email status accepts booleans only", () => {
+  assert.equal(normalizeAppearanceRequestEmailSent(true), true);
+  assert.equal(normalizeAppearanceRequestEmailSent(false), false);
+  for (const value of [null, 0, 1, "true", "false"]) {
+    assert.throws(() => normalizeAppearanceRequestEmailSent(value), /INVALID_APPEARANCE_REQUEST_EMAIL_SENT/);
   }
 });

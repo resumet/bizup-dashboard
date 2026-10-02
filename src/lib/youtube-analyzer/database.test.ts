@@ -48,11 +48,14 @@ test("channels accumulate in first-seen order and reanalysis updates only the ma
     const emailSubjectMigration=await readFile("supabase/migrations/202610020002_youtube_email_subject.sql","utf8");
     await db.exec(emailSubjectMigration);
     await db.exec(emailSubjectMigration);
+    const appearanceEmailStatusMigration=await readFile("supabase/migrations/20261002082201_youtube_appearance_request_email_status.sql","utf8");
+    await db.exec(appearanceEmailStatusMigration);
+    await db.exec(appearanceEmailStatusMigration);
 
     const initial=await db.query<{first_analyzed_at:string}>("select first_analyzed_at from youtube_analyzed_channels where channel_id='channel-a'");
     assert.equal(initial.rows.length,1);
     assert.equal((await db.query("select * from youtube_channel_videos")).rows.length,1);
-    await db.query("update youtube_analyzed_channels set email=$1, category=$2, appearance_fee=$3, rs_percent=$4, memo=$5, excluded_from_updates=true where channel_id='channel-a'",["contact@example.com","타이탄 외부채널",1000000,25.125,"영업 미팅 예정\n자료 전달 필요"]);
+    await db.query("update youtube_analyzed_channels set email=$1, category=$2, appearance_fee=$3, rs_percent=$4, memo=$5, excluded_from_updates=true, appearance_request_email_sent=true where channel_id='channel-a'",["contact@example.com","타이탄 외부채널",1000000,25.125,"영업 미팅 예정\n자료 전달 필요"]);
     await db.query("insert into youtube_channel_email_settings(workspace_id,email_subject,email_body,signature_mode,custom_signature) values($1,$2,$3,'custom',$4)",[workspace,"유튜브 출연 제안드립니다","안녕하세요.\n유튜브 출연을 제안드립니다.","비즈업 홍길동\n010-0000-0000"]);
     await assert.rejects(db.query("update youtube_analyzed_channels set category='unknown' where channel_id='channel-a'"),/youtube_analyzed_channels_category_valid/);
     await assert.rejects(db.query("update youtube_analyzed_channels set appearance_fee=-1 where channel_id='channel-a'"),/youtube_analyzed_channels_appearance_fee_nonnegative/);
@@ -84,12 +87,14 @@ test("channels accumulate in first-seen order and reanalysis updates only the ma
       JSON.stringify([{id:"second-video",publishedAt:"2100-03-01",views:30}]),
     ]);
 
-    const channels=await db.query<{position:number;channel_id:string;channel:{name:string};email:string|null;category:string|null;appearance_fee:number|null;rs_percent:number|null;memo:string|null;excluded_from_updates:boolean;metrics:{count:number};first_analyzed_at:string}>("select position,channel_id,channel,email,category,appearance_fee,rs_percent,memo,excluded_from_updates,metrics,first_analyzed_at from youtube_analyzed_channels order by position");
+    const channels=await db.query<{position:number;channel_id:string;channel:{name:string};email:string|null;appearance_request_email_sent:boolean;category:string|null;appearance_fee:number|null;rs_percent:number|null;memo:string|null;excluded_from_updates:boolean;metrics:{count:number};first_analyzed_at:string}>("select position,channel_id,channel,email,appearance_request_email_sent,category,appearance_fee,rs_percent,memo,excluded_from_updates,metrics,first_analyzed_at from youtube_analyzed_channels order by position");
     assert.deepEqual(channels.rows.map(row=>row.channel_id),["channel-a","channel-b"]);
     assert.equal(channels.rows[0].channel.name,"Updated");
     assert.equal(channels.rows[0].metrics.count,2);
     assert.equal(channels.rows[0].email,"contact@example.com");
     assert.equal(channels.rows[1].email,null);
+    assert.equal(channels.rows[0].appearance_request_email_sent,true);
+    assert.equal(channels.rows[1].appearance_request_email_sent,false);
     assert.equal(channels.rows[0].category,"타이탄 외부채널");
     assert.equal(Number(channels.rows[0].appearance_fee),1000000);
     assert.equal(Number(channels.rows[0].rs_percent),25.125);
@@ -109,12 +114,13 @@ test("channels accumulate in first-seen order and reanalysis updates only the ma
     await db.query(save,[secondBatch,JSON.stringify({id:"channel-a",name:"Stale"}),JSON.stringify({count:0}),"[]","2098-01-15","[]"]);
     assert.equal((await db.query<{channel:{name:string} }>("select channel from youtube_analyzed_channels where channel_id='channel-a'")).rows[0].channel.name,"Updated");
     assert.equal((await db.query<{email:string}>("select email from youtube_analyzed_channels where channel_id='channel-a'")).rows[0].email,"contact@example.com");
-    const retained=(await db.query<{category:string;appearance_fee:number;rs_percent:string;memo:string;excluded_from_updates:boolean}>("select category,appearance_fee,rs_percent,memo,excluded_from_updates from youtube_analyzed_channels where channel_id='channel-a'")).rows[0];
+    const retained=(await db.query<{category:string;appearance_fee:number;rs_percent:string;memo:string;excluded_from_updates:boolean;appearance_request_email_sent:boolean}>("select category,appearance_fee,rs_percent,memo,excluded_from_updates,appearance_request_email_sent from youtube_analyzed_channels where channel_id='channel-a'")).rows[0];
     assert.equal(retained.category,"타이탄 외부채널");
     assert.equal(Number(retained.appearance_fee),1000000);
     assert.equal(Number(retained.rs_percent),25.125);
     assert.equal(retained.memo,"영업 미팅 예정\n자료 전달 필요");
     assert.equal(retained.excluded_from_updates,true);
+    assert.equal(retained.appearance_request_email_sent,true);
     const emailSettings=(await db.query<{email_subject:string;email_body:string;signature_mode:string;custom_signature:string}>("select email_subject,email_body,signature_mode,custom_signature from youtube_channel_email_settings where workspace_id=$1",[workspace])).rows[0];
     assert.equal(emailSettings.email_subject,"유튜브 출연 제안드립니다");
     assert.equal(emailSettings.email_body,"안녕하세요.\n유튜브 출연을 제안드립니다.");

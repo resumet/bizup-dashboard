@@ -13,6 +13,7 @@ function run(id: string, position: number, values: { subscribers: number | null;
     appearance_fee: null,
     rs_percent: null,
     memo: null,
+    appearance_request_email_sent: false,
     excluded_from_updates: false,
     metrics: {
       count: 0,

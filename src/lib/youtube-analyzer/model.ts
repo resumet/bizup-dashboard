@@ -74,7 +74,7 @@ export const CHANNEL_CATEGORIES = [
   "하이클래스",
 ] as const;
 export type ChannelCategory = (typeof CHANNEL_CATEGORIES)[number];
-export type Analysis = { position: number; channel_id: string; channel: Channel; email: string | null; category: ChannelCategory | null; appearance_fee: number | null; rs_percent: number | null; memo: string | null; excluded_from_updates: boolean; metrics: Metrics; warnings: string[]; first_analyzed_at: string; last_analyzed_at: string };
+export type Analysis = { position: number; channel_id: string; channel: Channel; email: string | null; appearance_request_email_sent: boolean; category: ChannelCategory | null; appearance_fee: number | null; rs_percent: number | null; memo: string | null; excluded_from_updates: boolean; metrics: Metrics; warnings: string[]; first_analyzed_at: string; last_analyzed_at: string };
 export function normalizeChannelCategory(value: unknown): ChannelCategory | null {
   if (value === null || value === "") return null;
   if (typeof value !== "string" || !CHANNEL_CATEGORIES.includes(value as ChannelCategory)) throw new Error("INVALID_CATEGORY");
@@ -132,6 +132,10 @@ export function normalizeCustomEmailSignature(value: unknown): string | null {
 }
 export function normalizeExcludedFromUpdates(value: unknown): boolean {
   if (typeof value !== "boolean") throw new Error("INVALID_EXCLUDED_FROM_UPDATES");
+  return value;
+}
+export function normalizeAppearanceRequestEmailSent(value: unknown): boolean {
+  if (typeof value !== "boolean") throw new Error("INVALID_APPEARANCE_REQUEST_EMAIL_SENT");
   return value;
 }
 export type AnalysisRequest = { id: string; input_url: string; status: string; error_code: string | null; resolved_channel_id: string | null };

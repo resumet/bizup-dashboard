@@ -7,6 +7,7 @@ import { ChannelDetailsEditor } from "@/components/youtube-analyzer/channel-deta
 import { EmailDraftSettings } from "@/components/youtube-analyzer/email-draft-settings";
 import { buildGmailComposeWithAccountChooser } from "@/lib/youtube-analyzer/gmail";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -68,6 +69,8 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   const [emailTarget,setEmailTarget] = useState<Analysis | null>(null);
   const [selectedEmailCourseId,setSelectedEmailCourseId] = useState("");
   const [emailComposeError,setEmailComposeError] = useState("");
+  const [emailStatusSaving,setEmailStatusSaving] = useState<Set<string>>(new Set());
+  const [emailStatusError,setEmailStatusError] = useState("");
   const viewVersion = useRef(0);
   const [detail,setDetail] = useState<Analysis | null>(null);
   const [videos,setVideos] = useState<Video[] | null>(null);
@@ -259,6 +262,28 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     setDetail(previous=>previous?.channel_id===channelId ? {...previous,...details} : previous);
   }
 
+  async function updateAppearanceRequestEmailSent(run: Analysis, sent: boolean) {
+    setEmailStatusSaving(previous=>new Set(previous).add(run.channel_id));
+    setEmailStatusError("");
+    try {
+      const result=await api("",{
+        method:"PATCH",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({channelId:run.channel_id,appearanceRequestEmailSent:sent}),
+      }) as {appearance_request_email_sent:boolean};
+      setRuns(previous=>previous.map(item=>item.channel_id===run.channel_id ? {...item,appearance_request_email_sent:result.appearance_request_email_sent} : item));
+      setDetail(previous=>previous?.channel_id===run.channel_id ? {...previous,appearance_request_email_sent:result.appearance_request_email_sent} : previous);
+    } catch(caught) {
+      setEmailStatusError(caught instanceof Error ? caught.message : "출연신청 메일 발송 여부를 저장하지 못했습니다.");
+    } finally {
+      setEmailStatusSaving(previous=>{
+        const next=new Set(previous);
+        next.delete(run.channel_id);
+        return next;
+      });
+    }
+  }
+
   function changeCategoryFilter(next: CategoryFilter) {
     const nextRequiresAll=sortBy!=="position" || next!=="all";
     if(nextRequiresAll!==requiresAll) {
@@ -320,6 +345,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     {reanalyzeBatch && batchId && <p role="status" className="rounded-md border bg-muted/30 p-3 text-sm">{batch ? <>저장된 채널 재분석: {statuses[batch.status] ?? batch.status} · 처리 {completed} / {batch.input_count}개{batch.status==="completed" ? " · 숏츠 제외 기준 적용 완료" : ""}</> : "저장된 채널 재분석 요청을 확인하는 중입니다."}</p>}
     {engagementError && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{engagementError}</p>}
     {engagementMessage && <p role="status" className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{engagementMessage}</p>}
+    {emailStatusError && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{emailStatusError}</p>}
 
     <section className="space-y-4 border-t pt-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -356,10 +382,10 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
       </div>
       {loading || loadingAll ? <p role="status" className="flex items-center gap-2 py-10 text-sm"><LoaderCircle className="size-4 animate-spin"/>{loadingAll ? "전체 채널을 불러오는 중입니다." : "분석 목록을 불러오는 중입니다."}</p> : requiresAll && !allLoaded ? <div className="flex items-center gap-3 border-y py-8 text-sm"><span>전체 채널을 불러오지 못했습니다.</span><Button variant="outline" size="sm" onClick={()=>{setLoadingAll(true);setRevision(value=>value+1);}}>다시 시도</Button></div> : !runs.length ? <p className="border-y py-12 text-center text-muted-foreground">{active(batch) ? "첫 번째 채널 분석을 기다리고 있습니다." : "분석한 채널이 없습니다."}</p> : !visibleRuns.length ? <p className="border-y py-12 text-center text-muted-foreground">선택한 필터에 해당하는 채널이 없습니다.</p> : <div className="overflow-x-auto rounded-md border">
         <table className="w-full min-w-[1550px] text-sm">
-          <thead className="bg-muted/60"><tr>{["채널 / 주소","이메일","출연료","RS(%)","전체 / 분석 영상","구독자","최근 20개 평균","최근 30개 평균 댓글","최근 30개 평균 좋아요","등록 / 업데이트","관리"].map(heading=><th key={heading} className="whitespace-nowrap px-3 py-3 text-left font-medium">{heading}</th>)}</tr></thead>
+          <thead className="bg-muted/60"><tr>{["채널 / 주소","이메일 / 발송","출연료","RS(%)","전체 / 분석 영상","구독자","최근 20개 평균","최근 30개 평균 댓글","최근 30개 평균 좋아요","등록 / 업데이트","관리"].map(heading=><th key={heading} className="whitespace-nowrap px-3 py-3 text-left font-medium">{heading}</th>)}</tr></thead>
           <tbody>{visibleRuns.map(run=><tr key={run.channel_id} className={`border-t align-top transition-colors ${run.excluded_from_updates ? "bg-muted/70 text-muted-foreground hover:bg-muted/80" : "hover:bg-muted/20"}`}>
             <td className="min-w-60 max-w-72 px-3 py-4"><a href={run.channel.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-semibold hover:underline">{run.channel.thumbnail && <Image unoptimized src={run.channel.thumbnail} alt="" width={36} height={36} className={`size-9 rounded-full ${run.excluded_from_updates ? "grayscale opacity-60" : ""}`} referrerPolicy="no-referrer"/>}<span className="break-words">{run.channel.name}</span><ExternalLink className="size-3 shrink-0"/></a><a href={run.channel.url} target="_blank" rel="noreferrer" className="mt-2 block break-all text-xs text-muted-foreground hover:underline">{displayUrl(run.channel.url)}</a><p className="mt-3 text-xs text-muted-foreground">분류: <span className={run.excluded_from_updates ? "font-medium" : "font-medium text-foreground"}>{run.category ?? "-"}</span></p>{run.excluded_from_updates ? <p className="mt-2 inline-flex rounded-full border bg-background/70 px-2 py-1 text-xs font-medium">유효하지 않은 채널 · 업데이트 제외</p> : null}<div className="mt-2"><ChannelDetailsEditor run={run} onSaved={updateDetails}/></div>{run.warnings.map(warning=><p key={warning} className="mt-2 text-xs text-amber-800">{warning}</p>)}</td>
-            <td className="min-w-52 px-3 py-4">{run.email ? <button type="button" title="메일에 사용할 강의 선택" className="flex items-start gap-1.5 break-all text-left text-sm text-primary hover:underline" onClick={()=>openEmailComposer(run)}><Mail className="mt-0.5 size-3.5 shrink-0" />{run.email}</button> : null}</td>
+            <td className="min-w-72 px-3 py-4"><div className="flex items-start gap-3"><div className="min-w-0 flex-1">{run.email ? <button type="button" title="메일에 사용할 강의 선택" className="flex items-start gap-1.5 break-all text-left text-sm text-primary hover:underline" onClick={()=>openEmailComposer(run)}><Mail className="mt-0.5 size-3.5 shrink-0" />{run.email}</button> : <span className="text-muted-foreground">-</span>}</div><label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground" title="출연신청 메일 발송 여부"><Checkbox checked={run.appearance_request_email_sent} disabled={emailStatusSaving.has(run.channel_id)} aria-label={`${run.channel.name} 출연신청 메일 발송 여부`} onCheckedChange={(checked)=>void updateAppearanceRequestEmailSent(run,checked===true)} /><span>발송</span></label></div></td>
             <td className="whitespace-nowrap px-3 py-4 text-right tabular-nums">{run.appearance_fee == null ? "-" : `${number(run.appearance_fee)}원`}</td>
             <td className="whitespace-nowrap px-3 py-4 text-right tabular-nums">{run.rs_percent == null ? "-" : `${run.rs_percent}%`}</td>
             <td className="px-3 py-4 tabular-nums">{number(run.channel.reported)} / {number(run.metrics.count)}</td>
