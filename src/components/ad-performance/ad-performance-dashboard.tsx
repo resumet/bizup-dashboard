@@ -189,6 +189,8 @@ export function AdPerformanceDashboard({
   const [saving, setSaving] = useState(false);
   const [settingsError, setSettingsError] = useState("");
   const [notice, setNotice] = useState("");
+  const [sheetToolbarContainer, setSheetToolbarContainer] =
+    useState<HTMLDivElement | null>(null);
   const pageError = initialData.loadError ?? "";
   const summary = useMemo(
     () => summarizeAdPerformance(initialData.metrics, totalBudget),
@@ -259,10 +261,16 @@ export function AdPerformanceDashboard({
               {course?.name ?? "강의 미설정"}
             </h1>
           </div>
-          <Button variant="outline" onClick={openSettings}>
-            <Settings2 />
-            사전설정
-          </Button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <div
+              ref={setSheetToolbarContainer}
+              className="flex flex-wrap items-center gap-2"
+            />
+            <Button variant="outline" onClick={openSettings}>
+              <Settings2 />
+              사전설정
+            </Button>
+          </div>
         </div>
 
         {pageError ? (
@@ -324,6 +332,7 @@ export function AdPerformanceDashboard({
             dashboardId={initialData.id}
             dashboardStartDate={startDate}
             sheetState={initialData.sheetState}
+            toolbarContainer={sheetToolbarContainer}
           />
         </section>
       </div>

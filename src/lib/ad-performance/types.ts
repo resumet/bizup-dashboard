@@ -37,6 +37,7 @@ export type AdPerformanceTrackingImport = {
   dailyByDate: Record<string, AdPerformanceTrackingDailyValues>;
   organicChannels: string[];
   matchedRowCount: number;
+  sourceStoragePath?: string;
 };
 
 export type AdPerformanceSheetState = {

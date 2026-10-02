@@ -1,18 +1,21 @@
 "use client";
 
 import {
+  Download,
   ExternalLink,
   Link2,
   Loader2,
   Maximize2,
   Minimize2,
   PencilLine,
+  RefreshCw,
   RotateCcw,
   Save,
   Upload,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -61,6 +64,8 @@ import {
   buildMeaningSheetHeaders,
 } from "@/lib/admin/meaning-sheet";
 import {
+  canonicalGoogleSpreadsheetUrl,
+  extractGoogleSpreadsheetId,
   resolveAdPerformanceSourceDate,
 } from "@/lib/ad-performance/sheet-workspace";
 import type {
@@ -120,10 +125,12 @@ export function MeaningSheetWorkspace({
   dashboardId,
   dashboardStartDate,
   sheetState,
+  toolbarContainer,
 }: {
   dashboardId: string;
   dashboardStartDate: string;
   sheetState: AdPerformanceSheetState | null;
+  toolbarContainer: HTMLElement | null;
 }) {
   const router = useRouter();
   const [page, setPage] = useState(1);
@@ -136,7 +143,7 @@ export function MeaningSheetWorkspace({
   );
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [busyAction, setBusyAction] = useState<
-    "preview" | "connect" | "upload" | "reset" | "manual" | null
+    "preview" | "connect" | "refresh" | "upload" | "reset" | "manual" | null
   >(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -297,6 +304,54 @@ export function MeaningSheetWorkspace({
     }
   }
 
+  function openSourceSheet() {
+    setError("");
+    try {
+      const url = canonicalGoogleSpreadsheetUrl(
+        extractGoogleSpreadsheetId(sourceUrl),
+      );
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : "시트를 열지 못했습니다.",
+      );
+    }
+  }
+
+  async function refreshSource() {
+    setBusyAction("refresh");
+    setError("");
+    try {
+      const response = await fetch(
+        `/api/ad-performance/${dashboardId}/source-sheet`,
+        { method: "POST" },
+      );
+      if (!response.ok) {
+        throw new Error(
+          await errorFromResponse(
+            response,
+            "날짜와 원본 값을 갱신하지 못했습니다.",
+          ),
+        );
+      }
+      const result = (await response.json()) as { addedDateCount?: number };
+      const addedDateCount = result.addedDateCount ?? 0;
+      refreshAfterSave(
+        addedDateCount > 0
+          ? `새 날짜 ${addedDateCount.toLocaleString("ko-KR")}건을 추가하고 원본 값을 갱신했습니다.`
+          : "원본 시트의 날짜와 값을 갱신했습니다.",
+      );
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "날짜와 원본 값을 갱신하지 못했습니다.",
+      );
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   async function uploadTracking(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedFile) {
@@ -430,54 +485,53 @@ export function MeaningSheetWorkspace({
     }
   }
 
+  const toolbar = (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        disabled={busyAction !== null}
+        onClick={() => {
+          setSourceUrl(sheetState?.spreadsheetUrl ?? "");
+          setSelectedSheetName(sheetState?.sheetName ?? "");
+          setSheetOptions([]);
+          setError("");
+          setSourceDialogOpen(true);
+        }}
+      >
+        <Link2 />원본시트연결
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        disabled={!sheetState || busyAction !== null}
+        onClick={() => {
+          setSelectedFile(null);
+          setError("");
+          setTrackingDialogOpen(true);
+        }}
+      >
+        <Upload />유입엑셀추가
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        disabled={!sheetState || busyAction !== null}
+        onClick={() => void refreshSource()}
+      >
+        {busyAction === "refresh" ? (
+          <Loader2 className="animate-spin" />
+        ) : (
+          <RefreshCw />
+        )}
+        날짜갱신
+      </Button>
+    </>
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            setSourceUrl(sheetState?.spreadsheetUrl ?? "");
-            setSelectedSheetName(sheetState?.sheetName ?? "");
-            setSheetOptions([]);
-            setError("");
-            setSourceDialogOpen(true);
-          }}
-        >
-          <Link2 />원본시트연결
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={!sheetState}
-          onClick={() => {
-            setSelectedFile(null);
-            setError("");
-            setTrackingDialogOpen(true);
-          }}
-        >
-          <Upload />유입엑셀추가
-        </Button>
-        {sheetState ? (
-          <span className="text-xs text-muted-foreground">
-            DB 저장됨 · {sheetState.sheetName}
-            {sheetState.trackingFileName
-              ? ` · ${sheetState.trackingFileName}`
-              : ""}
-          </span>
-        ) : null}
-        {sheetState ? (
-          <Button type="button" variant="ghost" size="sm" asChild>
-            <a
-              href={sheetState.spreadsheetUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <ExternalLink />원본 열기
-            </a>
-          </Button>
-        ) : null}
-      </div>
+      {toolbarContainer ? createPortal(toolbar, toolbarContainer) : null}
 
       {error ? (
         <Alert variant="destructive">
@@ -981,23 +1035,34 @@ export function MeaningSheetWorkspace({
               ) : null}
             </div>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button type="button" variant="outline" disabled={busyAction !== null}>
-                  취소
-                </Button>
-              </DialogClose>
+            <DialogFooter className="sm:justify-between">
               <Button
-                type="submit"
-                disabled={!selectedSheetName || busyAction !== null}
+                type="button"
+                variant="outline"
+                disabled={!sourceUrl.trim() || busyAction !== null}
+                onClick={openSourceSheet}
               >
-                {busyAction === "connect" ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <Link2 />
-                )}
-                연결
+                <ExternalLink />
+                시트열기
               </Button>
+              <div className="flex gap-2">
+                <DialogClose asChild>
+                  <Button type="button" variant="outline" disabled={busyAction !== null}>
+                    취소
+                  </Button>
+                </DialogClose>
+                <Button
+                  type="submit"
+                  disabled={!selectedSheetName || busyAction !== null}
+                >
+                  {busyAction === "connect" ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <Link2 />
+                  )}
+                  연결
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -1030,15 +1095,26 @@ export function MeaningSheetWorkspace({
                   setSelectedFile(event.currentTarget.files?.[0] ?? null)
                 }
               />
-              {sheetState?.trackingFileName ? (
-                <p className="text-xs text-muted-foreground">
-                  {sheetState.trackingFileName}
-                </p>
-              ) : null}
             </div>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             <DialogFooter className="sm:justify-between">
-              <div>
+              <div className="flex gap-2">
+                {sheetState?.tracking?.sourceStoragePath ? (
+                  <Button type="button" variant="outline" asChild>
+                    <a
+                      href={`/api/ad-performance/${dashboardId}/tracking-import?download=1`}
+                      download
+                    >
+                      <Download />
+                      원본엑셀다운로드
+                    </a>
+                  </Button>
+                ) : (
+                  <Button type="button" variant="outline" disabled>
+                    <Download />
+                    원본엑셀다운로드
+                  </Button>
+                )}
                 {sheetState?.tracking ? (
                   <Button
                     type="button"

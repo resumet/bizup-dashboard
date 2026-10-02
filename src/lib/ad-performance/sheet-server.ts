@@ -1,5 +1,6 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
 import readXlsxFile, { readSheet } from "read-excel-file/node";
 
 import {
@@ -34,6 +35,11 @@ type SheetStateRow = {
   updated_at: string;
 };
 
+export const AD_PERFORMANCE_TRACKING_BUCKET =
+  "ad-performance-tracking-files";
+const XLSX_CONTENT_TYPE =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
 export type AdPerformanceDashboardContext = {
   dashboardId: string;
   workspaceId: string;
@@ -56,7 +62,61 @@ function trackingImport(value: unknown): AdPerformanceTrackingImport | null {
   ) {
     return null;
   }
-  return candidate as AdPerformanceTrackingImport;
+  return {
+    ...(candidate as AdPerformanceTrackingImport),
+    sourceStoragePath:
+      typeof candidate.sourceStoragePath === "string"
+        ? candidate.sourceStoragePath
+        : undefined,
+  };
+}
+
+function trackingStoragePrefix(context: AdPerformanceDashboardContext) {
+  return `${context.workspaceId}/${context.dashboardId}/`;
+}
+
+export function isAdPerformanceTrackingStoragePath(
+  context: AdPerformanceDashboardContext,
+  value: string,
+) {
+  return value.startsWith(trackingStoragePrefix(context));
+}
+
+export async function storeAdPerformanceTrackingFile(
+  context: AdPerformanceDashboardContext,
+  file: File,
+) {
+  const path = `${trackingStoragePrefix(context)}${randomUUID()}.xlsx`;
+  const admin = createAdminClient();
+  const { error } = await admin.storage
+    .from(AD_PERFORMANCE_TRACKING_BUCKET)
+    .upload(path, Buffer.from(await file.arrayBuffer()), {
+      contentType: XLSX_CONTENT_TYPE,
+      upsert: false,
+    });
+  if (error) throw new Error(`유입 엑셀 원본 저장 실패: ${error.message}`);
+  return path;
+}
+
+export async function removeAdPerformanceTrackingFile(path: string | null) {
+  if (!path) return;
+  const admin = createAdminClient();
+  await admin.storage.from(AD_PERFORMANCE_TRACKING_BUCKET).remove([path]);
+}
+
+export async function downloadAdPerformanceTrackingFile(
+  context: AdPerformanceDashboardContext,
+  path: string,
+) {
+  if (!isAdPerformanceTrackingStoragePath(context, path)) {
+    throw new Error("저장된 유입 엑셀 경로가 올바르지 않습니다.");
+  }
+  const admin = createAdminClient();
+  const { data, error } = await admin.storage
+    .from(AD_PERFORMANCE_TRACKING_BUCKET)
+    .download(path);
+  if (error || !data) throw new Error("저장된 유입 엑셀 원본을 찾을 수 없습니다.");
+  return data;
 }
 
 export function toAdPerformanceSheetState(

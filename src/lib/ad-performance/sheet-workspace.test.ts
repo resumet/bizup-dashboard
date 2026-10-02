@@ -147,3 +147,59 @@ test("원본·유입 엑셀·수기 입력을 날짜별 DB 지표로 합친다",
     organicLeadsByName: { 유튜브A: 3, 유튜브B: 4 },
   });
 });
+
+test("원본 시트 날짜 갱신 시 유입 엑셀과 수기 입력 값은 그대로 합친다", () => {
+  const tracking: MeaningTrackingImport = {
+    dailyByDate: {
+      "10-01": {
+        fullDate: "2026-10-01",
+        googleLandingDb: 7,
+        metaLandingDb: 9,
+        organicByChannel: { 유튜브: 4 },
+      },
+    },
+    organicChannels: ["유튜브"],
+    matchedRowCount: 3,
+  };
+  const manualInputs = {
+    "2026-10-01": {
+      bizupDbCumulative: 88,
+      chatMembersCumulative: 130,
+    },
+  };
+  const refreshedSourceRows = normalizeAdPerformanceSourceRows([
+    ["미닝웨비나", "총광고비", "광고 노출", "", "광고 클릭", "", "", "", "", "", "광고집행비용", "", "광고접수DB", ""],
+    ["", "", "구글광고", "메타광고", "구글광고", "메타광고", "", "", "", "", "구글광고", "메타광고", "구글광고", "메타광고"],
+    ["10월1일", "", "1,500", "2,500", "30", "50", "", "", "", "", "150,000", "450,000", "6", "12"],
+    ["10월2일", "", "1,700", "2,700", "31", "51", "", "", "", "", "170,000", "470,000", "7", "13"],
+  ]);
+
+  const metrics = buildAdPerformanceMetricSnapshot({
+    sourceRows: refreshedSourceRows,
+    dashboardStartDate: "2026-10-01",
+    tracking,
+    manualInputs,
+    exclusiveEndDate: "2026-10-03",
+  });
+
+  assert.equal(metrics.length, 2);
+  assert.deepEqual(metrics[0], {
+    metricDate: "2026-10-01",
+    googleImpressions: 1500,
+    metaImpressions: 2500,
+    googleClicks: 30,
+    metaClicks: 50,
+    googleAdLeads: 6,
+    metaAdLeads: 12,
+    googleSpend: 150000,
+    metaSpend: 450000,
+    googleLandingLeads: 7,
+    metaLandingLeads: 9,
+    adminCumulativeLeads: 88,
+    chatRoomMembers: 130,
+    organicLeadsByName: { 유튜브: 4 },
+  });
+  assert.equal(metrics[1]?.metricDate, "2026-10-02");
+  assert.equal(metrics[1]?.googleLandingLeads, 0);
+  assert.equal(metrics[1]?.adminCumulativeLeads, 0);
+});
