@@ -13,24 +13,44 @@ export type GmailCourseContext = {
   webinarAt: string;
   courseName: string;
   instructorName: string;
+  channelName: string;
 };
 
-const koreanCourseDate = new Intl.DateTimeFormat("ko-KR", {
+const koreanCourseDateTime = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul",
   year: "numeric",
-  month: "long",
+  month: "numeric",
   day: "numeric",
+  weekday: "long",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
 });
+
+function formatKoreanCourseDateTime(date: Date) {
+  const parts = Object.fromEntries(
+    koreanCourseDateTime
+      .formatToParts(date)
+      .filter(({ type }) => type !== "literal")
+      .map(({ type, value }) => [type, value]),
+  );
+  const hour = Number(parts.hour);
+  const dayPeriod = hour < 12 ? "오전" : "오후";
+  const hour12 = hour % 12 || 12;
+
+  return `${parts.year}년 ${Number(parts.month)}월 ${Number(parts.day)}일 ${parts.weekday} ${dayPeriod} ${hour12}:${parts.minute}`;
+}
 
 export function buildGmailCourseHeader(course: GmailCourseContext) {
   const parsedDate = new Date(course.webinarAt);
   const webinarDate = Number.isNaN(parsedDate.valueOf())
     ? course.webinarAt.trim()
-    : koreanCourseDate.format(parsedDate);
+    : formatKoreanCourseDateTime(parsedDate);
   return [
     `강의 날짜: ${webinarDate || "-"}`,
     `강의명: ${course.courseName.trim() || "-"}`,
     `강사 이름: ${course.instructorName.trim() || "-"}`,
+    `유튜브 채널: ${course.channelName.trim() || "-"}`,
   ].join("\n");
 }
 

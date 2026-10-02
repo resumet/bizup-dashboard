@@ -300,6 +300,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
         webinarAt:course.free_webinar_at,
         courseName:course.name,
         instructorName:course.instructor_name,
+        channelName:emailTarget.channel.name,
       },
     });
     window.open(url,"_blank","noopener,noreferrer");

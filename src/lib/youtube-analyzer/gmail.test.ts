@@ -43,11 +43,13 @@ test("선택한 강의 정보와 저장한 제목을 Gmail 작성 내용에 반�
     webinarAt: "2026-10-15T19:30:00+09:00",
     courseName: "브랜드 마케팅 실전",
     instructorName: "김강사",
+    channelName: "성장하는 채널",
   };
   const header = [
-    "강의 날짜: 2026년 10월 15일",
+    "강의 날짜: 2026년 10월 15일 목요일 오후 7:30",
     "강의명: 브랜드 마케팅 실전",
     "강사 이름: 김강사",
+    "유튜브 채널: 성장하는 채널",
   ].join("\n");
   assert.equal(buildGmailCourseHeader(course), header);
 
