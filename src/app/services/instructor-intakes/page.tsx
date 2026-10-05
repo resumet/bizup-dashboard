@@ -38,9 +38,11 @@ export default async function InstructorIntakesPage() {
       </Link>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">강사 정보 받기</h1>
-        <RefreshIntakes />
+        <div className="flex items-center gap-2">
+          <RefreshIntakes />
+          <CreateIntake courses={courses ?? []} />
+        </div>
       </div>
-      <CreateIntake courses={courses ?? []} />
       {coursesError ? (
         <p role="alert" className="text-sm text-destructive">
           기존 강의 목록을 불러오지 못했습니다.
