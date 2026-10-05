@@ -1,11 +1,17 @@
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, EllipsisVertical } from "lucide-react";
 
 import { BackLink } from "@/components/layout/back-link";
 import { CourseOperationsEditor } from "@/components/course-operations/course-editor";
-import { PaidCourseRoster } from "@/components/course-operations/paid-course-roster";
 import { PendingLinkLabel } from "@/components/navigation/pending-link-label";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { courseBannerUrl } from "@/lib/course-operations/banner";
 import { formatCourseDetailHeading } from "@/lib/course-operations/course-detail-heading";
 import { toCourseNote, type CourseNote } from "@/lib/course-operations/notes";
@@ -14,7 +20,6 @@ import { normalizeRequiredTasks } from "@/lib/course-operations/required-tasks";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
-import { Suspense } from "react";
 
 type Props = {
   params: Promise<{ courseId: string }>;
@@ -165,6 +170,41 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
               webinarAt: course.free_webinar_at,
             })}
           </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="ml-auto shrink-0"
+                aria-label="강의 관련 메뉴"
+              >
+                <EllipsisVertical />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-48">
+              <DropdownMenuItem asChild>
+                <Link href="/services/instructor-intakes">강사정보 받기</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/services/instagram-management">
+                  인스타그램 관리
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link
+                  href={`/services/course-operations/students-settlements/${courseId}`}
+                >
+                  수강생관리 및 정산
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/services/course-wbs?courseId=${courseId}`}>
+                  강의 WBS
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
       <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
@@ -182,7 +222,6 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
           initialNotes={notes}
           notesLoadError={notesLoadError}
           loadError={loadError}
-          paidRoster={<Suspense fallback={<p className="py-12 text-center text-sm text-muted-foreground">유료 수강생 내역을 불러오는 중입니다.</p>}><PaidCourseRoster courseId={courseId} /></Suspense>}
         />
       </div>
     </main>
