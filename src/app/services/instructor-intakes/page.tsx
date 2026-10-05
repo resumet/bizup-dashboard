@@ -11,6 +11,8 @@ import {
   type IntakeRow,
 } from "@/lib/instructor-intake/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getWebinarDayDifference } from "@/lib/course-operations/webinar-proximity";
+import { toKoreaDate } from "@/lib/course-operations/schedule";
 
 export default async function InstructorIntakesPage() {
   const { workspaceId } = await intakePageMember();
@@ -23,11 +25,19 @@ export default async function InstructorIntakesPage() {
         .order("updated_at", { ascending: false }),
       createAdminClient()
         .from("courses")
-        .select("id,name,instructor_name,cohort")
+        .select("id,name,instructor_name,cohort,free_webinar_at")
         .eq("workspace_id", workspaceId)
         .order("updated_at", { ascending: false }),
     ]);
   const rows = error ? [] : (data as IntakeRow[]).map(normalizeIntake);
+  const todayKoreaDate = toKoreaDate(new Date().toISOString());
+  const activeCourses = (courses ?? []).filter((course) => {
+    const days = getWebinarDayDifference(
+      course.free_webinar_at,
+      todayKoreaDate,
+    );
+    return days === null || days > -3;
+  });
   return (
     <main className="mx-auto max-w-6xl space-y-7 px-5 py-8">
       <Link
@@ -40,7 +50,7 @@ export default async function InstructorIntakesPage() {
         <h1 className="text-2xl font-semibold">강사 정보 받기</h1>
         <div className="flex items-center gap-2">
           <RefreshIntakes />
-          <CreateIntake courses={courses ?? []} />
+          <CreateIntake courses={activeCourses} />
         </div>
       </div>
       {coursesError ? (
