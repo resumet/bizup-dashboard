@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { BackLink } from "@/components/layout/back-link";
 import { CourseOperationsEditor } from "@/components/course-operations/course-editor";
+import { PaidCourseRoster } from "@/components/course-operations/paid-course-roster";
 import { PendingLinkLabel } from "@/components/navigation/pending-link-label";
 import { Button } from "@/components/ui/button";
 import { courseBannerUrl } from "@/lib/course-operations/banner";
@@ -13,6 +14,7 @@ import { normalizeRequiredTasks } from "@/lib/course-operations/required-tasks";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
+import { Suspense } from "react";
 
 type Props = {
   params: Promise<{ courseId: string }>;
@@ -180,6 +182,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
           initialNotes={notes}
           notesLoadError={notesLoadError}
           loadError={loadError}
+          paidRoster={<Suspense fallback={<p className="py-12 text-center text-sm text-muted-foreground">유료 수강생 내역을 불러오는 중입니다.</p>}><PaidCourseRoster courseId={courseId} /></Suspense>}
         />
       </div>
     </main>

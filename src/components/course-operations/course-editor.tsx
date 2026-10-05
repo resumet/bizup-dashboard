@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
@@ -337,6 +338,7 @@ export function CourseOperationsEditor({
   paidStudentPreview = [],
   paidRosterAnalysis,
   freeStudentPreview = [],
+  paidRoster,
   currentUserId = "",
   currentUserEmail = "",
   initialNotes = [],
@@ -355,6 +357,7 @@ export function CourseOperationsEditor({
   paidStudentPreview?: CourseStudentPreview[];
   paidRosterAnalysis?: CourseRosterAnalysis;
   freeStudentPreview?: FreeStudentPreview[];
+  paidRoster?: ReactNode;
   currentUserId?: string;
   currentUserEmail?: string;
   initialNotes?: CourseNote[];
@@ -938,15 +941,15 @@ export function CourseOperationsEditor({
         onValueChange={changeTab}
         className="gap-6"
       >
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 md:grid-cols-3">
           <TabsTrigger value="information" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             정보
           </TabsTrigger>
           <TabsTrigger value="sales" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             판매 조건
           </TabsTrigger>
-          <TabsTrigger value="students" className="hidden">
-            기존 수강생명단
+          <TabsTrigger value="students" disabled={!courseId} className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
+            유료 수강생
           </TabsTrigger>
           <TabsTrigger value="messages" className="hidden">
             단톡방문자
@@ -1966,6 +1969,8 @@ export function CourseOperationsEditor({
               onRetry={() => retrySection("students")}
             />
           ) : (
+          <div className="space-y-6">
+          {paidRoster}
           <CourseRosterSections
             courseId={courseId}
             rosterJobs={loadedRosterJobs}
@@ -1982,6 +1987,7 @@ export function CourseOperationsEditor({
               setDraft((current) => ({ ...current, freeAddressBookId }))
             }
           />
+          </div>
           )}
         </TabsContent>
 
