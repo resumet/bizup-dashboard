@@ -6,14 +6,14 @@ import {
 import { intakeProgress } from "@/lib/instructor-intake/model";
 import { IntakeProgress } from "@/components/instructor-intake/progress";
 import {
-  intakeMember,
+  intakePageMember,
   normalizeIntake,
   type IntakeRow,
 } from "@/lib/instructor-intake/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function InstructorIntakesPage() {
-  const { workspaceId } = await intakeMember();
+  const { workspaceId } = await intakePageMember();
   const { data, error } = await createAdminClient()
     .from("instructor_intakes")
     .select("*")

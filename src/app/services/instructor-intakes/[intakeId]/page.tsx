@@ -7,7 +7,7 @@ import {
 } from "@/components/instructor-intake/intake-controls";
 import { IntakeProgress } from "@/components/instructor-intake/progress";
 import {
-  intakeMember,
+  intakePageMember,
   memberIntake,
   signedPhotos,
 } from "@/lib/instructor-intake/server";
@@ -49,7 +49,7 @@ export default async function InstructorIntakeDetail({
 }: {
   params: Promise<{ intakeId: string }>;
 }) {
-  const { workspaceId } = await intakeMember();
+  const { workspaceId } = await intakePageMember();
   const { intakeId } = await params;
   const row = await memberIntake(workspaceId, intakeId).catch((error) => {
     if (error instanceof Error && error.message === "NOT_FOUND") notFound();

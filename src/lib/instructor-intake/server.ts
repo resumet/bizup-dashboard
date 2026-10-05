@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { ZodError } from "zod";
+import { redirect } from "next/navigation";
 import sharp from "sharp";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -41,6 +42,15 @@ export async function intakeMember() {
   const user = await requireCourseOperationsUser(await createClient());
   const membership = await requireCourseOperationsMembership(user.id);
   return { user, workspaceId: membership.workspace_id as string };
+}
+export async function intakePageMember() {
+  try {
+    return await intakeMember();
+  } catch (error) {
+    if (error instanceof Error && error.message === "UNAUTHORIZED")
+      redirect("/login");
+    throw error;
+  }
 }
 export function normalizeIntake(row: IntakeRow): IntakeRow {
   return {
