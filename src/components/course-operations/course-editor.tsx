@@ -938,15 +938,15 @@ export function CourseOperationsEditor({
         onValueChange={changeTab}
         className="gap-6"
       >
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 md:grid-cols-3">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1">
           <TabsTrigger value="information" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             정보
           </TabsTrigger>
           <TabsTrigger value="sales" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             판매 조건
           </TabsTrigger>
-          <TabsTrigger value="students" disabled={!courseId} className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
-            유료 수강생
+          <TabsTrigger value="students" className="hidden">
+            기존 수강생명단
           </TabsTrigger>
           <TabsTrigger value="messages" className="hidden">
             단톡방문자
