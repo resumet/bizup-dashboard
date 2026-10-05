@@ -166,5 +166,41 @@ export const saveSchema = z
     }
   });
 export const createIntakeSchema = z.object({
-  title: text(100).min(1, "강사 카드 이름을 입력해 주세요."),
+  courseId: z.string().uuid("기존 강의를 선택해 주세요."),
 });
+
+const koreanDigits = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
+const koreanSmallUnits = ["", "십", "백", "천"];
+const koreanLargeUnits = ["", "만", "억", "조"];
+function koreanChunk(value: number) {
+  let result = "";
+  const digits = String(value).padStart(4, "0");
+  for (let index = 0; index < 4; index += 1) {
+    const digit = Number(digits[index]);
+    if (!digit) continue;
+    result += `${digit === 1 && index < 3 ? "" : koreanDigits[digit]}${koreanSmallUnits[3 - index]}`;
+  }
+  return result;
+}
+export function formatKoreanWon(value: number | null) {
+  if (value === null || !Number.isInteger(value) || value < 0) return "";
+  if (value === 0) return "영원";
+  let rest = value;
+  let unitIndex = 0;
+  const chunks: string[] = [];
+  while (rest > 0) {
+    const chunk = rest % 10_000;
+    if (chunk)
+      chunks.unshift(`${koreanChunk(chunk)}${koreanLargeUnits[unitIndex]}`);
+    rest = Math.floor(rest / 10_000);
+    unitIndex += 1;
+  }
+  return `${chunks.join("")}원`;
+}
+export function formatWonWithKorean(value: number | null) {
+  if (value === null || !Number.isInteger(value)) return "";
+  if (value < 0) {
+    return `-${Math.abs(value).toLocaleString("ko-KR")}원 (마이너스 ${formatKoreanWon(Math.abs(value)).replace(/원$/, "")}원)`;
+  }
+  return `${value.toLocaleString("ko-KR")}원 (${formatKoreanWon(value)})`;
+}

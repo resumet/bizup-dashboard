@@ -3,10 +3,16 @@ import test from "node:test";
 import {
   answersSchema,
   EMPTY_ANSWERS,
+  formatWonWithKorean,
   intakeProgress,
   saveSchema,
   tokenSchema,
 } from "./model";
+
+test("금액을 숫자와 한글 단위로 함께 표시한다", () => {
+  assert.equal(formatWonWithKorean(3_000_000), "3,000,000원 (삼백만원)");
+  assert.equal(formatWonWithKorean(-10_000), "-10,000원 (마이너스 일만원)");
+});
 
 const complete = {
   ...EMPTY_ANSWERS,

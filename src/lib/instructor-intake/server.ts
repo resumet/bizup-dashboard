@@ -23,6 +23,7 @@ import {
 export type IntakeRow = {
   id: string;
   workspace_id: string;
+  course_id: string | null;
   title: string;
   access_token: string;
   share_enabled: boolean;

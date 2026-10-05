@@ -10,6 +10,7 @@ import {
   MAX_PHOTOS,
   MAX_PHOTO_BYTES,
   saveSchema,
+  formatWonWithKorean,
   type Answers,
   type Photo,
 } from "@/lib/instructor-intake/model";
@@ -18,7 +19,8 @@ import { IntakeProgress } from "./progress";
 function readAnswers(form: HTMLFormElement): Answers {
   const data = new FormData(form);
   const text = (key: string) => String(data.get(key) ?? "").trim();
-  const number = (key: string) => (text(key) === "" ? null : Number(text(key)));
+  const number = (key: string) =>
+    text(key) === "" ? null : Number(text(key).replaceAll(",", ""));
   const urls = (key: string) =>
     text(key)
       .split(/\r?\n/)
@@ -73,6 +75,63 @@ function NumericField({
         defaultValue={value ?? ""}
         aria-describedby={help ? `${name}-help` : undefined}
       />
+      {help ? (
+        <p id={`${name}-help`} className="text-sm text-muted-foreground">
+          {help}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+function MoneyField({
+  name,
+  label,
+  value,
+  min = 0,
+  help,
+}: {
+  name: string;
+  label: string;
+  value: number | null;
+  min?: number;
+  help?: string;
+}) {
+  const [raw, setRaw] = useState(value === null ? "" : String(value));
+  const numeric =
+    raw === "" || raw === "-" ? null : Number(raw.replaceAll(",", ""));
+  const shown =
+    numeric === null || !Number.isFinite(numeric)
+      ? ""
+      : formatWonWithKorean(numeric);
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={name}>{label}</Label>
+      <Input
+        id={name}
+        name={name}
+        type="text"
+        inputMode="numeric"
+        value={
+          raw === "" || raw === "-"
+            ? raw
+            : Number(raw.replaceAll(",", "")).toLocaleString("ko-KR")
+        }
+        onChange={(event) => {
+          const next = event.target.value
+            .replaceAll(",", "")
+            .replace(/[^\d-]/g, "")
+            .replace(/(?!^)-/g, "");
+          if (next === "" || next === "-" || /^-?\d{0,13}$/.test(next))
+            setRaw(next);
+        }}
+        min={min}
+        aria-describedby={help ? `${name}-help` : undefined}
+      />
+      {shown ? (
+        <p className="text-sm font-medium text-primary" aria-live="polite">
+          {shown}
+        </p>
+      ) : null}
       {help ? (
         <p id={`${name}-help`} className="text-sm text-muted-foreground">
           {help}
@@ -381,13 +440,13 @@ export function IntakeForm({
         <section className={sectionClass}>
           <h2 className="text-lg font-semibold">매출과 순이익</h2>
           <div className="grid gap-5 sm:grid-cols-2">
-            <NumericField
+            <MoneyField
               name="monthlyRevenue"
               label="8. 강의 외 월 매출 (원)"
               value={initialAnswers.monthlyRevenue}
               help="강의 수입을 제외하고 해당 아이템으로 낸 월 매출을 입력해 주세요. 매출이 없으면 0원입니다."
             />
-            <NumericField
+            <MoneyField
               name="monthlyProfit"
               label="9. 월 순이익 (원)"
               value={initialAnswers.monthlyProfit}
@@ -396,13 +455,13 @@ export function IntakeForm({
             />
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
-            <NumericField
+            <MoneyField
               name="expectedRevenue"
               label="10. 수강생 예상 월 매출 (원)"
               value={initialAnswers.expectedRevenue}
               help="수강 이후 3개월 내 달성 가능한 월 매출 예상치를 입력해 주세요."
             />
-            <NumericField
+            <MoneyField
               name="expectedProfit"
               label="수강생 예상 월 순이익 (원)"
               value={initialAnswers.expectedProfit}

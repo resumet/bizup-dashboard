@@ -12,6 +12,7 @@ test("강사 수집 DB는 워크스페이스 접근, 익명 접근 차단, 저�
       create table auth.users (id uuid primary key);
       create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
       create table public.workspaces (id uuid primary key);
+      create table public.courses (id uuid primary key, workspace_id uuid not null references public.workspaces(id));
       create table public.workspace_members (workspace_id uuid, user_id uuid);
       create function public.is_workspace_member(target uuid) returns boolean language sql stable security definer as $$ select exists(select 1 from public.workspace_members where workspace_id=target and user_id=auth.uid()) $$;
       create table storage.buckets(id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
@@ -19,6 +20,12 @@ test("강사 수집 DB는 워크스페이스 접근, 익명 접근 차단, 저�
     await db.exec(
       await readFile(
         "supabase/migrations/20261005034418_instructor_intake.sql",
+        "utf8",
+      ),
+    );
+    await db.exec(
+      await readFile(
+        "supabase/migrations/20261005050000_instructor_intake_course.sql",
         "utf8",
       ),
     );

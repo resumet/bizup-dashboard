@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function RefreshIntakes() {
@@ -21,7 +20,16 @@ export function RefreshIntakes() {
   );
 }
 
-export function CreateIntake() {
+export function CreateIntake({
+  courses,
+}: {
+  courses: Array<{
+    id: string;
+    name: string;
+    instructor_name: string;
+    cohort: string;
+  }>;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -30,14 +38,14 @@ export function CreateIntake() {
       className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-4"
       onSubmit={async (event) => {
         event.preventDefault();
-        const title = new FormData(event.currentTarget).get("title");
+        const courseId = new FormData(event.currentTarget).get("courseId");
         setBusy(true);
         setError("");
         try {
           const response = await fetch("/api/instructor-intakes", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ title }),
+            body: JSON.stringify({ courseId }),
           });
           const result = await response.json();
           if (!response.ok) throw new Error(result.message);
@@ -53,23 +61,36 @@ export function CreateIntake() {
         }
       }}
     >
-      <div className="min-w-52 flex-1 space-y-2">
-        <Label htmlFor="intake-title">강사 카드 이름</Label>
-        <Input
-          id="intake-title"
-          name="title"
-          placeholder="예: 홍길동 · 스마트스토어"
-          maxLength={100}
+      <div className="min-w-64 flex-1 space-y-2">
+        <Label htmlFor="intake-course">기존 강의 선택</Label>
+        <select
+          id="intake-course"
+          name="courseId"
           required
           disabled={busy}
-        />
+          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+        >
+          <option value="">강의를 선택해 주세요</option>
+          {courses.map((course) => (
+            <option key={course.id} value={course.id}>
+              {course.cohort ? `${course.cohort} · ` : ""}
+              {course.name}
+              {course.instructor_name ? ` · ${course.instructor_name}` : ""}
+            </option>
+          ))}
+        </select>
       </div>
-      <Button disabled={busy}>
+      <Button disabled={busy || !courses.length}>
         {busy ? "만드는 중…" : "강사 카드 만들기"}
       </Button>
       {error ? (
         <p role="alert" className="w-full text-sm text-destructive">
           {error}
+        </p>
+      ) : null}
+      {!courses.length ? (
+        <p className="w-full text-sm text-muted-foreground">
+          먼저 강의 운영에서 강의를 만들어 주세요.
         </p>
       ) : null}
     </form>

@@ -14,11 +14,19 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function InstructorIntakesPage() {
   const { workspaceId } = await intakePageMember();
-  const { data, error } = await createAdminClient()
-    .from("instructor_intakes")
-    .select("*")
-    .eq("workspace_id", workspaceId)
-    .order("updated_at", { ascending: false });
+  const [{ data, error }, { data: courses, error: coursesError }] =
+    await Promise.all([
+      createAdminClient()
+        .from("instructor_intakes")
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .order("updated_at", { ascending: false }),
+      createAdminClient()
+        .from("courses")
+        .select("id,name,instructor_name,cohort")
+        .eq("workspace_id", workspaceId)
+        .order("updated_at", { ascending: false }),
+    ]);
   const rows = error ? [] : (data as IntakeRow[]).map(normalizeIntake);
   return (
     <main className="mx-auto max-w-6xl space-y-7 px-5 py-8">
@@ -32,7 +40,12 @@ export default async function InstructorIntakesPage() {
         <h1 className="text-2xl font-semibold">강사 정보 받기</h1>
         <RefreshIntakes />
       </div>
-      <CreateIntake />
+      <CreateIntake courses={courses ?? []} />
+      {coursesError ? (
+        <p role="alert" className="text-sm text-destructive">
+          기존 강의 목록을 불러오지 못했습니다.
+        </p>
+      ) : null}
       {error ? (
         <p role="alert" className="rounded-xl border p-5 text-destructive">
           {/PGRST205|42P01/.test(error.code)
