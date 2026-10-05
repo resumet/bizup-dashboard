@@ -47,6 +47,9 @@ export default async function CourseOperationsPage() {
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
           <span className="font-semibold">강의 운영 자동화</span>
+          <Button variant="outline" size="sm" asChild className="ml-auto">
+            <Link href="/services/instructor-intakes">강사 정보 받기</Link>
+          </Button>
         </div>
       </header>
 

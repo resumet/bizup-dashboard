@@ -28,7 +28,7 @@ import { WORK_SERVICE_CARD_GROUPS } from "@/lib/work/service-card-settings";
 
 type Service = {
   title: string;
-  description: string;
+  description?: string;
   route: string;
   icon: LucideIcon;
   active?: boolean;
@@ -36,6 +36,12 @@ type Service = {
 };
 
 const services: Service[] = [
+  {
+    title: "강사 정보 받기",
+    route: "/services/instructor-intakes",
+    icon: ContactRound,
+    iconClass: "bg-sky-500/12 text-sky-700 ring-sky-500/15 dark:text-sky-300",
+  },
   {
     title: "강의 WBS",
     description:
@@ -183,9 +189,11 @@ function ServiceCard({ service }: { service: Service }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col px-5 pt-4 pb-5">
-        <CardDescription className="line-clamp-4 leading-6 text-pretty">
-          {service.description}
-        </CardDescription>
+        {service.description ? (
+          <CardDescription className="line-clamp-4 leading-6 text-pretty">
+            {service.description}
+          </CardDescription>
+        ) : null}
         {service.active !== false ? (
           <Link
             href={service.route}

@@ -7,6 +7,7 @@ export const WORK_SERVICE_CARD_GROUPS = [
     title:"강의운영",
     items:[
       {route:"/services/course-operations",title:"강의 운영 자동화"},
+      {route:"/services/instructor-intakes",title:"강사 정보 받기"},
       {route:"/services/instagram-management",title:"인스타그램 관리"},
       {route:"/services/course-operations/students-settlements",title:"수강생관리 및 정산"},
       {route:"/services/course-wbs",title:"강의 WBS"},
