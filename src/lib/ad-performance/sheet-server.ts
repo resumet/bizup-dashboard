@@ -265,10 +265,13 @@ export async function parseAdPerformanceTrackingFile(file: File) {
   if (file.size <= 0 || file.size > AD_PERFORMANCE_MAX_TRACKING_BYTES) {
     throw new Error("15MB 이하의 엑셀 파일을 선택해 주세요.");
   }
-  const rows = await readSheet(
+  return parseAdPerformanceTrackingBuffer(
     Buffer.from(await file.arrayBuffer()),
-    MEANING_TRACKING_SHEET_NAME,
   );
+}
+
+async function parseAdPerformanceTrackingBuffer(buffer: Buffer) {
+  const rows = await readSheet(buffer, MEANING_TRACKING_SHEET_NAME);
   const parsed = parseMeaningTrackingSheet(rows);
   if (!Object.keys(parsed.dailyByDate).length || !parsed.matchedRowCount) {
     throw new Error(
@@ -276,6 +279,22 @@ export async function parseAdPerformanceTrackingFile(file: File) {
     );
   }
   return parsed;
+}
+
+export async function refreshAdPerformanceTrackingImport(
+  context: AdPerformanceDashboardContext,
+  path: string,
+) {
+  const file = await downloadAdPerformanceTrackingFile(context, path);
+  if (file.size <= 0 || file.size > AD_PERFORMANCE_MAX_TRACKING_BYTES) {
+    throw new Error("저장된 유입 엑셀 원본의 크기를 확인해 주세요.");
+  }
+  return {
+    ...(await parseAdPerformanceTrackingBuffer(
+      Buffer.from(await file.arrayBuffer()),
+    )),
+    sourceStoragePath: path,
+  };
 }
 
 export async function persistAdPerformanceSheetState(input: {

@@ -8,7 +8,8 @@ import type {
   AdPerformanceTrackingImport,
 } from "./types";
 
-export const AD_PERFORMANCE_SOURCE_COLUMN_COUNT = 14;
+export const AD_PERFORMANCE_VISIBLE_SOURCE_COLUMN_COUNT = 14;
+export const AD_PERFORMANCE_SOURCE_COLUMN_COUNT = 16;
 export const AD_PERFORMANCE_MAX_SOURCE_ROWS = 10_000;
 export const AD_PERFORMANCE_MAX_WORKBOOK_BYTES = 20 * 1024 * 1024;
 export const AD_PERFORMANCE_MAX_TRACKING_BYTES = 15 * 1024 * 1024;
@@ -181,6 +182,15 @@ function nonnegativeInteger(value: unknown) {
   return Math.min(Number.MAX_SAFE_INTEGER, Math.round(parsed));
 }
 
+export function adPerformanceSourceLandingDb(
+  row: readonly unknown[],
+) {
+  return {
+    googleLandingDb: nonnegativeInteger(row[14]),
+    metaLandingDb: nonnegativeInteger(row[15]),
+  };
+}
+
 export function buildAdPerformanceMetricSnapshot(input: {
   sourceRows: readonly (readonly string[])[];
   dashboardStartDate: string;
@@ -203,6 +213,7 @@ export function buildAdPerformanceMetricSnapshot(input: {
       : undefined;
     const matchingTracked = tracked?.fullDate === metricDate ? tracked : undefined;
     const manual = input.manualInputs[metricDate];
+    const sourceLandingDb = adPerformanceSourceLandingDb(row);
     const organicLeadsByName = Object.fromEntries(
       (input.tracking?.organicChannels ?? []).map((channel) => [
         channel,
@@ -220,8 +231,8 @@ export function buildAdPerformanceMetricSnapshot(input: {
       metaAdLeads: nonnegativeInteger(row[13]),
       googleSpend: nonnegativeInteger(row[10]),
       metaSpend: nonnegativeInteger(row[11]),
-      googleLandingLeads: nonnegativeInteger(matchingTracked?.googleLandingDb),
-      metaLandingLeads: nonnegativeInteger(matchingTracked?.metaLandingDb),
+      googleLandingLeads: sourceLandingDb.googleLandingDb,
+      metaLandingLeads: sourceLandingDb.metaLandingDb,
       adminCumulativeLeads: nonnegativeInteger(manual?.bizupDbCumulative),
       chatRoomMembers: manual?.chatMembersCumulative ?? null,
       organicLeadsByName,

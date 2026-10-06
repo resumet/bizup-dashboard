@@ -31,17 +31,17 @@ test("Google Sheets URL만 허용하고 문서 ID를 추출한다", () => {
   );
 });
 
-test("원본 시트는 A:N까지만 정규화하고 빈 마지막 행을 제거한다", () => {
+test("원본 시트는 A:P까지 정규화하고 빈 마지막 행을 제거한다", () => {
   const rows = normalizeAdPerformanceSourceRows([
     Array.from({ length: 16 }, (_, index) => `열${index + 1}`),
     ["9월24일", 100],
     [],
   ]);
   assert.equal(rows.length, 2);
-  assert.equal(rows[0].length, 14);
-  assert.equal(rows[0][13], "열14");
+  assert.equal(rows[0].length, 16);
+  assert.equal(rows[0][15], "열16");
   assert.equal(rows[1][1], "100");
-  assert.equal(rows[1][13], "");
+  assert.equal(rows[1][15], "");
 });
 
 test("연도 없는 날짜는 대시보드 시작일과 가장 가까운 연도로 결정한다", () => {
@@ -88,7 +88,7 @@ test("원본·유입 엑셀·수기 입력을 날짜별 DB 지표로 합친다",
   const sourceRows = normalizeAdPerformanceSourceRows([
     ["미닝웨비나", "총광고비", "광고 노출", "", "광고 클릭", "", "", "", "", "", "광고집행비용", "", "광고접수DB", ""],
     ["", "", "구글광고", "메타광고", "구글광고", "메타광고", "", "", "", "", "구글광고", "메타광고", "구글광고", "메타광고"],
-    ["9월30일", "₩500,000", "1,000", "2,000", "20", "40", "", "", "", "", "₩100,000", "₩400,000", "5", "10"],
+    ["9월30일", "₩500,000", "1,000", "2,000", "20", "40", "", "", "", "", "₩100,000", "₩400,000", "5", "10", "7", "11"],
   ]);
   const withoutTracking = buildAdPerformanceMetricSnapshot({
     sourceRows,
@@ -107,8 +107,8 @@ test("원본·유입 엑셀·수기 입력을 날짜별 DB 지표로 합친다",
     metaAdLeads: 10,
     googleSpend: 100000,
     metaSpend: 400000,
-    googleLandingLeads: 0,
-    metaLandingLeads: 0,
+    googleLandingLeads: 7,
+    metaLandingLeads: 11,
     adminCumulativeLeads: 0,
     chatRoomMembers: null,
     organicLeadsByName: {},
@@ -140,8 +140,6 @@ test("원본·유입 엑셀·수기 입력을 날짜별 DB 지표로 합친다",
   });
   assert.deepEqual(combined[0], {
     ...withoutTracking[0],
-    googleLandingLeads: 7,
-    metaLandingLeads: 11,
     adminCumulativeLeads: 77,
     chatRoomMembers: 120,
     organicLeadsByName: { 유튜브A: 3, 유튜브B: 4 },
@@ -170,8 +168,8 @@ test("원본 시트 날짜 갱신 시 유입 엑셀과 수기 입력 값은 그�
   const refreshedSourceRows = normalizeAdPerformanceSourceRows([
     ["미닝웨비나", "총광고비", "광고 노출", "", "광고 클릭", "", "", "", "", "", "광고집행비용", "", "광고접수DB", ""],
     ["", "", "구글광고", "메타광고", "구글광고", "메타광고", "", "", "", "", "구글광고", "메타광고", "구글광고", "메타광고"],
-    ["10월1일", "", "1,500", "2,500", "30", "50", "", "", "", "", "150,000", "450,000", "6", "12"],
-    ["10월2일", "", "1,700", "2,700", "31", "51", "", "", "", "", "170,000", "470,000", "7", "13"],
+    ["10월1일", "", "1,500", "2,500", "30", "50", "", "", "", "", "150,000", "450,000", "6", "12", "8", "10"],
+    ["10월2일", "", "1,700", "2,700", "31", "51", "", "", "", "", "170,000", "470,000", "7", "13", "9", "11"],
   ]);
 
   const metrics = buildAdPerformanceMetricSnapshot({
@@ -193,13 +191,14 @@ test("원본 시트 날짜 갱신 시 유입 엑셀과 수기 입력 값은 그�
     metaAdLeads: 12,
     googleSpend: 150000,
     metaSpend: 450000,
-    googleLandingLeads: 7,
-    metaLandingLeads: 9,
+    googleLandingLeads: 8,
+    metaLandingLeads: 10,
     adminCumulativeLeads: 88,
     chatRoomMembers: 130,
     organicLeadsByName: { 유튜브: 4 },
   });
   assert.equal(metrics[1]?.metricDate, "2026-10-02");
-  assert.equal(metrics[1]?.googleLandingLeads, 0);
+  assert.equal(metrics[1]?.googleLandingLeads, 9);
+  assert.equal(metrics[1]?.metaLandingLeads, 11);
   assert.equal(metrics[1]?.adminCumulativeLeads, 0);
 });

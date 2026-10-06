@@ -64,6 +64,8 @@ import {
   buildMeaningSheetHeaders,
 } from "@/lib/admin/meaning-sheet";
 import {
+  AD_PERFORMANCE_VISIBLE_SOURCE_COLUMN_COUNT,
+  adPerformanceSourceLandingDb,
   canonicalGoogleSpreadsheetUrl,
   extractGoogleSpreadsheetId,
   resolveAdPerformanceSourceDate,
@@ -159,7 +161,9 @@ export function MeaningSheetWorkspace({
   const sourceRows = sheetState?.sourceRows ?? [];
   const tracking = sheetState?.tracking ?? null;
   const manualInputs = sheetState?.manualInputs ?? {};
-  const headerRows = sourceRows.slice(0, HEADER_ROW_COUNT);
+  const headerRows = sourceRows
+    .slice(0, HEADER_ROW_COUNT)
+    .map((row) => row.slice(0, AD_PERFORMANCE_VISIBLE_SOURCE_COLUMN_COUNT));
   const headers = buildMeaningSheetHeaders(headerRows);
   const dataRows = sourceRows.slice(HEADER_ROW_COUNT);
   const pageCount = Math.max(1, Math.ceil(dataRows.length / PAGE_SIZE));
@@ -558,7 +562,7 @@ export function MeaningSheetWorkspace({
       >
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b bg-background py-1.5 text-[11px] text-muted-foreground">
             <span>
-              Google A:N · 데이터 {dataRows.length.toLocaleString("ko-KR")}행 ·
+              Google A:P · 데이터 {dataRows.length.toLocaleString("ko-KR")}행 ·
               페이지당 {PAGE_SIZE}행
             </span>
             <div className="flex flex-wrap items-center justify-end gap-2">
@@ -782,9 +786,17 @@ export function MeaningSheetWorkspace({
                   trackedValues?.fullDate === metricDate
                     ? trackedValues
                     : undefined;
-                const importedTotals = importedValues
+                const sourceLandingDb = adPerformanceSourceLandingDb(row);
+                const hasSourceLandingDb = Boolean(
+                  row[14]?.trim() || row[15]?.trim(),
+                );
+                const importedTotals = hasSourceLandingDb || importedValues
                   ? calculateMeaningSheetImportedTotals(
-                      importedValues,
+                      {
+                        ...sourceLandingDb,
+                        organicByChannel:
+                          importedValues?.organicByChannel ?? {},
+                      },
                       organicChannels,
                     )
                   : null;
@@ -808,14 +820,22 @@ export function MeaningSheetWorkspace({
                   metaAdDb: importedValues
                     ? parseMeaningSheetMetricNumber(row[13])
                     : null,
-                  googleLandingDb: importedValues?.googleLandingDb ?? null,
-                  metaLandingDb: importedValues?.metaLandingDb ?? null,
+                  googleLandingDb: importedValues
+                    ? sourceLandingDb.googleLandingDb
+                    : null,
+                  metaLandingDb: importedValues
+                    ? sourceLandingDb.metaLandingDb
+                    : null,
                   chatEntries: importedValues ? chatEntries : null,
                 });
+                const visibleSourceRow = row.slice(
+                  0,
+                  AD_PERFORMANCE_VISIBLE_SOURCE_COLUMN_COUNT,
+                );
 
                 return (
                   <TableRow key={sourceRow}>
-                    {row.map((cell, columnIndex) => {
+                    {visibleSourceRow.map((cell, columnIndex) => {
                       if (columnIndex === 0) {
                         return (
                           <TableCell
@@ -857,13 +877,13 @@ export function MeaningSheetWorkspace({
                       );
                     })}
                     <TableCell className="border-r bg-sky-500/[0.03] text-right">
-                      {importedValues
-                        ? formatInteger(importedValues.googleLandingDb)
+                      {hasSourceLandingDb
+                        ? formatInteger(sourceLandingDb.googleLandingDb)
                         : ""}
                     </TableCell>
                     <TableCell className="border-r bg-sky-500/[0.03] text-right">
-                      {importedValues
-                        ? formatInteger(importedValues.metaLandingDb)
+                      {hasSourceLandingDb
+                        ? formatInteger(sourceLandingDb.metaLandingDb)
                         : ""}
                     </TableCell>
                     <TableCell className="border-r bg-blue-500/[0.04] text-right font-semibold">

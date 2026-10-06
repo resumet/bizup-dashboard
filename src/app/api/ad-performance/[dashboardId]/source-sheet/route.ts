@@ -6,6 +6,7 @@ import {
   loadAdPerformanceSheetState,
   loadGoogleWorkbook,
   persistAdPerformanceSheetState,
+  refreshAdPerformanceTrackingImport,
 } from "@/lib/ad-performance/sheet-server";
 import { sourceConnectionSchema } from "@/lib/ad-performance/sheet-validation";
 import { adPerformanceErrorResponse } from "@/lib/ad-performance/validation";
@@ -89,6 +90,12 @@ export async function POST(_request: Request, { params }: Context) {
     if (!selectedSheet) {
       throw new Error("연결된 시트를 원본 문서에서 찾을 수 없습니다.");
     }
+    const tracking = current.tracking?.sourceStoragePath
+      ? await refreshAdPerformanceTrackingImport(
+          context,
+          current.tracking.sourceStoragePath,
+        )
+      : current.tracking;
     const previousDateCount = Math.max(0, current.sourceRows.length - 2);
     const saved = await persistAdPerformanceSheetState({
       context,
@@ -100,7 +107,7 @@ export async function POST(_request: Request, { params }: Context) {
         sheetName: selectedSheet.name,
         sourceRows: selectedSheet.rows,
         trackingFileName: current.trackingFileName,
-        tracking: current.tracking,
+        tracking,
         manualInputs: current.manualInputs,
       },
     });
