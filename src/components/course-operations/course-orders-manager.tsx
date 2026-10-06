@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { filterCourseOrders, isAwaitingDeposit, summarizeCourseOrderOverview } from "@/lib/course-orders/filter";
 import { shortestSelectedCourseName } from "@/lib/course-orders/parse";
-import { createOrderStudentRoster } from "@/lib/course-orders/student-roster";
+import { countCompletedOrdersBeforeWebinar, createOrderStudentRoster } from "@/lib/course-orders/student-roster";
 import { PaidRosterChangesDialog } from "./paid-roster-changes-dialog";
 import { MessageDialog } from "@/components/jobs/roster-detail-client";
 import { EMPTY_ROSTER_FILTERS, type RosterRow } from "@/lib/jobs/types";
@@ -34,7 +34,7 @@ const COLUMNS: Array<{ key: keyof SavedCourseOrder; label: string; money?: boole
   { key: "status", label: "주문상태" }, { key: "paymentMethod", label: "결제방법" },
   { key: "rs", label: "RS" }, { key: "adMedia", label: "트래킹 광고 매체" },
   { key: "inflowType", label: "트래킹 유입 구분" }, { key: "paymentId", label: "결제ID" },
-  { key: "refundDate", label: "환불일" },
+  { key: "paymentDate", label: "결제일" }, { key: "refundDate", label: "환불일" },
 ];
 const SELECT_CLASS = "h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm";
 
@@ -47,7 +47,7 @@ async function responseData<T>(response: Response): Promise<T> {
 
 export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, onRosterSaved }: { courseId: string; courseName: string; onCourseNameChange?: (name: string) => void; onRosterSaved?: () => void }) {
   const router = useRouter();
-  const [data, setData] = useState<CourseOrdersResponse>({ orders: [], imports: [] });
+  const [data, setData] = useState<CourseOrdersResponse>({ orders: [], imports: [], webinarDate: "" });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [error, setError] = useState("");
@@ -75,7 +75,11 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
   const awaitingDeposit = useMemo(() => data.orders.filter(isAwaitingDeposit), [data.orders]);
   const scopedOrders = orderView === "awaitingDeposit" ? awaitingDeposit : data.orders;
   const filtered = useMemo(() => filterCourseOrders(scopedOrders, filters), [scopedOrders, filters]);
-  const students = useMemo(() => createOrderStudentRoster(data.orders), [data.orders]);
+  const students = useMemo(() => createOrderStudentRoster(data.orders, data.webinarDate), [data.orders, data.webinarDate]);
+  const beforeWebinarExcludedCount = useMemo(
+    () => countCompletedOrdersBeforeWebinar(data.orders, data.webinarDate),
+    [data.orders, data.webinarDate],
+  );
   const overview = useMemo(() => summarizeCourseOrderOverview(data.orders), [data.orders]);
   const choices = useMemo(() => Object.fromEntries(ORDER_CATEGORY_FILTERS.map(([key]) =>
     [key, [...new Set(scopedOrders.map((row) => row[key]))].sort((a, b) => a.localeCompare(b, "ko-KR"))],
@@ -136,8 +140,32 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
     setBusy(true); setError(""); setNotice("");
     try {
       const body = new FormData(); body.set("file", file); body.set("products", JSON.stringify([...products]));
-      const result = await responseData<{ savedCount: number; courseName?: string; warning?: string }>(await fetch(endpoint, { method: "POST", body }));
-      setNotice(`${result.savedCount.toLocaleString("ko-KR")}건을 저장했습니다.${result.courseName ? ` 강의명: ${result.courseName}.` : ""} 선택한 주문항목을 최신 명단으로 반영했습니다.`);
+      const result = await responseData<{
+        savedCount: number;
+        courseName?: string;
+        warning?: string;
+        paidRosterSync?: {
+          updatedCount: number;
+          removedCount: number;
+          reviewRequiredCount: number;
+          beforeWebinarExcludedCount: number;
+        } | null;
+      }>(await fetch(endpoint, { method: "POST", body }));
+      const rosterMessages = result.paidRosterSync ? [
+        result.paidRosterSync.updatedCount
+          ? `기존 유료수강생 ${result.paidRosterSync.updatedCount.toLocaleString("ko-KR")}명 갱신`
+          : "",
+        result.paidRosterSync.removedCount
+          ? `기존 유료수강생 ${result.paidRosterSync.removedCount.toLocaleString("ko-KR")}명 제외`
+          : "",
+        result.paidRosterSync.beforeWebinarExcludedCount
+          ? `웨비나 이전 결제 ${result.paidRosterSync.beforeWebinarExcludedCount.toLocaleString("ko-KR")}건 제외`
+          : "",
+        result.paidRosterSync.reviewRequiredCount
+          ? `확인 필요 ${result.paidRosterSync.reviewRequiredCount.toLocaleString("ko-KR")}건 유지`
+          : "",
+      ].filter(Boolean) : [];
+      setNotice(`${result.savedCount.toLocaleString("ko-KR")}건을 저장했습니다.${result.courseName ? ` 강의명: ${result.courseName}.` : ""} 선택한 주문항목을 최신 명단으로 반영했습니다.${rosterMessages.length ? ` 유료수강생 명단: ${rosterMessages.join(" · ")}.` : ""}`);
       if (result.warning) setError(result.warning);
       if (result.courseName) onCourseNameChange?.(result.courseName);
       setPreview(null); setProducts(new Set());
@@ -218,6 +246,10 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
           <Button type="button" variant="outline" size="sm" onClick={refresh} disabled={loading || busy}><RefreshCw className={loading ? "animate-spin" : ""} />새로고침</Button>
         </div>
       </div>
+      {beforeWebinarExcludedCount ? <Alert role="status">
+        <AlertTitle>웨비나 이전 결제 제외</AlertTitle>
+        <AlertDescription>결제일이 웨비나일({data.webinarDate})보다 이른 결제완료 주문 {beforeWebinarExcludedCount.toLocaleString("ko-KR")}건은 수강생 명단에 포함되지 않습니다.</AlertDescription>
+      </Alert> : null}
       {loadError ? <Alert variant="destructive"><AlertTitle>주문 내역 조회 실패</AlertTitle><AlertDescription>{loadError}</AlertDescription></Alert> : null}
       {loading ? <p role="status" className="text-sm text-muted-foreground">주문 내역을 불러오는 중입니다.</p> : !loadError ? (
         <>
@@ -233,9 +265,11 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
                 <CardContent><p className="text-sm text-muted-foreground">{label}</p><p className={`mt-2 text-2xl font-semibold tabular-nums ${color}`}>{count.toLocaleString("ko-KR")}<span className="ml-1 text-sm font-normal text-muted-foreground">건</span></p></CardContent>
               </Card>)}
             </div>
-            <div className="grid gap-3 lg:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               {[
                 ["현 결제금액 합계", money(overview.currentAmount), "결제완료 주문의 현 결제금액 기준"],
+                ["부분환불 결제금액", money(overview.partialRefundCurrentAmount), "부분환불 주문의 현 결제금액 기준"],
+                ["전체 매출금액", money(overview.totalRevenueAmount), "현 결제금액 합계 + 부분환불 결제금액"],
                 ["입금대기 합계", money(overview.awaitingDepositAmount), "입금대기 상태가 포함된 주문의 결제금액 기준"],
                 ["환불금액 합계", money(overview.refundAmount), "전체 주문의 환불금액 기준 · 부분환불 포함"],
               ].map(([label, amount, description]) => <Card key={label} role="group" aria-label={label}>

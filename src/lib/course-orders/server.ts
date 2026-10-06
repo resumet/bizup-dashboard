@@ -6,6 +6,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { courseOrderIdentity, parseCourseOrders } from "./parse";
+import { courseWebinarDateInKorea } from "./eligibility";
+import {
+  planAutomaticPaidRosterSync,
+  type RosterSnapshot,
+} from "./reconcile-roster";
 import type { CourseOrder, CourseOrdersResponse, SavedCourseOrder } from "./types";
 
 export class CourseOrderError extends Error {
@@ -17,7 +22,7 @@ export async function authorizeCourseOrders(courseId: string) {
   if (!user) throw new CourseOrderError("로그인이 필요합니다.", 401);
   if (!/^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/iu.test(courseId)) throw new CourseOrderError("강의 ID가 올바르지 않습니다.");
   const admin = createAdminClient();
-  const { data: course, error } = await admin.from("courses").select("id,name,workspace_id").eq("id", courseId).maybeSingle();
+  const { data: course, error } = await admin.from("courses").select("id,name,workspace_id,free_webinar_at").eq("id", courseId).maybeSingle();
   if (error) throw new CourseOrderError("강의를 조회하지 못했습니다.", 500);
   if (!course) throw new CourseOrderError("강의를 찾을 수 없습니다.", 404);
   const { data: member, error: memberError } = await admin.from("workspace_members").select("user_id").eq("workspace_id", course.workspace_id).eq("user_id", user.id).maybeSingle();
@@ -52,7 +57,8 @@ export function toOrderRecord(row: CourseOrder) {
     phone: row.phone, email: row.email, payment_amount: row.paymentAmount,
     refund_amount: row.refundAmount, current_amount: row.currentAmount, status: row.status,
     payment_method: row.paymentMethod, rs: row.rs, ad_media: row.adMedia, inflow_type: row.inflowType,
-    payment_id: row.paymentId, order_id: row.orderId, refund_date: row.refundDate || null,
+    payment_id: row.paymentId, order_id: row.orderId, payment_date: row.paymentDate,
+    refund_date: row.refundDate || null,
   };
 }
 
@@ -70,7 +76,79 @@ export async function saveCourseOrders(admin: ReturnType<typeof createAdminClien
   if (cleanupError) throw new CourseOrderError(`이전 주문 정리에 실패했습니다. (${cleanupError.code})`, 500);
 }
 
-export async function loadCourseOrders(admin: ReturnType<typeof createAdminClient>, courseId: string): Promise<CourseOrdersResponse> {
+export type PaidRosterImportSyncResult = {
+  updatedCount: number;
+  removedCount: number;
+  reviewRequiredCount: number;
+  beforeWebinarExcludedCount: number;
+};
+
+export async function syncPaidRosterAfterOrderImport(
+  admin: ReturnType<typeof createAdminClient>,
+  courseId: string,
+  userId: string,
+): Promise<PaidRosterImportSyncResult> {
+  const empty = { updatedCount: 0, removedCount: 0, reviewRequiredCount: 0, beforeWebinarExcludedCount: 0 };
+  const { data, error } = await admin.rpc("paid_roster_snapshot", {
+    p_course_id: courseId,
+    p_actor_id: userId,
+  });
+  if (error) {
+    throw new CourseOrderError(
+      `유료수강생 자동 갱신 준비에 실패했습니다. (${error.code})`,
+      500,
+    );
+  }
+  const snapshot = data as RosterSnapshot;
+  if (
+    !snapshot ||
+    !Array.isArray(snapshot.orders) ||
+    !Array.isArray(snapshot.enrollments)
+  ) {
+    throw new CourseOrderError("유료수강생 자동 갱신 대상을 확인하지 못했습니다.", 500);
+  }
+  const plan = planAutomaticPaidRosterSync(snapshot);
+  const base = { ...empty, beforeWebinarExcludedCount: plan.beforeWebinarExcludedCount };
+  if (!snapshot.jobId || !snapshot.enrollments.length) return base;
+  if (!plan.changes.length) {
+    return { ...base, reviewRequiredCount: plan.reviewRequiredCount };
+  }
+  const hasRemovals = plan.changes.some((change) => change.kind === "remove");
+  const { error: syncError } = await admin.rpc(
+    hasRemovals ? "apply_paid_roster_review" : "apply_paid_roster_changes",
+    {
+      p_course_id: courseId,
+      p_actor_id: userId,
+      p_snapshot: snapshot,
+      p_changes: plan.changes.map(
+        ({ kind, orderId, targetId, removeIds }) => ({
+          kind,
+          orderId,
+          targetId,
+          removeIds,
+        }),
+      ),
+    },
+  );
+  if (syncError) {
+    throw new CourseOrderError(
+      `유료수강생 자동 갱신에 실패했습니다. (${syncError.code})`,
+      500,
+    );
+  }
+  return {
+    updatedCount: plan.changes.filter((change) => change.kind !== "remove").length,
+    removedCount: plan.changes.filter((change) => change.kind === "remove").length,
+    reviewRequiredCount: plan.reviewRequiredCount,
+    beforeWebinarExcludedCount: plan.beforeWebinarExcludedCount,
+  };
+}
+
+export async function loadCourseOrders(
+  admin: ReturnType<typeof createAdminClient>,
+  courseId: string,
+  freeWebinarAt = "",
+): Promise<CourseOrdersResponse> {
   const orders: SavedCourseOrder[] = [];
   // PostgREST caps a response at 1,000 rows; read every page before filtering.
   for (let offset = 0; ; offset += 1000) {
@@ -83,7 +161,7 @@ export async function loadCourseOrders(admin: ReturnType<typeof createAdminClien
       paymentAmount: Number(row.payment_amount), refundAmount: Number(row.refund_amount), currentAmount: Number(row.current_amount),
       status: row.status, paymentMethod: row.payment_method, rs: row.rs, adMedia: row.ad_media,
       inflowType: row.inflow_type, paymentId: row.payment_id, orderId: row.order_id,
-      refundDate: row.refund_date ?? "", updatedAt: row.updated_at,
+      paymentDate: row.payment_date ?? "", refundDate: row.refund_date ?? "", updatedAt: row.updated_at,
     });
     if (!data || data.length < 1000) break;
   }
@@ -93,6 +171,7 @@ export async function loadCourseOrders(admin: ReturnType<typeof createAdminClien
   return {
     orders: orders.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id)),
     imports: (imports ?? []).map((item) => ({ id: item.id, fileName: item.file_name, rowCount: item.row_count, createdAt: item.created_at })),
+    webinarDate: courseWebinarDateInKorea(freeWebinarAt),
   };
 }
 

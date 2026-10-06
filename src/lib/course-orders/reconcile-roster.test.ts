@@ -3,17 +3,24 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { PGlite } from "@electric-sql/pglite";
-import { planPaidRoster, type ReconcileOrder, type ReconcileEnrollment, type RosterSnapshot } from "./reconcile-roster";
+import {
+  planAutomaticPaidRosterSync,
+  planPaidRoster,
+  type ReconcileOrder,
+  type ReconcileEnrollment,
+  type RosterSnapshot,
+} from "./reconcile-roster";
 
 const order = (id: string, extra: Partial<ReconcileOrder> = {}): ReconcileOrder => ({
   id, record_key: id, member_name: "검증학생", phone: "01012345678", email: "test@example.test",
-  status: "결제완료", current_amount: 120000, refund_amount: 0, payment_amount: 120000, option_name: "기본반", ...extra,
+  status: "결제완료", current_amount: 120000, refund_amount: 0, payment_amount: 120000, option_name: "기본반",
+  payment_date: "2026-09-21", ...extra,
 });
 const enrollment = (id: string, values: Record<string, unknown> = {}): ReconcileEnrollment => ({
   id, source_row_number: 2, normalized_phone: "01012345678", student_id: null, is_extra_participant: false, is_manually_added: false,
   original_values: {}, normalized_values: { customerName: "검증학생", phone: "01012345678", email: "test@example.test", optionName: "기본반", paymentAmount: "120000", orderRecordKey: id, ...values },
 });
-const state = (orders: ReconcileOrder[], enrollments: ReconcileEnrollment[]): RosterSnapshot => ({ courseName: "강의", jobId: "job", version: 1, orders, enrollments });
+const state = (orders: ReconcileOrder[], enrollments: ReconcileEnrollment[]): RosterSnapshot => ({ courseName: "강의", webinarDate: "2026-09-20", jobId: "job", version: 1, orders, enrollments });
 const refund = order("old", { status: "전액환불", current_amount: 0, refund_amount: 120000 });
 
 test("환불 후 재결제는 기존 결제자와 연결하며 실제 수강생 연락처를 매칭에 쓰지 않는다", () => {
@@ -43,7 +50,6 @@ test("동명이인·정상 다중구매는 합치지 않고 모호하거나 별�
     state([refund, order("new"), order("another")], [enrollment("old")]),
     state([refund, order("new")], [enrollment("old"), enrollment("new", { memo: "새 기록에도 메모" })]),
     state([order("new")], [enrollment("old")]),
-    state([refund, order("new")], [enrollment("old", { refundedAt: "2026-09-15" })]),
   ]) {
     const plan = planPaidRoster(snapshot, ["new"]);
     assert.equal(plan.changes.length, 0);
@@ -55,6 +61,21 @@ test("부분환불·입금대기는 재결제 연결 대상으로 오인하지 �
   const partial = order("old", { status: "부분환불", current_amount: 100000, refund_amount: 20000 });
   assert.equal(planPaidRoster(state([partial, order("new")], [enrollment("old")]), ["new"]).changes[0].kind, "add");
   assert.equal(planPaidRoster(state([order("pending", { status: "입금대기" })], []), ["pending"]).changes.length, 0);
+});
+
+test("웨비나보다 이른 결제는 신규 결제자에서 제외하고 기존 결제자도 제외 대상으로 만든다", () => {
+  const before = order("before", { payment_date: "2026-09-19" });
+  const sameDay = order("same-day", { payment_date: "2026-09-20", phone: "01099998888" });
+  const snapshot = state([before, sameDay], [enrollment("before")]);
+  const manual = planPaidRoster(snapshot, [before.id, sameDay.id]);
+  assert.equal(manual.changes.some((change) => change.kind === "add" && change.orderId === before.id), false);
+  assert.equal(manual.changes.some((change) => change.kind === "add" && change.orderId === sameDay.id), true);
+  const removal = manual.changes.find((change) => change.kind === "remove");
+  assert.equal(removal?.targetId, "before");
+  assert.match(removal?.reason ?? "", /웨비나일/);
+  const automatic = planAutomaticPaidRosterSync(snapshot);
+  assert.equal(automatic.beforeWebinarExcludedCount, 1);
+  assert.equal(automatic.changes.some((change) => change.kind === "remove"), true);
 });
 
 test("전액환불·취소·누락 주문은 기존 수강생 제외 후보로 표시하고 부분환불·수동·이미 환불자는 유지한다", () => {
@@ -80,6 +101,50 @@ test("전액환불·취소·누락 주문은 기존 수강생 제외 후보로 �
   assert.equal(planPaidRoster(state([order("old", { status: "주문취소", current_amount: 0 }), order("new")], [enrollment("old")]), ["new"]).changes[0].kind, "update");
 });
 
+test("주문 갱신 자동 동기화는 명시적 환불만 제외하고 재결제자는 복원하며 신규·누락 주문은 자동 처리하지 않는다", () => {
+  const cancelled = planAutomaticPaidRosterSync(
+    state([refund], [enrollment("old")]),
+  );
+  assert.equal(cancelled.changes.length, 1);
+  assert.equal(cancelled.changes[0].kind, "remove");
+
+  const archived = enrollment("old", {
+    refundedAt: "2026-09-15T00:00:00Z",
+    refundedBy: "actor",
+    refundSource: "order_roster_review",
+    memo: "참여 이력 보존",
+  });
+  const repaid = planAutomaticPaidRosterSync(
+    state([refund, order("new", { payment_amount: 150000 })], [archived]),
+  );
+  assert.equal(repaid.changes.length, 1);
+  assert.equal(repaid.changes[0].kind, "update");
+  assert.equal(repaid.changes[0].targetId, "old");
+  assert.equal(repaid.changes[0].orderId, "new");
+  assert.equal(repaid.reviewRequiredCount, 0);
+
+  const repaidWithoutOldOrder = planAutomaticPaidRosterSync(
+    state([order("new")], [archived]),
+  );
+  assert.equal(repaidWithoutOldOrder.changes.length, 1);
+  assert.equal(repaidWithoutOldOrder.changes[0].kind, "update");
+  assert.equal(repaidWithoutOldOrder.reviewRequiredCount, 0);
+
+  const missing = planAutomaticPaidRosterSync(state([], [enrollment("old")]));
+  assert.equal(missing.changes.length, 0);
+  assert.equal(missing.reviewRequiredCount, 1);
+
+  const newPayer = planAutomaticPaidRosterSync(state([order("new")], []));
+  assert.equal(newPayer.changes.length, 0);
+  assert.equal(newPayer.reviewRequiredCount, 0);
+
+  const ambiguousRepurchase = planAutomaticPaidRosterSync(
+    state([refund, order("new"), order("another")], [enrollment("old")]),
+  );
+  assert.equal(ambiguousRepurchase.changes.length, 0);
+  assert.equal(ambiguousRepurchase.reviewRequiredCount, 2);
+});
+
 test("선택 반영은 가격·옵션만 수정하고 개인 정보 보존, 중복 정리, 이력, 동시 수정 검증을 원자적으로 수행한다", async () => {
   const db = new PGlite();
   const actor = randomUUID(), outsider = randomUUID(), workspace = randomUUID(), course = randomUUID();
@@ -89,20 +154,32 @@ test("선택 반영은 가격·옵션만 수정하고 개인 정보 보존, 중�
       create function auth.uid() returns uuid language sql as $$ select nullif(current_setting('test.user_id',true),'')::uuid $$;`);
     const foundation = await readFile("supabase/migrations_archive/20260929/202608260001_foundation.sql", "utf8");
     await db.exec(foundation.split("create function public.handle_new_user")[0].replace('create extension if not exists "pgcrypto";', ""));
-    await db.exec(`create table public.courses(id uuid primary key, workspace_id uuid not null references workspaces, name text not null);
+    await db.exec(`create table public.courses(id uuid primary key, workspace_id uuid not null references workspaces, name text not null, free_webinar_at timestamptz not null);
       alter table public.course_jobs add column course_id uuid references public.courses on delete set null;
       alter table public.job_enrollments add column is_extra_participant boolean not null default false, add column is_manually_added boolean not null default false;
       create unique index on public.job_enrollments(job_id,version,source_row_number);`);
     for (const name of ["202609120001_course_orders", "202609160002_paid_course_rosters", "202609160005_paid_roster_reconciliation", "202609180001_paid_roster_removal_review"]) {
       await db.exec(await readFile(`supabase/migrations_archive/20260929/${name}.sql`, "utf8"));
     }
+    await db.exec(
+      await readFile(
+        "supabase/migrations/20261006071251_reactivate_repaid_course_students.sql",
+        "utf8",
+      ),
+    );
+    await db.exec(
+      await readFile(
+        "supabase/migrations/20261006072837_store_course_order_payment_date.sql",
+        "utf8",
+      ),
+    );
     await db.query("insert into auth.users values($1),($2)", [actor, outsider]);
     await db.query("insert into workspaces(id,name) values($1,'Test')", [workspace]);
     await db.query("insert into workspace_members(workspace_id,user_id) values($1,$2)", [workspace, actor]);
-    await db.query("insert into courses values($1,$2,'검증 강의')", [course, workspace]);
+    await db.query("insert into courses values($1,$2,'검증 강의','2026-09-20 19:00:00+09')", [course, workspace]);
     const importId = (await db.query<{ id: string }>("insert into course_order_imports(course_id,file_name,row_count) values($1,'test.xlsx',3) returning id", [course])).rows[0].id;
-    const insert = async (key: string, phone = "01012345678") => (await db.query<{ id: string }>(`insert into course_orders(course_id,record_key,product_name,option_name,member_name,phone,email,payment_amount,refund_amount,current_amount,status,payment_method,rs,payment_id,import_id)
-      values($1,$2,'강의','기본반','검증학생',$3,'test@example.test',120000,0,120000,'결제완료','카드','기존 RS','old-payment',$4) returning id`, [course, key, phone, importId])).rows[0].id;
+    const insert = async (key: string, phone = "01012345678", paymentDate = "2026-09-21") => (await db.query<{ id: string }>(`insert into course_orders(course_id,record_key,product_name,option_name,member_name,phone,email,payment_amount,refund_amount,current_amount,status,payment_method,rs,payment_id,payment_date,import_id)
+      values($1,$2,'강의','기본반','검증학생',$3,'test@example.test',120000,0,120000,'결제완료','카드','기존 RS','old-payment',$4,$5) returning id`, [course, key, phone, paymentDate, importId])).rows[0].id;
     const snapshot = async () => (await db.query<{ s: RosterSnapshot }>("select paid_roster_snapshot($1,$2) s", [course, actor])).rows[0].s;
     const apply = async (s: RosterSnapshot, ids: string[], who = actor) => {
       const ops = planPaidRoster(s, ids).changes.map(({ orderId, targetId, removeIds }) => ({ orderId, targetId, removeIds }));
@@ -176,6 +253,21 @@ test("선택 반영은 가격·옵션만 수정하고 개인 정보 보존, 중�
     assert.deepEqual(preserved, retained.normalized_values);
     assert.deepEqual(archived.original_values, retained.original_values);
     assert.equal(planPaidRoster(afterRemoval, []).changes.length, 0);
+    const repaidId = await insert("repaid");
+    const reactivationSnapshot = await snapshot();
+    const reactivation = planAutomaticPaidRosterSync(reactivationSnapshot);
+    assert.equal(reactivation.changes.length, 1);
+    assert.equal(reactivation.changes[0].kind, "update");
+    assert.equal(reactivation.changes[0].targetId, archived.id);
+    await apply(reactivationSnapshot, [repaidId]);
+    const reactivated = (await snapshot()).enrollments.find(
+      (row) => row.normalized_values.orderRecordKey === "repaid",
+    )!;
+    assert.equal(reactivated.normalized_values.refundedAt, undefined);
+    assert.equal(reactivated.normalized_values.refundedBy, undefined);
+    assert.equal(reactivated.normalized_values.refundSource, undefined);
+    assert.equal(reactivated.normalized_values.memo, "보존할 메모");
+    assert.equal(reactivated.normalized_values.groupChatJoined, true);
     await db.query("update course_orders set status='전액환불',current_amount=0 where id=$1", [extraId]);
     const nextId = await insert("next", "01099990000");
     const mixedSnapshot = await snapshot();
@@ -185,9 +277,22 @@ test("선택 반영은 가격·옵션만 수정하고 개인 정보 보존, 중�
     await review(mixedSnapshot, mixed);
     const mixedResult = await snapshot();
     assert.ok(mixedResult.enrollments.find(r => r.normalized_values.orderRecordKey === "extra")?.normalized_values.refundedAt);
-    assert.ok(mixedResult.enrollments.find(r => r.normalized_values.orderRecordKey === "new")?.normalized_values.refundedAt);
+    assert.equal(mixedResult.enrollments.find(r => r.normalized_values.orderRecordKey === "repaid")?.normalized_values.refundedAt, undefined);
     assert.equal(mixedResult.enrollments.find(r => r.normalized_values.orderRecordKey === "next")?.normalized_values.refundedAt, undefined);
     assert.equal(mixedResult.enrollments.length, 3);
+    const beforeWebinarId = await insert("before-webinar", "01033334444", "2026-09-20");
+    await apply(await snapshot(), [beforeWebinarId]);
+    await db.query("update course_orders set payment_date='2026-09-19' where id=$1", [beforeWebinarId]);
+    const beforeWebinarSnapshot = await snapshot();
+    const beforeWebinarRemoval = planPaidRoster(beforeWebinarSnapshot, []).changes.find(
+      (change) => change.kind === "remove" && change.orderId === beforeWebinarId,
+    )!;
+    assert.ok(beforeWebinarRemoval);
+    await review(beforeWebinarSnapshot, [beforeWebinarRemoval]);
+    const beforeWebinarArchived = (await snapshot()).enrollments.find(
+      (item) => item.normalized_values.orderRecordKey === "before-webinar",
+    )!;
+    assert.equal(beforeWebinarArchived.normalized_values.refundSource, "before_webinar_payment");
     await db.exec("set role authenticated");
     await assert.rejects(snapshot(), /permission denied/);
     await assert.rejects(apply(fresh, [extraId]), /permission denied/);

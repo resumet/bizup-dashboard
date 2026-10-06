@@ -4,8 +4,9 @@ import { isExcludedVirtualAccountOrder } from "./filter";
 export const COURSE_ORDER_HEADERS = [
   "주문항목명", "회원명", "휴대전화번호", "이메일", "결제금액", "환불금액",
   "현 결제금액", "주문상태", "결제방법", "RS", "트래킹 광고 매체", "트래킹 유입 구분",
-  "결제ID", "환불일",
+  "결제ID", "결제일", "환불일",
 ] as const;
+const PAYMENT_DATE_HEADERS = ["결제일", "결제일시", "결제완료일"] as const;
 const text = (value: unknown) => String(value ?? "").trim();
 const headerKey = (value: unknown) => text(value).replace(/\s+/gu, "");
 
@@ -34,8 +35,11 @@ function amount(value: unknown, label: string, row: number) {
   return Number(raw);
 }
 
-function refundDate(value: unknown, row: number) {
-  if (value === null || value === undefined || text(value) === "" || text(value) === "-") return "";
+function dateValue(value: unknown, label: string, row: number, required: boolean) {
+  if (value === null || value === undefined || text(value) === "" || text(value) === "-") {
+    if (required) throw new Error(`${row}행 ${label}이 비어 있습니다.`);
+    return "";
+  }
   const raw = value instanceof Date ? value.toISOString() : text(value);
   const match = raw.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})(?:$|[T\s])/u);
   if (match) {
@@ -43,14 +47,16 @@ function refundDate(value: unknown, row: number) {
     const parsed = new Date(`${result}T00:00:00Z`);
     if (Number.isFinite(parsed.getTime()) && parsed.toISOString().startsWith(result)) return result;
   }
-  throw new Error(`${row}행 환불일이 올바른 날짜가 아닙니다.`);
+  throw new Error(`${row}행 ${label}이 올바른 날짜가 아닙니다.`);
 }
 
 export function parseCourseOrders(matrix: unknown[][]): CourseOrder[] {
   const headerIndex = matrix.findIndex((row) => row.some((cell) => headerKey(cell) === "주문항목명"));
   if (headerIndex < 0) throw new Error("주문항목명 열을 찾지 못했습니다.");
   const headers = matrix[headerIndex].map(headerKey);
-  const missing = COURSE_ORDER_HEADERS.filter((name) => !headers.includes(headerKey(name)));
+  const paymentDateHeader = PAYMENT_DATE_HEADERS.find((name) => headers.includes(headerKey(name)));
+  const missing = COURSE_ORDER_HEADERS.filter((name) => name !== "결제일" && !headers.includes(headerKey(name)));
+  if (!paymentDateHeader) missing.push("결제일");
   if (missing.length) throw new Error(`필수 열이 없습니다: ${missing.join(", ")}`);
   if (new Set(headers.filter(Boolean)).size !== headers.filter(Boolean).length) throw new Error("중복된 열 이름이 있습니다.");
   const columns = new Map(headers.map((name, index) => [name, index]));
@@ -79,7 +85,8 @@ export function parseCourseOrders(matrix: unknown[][]): CourseOrder[] {
       rs: text(get(row, "RS")), adMedia: text(get(row, "트래킹 광고 매체")),
       inflowType: text(get(row, "트래킹 유입 구분")), paymentId, orderId,
       ...(isSplitPayment ? { splitOrderNumber: orderNumber } : {}),
-      refundDate: refundDate(get(row, "환불일"), rowNumber),
+      paymentDate: dateValue(get(row, paymentDateHeader!), "결제일", rowNumber, true),
+      refundDate: dateValue(get(row, "환불일"), "환불일", rowNumber, false),
     }];
   });
   if (!rows.length) throw new Error("저장할 주문 데이터가 없습니다.");
@@ -123,6 +130,7 @@ function mergeSplitPayments(rows: CourseOrder[]): CourseOrder[] {
       paymentAmount: sum("paymentAmount"), refundAmount: sum("refundAmount"), currentAmount: sum("currentAmount"),
       status: join("status"), paymentMethod: join("paymentMethod"), rs: join("rs"),
       adMedia: join("adMedia"), inflowType: join("inflowType"), paymentId: join("paymentId"), orderId: join("orderId"),
+      paymentDate: parts.map((part) => part.paymentDate).sort().at(-1) ?? "",
       refundDate: parts.map((part) => part.refundDate).sort().at(-1) ?? "",
     }];
   });

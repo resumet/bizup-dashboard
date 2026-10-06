@@ -11,7 +11,8 @@ function matrix(overrides: Record<string, unknown> = {}) {
     주문항목명: "실전 AI-자동화 강의 - 기본반", 회원명: "수강생", 휴대전화번호: "010-1234-5678",
     이메일: "student@example.com", 결제금액: "1,200,000원", 환불금액: "200,000", "현 결제금액": 1000000,
     주문상태: "부분환불", 결제방법: "카드", RS: "강사", "트래킹 광고 매체": "유튜브",
-    "트래킹 유입 구분": "광고", 결제ID: "payment-1", 환불일: "2026-09-12 09:10:00", ...overrides,
+    "트래킹 유입 구분": "광고", 결제ID: "payment-1", 결제일: "2026-09-10 19:30:00",
+    환불일: "2026-09-12 09:10:00", ...overrides,
   };
   return [[...COURSE_ORDER_HEADERS], COURSE_ORDER_HEADERS.map((key) => values[key])];
 }
@@ -21,7 +22,7 @@ test("요청한 열 전체를 보존하고 마지막 구분자의 오른쪽을 �
     productName: "실전 AI-자동화 강의 - 기본반", optionName: "기본반", memberName: "수강생",
     phone: "01012345678", email: "student@example.com", paymentAmount: 1200000, refundAmount: 200000,
     currentAmount: 1000000, status: "부분환불", paymentMethod: "카드", rs: "강사", adMedia: "유튜브",
-    inflowType: "광고", paymentId: "payment-1", orderId: "", refundDate: "2026-09-12",
+    inflowType: "광고", paymentId: "payment-1", orderId: "", paymentDate: "2026-09-10", refundDate: "2026-09-12",
   });
   assert.deepEqual(splitCourseOrderProduct("강의-프리미엄"), { courseName: "강의", optionName: "프리미엄" });
   assert.deepEqual(splitCourseOrderProduct("강의"), { courseName: "강의", optionName: "" });
@@ -42,6 +43,7 @@ test("누락 열·잘못된 금액·날짜·식별자가 있으면 저장 전 �
   assert.throws(() => parseCourseOrders([["주문항목명"]]), /필수 열/);
   assert.throws(() => parseCourseOrders(matrix({ 결제금액: "금액 오류" })), /2행 결제금액/);
   assert.throws(() => parseCourseOrders(matrix({ 환불일: "2026-02-30" })), /2행 환불일/);
+  assert.throws(() => parseCourseOrders(matrix({ 결제일: "" })), /2행 결제일이 비어/);
   assert.throws(() => parseCourseOrders(matrix({ 결제ID: "" })), /결제ID와 주문ID/);
   assert.throws(() => parseCourseOrders([matrix()[0]]), /주문 데이터가 없습니다/);
 });
@@ -142,6 +144,7 @@ test("분할결제 금액·환불을 합산하고 결제ID·방법을 보존하�
   assert.equal(merged.currentAmount, 1350000);
   assert.equal(merged.paymentId, "p1 / p2");
   assert.equal(merged.paymentMethod, "계좌이체 / 카드");
+  assert.equal(merged.paymentDate, "2026-09-10");
   assert.equal(merged.refundDate, "2026-09-12");
   assert.equal(selectCourseOrders([merged], [merged.productName]).length, 1);
   assert.equal(buildCourseOrderPreview([merged], "실전").totalCount, 1);

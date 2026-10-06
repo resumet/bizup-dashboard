@@ -6,7 +6,7 @@ import type { CourseOrder } from "./types";
 function order(status: string, paymentAmount: number, currentAmount: number, refundAmount = 0): CourseOrder {
   return { productName: "강의", optionName: "기본반", memberName: "테스트", phone: "", email: "",
     paymentAmount, currentAmount, refundAmount, status, paymentMethod: "", rs: "", adMedia: "",
-    inflowType: "", paymentId: "", orderId: "", refundDate: "" };
+    inflowType: "", paymentId: "", orderId: "", paymentDate: "2026-09-20", refundDate: "" };
 }
 
 test("전체 주문 요약은 상태별 건수와 원본 금액을 집계하고 부분환불·분할결제를 포함한다", () => {
@@ -17,7 +17,8 @@ test("전체 주문 요약은 상태별 건수와 원본 금액을 집계하고 
     order("환불대기", 200, 200),
   ];
   assert.deepEqual(summarizeCourseOrderOverview(rows), { count: 7, completedCount: 1,
-    awaitingDepositCount: 2, refundedCount: 2, currentAmount: 1000, awaitingDepositAmount: 1200, refundAmount: 500 });
+    awaitingDepositCount: 2, refundedCount: 2, currentAmount: 1000, partialRefundCurrentAmount: 800,
+    totalRevenueAmount: 1800, awaitingDepositAmount: 1200, refundAmount: 500 });
 });
 
 test("현 결제금액은 결제완료 건만 원본 현 결제금액으로 합산한다", () => {
@@ -28,6 +29,8 @@ test("현 결제금액은 결제완료 건만 원본 현 결제금액으로 합�
   ]);
   assert.equal(summary.completedCount, 2);
   assert.equal(summary.currentAmount, 1500.3);
+  assert.equal(summary.partialRefundCurrentAmount, 7000);
+  assert.equal(summary.totalRevenueAmount, 8500.3);
 });
 
 test("환불 상태·금액·날짜 중 하나가 있으면 환불 건수에 한 번만 포함한다", () => {
@@ -42,7 +45,8 @@ test("환불 상태·금액·날짜 중 하나가 있으면 환불 건수에 한
 
 test("빈 명단과 소수 금액을 정확하게 표시할 수 있도록 집계한다", () => {
   assert.deepEqual(summarizeCourseOrderOverview([]), { count: 0, completedCount: 0,
-    awaitingDepositCount: 0, refundedCount: 0, currentAmount: 0, awaitingDepositAmount: 0, refundAmount: 0 });
+    awaitingDepositCount: 0, refundedCount: 0, currentAmount: 0, partialRefundCurrentAmount: 0,
+    totalRevenueAmount: 0, awaitingDepositAmount: 0, refundAmount: 0 });
   const summary = summarizeCourseOrderOverview([order("입금대기", 0.1, 0.1, 0.1), order("입금대기", 0.2, 0.2, 0.2)]);
   assert.equal(summary.currentAmount, 0);
   assert.equal(summary.awaitingDepositAmount, 0.3);

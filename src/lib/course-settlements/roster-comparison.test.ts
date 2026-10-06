@@ -5,7 +5,7 @@ import type { InstructorSourceDetails, MonthlyAnalysis } from "./engine";
 import { compareSettlementRoster } from "./roster-comparison";
 import { comparisonWindowHtml } from "./roster-comparison-window";
 
-const order = (overrides: Partial<SavedCourseOrder> = {}): SavedCourseOrder => ({ id: "order", updatedAt: "", productName: "강의", optionName: "", memberName: "홍길동", phone: "010-1234-5678", email: "", paymentAmount: 100, refundAmount: 0, currentAmount: 100, status: "결제완료", paymentMethod: "카드", rs: "", adMedia: "", inflowType: "", paymentId: "홍길동", refundDate: "", orderId: "", ...overrides });
+const order = (overrides: Partial<SavedCourseOrder> = {}): SavedCourseOrder => ({ id: "order", updatedAt: "", productName: "강의", optionName: "", memberName: "홍길동", phone: "010-1234-5678", email: "", paymentAmount: 100, refundAmount: 0, currentAmount: 100, status: "결제완료", paymentMethod: "카드", rs: "", adMedia: "", inflowType: "", paymentId: "홍길동", paymentDate: "2026-09-01", refundDate: "", orderId: "", ...overrides });
 const toss = (buyer: string, amount: number): InstructorSourceDetails["toss"][number] => ({ orderNumber: buyer.replace(/\s/g, ""), buyer, amount, date: "2026-09-01", paymentMethod: "카드", status: amount < 0 ? "취소" : "승인", agency: "", pgFee: 0, supplyAmount: 0, vat: 0, acquiringStatus: "" });
 const month = (details: Partial<InstructorSourceDetails>): MonthlyAnalysis => ({ fileName: "9월.xlsx", fileSize: 1, inputOrder: 0, periodLabel: "9월", periodYear: 2026, periodMonth: 9, summaryTitle: "", hasCashSheet: true, instructorResults: [], totals: {} as MonthlyAnalysis["totals"], comparisons: [], allMatched: true, detailsByInstructor: { 강사: { toss: [], cash: [], service: [], ...details } } });
 

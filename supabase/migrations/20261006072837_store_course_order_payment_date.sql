@@ -1,0 +1,191 @@
+alter table public.course_orders
+  add column if not exists payment_date date;
+
+create or replace function public.import_course_orders(
+  p_course_id uuid,
+  p_actor_id uuid,
+  p_file_name text,
+  p_rows jsonb
+)
+returns uuid
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_workspace_id uuid;
+  v_import_id uuid;
+begin
+  select workspace_id into v_workspace_id from public.courses where id = p_course_id for update;
+  if v_workspace_id is null or not exists (
+    select 1 from public.workspace_members where workspace_id = v_workspace_id and user_id = p_actor_id
+  ) then
+    raise exception '주문 내역을 관리할 권한이 없습니다.';
+  end if;
+  if jsonb_typeof(p_rows) is distinct from 'array' then
+    raise exception '주문 내역 형식이 올바르지 않습니다.';
+  end if;
+  if jsonb_array_length(p_rows) < 1 or jsonb_array_length(p_rows) > 10000 then
+    raise exception '한 번에 1~10,000건을 저장할 수 있습니다.';
+  end if;
+
+  insert into public.course_order_imports(course_id, file_name, row_count, created_by)
+  values (p_course_id, p_file_name, jsonb_array_length(p_rows), p_actor_id)
+  returning id into v_import_id;
+
+  insert into public.course_orders (
+    course_id, record_key, product_name, option_name, member_name, phone, email,
+    payment_amount, refund_amount, current_amount, status, payment_method, rs,
+    ad_media, inflow_type, payment_id, order_id, payment_date, refund_date, import_id
+  )
+  select p_course_id, r.record_key, r.product_name, r.option_name, r.member_name, r.phone, r.email,
+    r.payment_amount, r.refund_amount, r.current_amount, r.status, r.payment_method, r.rs,
+    r.ad_media, r.inflow_type, r.payment_id, r.order_id, r.payment_date, r.refund_date, v_import_id
+  from jsonb_to_recordset(p_rows) as r(
+    record_key text, product_name text, option_name text, member_name text, phone text, email text,
+    payment_amount numeric, refund_amount numeric, current_amount numeric, status text,
+    payment_method text, rs text, ad_media text, inflow_type text, payment_id text, order_id text,
+    payment_date date, refund_date date
+  )
+  on conflict (course_id, record_key) do update set
+    product_name = excluded.product_name, option_name = excluded.option_name,
+    member_name = excluded.member_name, phone = excluded.phone, email = excluded.email,
+    payment_amount = excluded.payment_amount, refund_amount = excluded.refund_amount,
+    current_amount = excluded.current_amount, status = excluded.status,
+    payment_method = excluded.payment_method, rs = excluded.rs, ad_media = excluded.ad_media,
+    inflow_type = excluded.inflow_type, payment_id = excluded.payment_id, order_id = excluded.order_id,
+    payment_date = excluded.payment_date, refund_date = excluded.refund_date,
+    import_id = excluded.import_id, updated_at = now();
+  return v_import_id;
+end;
+$$;
+
+revoke all on function public.import_course_orders(uuid, uuid, text, jsonb) from public, anon, authenticated;
+grant execute on function public.import_course_orders(uuid, uuid, text, jsonb) to service_role;
+
+create or replace function public.paid_roster_snapshot(p_course_id uuid, p_actor_id uuid)
+returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_course public.courses%rowtype;
+  v_job public.course_jobs%rowtype;
+begin
+  select * into v_course from public.courses where id = p_course_id;
+  if v_course.id is null or not exists (
+    select 1 from public.workspace_members where workspace_id = v_course.workspace_id and user_id = p_actor_id
+  ) then
+    raise exception '유료수강생 명단을 관리할 권한이 없습니다.';
+  end if;
+  select * into v_job from public.course_jobs where course_id = p_course_id and is_order_roster;
+  return jsonb_build_object(
+    'courseName', v_course.name,
+    'webinarDate', (v_course.free_webinar_at at time zone 'Asia/Seoul')::date,
+    'jobId', v_job.id,
+    'version', coalesce(v_job.latest_version, 0),
+    'orders', coalesce((
+      select jsonb_agg(to_jsonb(o) order by o.id)
+      from public.course_orders o
+      where course_id = p_course_id
+    ), '[]'::jsonb),
+    'enrollments', coalesce((
+      select jsonb_agg(to_jsonb(e) order by e.id)
+      from public.job_enrollments e
+      where job_id = v_job.id and version = v_job.latest_version
+    ), '[]'::jsonb)
+  );
+end;
+$$;
+
+revoke all on function public.paid_roster_snapshot(uuid, uuid) from public, anon, authenticated;
+grant execute on function public.paid_roster_snapshot(uuid, uuid) to service_role;
+
+create or replace function public.apply_paid_roster_review(
+  p_course_id uuid,
+  p_actor_id uuid,
+  p_snapshot jsonb,
+  p_changes jsonb
+)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare
+  v_course public.courses%rowtype; v_job public.course_jobs%rowtype;
+  v_change jsonb; v_row public.job_enrollments%rowtype; v_regular jsonb;
+  v_ids uuid[] := array[]::uuid[]; v_target uuid; v_result uuid;
+begin
+  select * into v_course from public.courses where id = p_course_id for update;
+  if v_course.id is null or not exists (
+    select 1 from public.workspace_members where workspace_id = v_course.workspace_id and user_id = p_actor_id
+  ) then raise exception '유료수강생 명단을 관리할 권한이 없습니다.'; end if;
+  select * into v_job from public.course_jobs where course_id = p_course_id and is_order_roster for update;
+  perform 1 from public.course_orders where course_id = p_course_id for update;
+  perform 1 from public.job_enrollments where job_id = v_job.id and version = v_job.latest_version for update;
+  if public.paid_roster_snapshot(p_course_id, p_actor_id) is distinct from p_snapshot then
+    raise exception '주문 또는 수강생 정보가 변경되었습니다. 미리보기를 다시 열어 확인해 주세요.';
+  end if;
+  if jsonb_typeof(p_changes) is distinct from 'array' or jsonb_array_length(p_changes) not between 1 and 10000 then
+    raise exception '반영할 항목을 선택해 주세요.';
+  end if;
+  select coalesce(jsonb_agg(c), '[]'::jsonb) into v_regular from jsonb_array_elements(p_changes) c
+    where coalesce(c->>'kind', '') <> 'remove';
+  for v_change in select value from jsonb_array_elements(p_changes) where value->>'kind' = 'remove' loop
+    v_target := (v_change->>'targetId')::uuid;
+    select * into v_row from public.job_enrollments where id = v_target and job_id = v_job.id and version = v_job.latest_version;
+    if v_row.id is null or v_target = any(v_ids) or v_row.is_manually_added
+      or coalesce(v_row.normalized_values->>'refundedAt', '') <> ''
+      or coalesce(v_row.normalized_values->>'orderRecordKey', '') = '' then
+      raise exception '제외할 수강생을 다시 확인해 주세요.';
+    end if;
+    -- A present order may be excluded only for an explicit full refund/cancellation
+    -- or when its payment date precedes the course webinar date in Korea.
+    if exists (
+      select 1 from public.course_orders o
+      where o.course_id = p_course_id
+        and o.record_key = v_row.normalized_values->>'orderRecordKey'
+        and not (
+          (o.current_amount = 0 and normalize(o.status, NFKC) ~ '(취소|환불)')
+          or (
+            o.payment_date is not null
+            and o.payment_date < (v_course.free_webinar_at at time zone 'Asia/Seoul')::date
+          )
+        )
+    ) then
+      raise exception '취소·환불 또는 웨비나 이전 결제가 아닌 주문은 제외할 수 없습니다.';
+    end if;
+    if exists (select 1 from jsonb_array_elements(v_regular) c where c->>'targetId' = v_target::text
+      or (c->'removeIds') @> jsonb_build_array(v_target::text)) then
+      raise exception '갱신 대상과 제외 대상이 겹칩니다. 미리보기를 다시 확인해 주세요.';
+    end if;
+    v_ids := array_append(v_ids, v_target);
+  end loop;
+
+  update public.job_enrollments as e
+  set normalized_values = normalized_values || jsonb_build_object(
+    'refundedAt', now(),
+    'refundedBy', p_actor_id,
+    'refundSource', case when exists (
+      select 1 from public.course_orders o
+      where o.course_id = p_course_id
+        and o.record_key = e.normalized_values->>'orderRecordKey'
+        and o.payment_date is not null
+        and o.payment_date < (v_course.free_webinar_at at time zone 'Asia/Seoul')::date
+    ) then 'before_webinar_payment' else 'order_roster_review' end
+  )
+  where id = any(v_ids) and job_id = v_job.id and version = v_job.latest_version;
+  v_result := v_job.id;
+  if jsonb_array_length(v_regular) > 0 then
+    v_result := public.apply_paid_roster_changes(
+      p_course_id,
+      p_actor_id,
+      public.paid_roster_snapshot(p_course_id, p_actor_id),
+      v_regular
+    );
+  end if;
+  if cardinality(v_ids) > 0 then
+    insert into public.audit_logs(workspace_id, actor_id, event_type, entity_type, entity_id, metadata)
+      values(v_course.workspace_id, p_actor_id, 'course_job.order_removals_approved', 'course_job', v_job.id,
+        jsonb_build_object('version', v_job.latest_version, 'enrollmentIds', to_jsonb(v_ids), 'changes', p_changes));
+  end if;
+  return v_result;
+end;
+$$;
+
+revoke all on function public.apply_paid_roster_review(uuid, uuid, jsonb, jsonb) from public, anon, authenticated;
+grant execute on function public.apply_paid_roster_review(uuid, uuid, jsonb, jsonb) to service_role;

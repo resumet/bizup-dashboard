@@ -7,7 +7,7 @@ const order: SavedCourseOrder = {
   id: "order-1", updatedAt: "2026-09-15T00:00:00Z", productName: "강의 - 기본반",
   memberName: "김학생", phone: "01012345678", email: "student@example.com", optionName: "기본반",
   paymentAmount: 123456.78, refundAmount: 0, currentAmount: 123456.78, status: "결제완료",
-  paymentMethod: "카드", rs: "", adMedia: "", inflowType: "광고 유입", paymentId: "payment-1", orderId: "source-1", refundDate: "",
+  paymentMethod: "카드", rs: "", adMedia: "", inflowType: "광고 유입", paymentId: "payment-1", orderId: "source-1", paymentDate: "2026-09-15", refundDate: "",
 };
 
 test("결제완료 주문만 포함하고 원본 결제정보·RS·전화번호를 보존한다", () => {
@@ -32,6 +32,16 @@ test("같은 사람의 다른 주문·옵션과 연락처가 없는 결제완료
   assert.equal(rows[2].amount, 0);
   assert.deepEqual(createOrderStudentRoster([]), []);
   assert.deepEqual(createOrderStudentRoster([{ ...order, status: "전액환불" }]), []);
+});
+
+test("웨비나 날짜보다 이른 결제완료 주문은 결제자 명단에서 제외한다", () => {
+  const rows = [
+    { ...order, id: "before", paymentDate: "2026-09-14" },
+    { ...order, id: "same-day", paymentDate: "2026-09-15" },
+    { ...order, id: "after", paymentDate: "2026-09-16" },
+    { ...order, id: "unknown", paymentDate: "" },
+  ];
+  assert.deepEqual(createOrderStudentRoster(rows, "2026-09-15").map((item) => item.orderId), ["same-day", "after", "unknown"]);
 });
 
 test("전화번호의 국가번호·누락된 0을 정규화하고 다른 번호를 임의로 만들지 않는다", () => {

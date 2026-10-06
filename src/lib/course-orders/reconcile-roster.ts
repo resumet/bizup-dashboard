@@ -1,7 +1,10 @@
 /** Pure reconciliation planning. No writes occur until the selected changes are applied. */
+import { isPaymentBeforeWebinar } from "./eligibility";
+
 export type ReconcileOrder = {
   id: string; record_key: string; member_name: string; phone: string; email: string;
   status: string; current_amount: number; refund_amount: number; payment_amount: number; option_name: string;
+  payment_date: string | null;
 };
 export type ReconcileEnrollment = {
   id: string; source_row_number: number; normalized_phone: string | null;
@@ -9,7 +12,7 @@ export type ReconcileEnrollment = {
   student_id: string | null; is_extra_participant: boolean; is_manually_added: boolean;
 };
 export type RosterSnapshot = {
-  courseName: string; jobId: string | null; version: number;
+  courseName: string; webinarDate: string; jobId: string | null; version: number;
   orders: ReconcileOrder[]; enrollments: ReconcileEnrollment[];
 };
 export type RosterChange = {
@@ -20,6 +23,11 @@ export type RosterChange = {
 };
 export type RosterPlan = { changes: RosterChange[]; conflicts: { name: string; reason: string }[]; unchangedCount: number };
 export type RosterPreview = RosterPlan & { token: string };
+export type AutomaticRosterSyncPlan = {
+  changes: RosterChange[];
+  reviewRequiredCount: number;
+  beforeWebinarExcludedCount: number;
+};
 
 const text = (value: unknown) => typeof value === "string" ? value : "";
 const normalize = (value: string) => value.normalize("NFKC").replace(/\s/gu, "").toLowerCase();
@@ -34,6 +42,8 @@ function identity(name: string, number: string, email: string) {
 }
 const completed = (order: ReconcileOrder) => normalize(order.status) === "결제완료";
 const fullyRefunded = (order: ReconcileOrder) => /취소|환불/u.test(normalize(order.status)) && Number(order.current_amount) === 0;
+export const isRosterEligibleOrder = (snapshot: Pick<RosterSnapshot, "webinarDate">, order: ReconcileOrder) =>
+  completed(order) && !isPaymentBeforeWebinar(order.payment_date, snapshot.webinarDate);
 const amount = (value: unknown) => Number(text(value).replace(/,/gu, "") || value || 0);
 
 // A duplicate with its own operator edits needs manual review, never silent deletion.
@@ -61,7 +71,7 @@ export function planPaidRoster(snapshot: RosterSnapshot, orderIds: string[]): Ro
   const byIdentity = new Map<string, ReconcileEnrollment[]>();
   const byKey = new Map<string, ReconcileEnrollment>();
   const activeCounts = new Map<string, number>();
-  for (const order of snapshot.orders.filter(completed)) {
+  for (const order of snapshot.orders.filter((item) => isRosterEligibleOrder(snapshot, item))) {
     const person = orderIdentity(order);
     if (person) activeCounts.set(person, (activeCounts.get(person) ?? 0) + 1);
   }
@@ -73,24 +83,27 @@ export function planPaidRoster(snapshot: RosterSnapshot, orderIds: string[]): Ro
   }
   const selected = new Set(orderIds);
   const usedTargets = new Set<string>();
-  for (const order of snapshot.orders.filter(o => selected.has(o.id) && completed(o))) {
+  for (const order of snapshot.orders.filter(o => selected.has(o.id) && isRosterEligibleOrder(snapshot, o))) {
     const person = orderIdentity(order);
     const samePerson = person ? byIdentity.get(person) ?? [] : [];
     const exact = byKey.get(order.record_key);
-    const refunded = samePerson.filter(row => {
+    const reusable = samePerson.filter(row => {
       const source = ordersByKey.get(text(row.normalized_values.orderRecordKey));
-      return source && fullyRefunded(source);
+      return Boolean(text(row.normalized_values.refundedAt))
+        || Boolean(source && fullyRefunded(source));
     });
     let target = exact;
     let removeIds: string[] = [];
     let reason = "같은 주문의 결제금액 또는 옵션명이 변경되었습니다.";
-    if (refunded.length) {
-      if (refunded.length !== 1 || activeCounts.get(person) !== 1 || text(refunded[0].normalized_values.refundedAt)) {
+    if (reusable.length) {
+      if (reusable.length !== 1 || activeCounts.get(person) !== 1) {
         plan.conflicts.push({ name: order.member_name, reason: "같은 결제자의 환불·결제 주문이 여러 건이라 연결할 기존 수강생을 확정할 수 없습니다. 명단에서 직접 확인해 주세요." });
         continue;
       }
-      target = refunded[0];
-      reason = "같은 결제자(이름·연락처)의 기존 주문이 취소·전액환불되고 새 주문이 결제완료되어, 기존 수강생의 금액과 옵션을 갱신합니다.";
+      target = reusable[0];
+      reason = text(target.normalized_values.refundedAt)
+        ? "환불자 목록에 보관된 결제자가 다시 결제하여, 기존 수강생의 참여 이력과 정보를 유지한 채 활성 명단으로 복원합니다."
+        : "같은 결제자(이름·연락처)의 기존 주문이 취소·전액환불되고 새 주문이 결제완료되어, 기존 수강생의 금액과 옵션을 갱신합니다.";
       if (exact && exact.id !== target.id) {
         if (duplicateHasEdits(exact, target, order)) {
           plan.conflicts.push({ name: order.member_name, reason: "재결제로 추가된 중복 명단에도 별도로 수정한 정보가 있어 자동으로 합칠 수 없습니다. 두 명단의 참여 이력과 수강생 정보를 확인해 주세요." });
@@ -133,17 +146,56 @@ export function planPaidRoster(snapshot: RosterSnapshot, orderIds: string[]): Ro
     if (!key || row.is_manually_added || text(row.normalized_values.refundedAt) || usedTargets.has(row.id) || mergedIds.has(row.id)) continue;
     const source = ordersByKey.get(key);
     const cancelled = source && Number(source.current_amount) === 0 && /취소|환불/u.test(normalize(source.status));
-    if (source && !cancelled) continue;
+    const beforeWebinar = source && isPaymentBeforeWebinar(source.payment_date, snapshot.webinarDate);
+    if (source && !cancelled && !beforeWebinar) continue;
     // A repurchase or ambiguous matching must be resolved before removing the old entry.
     if ((activeCounts.get(rowIdentity(row)) ?? 0) > 0) continue;
     const before = { optionName: text(row.normalized_values.optionName), paymentAmount: amount(row.normalized_values.paymentAmount) };
     plan.changes.push({
       id: row.id, kind: "remove", orderId: source?.id ?? null, targetId: row.id, removeIds: [],
       name: text(row.normalized_values.customerName), phone: row.normalized_phone ?? "",
-      reason: source ? `주문상태가 '${source.status}'이고 잔여 결제금액이 0원입니다. 승인하면 현재 명단에서 제외하고 환불자 목록에 보관합니다.`
+      reason: beforeWebinar
+        ? `결제일 ${source!.payment_date}이 웨비나일 ${snapshot.webinarDate}보다 이전입니다. 승인하면 현재 결제자 명단에서 제외합니다.`
+        : source ? `주문상태가 '${source.status}'이고 잔여 결제금액이 0원입니다. 승인하면 현재 명단에서 제외하고 환불자 목록에 보관합니다.`
         : "연결된 주문이 최신 주문내역에서 없어졌습니다. 취소·환불 여부를 확인하고 승인하면 현재 명단에서 제외하여 환불자 목록에 보관합니다.",
       before, after: before,
     });
   }
   return plan;
+}
+
+/**
+ * Plans the safe subset applied immediately after an order workbook refresh.
+ * New payers still require the existing manual roster approval flow. Missing
+ * source orders are also left for review because absence alone does not prove a
+ * cancellation or full refund.
+ */
+export function planAutomaticPaidRosterSync(
+  snapshot: RosterSnapshot,
+): AutomaticRosterSyncPlan {
+  const activeOrderIds = snapshot.orders
+    .filter((order) => isRosterEligibleOrder(snapshot, order))
+    .map((order) => order.id);
+  const plan = planPaidRoster(snapshot, activeOrderIds);
+  const ordersByKey = new Map(snapshot.orders.map((order) => [order.record_key, order]));
+  const enrollmentsById = new Map(snapshot.enrollments.map((row) => [row.id, row]));
+  let skippedRemovalCount = 0;
+  const changes = plan.changes.filter((change) => {
+    if (change.kind === "add") return false;
+    if (change.kind !== "remove") return true;
+    const target = change.targetId ? enrollmentsById.get(change.targetId) : null;
+    const source = target
+      ? ordersByKey.get(text(target.normalized_values.orderRecordKey))
+      : null;
+    if (source && (fullyRefunded(source)
+      || isPaymentBeforeWebinar(source.payment_date, snapshot.webinarDate))) return true;
+    skippedRemovalCount++;
+    return false;
+  });
+  return {
+    changes,
+    reviewRequiredCount: plan.conflicts.length + skippedRemovalCount,
+    beforeWebinarExcludedCount: snapshot.orders.filter((order) => completed(order)
+      && isPaymentBeforeWebinar(order.payment_date, snapshot.webinarDate)).length,
+  };
 }

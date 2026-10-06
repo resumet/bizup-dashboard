@@ -1,4 +1,5 @@
 import type { SavedCourseOrder } from "./types";
+import { isPaymentBeforeWebinar } from "./eligibility";
 
 export type OrderStudent = {
   orderId: string;
@@ -159,9 +160,19 @@ export function summarizeCashPayments(students: OrderStudent[]) {
   };
 }
 
-export function createOrderStudentRoster(orders: SavedCourseOrder[]): OrderStudent[] {
+export function isCompletedCourseOrder(order: Pick<SavedCourseOrder, "status">) {
+  return order.status.normalize("NFKC").replace(/\s/gu, "") === "결제완료";
+}
+
+export function countCompletedOrdersBeforeWebinar(orders: SavedCourseOrder[], webinarDate: string) {
+  return orders.filter((order) => isCompletedCourseOrder(order)
+    && isPaymentBeforeWebinar(order.paymentDate, webinarDate)).length;
+}
+
+export function createOrderStudentRoster(orders: SavedCourseOrder[], webinarDate = ""): OrderStudent[] {
   return orders
-    .filter((order) => order.status.normalize("NFKC").trim() === "결제완료")
+    .filter((order) => isCompletedCourseOrder(order)
+      && !isPaymentBeforeWebinar(order.paymentDate, webinarDate))
     .map((order) => ({
       orderId: order.id,
       name: order.memberName,

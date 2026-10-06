@@ -13,6 +13,7 @@ export type CourseOrder = {
   adMedia: string;
   inflowType: string;
   paymentId: string;
+  paymentDate: string;
   refundDate: string;
   orderId: string;
   // Import-only identity: persisted through record_key, not a separate DB column.
@@ -29,6 +30,7 @@ export type CourseOrderImport = {
 export type CourseOrdersResponse = {
   orders: SavedCourseOrder[];
   imports: CourseOrderImport[];
+  webinarDate: string;
 };
 export type CourseOrderPreview = {
   totalCount: number;

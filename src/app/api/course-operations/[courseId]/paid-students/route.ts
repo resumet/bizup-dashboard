@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createHash } from "node:crypto";
 import { authorizeCourseOrders, CourseOrderError, courseOrderErrorResponse } from "@/lib/course-orders/server";
-import { planPaidRoster, type RosterSnapshot } from "@/lib/course-orders/reconcile-roster";
+import { isRosterEligibleOrder, planPaidRoster, type RosterSnapshot } from "@/lib/course-orders/reconcile-roster";
 import { loadJobRoster } from "@/lib/jobs/server";
 import { selectNewStudentInvites } from "@/lib/course-orders/new-student-invites";
 
@@ -37,7 +37,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cou
     });
     if (snapshotError) throw new CourseOrderError("변경 미리보기를 불러오지 못했습니다.", 500);
     const state = snapshot as RosterSnapshot;
-    if (orderIds.some(id => !state.orders.some(order => order.id === id && order.status.normalize("NFKC").replace(/\s/gu, "") === "결제완료"))) {
+    if (orderIds.some(id => !state.orders.some(order => order.id === id && isRosterEligibleOrder(state, order)))) {
       throw new CourseOrderError("주문이 변경되었습니다. 주문내역을 새로고침해 주세요.", 409);
     }
     const token = createHash("sha256").update(JSON.stringify(canonical({ snapshot, orderIds }))).digest("hex");
