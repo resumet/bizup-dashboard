@@ -3,10 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import {
   CalendarDays,
   ChevronDown,
+  CircleDot,
   EllipsisVertical,
   Grid2X2,
   List,
@@ -31,11 +32,29 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -46,13 +65,20 @@ import {
 } from "@/components/ui/table";
 import type { CourseSummary } from "@/lib/course-operations/types";
 import { courseBannerUrl } from "@/lib/course-operations/banner";
-import { partitionCoursesByWebinarStatus } from "@/lib/course-operations/course-list-status";
+import { partitionCoursesByStatus } from "@/lib/course-operations/course-list-status";
+import {
+  COURSE_STATUSES,
+  COURSE_STATUS_LABELS,
+  isCourseStatus,
+  type CourseStatus,
+} from "@/lib/course-operations/course-status";
 import {
   sortByFarthestWebinar,
   sortByNearestWebinar,
 } from "@/lib/course-operations/webinar-proximity";
 
 type ViewMode = "cards" | "list" | "calendar";
+type CollapsibleCourseStatus = Exclude<CourseStatus, "ongoing">;
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -72,10 +98,12 @@ function CourseSectionHeading({ title, count }: { title: string; count: number }
 function CourseActionsMenu({
   course,
   canDelete,
+  onStatus,
   onDelete,
 }: {
   course: CourseSummary;
   canDelete: boolean;
+  onStatus: (course: CourseSummary) => void;
   onDelete: (course: CourseSummary) => void;
 }) {
   return (
@@ -91,6 +119,14 @@ function CourseActionsMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => onStatus(course)}>
+          <CircleDot />
+          상태
+          <span className="ml-auto text-xs text-muted-foreground">
+            {COURSE_STATUS_LABELS[course.status]}
+          </span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
           disabled={!canDelete}
@@ -104,20 +140,21 @@ function CourseActionsMenu({
   );
 }
 
-function CourseCards({ courses, canDelete, onDelete, completed = false }: {
+function CourseCards({ courses, canDelete, onStatus, onDelete, subdued = false }: {
   courses: CourseSummary[];
   canDelete: boolean;
+  onStatus: (course: CourseSummary) => void;
   onDelete: (course: CourseSummary) => void;
-  completed?: boolean;
+  subdued?: boolean;
 }) {
   if (!courses.length) return <div className="rounded-xl border border-dashed bg-background px-5 py-10 text-center text-sm text-muted-foreground">표시할 강의가 없습니다.</div>;
   return <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{courses.map((course, index) => (
-    <Card key={course.id} className={`relative overflow-hidden transition-shadow hover:shadow-md ${completed ? "bg-muted/35" : ""}`}>
+    <Card key={course.id} className={`relative overflow-hidden transition-shadow hover:shadow-md ${subdued ? "bg-muted/35" : ""}`}>
       <div className="absolute right-2 top-2 z-10 rounded-md bg-background/90 shadow-sm backdrop-blur-sm">
-        <CourseActionsMenu course={course} canDelete={canDelete} onDelete={onDelete} />
+        <CourseActionsMenu course={course} canDelete={canDelete} onStatus={onStatus} onDelete={onDelete} />
       </div>
-      {course.banner_image_path ? <Link href={`/services/course-operations/${course.id}`} className={`relative -mt-4 block aspect-video overflow-hidden bg-muted ${completed ? "grayscale-[35%]" : ""}`} aria-label={`${course.name} 강의 배너로 상세보기`}>
-        <Image src={courseBannerUrl(course.id, course.updated_at)} alt={`${course.name} 배너`} fill unoptimized loading={index < 2 && !completed ? "eager" : "lazy"} priority={index < 2 && !completed} sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw" className="object-cover transition-transform duration-300 group-hover/card:scale-[1.02]" />
+      {course.banner_image_path ? <Link href={`/services/course-operations/${course.id}`} className={`relative -mt-4 block aspect-video overflow-hidden bg-muted ${subdued ? "grayscale-[35%]" : ""}`} aria-label={`${course.name} 강의 배너로 상세보기`}>
+        <Image src={courseBannerUrl(course.id, course.updated_at)} alt={`${course.name} 배너`} fill unoptimized loading={index < 2 && !subdued ? "eager" : "lazy"} priority={index < 2 && !subdued} sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw" className="object-cover transition-transform duration-300 group-hover/card:scale-[1.02]" />
       </Link> : null}
       <CardHeader className="pr-14">
         <CardTitle className="line-clamp-2 text-xl leading-7" title={course.name}>
@@ -133,19 +170,21 @@ function CourseCards({ courses, canDelete, onDelete, completed = false }: {
   ))}</div>;
 }
 
-function CompletedSection({
+function CourseStatusSection({
+  title,
   count,
   open,
   onToggle,
   children,
 }: {
+  title: string;
   count: number;
   open: boolean;
   onToggle: () => void;
   children: React.ReactNode;
 }) {
   return (
-    <section aria-label="완료된 강의">
+    <section aria-label={`${title} 강의`}>
       <Button
         type="button"
         variant="ghost"
@@ -153,7 +192,7 @@ function CompletedSection({
         aria-expanded={open}
         onClick={onToggle}
       >
-        완료
+        {title}
         <Badge variant="secondary">{count}개</Badge>
         <ChevronDown className={`transition-transform ${open ? "rotate-180" : ""}`} />
       </Button>
@@ -162,22 +201,23 @@ function CompletedSection({
   );
 }
 
-function CourseTable({ courses, canDelete, onDelete, completed = false }: {
+function CourseTable({ courses, canDelete, onStatus, onDelete, subdued = false }: {
   courses: CourseSummary[];
   canDelete: boolean;
+  onStatus: (course: CourseSummary) => void;
   onDelete: (course: CourseSummary) => void;
-  completed?: boolean;
+  subdued?: boolean;
 }) {
   if (!courses.length) return <div className="rounded-xl border border-dashed bg-background px-5 py-10 text-center text-sm text-muted-foreground">표시할 강의가 없습니다.</div>;
-  return <Card className={`overflow-hidden ${completed ? "bg-muted/35" : ""}`}>
+  return <Card className={`overflow-hidden ${subdued ? "bg-muted/35" : ""}`}>
     <Table>
       <TableHeader><TableRow><TableHead>강사명</TableHead><TableHead>기수</TableHead><TableHead>강의명</TableHead><TableHead>웨비나 날짜</TableHead><TableHead className="w-16 text-right">관리</TableHead></TableRow></TableHeader>
-      <TableBody>{courses.map((course) => <TableRow key={course.id} className={completed ? "text-muted-foreground" : ""}>
+      <TableBody>{courses.map((course) => <TableRow key={course.id} className={subdued ? "text-muted-foreground" : ""}>
         <TableCell className="font-medium">{course.instructor_name || "강사 미지정"}</TableCell>
         <TableCell>{course.cohort ? `${course.cohort}기` : "-"}</TableCell>
         <TableCell><Link href={`/services/course-operations/${course.id}`} className="font-medium hover:underline">{course.name}</Link></TableCell>
         <TableCell>{formatDate(course.free_webinar_at)}</TableCell>
-        <TableCell className="text-right"><CourseActionsMenu course={course} canDelete={canDelete} onDelete={onDelete} /></TableCell>
+        <TableCell className="text-right"><CourseActionsMenu course={course} canDelete={canDelete} onStatus={onStatus} onDelete={onDelete} /></TableCell>
       </TableRow>)}</TableBody>
     </Table>
   </Card>;
@@ -197,21 +237,86 @@ export function CourseOperationsList({
   const [deleteTarget, setDeleteTarget] = useState<CourseSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
-  const [completedOpen, setCompletedOpen] = useState(false);
-  const { ongoing: ongoingCourses, completed: completedCourses } = useMemo(
-    () => partitionCoursesByWebinarStatus(courses, todayKoreaDate),
-    [courses, todayKoreaDate],
+  const [statusTarget, setStatusTarget] = useState<CourseSummary | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<CourseStatus>("ongoing");
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [statusError, setStatusError] = useState("");
+  const [openStatuses, setOpenStatuses] = useState<
+    Record<CollapsibleCourseStatus, boolean>
+  >({ on_hold: true, completed: false, canceled: false });
+  const {
+    ongoing: ongoingCourses,
+    onHold: onHoldCourses,
+    completed: completedCourses,
+    canceled: canceledCourses,
+  } = useMemo(
+    () => partitionCoursesByStatus(courses),
+    [courses],
   );
   const cardOngoingCourses = useMemo(() => sortByFarthestWebinar(ongoingCourses), [ongoingCourses]);
+  const cardOnHoldCourses = useMemo(() => sortByFarthestWebinar(onHoldCourses), [onHoldCourses]);
   const cardCompletedCourses = useMemo(() => sortByFarthestWebinar(completedCourses), [completedCourses]);
+  const cardCanceledCourses = useMemo(() => sortByFarthestWebinar(canceledCourses), [canceledCourses]);
   const listOngoingCourses = useMemo(
     () => sortByNearestWebinar(ongoingCourses, todayKoreaDate),
     [ongoingCourses, todayKoreaDate],
+  );
+  const listOnHoldCourses = useMemo(
+    () => sortByNearestWebinar(onHoldCourses, todayKoreaDate),
+    [onHoldCourses, todayKoreaDate],
   );
   const listCompletedCourses = useMemo(
     () => sortByNearestWebinar(completedCourses, todayKoreaDate),
     [completedCourses, todayKoreaDate],
   );
+  const listCanceledCourses = useMemo(
+    () => sortByNearestWebinar(canceledCourses, todayKoreaDate),
+    [canceledCourses, todayKoreaDate],
+  );
+
+  function openStatusDialog(course: CourseSummary) {
+    setStatusError("");
+    setSelectedStatus(course.status);
+    setStatusTarget(course);
+  }
+
+  function toggleStatusSection(status: CollapsibleCourseStatus) {
+    setOpenStatuses((current) => ({
+      ...current,
+      [status]: !current[status],
+    }));
+  }
+
+  async function saveCourseStatus(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!statusTarget) return;
+    setSavingStatus(true);
+    setStatusError("");
+    try {
+      const response = await fetch(
+        `/api/course-operations/${statusTarget.id}/status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: selectedStatus }),
+        },
+      );
+      const body = (await response.json()) as { message?: string };
+      if (!response.ok) {
+        throw new Error(body.message || "강의 상태 저장에 실패했습니다.");
+      }
+      setStatusTarget(null);
+      router.refresh();
+    } catch (caught) {
+      setStatusError(
+        caught instanceof Error
+          ? caught.message
+          : "강의 상태 저장에 실패했습니다.",
+      );
+    } finally {
+      setSavingStatus(false);
+    }
+  }
 
   async function deleteCourse() {
     if (!canDelete || !deleteTarget) return;
@@ -286,17 +391,80 @@ export function CourseOperationsList({
 
       {viewMode === "cards" ? (
         <div className="space-y-10">
-          <section aria-label="진행 중 강의"><CourseSectionHeading title="진행 중" count={cardOngoingCourses.length} /><CourseCards courses={cardOngoingCourses} canDelete={canDelete} onDelete={openDeleteDialog} /></section>
-          <CompletedSection count={cardCompletedCourses.length} open={completedOpen} onToggle={() => setCompletedOpen((current) => !current)}><CourseCards courses={cardCompletedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></CompletedSection>
+          <section aria-label="진행 강의"><CourseSectionHeading title="진행" count={cardOngoingCourses.length} /><CourseCards courses={cardOngoingCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} /></section>
+          <CourseStatusSection title="보류" count={cardOnHoldCourses.length} open={openStatuses.on_hold} onToggle={() => toggleStatusSection("on_hold")}><CourseCards courses={cardOnHoldCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} subdued /></CourseStatusSection>
+          <CourseStatusSection title="완료" count={cardCompletedCourses.length} open={openStatuses.completed} onToggle={() => toggleStatusSection("completed")}><CourseCards courses={cardCompletedCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} subdued /></CourseStatusSection>
+          <CourseStatusSection title="취소" count={cardCanceledCourses.length} open={openStatuses.canceled} onToggle={() => toggleStatusSection("canceled")}><CourseCards courses={cardCanceledCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} subdued /></CourseStatusSection>
         </div>
       ) : viewMode === "list" ? (
         <div className="space-y-10">
-          <section aria-label="진행 중 강의"><CourseSectionHeading title="진행 중" count={listOngoingCourses.length} /><CourseTable courses={listOngoingCourses} canDelete={canDelete} onDelete={openDeleteDialog} /></section>
-          <CompletedSection count={listCompletedCourses.length} open={completedOpen} onToggle={() => setCompletedOpen((current) => !current)}><CourseTable courses={listCompletedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></CompletedSection>
+          <section aria-label="진행 강의"><CourseSectionHeading title="진행" count={listOngoingCourses.length} /><CourseTable courses={listOngoingCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} /></section>
+          <CourseStatusSection title="보류" count={listOnHoldCourses.length} open={openStatuses.on_hold} onToggle={() => toggleStatusSection("on_hold")}><CourseTable courses={listOnHoldCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} subdued /></CourseStatusSection>
+          <CourseStatusSection title="완료" count={listCompletedCourses.length} open={openStatuses.completed} onToggle={() => toggleStatusSection("completed")}><CourseTable courses={listCompletedCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} subdued /></CourseStatusSection>
+          <CourseStatusSection title="취소" count={listCanceledCourses.length} open={openStatuses.canceled} onToggle={() => toggleStatusSection("canceled")}><CourseTable courses={listCanceledCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} subdued /></CourseStatusSection>
         </div>
       ) : (
-        <div className="space-y-10"><section aria-label="진행 중 강의 일정"><CourseSectionHeading title="진행 중" count={ongoingCourses.length} />{ongoingCourses.length ? <CourseListCalendar courses={ongoingCourses} /> : <div className="rounded-xl border border-dashed px-5 py-10 text-center text-sm text-muted-foreground">진행 중인 강의가 없습니다.</div>}</section><CompletedSection count={completedCourses.length} open={completedOpen} onToggle={() => setCompletedOpen((current) => !current)}><CourseTable courses={completedCourses} canDelete={canDelete} onDelete={openDeleteDialog} completed /></CompletedSection></div>
+        <div className="space-y-10"><section aria-label="진행 강의 일정"><CourseSectionHeading title="진행" count={ongoingCourses.length} />{ongoingCourses.length ? <CourseListCalendar courses={ongoingCourses} /> : <div className="rounded-xl border border-dashed px-5 py-10 text-center text-sm text-muted-foreground">진행 중인 강의가 없습니다.</div>}</section><CourseStatusSection title="보류" count={listOnHoldCourses.length} open={openStatuses.on_hold} onToggle={() => toggleStatusSection("on_hold")}><CourseTable courses={listOnHoldCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} subdued /></CourseStatusSection><CourseStatusSection title="완료" count={listCompletedCourses.length} open={openStatuses.completed} onToggle={() => toggleStatusSection("completed")}><CourseTable courses={listCompletedCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} subdued /></CourseStatusSection><CourseStatusSection title="취소" count={listCanceledCourses.length} open={openStatuses.canceled} onToggle={() => toggleStatusSection("canceled")}><CourseTable courses={listCanceledCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} subdued /></CourseStatusSection></div>
       )}
+
+      <Dialog
+        open={Boolean(statusTarget)}
+        onOpenChange={(openState) => {
+          if (!openState && !savingStatus) {
+            setStatusTarget(null);
+            setStatusError("");
+          }
+        }}
+      >
+        <DialogContent>
+          <form className="grid gap-5" onSubmit={saveCourseStatus}>
+            <DialogHeader>
+              <DialogTitle>강의 상태 변경</DialogTitle>
+              <DialogDescription className="sr-only">
+                강의 목록에 적용할 상태를 선택합니다.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-2">
+              <Label htmlFor="course-status">상태</Label>
+              <Select
+                value={selectedStatus}
+                disabled={savingStatus}
+                onValueChange={(value) => {
+                  if (isCourseStatus(value)) setSelectedStatus(value);
+                }}
+              >
+                <SelectTrigger id="course-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COURSE_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {COURSE_STATUS_LABELS[status]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {statusError ? (
+              <Alert variant="destructive">
+                <AlertTitle>상태를 저장할 수 없습니다</AlertTitle>
+                <AlertDescription>{statusError}</AlertDescription>
+              </Alert>
+            ) : null}
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline" disabled={savingStatus}>
+                  취소
+                </Button>
+              </DialogClose>
+              <Button type="submit" disabled={savingStatus || !statusTarget}>
+                {savingStatus ? <Loader2 className="animate-spin" /> : null}
+                {savingStatus ? "저장 중..." : "저장"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={Boolean(deleteTarget)}

@@ -15,7 +15,7 @@ const loadCachedCourseSummaries = unstable_cache(
     const { data, error } = await admin
       .from("courses")
       .select(
-        "id,name,instructor_name,banner_image_path,free_webinar_at,starts_at,updated_at,cohort,nova_settled,instructor_settled,landing_page_link,free_kakao_room_1_link,free_kakao_room_2_link,paid_kakao_room_link,payment_link,curriculum_link,course_materials_link,required_tasks,course_options(count),course_jobs(count),message_studio_projects(count)",
+        "id,status,name,instructor_name,banner_image_path,free_webinar_at,starts_at,updated_at,cohort,nova_settled,instructor_settled,landing_page_link,free_kakao_room_1_link,free_kakao_room_2_link,paid_kakao_room_link,payment_link,curriculum_link,course_materials_link,required_tasks,course_options(count),course_jobs(count),message_studio_projects(count)",
       )
       .eq("workspace_id", workspaceId)
       .order("updated_at", { ascending: false });

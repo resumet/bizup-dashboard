@@ -1,5 +1,4 @@
 import type { CourseSummary } from "./types";
-import { getWebinarDayDifference } from "./webinar-proximity";
 
 export const COURSE_COMPLETION_AFTER_DAYS = 3;
 
@@ -8,17 +7,18 @@ export type CourseMissingItem = {
   label: string;
 };
 
-export function partitionCoursesByWebinarStatus(
-  courses: readonly CourseSummary[],
-  todayKoreaDate: string,
-) {
+export function partitionCoursesByStatus(courses: readonly CourseSummary[]) {
   const ongoing: CourseSummary[] = [];
+  const onHold: CourseSummary[] = [];
   const completed: CourseSummary[] = [];
+  const canceled: CourseSummary[] = [];
   for (const course of courses) {
-    const days = getWebinarDayDifference(course.free_webinar_at, todayKoreaDate);
-    (days !== null && days <= -COURSE_COMPLETION_AFTER_DAYS ? completed : ongoing).push(course);
+    if (course.status === "on_hold") onHold.push(course);
+    else if (course.status === "completed") completed.push(course);
+    else if (course.status === "canceled") canceled.push(course);
+    else ongoing.push(course);
   }
-  return { ongoing, completed };
+  return { ongoing, onHold, completed, canceled };
 }
 
 export function getCourseMissingItems(course: CourseSummary): CourseMissingItem[] {

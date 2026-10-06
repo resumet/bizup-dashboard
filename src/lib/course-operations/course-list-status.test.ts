@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getCourseMissingItems, partitionCoursesByWebinarStatus } from "./course-list-status";
+import { getCourseMissingItems, partitionCoursesByStatus } from "./course-list-status";
 import type { CourseSummary } from "./types";
 
 function course(overrides: Partial<CourseSummary> = {}): CourseSummary {
   return {
     id: "course-1",
+    status: "ongoing",
     name: "테스트 강의",
     instructor_name: "강사",
     banner_image_path: "banner.webp",
@@ -35,15 +36,18 @@ function course(overrides: Partial<CourseSummary> = {}): CourseSummary {
   };
 }
 
-test("웨비나 D+3부터 완료 강의로 분리한다", () => {
+test("저장된 상태에 따라 진행·보류·완료·취소 강의로 분리한다", () => {
   const courses = [
-    course({ id: "d-plus-2", free_webinar_at: "2026-09-26T19:30:00+09:00" }),
-    course({ id: "d-plus-3", free_webinar_at: "2026-09-25T19:30:00+09:00" }),
-    course({ id: "future", free_webinar_at: "2026-10-01T19:30:00+09:00" }),
+    course({ id: "ongoing", status: "ongoing" }),
+    course({ id: "on-hold", status: "on_hold" }),
+    course({ id: "completed", status: "completed" }),
+    course({ id: "canceled", status: "canceled" }),
   ];
-  const result = partitionCoursesByWebinarStatus(courses, "2026-09-28");
-  assert.deepEqual(result.ongoing.map(({ id }) => id), ["d-plus-2", "future"]);
-  assert.deepEqual(result.completed.map(({ id }) => id), ["d-plus-3"]);
+  const result = partitionCoursesByStatus(courses);
+  assert.deepEqual(result.ongoing.map(({ id }) => id), ["ongoing"]);
+  assert.deepEqual(result.onHold.map(({ id }) => id), ["on-hold"]);
+  assert.deepEqual(result.completed.map(({ id }) => id), ["completed"]);
+  assert.deepEqual(result.canceled.map(({ id }) => id), ["canceled"]);
 });
 
 test("진행 중 강의에서 채워야 할 운영 항목과 미완료 필수 작업을 찾는다", () => {

@@ -1,3 +1,5 @@
+import type { CourseStatus } from "./course-status";
+
 export type CourseOptionDraft = {
   name: string;
   listPrice: string;
@@ -86,6 +88,7 @@ export type CourseOperationsInput = Omit<
 
 export type CourseSummary = {
   id: string;
+  status: CourseStatus;
   name: string;
   instructor_name: string;
   banner_image_path: string;
