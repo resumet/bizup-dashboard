@@ -1,5 +1,6 @@
 export const MEANING_TRACKING_SHEET_NAME = "일자별 묶음";
 const INSTAGRAM_ORGANIC_CHANNEL = "인스타";
+const UNKNOWN_ORGANIC_CHANNEL = "경로불명";
 
 export type MeaningTrackingDailyValues = {
   fullDate: string;
@@ -53,6 +54,17 @@ function dateParts(value: unknown) {
       year: Number(fullDate[1]),
       month: Number(fullDate[2]),
       day: Number(fullDate[3]),
+    };
+  }
+
+  const shortDate = text.match(
+    /(?:^|\D)(\d{2})\s*[.\-/]\s*(\d{1,2})\s*[.\-/]\s*(\d{1,2})(?:\D|$)/u,
+  );
+  if (shortDate) {
+    return {
+      year: 2000 + Number(shortDate[1]),
+      month: Number(shortDate[2]),
+      day: Number(shortDate[3]),
     };
   }
 
@@ -118,6 +130,68 @@ function emptyDailyValues(fullDate: string): MeaningTrackingDailyValues {
     googleLandingDb: 0,
     metaLandingDb: 0,
     organicByChannel: {},
+  };
+}
+
+function applyListHeaderColumns(row: readonly unknown[]) {
+  const normalized = row.map(normalizedText);
+  const date = normalized.findIndex((value) => value === "신청일");
+  const channel = normalized.findIndex((value) => value === "유입경로");
+  const media = normalized.findIndex((value) => value === "진행매체");
+  if (date < 0 || channel < 0 || media < 0) return null;
+  return { date, channel, media };
+}
+
+export function parseMeaningTrackingApplyList(
+  rows: readonly (readonly unknown[])[],
+): MeaningTrackingImport {
+  const dailyByDate: Record<string, MeaningTrackingDailyValues> = {};
+  const youtubeChannels: string[] = [];
+  const knownYoutubeChannels = new Set<string>();
+  let columns: ReturnType<typeof applyListHeaderColumns> = null;
+  let matchedRowCount = 0;
+
+  for (const row of rows) {
+    const detectedColumns = applyListHeaderColumns(row);
+    if (detectedColumns) {
+      columns = detectedColumns;
+      continue;
+    }
+    if (!columns) continue;
+
+    const media = normalizedText(row[columns.media]);
+    let channel: string;
+    if (media === "유튜브") {
+      channel = cellText(row[columns.channel]);
+      if (!channel || channel === "-") continue;
+      if (!knownYoutubeChannels.has(channel)) {
+        knownYoutubeChannels.add(channel);
+        youtubeChannels.push(channel);
+      }
+    } else if (media === "인스타그램") {
+      channel = INSTAGRAM_ORGANIC_CHANNEL;
+    } else if (!media) {
+      channel = UNKNOWN_ORGANIC_CHANNEL;
+    } else {
+      continue;
+    }
+
+    const date = trackingDate(row[columns.date]);
+    if (!date) continue;
+    const daily = (dailyByDate[date.key] ??= emptyDailyValues(date.fullDate));
+    daily.organicByChannel[channel] =
+      (daily.organicByChannel[channel] ?? 0) + 1;
+    matchedRowCount += 1;
+  }
+
+  return {
+    dailyByDate,
+    organicChannels: [
+      ...youtubeChannels,
+      INSTAGRAM_ORGANIC_CHANNEL,
+      UNKNOWN_ORGANIC_CHANNEL,
+    ],
+    matchedRowCount,
   };
 }
 

@@ -1,10 +1,12 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import readXlsxFile, { readSheet } from "read-excel-file/node";
+import { parse as parseCsv } from "csv-parse/sync";
+import readXlsxFile from "read-excel-file/node";
 
 import {
   MEANING_TRACKING_SHEET_NAME,
+  parseMeaningTrackingApplyList,
   parseMeaningTrackingSheet,
 } from "@/lib/admin/meaning-tracking";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -39,6 +41,9 @@ export const AD_PERFORMANCE_TRACKING_BUCKET =
   "ad-performance-tracking-files";
 const XLSX_CONTENT_TYPE =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const CSV_CONTENT_TYPE = "text/csv; charset=utf-8";
+
+type TrackingFileFormat = "csv" | "xlsx";
 
 export type AdPerformanceDashboardContext = {
   dashboardId: string;
@@ -75,6 +80,13 @@ function trackingStoragePrefix(context: AdPerformanceDashboardContext) {
   return `${context.workspaceId}/${context.dashboardId}/`;
 }
 
+function trackingFileFormat(fileName: string): TrackingFileFormat | null {
+  const lowerName = fileName.toLocaleLowerCase("ko-KR");
+  if (lowerName.endsWith(".csv")) return "csv";
+  if (lowerName.endsWith(".xlsx")) return "xlsx";
+  return null;
+}
+
 export function isAdPerformanceTrackingStoragePath(
   context: AdPerformanceDashboardContext,
   value: string,
@@ -86,12 +98,14 @@ export async function storeAdPerformanceTrackingFile(
   context: AdPerformanceDashboardContext,
   file: File,
 ) {
-  const path = `${trackingStoragePrefix(context)}${randomUUID()}.xlsx`;
+  const format = trackingFileFormat(file.name);
+  if (!format) throw new Error(".xlsx 또는 .csv 파일만 추가할 수 있습니다.");
+  const path = `${trackingStoragePrefix(context)}${randomUUID()}.${format}`;
   const admin = createAdminClient();
   const { error } = await admin.storage
     .from(AD_PERFORMANCE_TRACKING_BUCKET)
     .upload(path, Buffer.from(await file.arrayBuffer()), {
-      contentType: XLSX_CONTENT_TYPE,
+      contentType: format === "csv" ? CSV_CONTENT_TYPE : XLSX_CONTENT_TYPE,
       upsert: false,
     });
   if (error) throw new Error(`유입 엑셀 원본 저장 실패: ${error.message}`);
@@ -259,26 +273,56 @@ export async function loadGoogleWorkbook(
 }
 
 export async function parseAdPerformanceTrackingFile(file: File) {
-  if (!file.name.toLocaleLowerCase("ko-KR").endsWith(".xlsx")) {
-    throw new Error(".xlsx 형식의 엑셀 파일만 추가할 수 있습니다.");
-  }
+  const format = trackingFileFormat(file.name);
+  if (!format) throw new Error(".xlsx 또는 .csv 파일만 추가할 수 있습니다.");
   if (file.size <= 0 || file.size > AD_PERFORMANCE_MAX_TRACKING_BYTES) {
-    throw new Error("15MB 이하의 엑셀 파일을 선택해 주세요.");
+    throw new Error("15MB 이하의 엑셀 또는 CSV 파일을 선택해 주세요.");
   }
   return parseAdPerformanceTrackingBuffer(
     Buffer.from(await file.arrayBuffer()),
+    format,
   );
 }
 
-async function parseAdPerformanceTrackingBuffer(buffer: Buffer) {
-  const rows = await readSheet(buffer, MEANING_TRACKING_SHEET_NAME);
-  const parsed = parseMeaningTrackingSheet(rows);
-  if (!Object.keys(parsed.dailyByDate).length || !parsed.matchedRowCount) {
-    throw new Error(
-      "일자별 묶음 시트에서 구글·메타·유튜브·인스타그램 유입 값을 찾지 못했습니다.",
-    );
+function parseTrackingRows(rows: readonly (readonly unknown[])[]) {
+  const applyList = parseMeaningTrackingApplyList(rows);
+  if (Object.keys(applyList.dailyByDate).length && applyList.matchedRowCount) {
+    return applyList;
   }
-  return parsed;
+
+  const legacy = parseMeaningTrackingSheet(rows);
+  return Object.keys(legacy.dailyByDate).length && legacy.matchedRowCount
+    ? legacy
+    : null;
+}
+
+async function parseAdPerformanceTrackingBuffer(
+  buffer: Buffer,
+  format: TrackingFileFormat,
+) {
+  if (format === "csv") {
+    const rows = parseCsv(buffer.toString("utf8"), {
+      bom: true,
+      relax_column_count: true,
+      skip_empty_lines: true,
+    }) as string[][];
+    const parsed = parseTrackingRows(rows);
+    if (parsed) return parsed;
+  } else {
+    const workbook = await readXlsxFile(buffer);
+    const orderedSheets = [
+      ...workbook.filter((sheet) => sheet.sheet === MEANING_TRACKING_SHEET_NAME),
+      ...workbook.filter((sheet) => sheet.sheet !== MEANING_TRACKING_SHEET_NAME),
+    ];
+    for (const sheet of orderedSheets) {
+      const parsed = parseTrackingRows(sheet.data);
+      if (parsed) return parsed;
+    }
+  }
+
+  throw new Error(
+    "신청일·유입경로·진행매체 열에서 유튜브·인스타그램·경로불명 유입 값을 찾지 못했습니다.",
+  );
 }
 
 export async function refreshAdPerformanceTrackingImport(
@@ -292,6 +336,7 @@ export async function refreshAdPerformanceTrackingImport(
   return {
     ...(await parseAdPerformanceTrackingBuffer(
       Buffer.from(await file.arrayBuffer()),
+      trackingFileFormat(path) ?? "xlsx",
     )),
     sourceStoragePath: path,
   };

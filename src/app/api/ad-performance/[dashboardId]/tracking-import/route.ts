@@ -51,7 +51,9 @@ export async function GET(request: Request, { params }: Context) {
           "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(current.trackingFileName)}`,
           "Content-Type":
             file.type ||
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            (current.trackingFileName.toLocaleLowerCase("ko-KR").endsWith(".csv")
+              ? "text/csv; charset=utf-8"
+              : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
           "X-Content-Type-Options": "nosniff",
         },
       });

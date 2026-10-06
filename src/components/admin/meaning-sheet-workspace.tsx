@@ -49,7 +49,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  MEANING_TRACKING_SHEET_NAME,
   meaningSheetDateKey,
 } from "@/lib/admin/meaning-tracking";
 import {
@@ -1097,15 +1096,15 @@ export function MeaningSheetWorkspace({
             <DialogHeader>
               <DialogTitle>유입엑셀추가</DialogTitle>
               <DialogDescription className="sr-only">
-                {MEANING_TRACKING_SHEET_NAME} 시트가 있는 엑셀 파일을 추가합니다.
+                신청일, 유입경로, 진행매체 열이 있는 엑셀 또는 CSV 파일을 추가합니다.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-2">
-              <Label htmlFor="ad-tracking-file">엑셀 파일</Label>
+              <Label htmlFor="ad-tracking-file">엑셀 또는 CSV 파일</Label>
               <Input
                 id="ad-tracking-file"
                 type="file"
-                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
                 disabled={busyAction !== null}
                 onChange={(event) =>
                   setSelectedFile(event.currentTarget.files?.[0] ?? null)
@@ -1122,13 +1121,13 @@ export function MeaningSheetWorkspace({
                       download
                     >
                       <Download />
-                      원본엑셀다운로드
+                      원본파일다운로드
                     </a>
                   </Button>
                 ) : (
                   <Button type="button" variant="outline" disabled>
                     <Download />
-                    원본엑셀다운로드
+                    원본파일다운로드
                   </Button>
                 )}
                 {sheetState?.tracking ? (

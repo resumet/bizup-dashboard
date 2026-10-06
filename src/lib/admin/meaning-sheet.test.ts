@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   meaningSheetDateKey,
+  parseMeaningTrackingApplyList,
   parseMeaningTrackingSheet,
 } from "./meaning-tracking";
 import {
@@ -141,8 +142,46 @@ test("유튜브 코드는 등장 날짜와 관계없이 열로 등록하고 같�
   assert.equal(result.dailyByDate["09-24"].organicByChannel.과거에만등장, 3);
 });
 
+test("신청 목록 CSV를 유튜브 경로별·인스타·경로불명 오가닉으로 집계한다", () => {
+  const result = parseMeaningTrackingApplyList([
+    [
+      "상품명",
+      "이름",
+      "이메일",
+      "연락처",
+      "신청일",
+      "유입경로",
+      "진행매체",
+    ],
+    ["강의", "A", "", "", "26.10.06", "꿈꾸는사람들", "유튜브"],
+    ["강의", "B", "", "", "26.10.06", "꿈꾸는사람들", "유튜브"],
+    ["강의", "C", "", "", "26.10.06", "인스타공식", "인스타그램"],
+    ["강의", "D", "", "", "26.10.06", "직접", ""],
+    ["강의", "E", "", "", "26.10.06", "광고", "메타"],
+    ["강의", "F", "", "", "26.10.05", "초월스토리", "유튜브"],
+    ["강의", "G", "", "", "26.10.05", "광고", "구글"],
+  ]);
+
+  assert.deepEqual(result.organicChannels, [
+    "꿈꾸는사람들",
+    "초월스토리",
+    "인스타",
+    "경로불명",
+  ]);
+  assert.equal(result.matchedRowCount, 5);
+  assert.deepEqual(result.dailyByDate["10-06"].organicByChannel, {
+    꿈꾸는사람들: 2,
+    인스타: 1,
+    경로불명: 1,
+  });
+  assert.deepEqual(result.dailyByDate["10-05"].organicByChannel, {
+    초월스토리: 1,
+  });
+});
+
 test("Google 시트의 월일 표기를 엑셀 날짜 키와 연결한다", () => {
   assert.equal(meaningSheetDateKey("9월30일"), "09-30");
   assert.equal(meaningSheetDateKey("2026.10.1"), "10-01");
+  assert.equal(meaningSheetDateKey("26.10.06"), "10-06");
   assert.equal(meaningSheetDateKey("합계"), null);
 });
