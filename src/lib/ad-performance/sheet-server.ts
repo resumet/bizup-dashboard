@@ -41,7 +41,7 @@ export const AD_PERFORMANCE_TRACKING_BUCKET =
   "ad-performance-tracking-files";
 const XLSX_CONTENT_TYPE =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const CSV_CONTENT_TYPE = "text/csv; charset=utf-8";
+const CSV_CONTENT_TYPE = "text/csv";
 
 type TrackingFileFormat = "csv" | "xlsx";
 
