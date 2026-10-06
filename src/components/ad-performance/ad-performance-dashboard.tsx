@@ -327,14 +327,12 @@ export function AdPerformanceDashboard({
           />
         </section>
 
-        <section className="mt-8">
-          <AdPerformanceSheetWorkspace
-            dashboardId={initialData.id}
-            dashboardStartDate={startDate}
-            sheetState={initialData.sheetState}
-            toolbarContainer={sheetToolbarContainer}
-          />
-        </section>
+        <AdPerformanceSheetWorkspace
+          dashboardId={initialData.id}
+          dashboardStartDate={startDate}
+          sheetState={initialData.sheetState}
+          toolbarContainer={sheetToolbarContainer}
+        />
       </div>
 
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>

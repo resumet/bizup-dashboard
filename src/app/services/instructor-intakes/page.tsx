@@ -3,8 +3,7 @@ import {
   CreateIntake,
   RefreshIntakes,
 } from "@/components/instructor-intake/intake-controls";
-import { intakeProgress } from "@/lib/instructor-intake/model";
-import { IntakeProgress } from "@/components/instructor-intake/progress";
+import { IntakeCard } from "@/components/instructor-intake/intake-card";
 import {
   intakePageMember,
   normalizeIntake,
@@ -67,37 +66,15 @@ export default async function InstructorIntakesPage() {
       ) : rows.length ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((row) => (
-            <Link
+            <IntakeCard
               key={row.id}
-              href={`/services/instructor-intakes/${row.id}`}
-              className="space-y-5 rounded-xl border bg-card p-5 transition-colors hover:border-primary focus-visible:outline-2 focus-visible:outline-primary"
-            >
-              <h2 className="truncate text-lg font-semibold">{row.title}</h2>
-              <IntakeProgress
-                answers={row.answers}
-                photoCount={row.photo_paths.length}
-              />
-              <div className="flex justify-between gap-3 text-sm text-muted-foreground">
-                <span>
-                  {!row.share_enabled
-                    ? "수집 마감"
-                    : row.submitted_at
-                      ? "제출 완료"
-                      : intakeProgress(row.answers, row.photo_paths.length)
-                            .received > 0
-                        ? "작성 중"
-                        : "입력 대기"}
-                </span>
-                <span>사진 {row.photo_paths.length}장</span>
-              </div>
-              {row.answers.nickname || row.answers.realName ? (
-                <p className="truncate text-sm">
-                  {[row.answers.realName, row.answers.nickname]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-              ) : null}
-            </Link>
+              id={row.id}
+              title={row.title}
+              answers={row.answers}
+              photoCount={row.photo_paths.length}
+              shareEnabled={row.share_enabled}
+              submittedAt={row.submitted_at}
+            />
           ))}
         </div>
       ) : (

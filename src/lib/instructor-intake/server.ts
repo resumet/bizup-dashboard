@@ -175,7 +175,7 @@ export async function uploadPhoto(
       .select("photo_paths")
       .eq("id", row.id)
       .maybeSingle();
-    if (data && !data.photo_paths.includes(path)) await removePhotos([path]);
+    if (!data || !data.photo_paths.includes(path)) await removePhotos([path]);
     throw error;
   }
 }

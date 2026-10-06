@@ -272,7 +272,7 @@ export async function parseAdPerformanceTrackingFile(file: File) {
   const parsed = parseMeaningTrackingSheet(rows);
   if (!Object.keys(parsed.dailyByDate).length || !parsed.matchedRowCount) {
     throw new Error(
-      "일자별 묶음 시트에서 구글·메타·유튜브 유입 값을 찾지 못했습니다.",
+      "일자별 묶음 시트에서 구글·메타·유튜브·인스타그램 유입 값을 찾지 못했습니다.",
     );
   }
   return parsed;

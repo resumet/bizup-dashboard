@@ -1,4 +1,5 @@
 export const MEANING_TRACKING_SHEET_NAME = "일자별 묶음";
+const INSTAGRAM_ORGANIC_CHANNEL = "인스타";
 
 export type MeaningTrackingDailyValues = {
   fullDate: string;
@@ -167,8 +168,11 @@ export function parseMeaningTrackingSheet(
       continue;
     }
 
-    if (media !== "유튜브") continue;
-    const channel = cellText(row[columns.channel]);
+    if (media !== "유튜브" && media !== "인스타그램") continue;
+    const channel =
+      media === "인스타그램"
+        ? INSTAGRAM_ORGANIC_CHANNEL
+        : cellText(row[columns.channel]);
     if (!channel || channel === "-") continue;
 
     if (!knownOrganicChannels.has(channel)) {

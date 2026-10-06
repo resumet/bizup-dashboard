@@ -4,6 +4,7 @@ import {
   intakeApiError,
   memberIntake,
   newShareToken,
+  removePhotos,
   tokenHash,
 } from "@/lib/instructor-intake/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -37,6 +38,30 @@ export async function PATCH(
       .maybeSingle();
     if (error) throw error;
     if (!data) throw new Error("CONFLICT");
+    return Response.json({ ok: true });
+  } catch (error) {
+    return intakeApiError(error);
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ intakeId: string }> },
+) {
+  try {
+    const { workspaceId } = await intakeMember();
+    const { intakeId } = await params;
+    const row = await memberIntake(workspaceId, intakeId);
+    const { data, error } = await createAdminClient()
+      .from("instructor_intakes")
+      .delete()
+      .eq("id", row.id)
+      .eq("workspace_id", workspaceId)
+      .select("id,photo_paths")
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error("NOT_FOUND");
+    await removePhotos(data.photo_paths ?? []);
     return Response.json({ ok: true });
   } catch (error) {
     return intakeApiError(error);

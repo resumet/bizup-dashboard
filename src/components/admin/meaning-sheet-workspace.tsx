@@ -330,7 +330,7 @@ export function MeaningSheetWorkspace({
         throw new Error(
           await errorFromResponse(
             response,
-            "날짜와 원본 값을 갱신하지 못했습니다.",
+            "구글 시트 데이터를 갱신하지 못했습니다.",
           ),
         );
       }
@@ -338,14 +338,14 @@ export function MeaningSheetWorkspace({
       const addedDateCount = result.addedDateCount ?? 0;
       refreshAfterSave(
         addedDateCount > 0
-          ? `새 날짜 ${addedDateCount.toLocaleString("ko-KR")}건을 추가하고 원본 값을 갱신했습니다.`
-          : "원본 시트의 날짜와 값을 갱신했습니다.",
+          ? `새 날짜 ${addedDateCount.toLocaleString("ko-KR")}건을 추가하고 구글 시트 데이터를 갱신했습니다.`
+          : "구글 시트 데이터를 갱신했습니다.",
       );
     } catch (caught) {
       setError(
         caught instanceof Error
           ? caught.message
-          : "날짜와 원본 값을 갱신하지 못했습니다.",
+          : "구글 시트 데이터를 갱신하지 못했습니다.",
       );
     } finally {
       setBusyAction(null);
@@ -524,13 +524,13 @@ export function MeaningSheetWorkspace({
         ) : (
           <RefreshCw />
         )}
-        날짜갱신
+        데이터 갱신
       </Button>
     </>
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="mt-8 flex min-h-0 flex-1 flex-col gap-3">
       {toolbarContainer ? createPortal(toolbar, toolbarContainer) : null}
 
       {error ? (
@@ -552,12 +552,11 @@ export function MeaningSheetWorkspace({
       {sheetState ? <div
         ref={tableFullscreenRef}
         className={cn(
-          "flex min-h-0 flex-1 flex-col",
-          isTableFullscreen && "h-screen bg-muted/30 p-3",
+          "flex min-h-0 flex-1 flex-col [&>[data-slot=table-container]]:overflow-visible",
+          isTableFullscreen && "h-screen overflow-auto bg-muted/30 p-3",
         )}
       >
-        <Card className="flex min-h-0 flex-1 gap-0 overflow-hidden py-0">
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b bg-background px-3 py-1.5 text-[11px] text-muted-foreground">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b bg-background py-1.5 text-[11px] text-muted-foreground">
             <span>
               Google A:N · 데이터 {dataRows.length.toLocaleString("ko-KR")}행 ·
               페이지당 {PAGE_SIZE}행
@@ -588,7 +587,6 @@ export function MeaningSheetWorkspace({
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
           <Table className="w-max min-w-full border-separate border-spacing-0 text-[10px] tracking-tight [&_td]:h-6 [&_td]:px-0.5 [&_td]:py-0 [&_td]:font-mono [&_td]:tabular-nums [&_th]:px-0.5 [&_th]:py-0.5">
             <TableHeader>
               <TableRow>
@@ -927,7 +925,6 @@ export function MeaningSheetWorkspace({
               })}
             </TableBody>
           </Table>
-        </div>
 
         {pageCount > 1 ? (
           <nav
@@ -962,7 +959,6 @@ export function MeaningSheetWorkspace({
             </div>
           </nav>
         ) : null}
-        </Card>
       </div> : (
         <Card className="grid min-h-56 place-items-center p-6 text-sm text-muted-foreground">
           연결된 원본 시트가 없습니다.
