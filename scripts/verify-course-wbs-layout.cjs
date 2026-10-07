@@ -48,6 +48,22 @@ const wbs = {
   ],
 };
 
+let records;
+let deleteRequests = 0;
+function resetRecords() {
+  records = new Map(courses.map((course, index) => [course.id, {
+    ...wbs, courseId: course.id,
+    items: wbs.items.map(item => ({ ...item, startDate: index === 0 ? item.startDate : `2026-12-${String(6 + index).padStart(2, '0')}` })),
+  }]));
+}
+function overview() {
+  return {
+    ...bootstrap,
+    wbsSummaries: [...records.values()].map(record => ({ courseId: record.courseId, itemCount: record.items.length, completedCount: record.items.filter(item => item.completed).length, updatedAt: record.updatedAt })),
+    schedules: [...records.values()].map(record => ({ courseId: record.courseId, items: record.items })),
+  };
+}
+
 async function assertNoPageOverflow(page, label) {
   const geometry = await page.evaluate(() => ({
     viewport: innerWidth,
@@ -93,7 +109,7 @@ async function assertNoPageOverflow(page, label) {
   });
 
   try {
-    server = http.createServer((request, response) => {
+    server = http.createServer(async (request, response) => {
       const pathname = new URL(request.url, 'http://127.0.0.1').pathname;
       response.setHeader('Cache-Control', 'no-store');
       if (pathname === '/bundle.js') {
@@ -104,10 +120,24 @@ async function assertNoPageOverflow(page, label) {
         response.end(css.css);
       } else if (pathname === '/api/course-wbs') {
         response.setHeader('Content-Type', 'application/json; charset=utf-8');
-        response.end(JSON.stringify(bootstrap));
-      } else if (pathname === `/api/course-wbs/${courseId}`) {
+        response.end(JSON.stringify(overview()));
+      } else if (pathname.startsWith('/api/course-wbs/')) {
+        const id = pathname.split('/').at(-1);
+        const course = courses.find(course => course.id === id);
+        if (request.method === 'DELETE') {
+          deleteRequests++;
+          records.delete(id);
+          response.statusCode = 204;
+          response.end();
+          return;
+        }
+        if (request.method === 'PUT') {
+          let body = '';
+          for await (const chunk of request) body += chunk;
+          records.set(id, { courseId: id, items: JSON.parse(body).items, updatedAt: '2026-10-07T01:00:00Z' });
+        }
         response.setHeader('Content-Type', 'application/json; charset=utf-8');
-        response.end(JSON.stringify({ wbs, webinarAt: bootstrap.courses[0].webinarAt }));
+        response.end(JSON.stringify({ wbs: records.get(id) ?? null, webinarAt: course?.webinarAt ?? null }));
       } else if (pathname === '/') {
         response.setHeader('Content-Type', 'text/html; charset=utf-8');
         response.end('<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"></head><body><div id="root"></div><script type="module" src="/bundle.js"></script></body></html>');
@@ -120,6 +150,7 @@ async function assertNoPageOverflow(page, label) {
     browser = await chromium.launch({ headless: true });
 
     for (const width of [1440, 390]) {
+      resetRecords();
       const page = await browser.newPage({ viewport: { width, height: 1000 } });
       const pageErrors = [];
       page.on('pageerror', error => pageErrors.push(error.message));
@@ -134,7 +165,7 @@ async function assertNoPageOverflow(page, label) {
       assert.equal(await page.getByText('김해준', { exact: true }).count(), 0);
       assert.equal(await page.getByText('1기', { exact: true }).count(), 0);
       assert.equal(await page.getByText('무료 웨비나', { exact: true }).count(), 0);
-      const cardBoxes = await page.getByLabel('저장된 강의 WBS').locator('button').evaluateAll(cards => cards.map(card => {
+      const cardBoxes = await page.getByLabel('저장된 강의 WBS').getByRole('button', { name: /WBS 열기/u }).evaluateAll(cards => cards.map(card => {
         const box = card.getBoundingClientRect();
         return { left: Math.round(box.left), top: Math.round(box.top) };
       }));
@@ -143,6 +174,19 @@ async function assertNoPageOverflow(page, label) {
       else assert.equal(new Set(cardBoxes.map(box => box.left)).size, 1, 'mobile cards are not in one column');
       await assertNoPageOverflow(page, `saved WBS ${width}px`);
       await page.screenshot({ path: path.join(output, `saved-wbs-${width}.png`), fullPage: true });
+
+      const createButton = page.getByRole('button', { name: 'WBS 만들기', exact: true });
+      const createBox = await createButton.boundingBox();
+      assert.ok(createBox.y < cardBoxes[0].top, 'create button must be above cards');
+      await createButton.click();
+      await page.getByRole('dialog').getByText('모든 강의에 WBS가 연결되어 있습니다.', { exact: true }).waitFor();
+      await page.keyboard.press('Escape');
+      await page.getByLabel('WBS 항목', { exact: true }).selectOption('task-2');
+      const schedule = page.getByRole('table', { name: '홍보 강의별 시작 일정', exact: true });
+      await schedule.waitFor();
+      assert.equal(await schedule.locator('tbody tr').count(), 5);
+      assert.match(await schedule.locator('tbody tr').first().innerText(), /인스타그램 숏폼 대행.*2026-12-04.*D-10/su);
+      await assertNoPageOverflow(page, `item schedule ${width}px`);
 
       await page.getByRole('tab', { name: '업무 현황', exact: true }).click();
       await page.getByText('전체 진행 상황', { exact: true }).waitFor();
@@ -165,8 +209,49 @@ async function assertNoPageOverflow(page, label) {
       assert.equal(await page.getByLabel('연결된 강의').count(), 0);
       assert.equal(await page.getByText('담당자·관계자는 목록에서 선택하거나 새 이름을 입력한 뒤 저장할 수 있습니다.', { exact: true }).count(), 0);
       assert.equal(await page.getByText(/마지막 저장/u).count(), 0);
+      await page.getByRole('textbox', { name: '2번째 업무 제목', exact: true }).focus();
+      await page.getByRole('table', { name: '홍보 강의별 시작 일정', exact: true }).waitFor();
+      await page.getByRole('button', { name: '간소화목록', exact: true }).click();
+      await page.getByRole('button', { name: '기획', exact: true }).click();
+      await page.getByRole('table', { name: '기획 강의별 시작 일정', exact: true }).waitFor();
+      await page.getByRole('button', { name: '간트 차트', exact: true }).click();
+      await page.getByRole('button', { name: '홍보', exact: true }).click();
+      await page.getByRole('table', { name: '홍보 강의별 시작 일정', exact: true }).waitFor();
       await assertNoPageOverflow(page, `course WBS detail ${width}px`);
       await page.screenshot({ path: path.join(output, `course-wbs-detail-${width}.png`), fullPage: true });
+
+      // Reload the overview, then exercise cancel, failure, successful delete, and recreation.
+      await page.goto(`http://127.0.0.1:${server.address().port}/`);
+      const target = courses.at(-1);
+      const menu = page.getByRole('button', { name: '정민수 · 브랜드 마케팅 · 5기 WBS 메뉴', exact: true });
+      await menu.click();
+      await page.getByRole('menuitem', { name: 'WBS 삭제', exact: true }).click();
+      const beforeCancel = deleteRequests;
+      await page.getByRole('dialog').getByRole('button', { name: '취소', exact: true }).click();
+      assert.equal(deleteRequests, beforeCancel);
+      await menu.click();
+      await page.getByRole('menuitem', { name: 'WBS 삭제', exact: true }).click();
+      await page.route(`**/api/course-wbs/${target.id}`, async route => {
+        if (route.request().method() === 'DELETE') await route.fulfill({ status: 500, json: { message: '삭제 오류 테스트' } });
+        else await route.continue();
+      });
+      await page.getByRole('dialog').getByRole('button', { name: '삭제', exact: true }).click();
+      await page.getByRole('dialog').getByRole('alert').getByText('삭제 오류 테스트').waitFor();
+      assert.equal(await page.getByLabel('저장된 강의 WBS').getByRole('button', { name: /WBS 열기/u, includeHidden: true }).count(), 5);
+      await page.unroute(`**/api/course-wbs/${target.id}`);
+      await page.getByRole('dialog').getByRole('button', { name: '삭제', exact: true }).click();
+      await page.getByRole('dialog').waitFor({ state: 'hidden' });
+      await page.getByRole('status').getByText('강의 WBS를 삭제했습니다.').waitFor();
+      assert.equal(await page.getByLabel('저장된 강의 WBS').getByRole('button', { name: /WBS 열기/u }).count(), 4);
+      await page.getByRole('button', { name: 'WBS 만들기', exact: true }).click();
+      const dialog = page.getByRole('dialog');
+      await dialog.getByLabel('연결할 강의', { exact: true }).selectOption(target.id);
+      assert.equal(await dialog.getByRole('combobox').locator('option').count(), 2, 'only courses without WBS may be linked');
+      await assertNoPageOverflow(page, `create dialog ${width}px`);
+      await dialog.getByRole('button', { name: 'WBS 만들기', exact: true }).click();
+      await page.getByRole('button', { name: '강의 WBS 저장', exact: true }).click();
+      await page.getByRole('status').getByText('이 강의의 WBS를 저장했습니다.').waitFor();
+      assert.ok(records.has(target.id), 'new WBS must persist');
       assert.deepEqual(pageErrors, [], `browser errors at ${width}px`);
       await page.close();
     }

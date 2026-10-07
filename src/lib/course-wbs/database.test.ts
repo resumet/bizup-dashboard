@@ -63,6 +63,19 @@ test("WBS 마이그레이션은 강의와 워크스페이스 연결 및 템플�
       "select count(*)::text count from public.course_wbs where workspace_id = $1", [workspaceA],
     )).rows[0].count, "2");
 
+    const wrongWorkspaceDelete = await db.query(
+      "delete from public.course_wbs where workspace_id = $1 and course_id = $2 returning course_id",
+      [workspaceB, courseA],
+    );
+    assert.equal(wrongWorkspaceDelete.rows.length, 0);
+    const deletedWbs = await db.query(
+      "delete from public.course_wbs where workspace_id = $1 and course_id = $2 returning course_id",
+      [workspaceA, courseA],
+    );
+    assert.equal(deletedWbs.rows.length, 1);
+    assert.equal((await db.query("select id from public.courses where id = $1", [courseA])).rows.length, 1);
+    assert.equal((await db.query("select course_id from public.course_wbs where course_id = $1", [courseB])).rows.length, 1);
+
     await db.query(`insert into public.course_wbs_templates (workspace_id, id, name, items, updated_by)
       values ($1, 'notion-webinar', 'Original', '[]'::jsonb, $3),
              ($2, 'notion-webinar', 'Other workspace', '[]'::jsonb, $4)`,

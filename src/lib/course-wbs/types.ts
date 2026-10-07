@@ -40,6 +40,13 @@ export type WbsSummary = {
   updatedAt: string;
 };
 
+export type WbsScheduleItem = Pick<WbsItem, "id" | "title" | "owner" | "startDate" | "dueDate" | "completed">;
+
+export type WbsScheduleEntry = {
+  courseId: string;
+  items: WbsScheduleItem[];
+};
+
 export type WbsDashboardTask = {
   courseId: string;
   itemId: string;
@@ -62,6 +69,7 @@ export type WbsDashboard = {
 export type CourseWbsBootstrap = {
   courses: WbsCourse[];
   wbsSummaries: WbsSummary[];
+  schedules: WbsScheduleEntry[];
   dashboard: WbsDashboard;
   template: WbsTemplate;
   people: string[];

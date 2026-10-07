@@ -4,14 +4,16 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
   ArrowDown, ArrowUp, CalendarDays, ChevronDown, ClipboardList, ExternalLink, GripVertical,
-  LoaderCircle, Plus, Save, Trash2,
+  LoaderCircle, MoreHorizontal, Plus, Save, Trash2,
 } from "lucide-react";
 
 import { WbsGantt } from "@/components/course-wbs/wbs-gantt";
+import { WbsStartSchedule } from "@/components/course-wbs/wbs-start-schedule";
 import { BackLink } from "@/components/layout/back-link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,7 +24,8 @@ import { selectablePeople } from "@/lib/course-wbs/people";
 import { datesForStartOffset, dueDateForOffset, dueDateForStartDate, WBS_DUE_OFFSETS, WBS_START_OFFSETS } from "@/lib/course-wbs/schedule-options";
 import { sortWbsItemsByStartDate } from "@/lib/course-wbs/start-date-sort";
 import { reusableItems } from "@/lib/course-wbs/template-items";
-import type { CourseWbs, CourseWbsBootstrap, WbsCourse, WbsDashboard, WbsDashboardTask, WbsItem, WbsSummary, WbsTemplate } from "@/lib/course-wbs/types";
+import type { WbsItemSelection } from "@/lib/course-wbs/item-schedules";
+import type { CourseWbs, CourseWbsBootstrap, WbsCourse, WbsDashboard, WbsDashboardTask, WbsItem, WbsScheduleEntry, WbsSummary, WbsTemplate } from "@/lib/course-wbs/types";
 import { applyTemplateToCourse, syncWebinarItem, webinarDateFromTimestamp, webinarDayLabel, WEBINAR_ITEM_ID } from "@/lib/course-wbs/webinar-date";
 
 type WbsResponse = { wbs: CourseWbs | null; webinarAt: string | null };
@@ -206,6 +209,12 @@ function validateItems(items: WbsItem[]) {
 export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initialCourseId: string; canSaveTemplate: boolean }) {
   const [courses, setCourses] = useState<WbsCourse[]>([]);
   const [wbsSummaries, setWbsSummaries] = useState<WbsSummary[]>([]);
+  const [schedules, setSchedules] = useState<WbsScheduleEntry[]>([]);
+  const [selectedScheduleItem, setSelectedScheduleItem] = useState<WbsItemSelection | null>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<WbsCourse | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const [dashboard, setDashboard] = useState<WbsDashboard>(EMPTY_DASHBOARD);
   const [overviewTab, setOverviewTab] = useState<"manage" | "analysis">("manage");
   const [newCourseId, setNewCourseId] = useState("");
@@ -272,6 +281,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
         if (!active) return;
         setCourses(body.courses);
         setWbsSummaries(body.wbsSummaries);
+        setSchedules(body.schedules ?? []);
         setDashboard(body.dashboard);
         setPeople(body.people);
         setEmployeeNames(body.employeeNames);
@@ -332,6 +342,10 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
     return courses.filter((entry) => !savedIds.has(entry.id));
   }, [courses, wbsSummaries]);
   const coursesById = useMemo(() => new Map(courses.map((entry) => [entry.id, entry])), [courses]);
+  const scheduleEntries = useMemo(() => courseId && courseReady
+    ? [...schedules.filter((entry) => entry.courseId !== courseId), { courseId, items }]
+    : schedules, [schedules, courseId, courseReady, items]);
+  const scheduleOptions = useMemo(() => [...(template?.items ?? []), ...scheduleEntries.flatMap((entry) => entry.items)], [template, scheduleEntries]);
   const closestUnstartedCourse = dashboard.closestUnstartedCourseId
     ? coursesById.get(dashboard.closestUnstartedCourseId) ?? null
     : null;
@@ -444,7 +458,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
   }
 
   function selectCourse(id: string) {
-    if (id === courseId || saving) return;
+    if (id === courseId || saving || deleting) return;
     if (dirty && !window.confirm("저장하지 않은 변경 사항이 있습니다. 다른 WBS로 이동할까요?")) return;
     ++loadSequence.current;
     setCourseId(id);
@@ -463,6 +477,33 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
     window.history.replaceState(null, "", url);
     if (id) void loadCourse(id);
     else setLoadingWbs(false);
+  }
+
+  async function deleteWbs() {
+    if (!deleteTarget || deleting) return;
+    const target = deleteTarget;
+    let deleted = false;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      const response = await fetch(`/api/course-wbs/${encodeURIComponent(target.id)}`, { method: "DELETE" });
+      if (!response.ok) await responseJson(response);
+      deleted = true;
+      setWbsSummaries((current) => current.filter((summary) => summary.courseId !== target.id));
+      setSchedules((current) => current.filter((entry) => entry.courseId !== target.id));
+      setDeleteTarget(null);
+      clearFeedback();
+      setNotice("강의 WBS를 삭제했습니다.");
+      const overview = await responseJson<CourseWbsBootstrap>(await fetch("/api/course-wbs", { cache: "no-store" }));
+      setCourses(overview.courses);
+      setWbsSummaries(overview.wbsSummaries);
+      setSchedules(overview.schedules ?? []);
+      setDashboard(overview.dashboard);
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "WBS 삭제에 실패했습니다.";
+      if (!deleted) setDeleteError(message);
+      else setError(`WBS는 삭제했지만 목록을 새로 불러오지 못했습니다. 화면을 새로고침해 주세요. ${message}`);
+    } finally { setDeleting(false); }
   }
 
   async function refreshTemplate() {
@@ -526,6 +567,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
           updatedAt: savedWbs.updatedAt,
         },
       ]);
+      setSchedules((current) => [...current.filter((entry) => entry.courseId !== courseId), { courseId, items: savedItems }]);
       setDirty(false);
       setNotice("이 강의의 WBS를 저장했습니다.");
       void fetch("/api/course-wbs", { cache: "no-store" })
@@ -533,6 +575,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
         .then((overview) => {
           setCourses(overview.courses);
           setWbsSummaries(overview.wbsSummaries);
+          setSchedules(overview.schedules ?? []);
           setDashboard(overview.dashboard);
         })
         .catch(() => undefined);
@@ -593,10 +636,13 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
         <Button className="mt-5" asChild><Link href="/services/course-operations/new"><Plus /> 강의 만들기</Link></Button>
       </div>
     ) : !courseId ? <Tabs value={overviewTab} onValueChange={(value) => setOverviewTab(value as "manage" | "analysis")}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
       <TabsList aria-label="강의 WBS 화면">
         <TabsTrigger value="manage"><ClipboardList /> WBS 관리</TabsTrigger>
         <TabsTrigger value="analysis"><CalendarDays /> 업무 현황</TabsTrigger>
       </TabsList>
+      <Button onClick={() => { setNewCourseId(""); setCreateDialogOpen(true); }} disabled={deleting}><Plus /> WBS 만들기</Button>
+      </div>
       <TabsContent value="analysis" className="mt-6">
       <section className="mb-8" aria-label="WBS 대시보드">
         <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
@@ -635,37 +681,27 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
         {savedWbsCards.length ? <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {savedWbsCards.map(({ summary, course: linkedCourse }) => {
             const cardProgress = savedWbsProgress(summary);
-            return <button key={summary.courseId} type="button" onClick={() => selectCourse(summary.courseId)} aria-label={`${courseLabel(linkedCourse)} WBS 열기`} className="group rounded-xl border bg-background p-4 text-left shadow-sm transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            return <div key={summary.courseId} className="relative rounded-xl border bg-background shadow-sm">
+              <button type="button" onClick={() => selectCourse(summary.courseId)} disabled={deleting} aria-label={`${courseLabel(linkedCourse)} WBS 열기`} className="group block h-full w-full rounded-xl p-4 text-left transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <div className="pr-8">
               <Badge variant="outline" className="h-auto min-h-5 max-w-full justify-start overflow-visible whitespace-normal break-keep py-1 text-left leading-4">{savedWbsNamecard(linkedCourse)}</Badge>
+              </div>
               <h4 className="mt-4 text-base font-semibold group-hover:text-primary">{linkedCourse.name}</h4>
               <div className="mt-4 border-t pt-3">
                 <div className="flex items-center justify-between gap-2 text-sm"><span className="text-muted-foreground">업무 {summary.itemCount}개 · 완료 {summary.completedCount}개</span><span className="font-semibold tabular-nums">{cardProgress}%</span></div>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${cardProgress}%` }} /></div>
               </div>
-            </button>;
+              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild><Button size="icon-sm" variant="ghost" aria-label={`${courseLabel(linkedCourse)} WBS 메뉴`} disabled={deleting} className="absolute right-2 top-3"><MoreHorizontal /></Button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end"><DropdownMenuItem variant="destructive" onSelect={() => { setDeleteError(""); setDeleteTarget(linkedCourse); }}><Trash2 /> WBS 삭제</DropdownMenuItem></DropdownMenuContent>
+              </DropdownMenu>
+            </div>;
           })}
-        </div> : <div className="rounded-xl border border-dashed bg-background px-6 py-14 text-center text-sm text-muted-foreground">저장된 WBS가 없습니다. 아래에서 강의를 선택해 첫 WBS를 만들어 보세요.</div>}
+        </div> : <div className="rounded-xl border border-dashed bg-background px-6 py-14 text-center text-sm text-muted-foreground">저장된 WBS가 없습니다. 상단의 WBS 만들기 버튼으로 강의를 연결하세요.</div>}
       </section>
 
-      <section className="mt-7 rounded-xl border bg-background p-5 shadow-sm" aria-label="새 WBS 만들기">
-        <h3 className="text-lg font-semibold">새 WBS 만들기</h3>
-        {coursesWithoutWbs.length ? <>
-          <p className="mt-1 text-sm text-muted-foreground">아직 WBS가 없는 강의를 연결합니다.</p>
-          <div className="mt-4 flex flex-wrap items-end gap-3">
-            <div className="min-w-64 flex-1">
-              <label htmlFor="wbs-new-course" className="mb-2 block text-sm font-medium">연결할 강의</label>
-              <select id="wbs-new-course" value={newCourseId} onChange={(event) => setNewCourseId(event.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm">
-                <option value="">강의를 선택하세요</option>
-                {coursesWithoutWbs.map((entry) => <option value={entry.id} key={entry.id}>{courseLabel(entry)}</option>)}
-              </select>
-            </div>
-            <Button onClick={() => selectCourse(newCourseId)} disabled={!newCourseId}><Plus /> 새 WBS 만들기</Button>
-          </div>
-        </> : <div className="mt-2 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-          <span>모든 강의에 WBS가 연결되어 있습니다.</span>
-          <Button size="sm" variant="outline" asChild><Link href="/services/course-operations/new"><Plus /> 강의 만들기</Link></Button>
-        </div>}
-      </section>
+      <WbsStartSchedule courses={courses} entries={scheduleEntries} options={scheduleOptions} selected={selectedScheduleItem} onSelect={setSelectedScheduleItem} today={today} onSelectCourse={selectCourse} />
       </TabsContent>
     </Tabs> : <>
       <div className="mb-4 flex flex-wrap items-center justify-end gap-2" role="group" aria-label="WBS 작업">
@@ -697,7 +733,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
             {view === "compact" ? <p className="text-xs text-muted-foreground">완료 여부를 변경한 뒤 강의 WBS 저장을 눌러 주세요.</p> : null}
             {view !== "compact" ? <Button size="sm" variant="outline" onClick={addItem} disabled={loadingWbs || !courseReady || saving}><Plus /> 항목 추가</Button> : null}
           </div>
-          {loadingWbs ? <div className="flex min-h-72 items-center justify-center rounded-xl border bg-background text-sm text-muted-foreground"><LoaderCircle className="mr-2 size-4 animate-spin" /> WBS를 불러오는 중...</div> : !courseReady ? <div className="rounded-xl border border-dashed bg-background px-6 py-16 text-center text-sm text-muted-foreground">이 강의의 WBS를 불러오지 못했습니다.<div><Button className="mt-4" variant="outline" onClick={() => void loadCourse(courseId)}>다시 시도</Button></div></div> : view === "gantt" ? <WbsGantt key={courseId} items={sortedItems} webinarDate={webinarDate} todayDate={today} /> : view === "compact" ? (
+          {loadingWbs ? <div className="flex min-h-72 items-center justify-center rounded-xl border bg-background text-sm text-muted-foreground"><LoaderCircle className="mr-2 size-4 animate-spin" /> WBS를 불러오는 중...</div> : !courseReady ? <div className="rounded-xl border border-dashed bg-background px-6 py-16 text-center text-sm text-muted-foreground">이 강의의 WBS를 불러오지 못했습니다.<div><Button className="mt-4" variant="outline" onClick={() => void loadCourse(courseId)}>다시 시도</Button></div></div> : view === "gantt" ? <WbsGantt key={courseId} items={sortedItems} webinarDate={webinarDate} todayDate={today} onSelectItem={setSelectedScheduleItem} selectedItemId={selectedScheduleItem?.id} /> : view === "compact" ? (
             <div className="overflow-x-auto rounded-xl border bg-background shadow-sm" aria-busy={saving}>
               <table className="w-full min-w-[760px] border-collapse text-sm" aria-label="간소화 WBS 목록">
                 <thead className="bg-muted/50 text-left text-xs font-medium text-muted-foreground">
@@ -713,7 +749,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
                 <tbody>
                   {sortedItems.map((item, index) => <tr key={item.id} className={`border-t ${isPastItem(item, today) ? "bg-muted/60" : item.id === WEBINAR_ITEM_ID ? "bg-primary/5" : ""}`}>
                     <td className="px-4 py-3 text-center"><input type="checkbox" className="size-4 accent-primary" checked={item.completed} onChange={(event) => editItem(item.id, { completed: event.target.checked })} aria-label={`${item.title || `${index + 1}번째 항목`} 완료`} disabled={saving} /></td>
-                    <td className={`px-4 py-3 font-medium ${item.completed ? "text-muted-foreground line-through" : ""}`}>{item.title || "—"}</td>
+                    <td className={`px-4 py-3 font-medium ${item.completed ? "text-muted-foreground line-through" : ""}`}><button type="button" onClick={() => setSelectedScheduleItem(item)} aria-pressed={selectedScheduleItem?.id === item.id} className="text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{item.title || "—"}</button></td>
                     <td className="px-4 py-3">{item.owner || "—"}</td>
                     <td className="px-4 py-3">{item.stakeholders || "—"}</td>
                     <td className="whitespace-nowrap px-4 py-3 tabular-nums">{item.startDate ? <time dateTime={item.startDate}>{item.startDate}</time> : "—"}</td>
@@ -747,7 +783,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
                           <Input ref={(element) => {
                             if (element) titleInputs.current.set(item.id, element);
                             else titleInputs.current.delete(item.id);
-                          }} value={item.title} onChange={(event) => editItem(item.id, { title: event.target.value })} placeholder="업무 제목" aria-label={`${index + 1}번째 업무 제목`} className={item.completed ? "line-through" : ""} disabled={saving || item.id === WEBINAR_ITEM_ID} />
+                          }} value={item.title} onFocus={() => setSelectedScheduleItem(item)} onChange={(event) => editItem(item.id, { title: event.target.value })} placeholder="업무 제목" aria-label={`${index + 1}번째 업무 제목`} className={item.completed ? "line-through" : ""} disabled={saving || item.id === WEBINAR_ITEM_ID} />
                           {item.id === WEBINAR_ITEM_ID ? <p className="mt-1 text-xs text-muted-foreground">날짜는 강의 상세의 무료웨비나 일정과 연결됩니다.</p> : null}
                           <Textarea value={item.description ?? ""} onChange={(event) => editItem(item.id, { description: event.target.value })} placeholder="업무 설명 또는 세부 체크 내용" aria-label={`${index + 1}번째 업무 설명`} rows={2} className="mt-2 min-h-14 resize-y text-xs" disabled={saving} />
                         </div>
@@ -794,7 +830,30 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
           )}
           {view === "gantt" && !loadingWbs ? <p className="mt-3 text-xs text-muted-foreground">일정과 완료 상태는 목록 보기에서 수정할 수 있습니다. 막대는 시작일에서 데드라인까지 표시됩니다.</p> : null}
       </section>
+      {courseReady ? <WbsStartSchedule courses={courses} entries={scheduleEntries} options={scheduleOptions} selected={selectedScheduleItem} onSelect={setSelectedScheduleItem} today={today} onSelectCourse={selectCourse} /> : null}
     </>}
     </div>
+    <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+      <DialogContent aria-describedby={undefined} className="sm:max-w-lg">
+        <DialogHeader><DialogTitle>WBS 만들기</DialogTitle></DialogHeader>
+        {coursesWithoutWbs.length ? <form onSubmit={(event) => { event.preventDefault(); if (!newCourseId) return; selectCourse(newCourseId); setCreateDialogOpen(false); }}>
+          <label htmlFor="wbs-new-course" className="mb-2 block text-sm font-medium">연결할 강의</label>
+          <select id="wbs-new-course" value={newCourseId} onChange={(event) => setNewCourseId(event.target.value)} required className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm">
+            <option value="">강의를 선택하세요</option>
+            {coursesWithoutWbs.map((entry) => <option value={entry.id} key={entry.id}>{courseLabel(entry)}</option>)}
+          </select>
+          <p className="mt-2 text-xs text-muted-foreground">WBS가 없는 강의만 선택할 수 있습니다. 항목을 편집한 뒤 강의 WBS 저장을 눌러 주세요.</p>
+          <DialogFooter className="mt-5"><Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>취소</Button><Button type="submit" disabled={!newCourseId}><Plus /> WBS 만들기</Button></DialogFooter>
+        </form> : <div className="py-4 text-sm text-muted-foreground"><p>모든 강의에 WBS가 연결되어 있습니다.</p><Button className="mt-4" variant="outline" asChild><Link href="/services/course-operations/new"><Plus /> 강의 만들기</Link></Button></div>}
+      </DialogContent>
+    </Dialog>
+    <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => { if (!open && !deleting) setDeleteTarget(null); }}>
+      <DialogContent aria-describedby={undefined} showCloseButton={!deleting}>
+        <DialogHeader><DialogTitle>WBS 삭제</DialogTitle></DialogHeader>
+        <div className="text-sm"><p className="font-medium">{deleteTarget ? courseLabel(deleteTarget) : ""}</p><p className="mt-3 text-muted-foreground">이 WBS의 모든 업무 항목을 삭제합니다. 연결된 강의는 유지되며, 삭제한 WBS는 복구할 수 없습니다.</p></div>
+        {deleteError ? <p role="alert" className="text-sm text-destructive">{deleteError}</p> : null}
+        <DialogFooter><Button variant="outline" disabled={deleting} onClick={() => setDeleteTarget(null)}>취소</Button><Button variant="destructive" disabled={deleting} onClick={() => void deleteWbs()}>{deleting ? <LoaderCircle className="animate-spin" /> : <Trash2 />} 삭제</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
   </>;
 }

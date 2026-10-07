@@ -295,9 +295,15 @@ export async function loadCourseWbsBootstrap(
     webinarAt: row.free_webinar_at,
   }));
   const template = activeTemplateRow ? toTemplate(activeTemplateRow) : builtInTemplate();
+  const coursesById = new Map(courses.map((course) => [course.id, course]));
   return {
     courses,
     wbsSummaries: wbsOverview.summaries,
+    schedules: wbsOverview.entries.map((entry) => ({
+      courseId: entry.courseId,
+      items: syncWebinarItem(entry.items, webinarDateFromTimestamp(coursesById.get(entry.courseId)?.webinarAt ?? null))
+        .map(({ id, title, owner, startDate, dueDate, completed }) => ({ id, title, owner, startDate, dueDate, completed })),
+    })),
     dashboard: buildWbsDashboard(wbsOverview.entries, courses),
     template,
     people: selectablePeople([...savedPeople, ...peopleInItems(template.items)], inactivePeople)

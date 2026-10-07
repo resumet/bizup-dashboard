@@ -41,7 +41,9 @@ export function WbsGantt({
   items,
   webinarDate = "",
   todayDate = toKoreaDate(new Date().toISOString()),
-}: { items: GanttItem[]; webinarDate?: string; todayDate?: string }) {
+  onSelectItem,
+  selectedItemId,
+}: { items: GanttItem[]; webinarDate?: string; todayDate?: string; onSelectItem?: (item: GanttItem) => void; selectedItemId?: string }) {
   const [chosenStart, setChosenStart] = useState<number | null>(null);
   const dated = useMemo(() => {
     const dated = items.map((item) => ({
@@ -132,7 +134,7 @@ export function WbsGantt({
           ].filter(Boolean);
           return <div key={item.id} className={`flex h-16 border-b last:border-b-0 ${isPast ? "bg-muted/50" : ""}`}>
             <div className={`sticky left-0 z-30 flex shrink-0 flex-col justify-center border-r px-4 ${isPast ? "bg-muted/50" : "bg-background"}`} style={{ width: LABEL_WIDTH }}>
-              <span className={`truncate text-sm font-medium ${item.completed ? "text-muted-foreground line-through" : ""}`} title={item.title}>{item.title || "제목 없음"}</span>
+              {onSelectItem ? <button type="button" onClick={() => onSelectItem(item)} aria-pressed={selectedItemId === item.id} className={`truncate text-left text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${item.completed ? "text-muted-foreground line-through" : ""}`} title={item.title}>{item.title || "제목 없음"}</button> : <span className={`truncate text-sm font-medium ${item.completed ? "text-muted-foreground line-through" : ""}`} title={item.title}>{item.title || "제목 없음"}</span>}
               <span className="truncate text-xs text-muted-foreground">{item.owner || "담당자 미정"}</span>
               {relativeDates.length ? <span className="truncate text-[11px] text-amber-700" title={relativeDates.join(" · ")}>{relativeDates.join(" · ")}</span> : null}
             </div>
