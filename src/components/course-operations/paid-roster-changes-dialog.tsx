@@ -11,7 +11,11 @@ const money = (value: number) => `${value.toLocaleString("ko-KR")}원`;
 export function PaidRosterChangesDialog({ preview, onApply, onClose }: {
   preview: RosterPreview; onApply: (selectedIds: string[]) => Promise<void>; onClose: () => void;
 }) {
-  const [selected, setSelected] = useState(() => new Set(preview.changes.filter(c => c.kind === "add").map(c => c.id)));
+  const [selected, setSelected] = useState(() => new Set(
+    preview.changes
+      .filter((change) => change.kind === "add" || change.exclusionReason === "partial_refund")
+      .map((change) => change.id),
+  ));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   async function apply() {

@@ -57,9 +57,12 @@ test("동명이인·정상 다중구매는 합치지 않고 모호하거나 별�
   }
 });
 
-test("부분환불·입금대기는 재결제 연결 대상으로 오인하지 않는다", () => {
+test("부분환불 후 재결제는 기존 수강생에 연결하고 입금대기는 명단에 추가하지 않는다", () => {
   const partial = order("old", { status: "부분환불", current_amount: 100000, refund_amount: 20000 });
-  assert.equal(planPaidRoster(state([partial, order("new")], [enrollment("old")]), ["new"]).changes[0].kind, "add");
+  const repaid = planPaidRoster(state([partial, order("new")], [enrollment("old")]), ["new"]).changes[0];
+  assert.equal(repaid.kind, "update");
+  assert.equal(repaid.targetId, "old");
+  assert.equal(repaid.orderId, "new");
   assert.equal(planPaidRoster(state([order("pending", { status: "입금대기" })], []), ["pending"]).changes.length, 0);
 });
 
@@ -78,7 +81,7 @@ test("웨비나보다 이른 결제는 신규 결제자에서 제외하고 기�
   assert.equal(automatic.changes.some((change) => change.kind === "remove"), true);
 });
 
-test("전액환불·취소·누락 주문은 기존 수강생 제외 후보로 표시하고 부분환불·수동·이미 환불자는 유지한다", () => {
+test("전액환불·부분환불·취소·누락 주문은 제외 후보로 표시하고 수동·이미 환불자는 유지한다", () => {
   for (const status of ["전액환불", "주문취소"]) {
     const s = state([order("old", { status, current_amount: 0 })], [enrollment("old")]);
     const before = structuredClone(s);
@@ -92,7 +95,14 @@ test("전액환불·취소·누락 주문은 기존 수강생 제외 후보로 �
   assert.equal(missing.kind, "remove");
   assert.equal(missing.orderId, null);
   assert.match(missing.reason, /없어졌습니다/);
-  assert.equal(planPaidRoster(state([order("old", { status: "부분환불", current_amount: 10000 })], [enrollment("old")]), []).changes.length, 0);
+  const partialRemoval = planPaidRoster(
+    state([order("old", { status: "부분환불", current_amount: 10000, refund_amount: 110000 })], [enrollment("old")]),
+    [],
+  ).changes;
+  assert.equal(partialRemoval.length, 1);
+  assert.equal(partialRemoval[0].kind, "remove");
+  assert.equal(partialRemoval[0].exclusionReason, "partial_refund");
+  assert.match(partialRemoval[0].reason, /부분환불/);
   assert.equal(planPaidRoster(state([order("old")], [enrollment("old")]), []).changes.length, 0); // Omitted selection is not an absent order.
   for (const row of [enrollment("old", { refundedAt: "2026-09-18" }), enrollment("old", { orderRecordKey: "" }), { ...enrollment("old"), is_manually_added: true }]) {
     assert.equal(planPaidRoster(state([], [row]), []).changes.length, 0);
@@ -107,6 +117,16 @@ test("주문 갱신 자동 동기화는 명시적 환불만 제외하고 재결�
   );
   assert.equal(cancelled.changes.length, 1);
   assert.equal(cancelled.changes[0].kind, "remove");
+
+  const partial = planAutomaticPaidRosterSync(
+    state(
+      [order("old", { status: "부분환불", current_amount: 10000, refund_amount: 110000 })],
+      [enrollment("old")],
+    ),
+  );
+  assert.equal(partial.changes.length, 1);
+  assert.equal(partial.changes[0].kind, "remove");
+  assert.equal(partial.reviewRequiredCount, 0);
 
   const archived = enrollment("old", {
     refundedAt: "2026-09-15T00:00:00Z",
@@ -170,6 +190,12 @@ test("선택 반영은 가격·옵션만 수정하고 개인 정보 보존, 중�
     await db.exec(
       await readFile(
         "supabase/migrations/20261006072837_store_course_order_payment_date.sql",
+        "utf8",
+      ),
+    );
+    await db.exec(
+      await readFile(
+        "supabase/migrations/20261006083601_exclude_partial_refunds_from_paid_roster.sql",
         "utf8",
       ),
     );
@@ -293,6 +319,22 @@ test("선택 반영은 가격·옵션만 수정하고 개인 정보 보존, 중�
       (item) => item.normalized_values.orderRecordKey === "before-webinar",
     )!;
     assert.equal(beforeWebinarArchived.normalized_values.refundSource, "before_webinar_payment");
+    const partialRefundId = await insert("partial-refund", "01044445555");
+    await apply(await snapshot(), [partialRefundId]);
+    await db.query(
+      "update course_orders set status='부분환불',refund_amount=20000,current_amount=100000 where id=$1",
+      [partialRefundId],
+    );
+    const partialRefundSnapshot = await snapshot();
+    const partialRefundRemoval = planPaidRoster(partialRefundSnapshot, []).changes.find(
+      (change) => change.kind === "remove" && change.orderId === partialRefundId,
+    )!;
+    assert.ok(partialRefundRemoval);
+    await review(partialRefundSnapshot, [partialRefundRemoval]);
+    const partialRefundArchived = (await snapshot()).enrollments.find(
+      (item) => item.normalized_values.orderRecordKey === "partial-refund",
+    )!;
+    assert.equal(partialRefundArchived.normalized_values.refundSource, "partial_refund");
     await db.exec("set role authenticated");
     await assert.rejects(snapshot(), /permission denied/);
     await assert.rejects(apply(fresh, [extraId]), /permission denied/);

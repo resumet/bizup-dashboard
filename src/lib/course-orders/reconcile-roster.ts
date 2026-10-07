@@ -20,6 +20,7 @@ export type RosterChange = {
   targetId: string | null; removeIds: string[]; name: string; phone: string;
   reason: string; before: { optionName: string; paymentAmount: number } | null;
   after: { optionName: string; paymentAmount: number };
+  exclusionReason?: "refund" | "partial_refund" | "before_webinar" | "missing_order";
 };
 export type RosterPlan = { changes: RosterChange[]; conflicts: { name: string; reason: string }[]; unchangedCount: number };
 export type RosterPreview = RosterPlan & { token: string };
@@ -42,6 +43,7 @@ function identity(name: string, number: string, email: string) {
 }
 const completed = (order: ReconcileOrder) => normalize(order.status) === "결제완료";
 const fullyRefunded = (order: ReconcileOrder) => /취소|환불/u.test(normalize(order.status)) && Number(order.current_amount) === 0;
+const partiallyRefunded = (order: ReconcileOrder) => normalize(order.status) === "부분환불";
 export const isRosterEligibleOrder = (snapshot: Pick<RosterSnapshot, "webinarDate">, order: ReconcileOrder) =>
   completed(order) && !isPaymentBeforeWebinar(order.payment_date, snapshot.webinarDate);
 const amount = (value: unknown) => Number(text(value).replace(/,/gu, "") || value || 0);
@@ -90,7 +92,7 @@ export function planPaidRoster(snapshot: RosterSnapshot, orderIds: string[]): Ro
     const reusable = samePerson.filter(row => {
       const source = ordersByKey.get(text(row.normalized_values.orderRecordKey));
       return Boolean(text(row.normalized_values.refundedAt))
-        || Boolean(source && fullyRefunded(source));
+        || Boolean(source && (fullyRefunded(source) || partiallyRefunded(source)));
     });
     let target = exact;
     let removeIds: string[] = [];
@@ -145,18 +147,25 @@ export function planPaidRoster(snapshot: RosterSnapshot, orderIds: string[]): Ro
     const key = text(row.normalized_values.orderRecordKey);
     if (!key || row.is_manually_added || text(row.normalized_values.refundedAt) || usedTargets.has(row.id) || mergedIds.has(row.id)) continue;
     const source = ordersByKey.get(key);
-    const cancelled = source && Number(source.current_amount) === 0 && /취소|환불/u.test(normalize(source.status));
+    const refunded = source && (fullyRefunded(source) || partiallyRefunded(source));
     const beforeWebinar = source && isPaymentBeforeWebinar(source.payment_date, snapshot.webinarDate);
-    if (source && !cancelled && !beforeWebinar) continue;
+    if (source && !refunded && !beforeWebinar) continue;
     // A repurchase or ambiguous matching must be resolved before removing the old entry.
     if ((activeCounts.get(rowIdentity(row)) ?? 0) > 0) continue;
     const before = { optionName: text(row.normalized_values.optionName), paymentAmount: amount(row.normalized_values.paymentAmount) };
     plan.changes.push({
       id: row.id, kind: "remove", orderId: source?.id ?? null, targetId: row.id, removeIds: [],
       name: text(row.normalized_values.customerName), phone: row.normalized_phone ?? "",
+      exclusionReason: beforeWebinar
+        ? "before_webinar"
+        : source && partiallyRefunded(source)
+          ? "partial_refund"
+          : source ? "refund" : "missing_order",
       reason: beforeWebinar
         ? `결제일 ${source!.payment_date}이 웨비나일 ${snapshot.webinarDate}보다 이전입니다. 승인하면 현재 결제자 명단에서 제외합니다.`
-        : source ? `주문상태가 '${source.status}'이고 잔여 결제금액이 0원입니다. 승인하면 현재 명단에서 제외하고 환불자 목록에 보관합니다.`
+        : source && partiallyRefunded(source)
+          ? `주문상태가 '${source.status}'이고 현 결제금액은 ${Number(source.current_amount).toLocaleString("ko-KR")}원입니다. 승인하면 현재 명단에서 제외하고 환불자 목록에 보관합니다.`
+          : source ? `주문상태가 '${source.status}'이고 잔여 결제금액이 0원입니다. 승인하면 현재 명단에서 제외하고 환불자 목록에 보관합니다.`
         : "연결된 주문이 최신 주문내역에서 없어졌습니다. 취소·환불 여부를 확인하고 승인하면 현재 명단에서 제외하여 환불자 목록에 보관합니다.",
       before, after: before,
     });
@@ -188,6 +197,7 @@ export function planAutomaticPaidRosterSync(
       ? ordersByKey.get(text(target.normalized_values.orderRecordKey))
       : null;
     if (source && (fullyRefunded(source)
+      || partiallyRefunded(source)
       || isPaymentBeforeWebinar(source.payment_date, snapshot.webinarDate))) return true;
     skippedRemovalCount++;
     return false;
