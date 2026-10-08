@@ -2,6 +2,16 @@ import type { NextConfig } from "next";
 import { withWorkflow } from "workflow/next";
 
 const nextConfig: NextConfig = {
+  async headers() {
+    return ["/auth/callback", "/auth/confirm", "/auth/invite-error", "/set-password"].map((source) => ({
+      source,
+      headers: [
+        { key: "Cache-Control", value: "private, no-store, max-age=0" },
+        { key: "Referrer-Policy", value: "no-referrer" },
+        { key: "X-Robots-Tag", value: "noindex, nofollow" },
+      ],
+    }));
+  },
   outputFileTracingIncludes: {
     "/api/tools/youtube-download": ["./youtube-worker/app.py", "./youtube-worker/requirements-sandbox.txt"],
     "/api/tools/youtube-download/info": ["./youtube-worker/app.py", "./youtube-worker/requirements-sandbox.txt"],

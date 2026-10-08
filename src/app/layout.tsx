@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
+import { inviteRedirectScript } from "@/lib/supabase/invite-redirect-script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,7 +25,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="ko"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-background text-foreground">{children}</body>
+      <body className="min-h-full bg-background text-foreground">
+        <Script id="supabase-invite-redirect" strategy="beforeInteractive">{inviteRedirectScript}</Script>
+        {children}
+      </body>
     </html>
   );
 }
