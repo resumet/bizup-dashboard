@@ -1,13 +1,16 @@
 import "server-only";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { hasAdminAccess } from "@/lib/admin/access";
+import { isAccountDisabled } from "@/lib/admin/account-status";
+import { resolveUserDisplayNames } from "@/lib/admin/user-names";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
-import { eventSchema, isDateKey, meetingTypeSchema, uuidSchema, versionSchema } from "./calendar";
-import type { CalendarCourse, CalendarEvent, MeetingType } from "./types";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { eventSchema, isDateKey, meetingTypeSchema, moveEventSchema, uuidSchema, versionSchema } from "./calendar";
+import type { CalendarCourse, CalendarEvent, CalendarPerson, MeetingType } from "./types";
 
-const EVENT_SELECT = "id,title,event_date,start_minutes,duration_minutes,meeting_type_id,course_id,notes,version,meeting_type:shared_calendar_meeting_types!shared_calendar_events_meeting_type_id_workspace_id_fkey(id,name,code),course:courses(id,name,instructor_name,cohort)";
+const EVENT_SELECT = "id,title,event_date,start_minutes,duration_minutes,meeting_type_id,course_id,notes,participant_ids,version,meeting_type:shared_calendar_meeting_types!shared_calendar_events_meeting_type_id_workspace_id_fkey(id,name,code),course:courses(id,name,instructor_name,cohort)";
 const headers = { "Cache-Control": "private, no-store" };
 
 export class CalendarError extends Error {
@@ -28,7 +31,7 @@ function checkDatabase(error: { code?: string } | null) {
   if (!error) return;
   if (error.code === "23505") throw new CalendarError("이미 등록된 회의 항목입니다.", 409);
   if (error.code === "42501") throw new CalendarError("이 작업을 수행할 권한이 없습니다.", 403);
-  if (error.code === "23503" || error.code === "23514") throw new CalendarError("회의 종류, 강의 또는 시간 조건을 확인해 주세요.");
+  if (error.code === "23503" || error.code === "23514") throw new CalendarError("회의 종류, 강의, 참여자 또는 시간 조건을 확인해 주세요. 새 참여자는 같은 워크스페이스의 활성 사용자만 선택할 수 있습니다.");
   throw new Error(`Calendar database error: ${error.code ?? "UNKNOWN"}`);
 }
 
@@ -80,6 +83,28 @@ export async function loadCalendarCourses(supabase: SupabaseClient, workspaceId:
   }
 }
 
+// Called only after calendarContext verifies the caller's workspace membership.
+// No emails, Auth metadata, or service credentials leave this server module.
+export async function loadCalendarPeople(workspaceId: string): Promise<CalendarPerson[]> {
+  const admin = createAdminClient();
+  const memberIds = new Set<string>();
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await admin.from("workspace_members").select("user_id").eq("workspace_id", workspaceId).order("user_id").range(offset, offset + 499);
+    if (error) throw new Error("Calendar participant membership lookup failed");
+    for (const member of data ?? []) memberIds.add(member.user_id);
+    if (!data || data.length < 500) break;
+  }
+  const users: User[] = [];
+  for (let page = 1; ; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw new Error("Calendar participant directory lookup failed");
+    users.push(...data.users.filter((user) => memberIds.has(user.id)));
+    if (data.users.length < 1000) break;
+  }
+  const names = resolveUserDisplayNames(users.map((user) => ({ id: user.id, email: user.email, createdAt: user.created_at, metadata: user.user_metadata })));
+  return users.map((user) => ({ id: user.id, name: names.get(user.id)!, active: Boolean(user.email_confirmed_at) && !isAccountDisabled(user) })).sort((a, b) => a.name.localeCompare(b.name, "ko") || a.id.localeCompare(b.id));
+}
+
 export async function readCalendarBody(request: Request) {
   // Cookie-authenticated mutations must come from the same application origin.
   const origin = request.headers.get("origin");
@@ -114,13 +139,24 @@ export async function saveCalendarEvent(context: Awaited<ReturnType<typeof calen
     checkDatabase(error);
     if (!course) throw new CalendarError("연결할 강의를 찾을 수 없습니다.");
   }
-  const row = { title: input.title, event_date: input.eventDate, start_minutes: input.startMinutes, duration_minutes: input.durationMinutes, meeting_type_id: input.meetingTypeId, course_id: input.courseId, notes: input.notes };
+  // Old, already-open clients may omit participants: preserve them on updates.
+  const row = { title: input.title, event_date: input.eventDate, start_minutes: input.startMinutes, duration_minutes: input.durationMinutes, meeting_type_id: input.meetingTypeId, course_id: input.courseId, notes: input.notes,
+    ...(!eventId || Object.hasOwn(body as object, "participantIds") ? { participant_ids: input.participantIds } : {}) };
   const query = eventId
     ? supabase.from("shared_calendar_events").update(row).eq("id", eventId).eq("workspace_id", workspaceId).eq("version", parseVersion(body))
     : supabase.from("shared_calendar_events").insert({ ...row, workspace_id: workspaceId, created_by: user.id });
   const { data, error } = await query.select(EVENT_SELECT).maybeSingle();
   checkDatabase(error);
   if (!data) throw new CalendarError("일정이 변경되었거나 삭제되었습니다. 새로고침 후 다시 시도해 주세요.", 409);
+  return data as unknown as CalendarEvent;
+}
+
+export async function moveCalendarEvent(context: Awaited<ReturnType<typeof calendarContext>>, eventId: string, body: unknown) {
+  const parsed = moveEventSchema.safeParse(body);
+  if (!parsed.success) throw new CalendarError("이동할 날짜와 일정 버전을 확인해 주세요.");
+  const { data, error } = await context.supabase.from("shared_calendar_events").update({ event_date: parsed.data.eventDate }).eq("workspace_id", context.workspaceId).eq("id", eventId).eq("version", parsed.data.version).select(EVENT_SELECT).maybeSingle();
+  checkDatabase(error);
+  if (!data) throw new CalendarError("일정이 변경되었거나 삭제되었습니다. 새로고침 후 다시 이동해 주세요.", 409);
   return data as unknown as CalendarEvent;
 }
 

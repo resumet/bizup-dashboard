@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DURATIONS, START_TIMES, eventSchema, formatDuration, formatEventTime, isDateKey, koreaToday, meetingTypeSchema, monthDays, shiftMonth } from "./calendar";
+import { DURATIONS, START_TIMES, calendarShareText, eventSchema, formatDuration, formatEventTime, isDateKey, koreaToday, meetingTypeSchema, monthDays, moveEventSchema, shiftMonth, titleStartMinutes, updateDraftTitle } from "./calendar";
 import { validateRange, parseVersion, readCalendarBody } from "./server";
 
 const valid = { title: "강사 미팅", eventDate: "2026-10-08", startMinutes: 480, durationMinutes: 30, meetingTypeId: "00000000-0000-4000-8000-000000000001", courseId: null, notes: "" };
@@ -53,4 +53,38 @@ test("관리자 회의 항목 이름과 충돌 버전/조회 기간을 검증한
   assert.throws(() => validateRange("2026-11-01", "2026-10-01"));
   assert.throws(() => validateRange("2026-01-01", "2026-12-31"));
   assert.throws(() => validateRange(null, "2026-12-31"));
+});
+
+test("제목의 한국어/24시간 표현과 오전·오후, 반 시간을 인식한다", () => {
+  for (const [title, expected] of Object.entries({ "강사 11시 줌": 660, "오전 8시": 480, "오후 2시": 840, "오후2시 반 리허설": 870, "오후 12시 30분": 750, "11시30분": 690, "14:30 회의": 870, "08:00": 480, "21시": 1260, "1시 미팅": 780, "7시 반": 1170 })) assert.equal(titleStartMinutes(title), expected, title);
+  for (const title of ["회의만", "오전 7시", "오전 12시", "22시", "21:30", "11시 15분", "14:45", "110시", "오후 13시", "25:00"]) assert.equal(titleStartMinutes(title), null, title);
+});
+
+test("제목 시간 변경만 자동 반영하고 사용자가 선택한 소요시간과 수동 시작시간은 보존한다", () => {
+  const draft = { ...valid, startMinutes: 540, durationMinutes: 60, participantIds: [] };
+  const inferred = updateDraftTitle(draft, "11시 미팅");
+  assert.equal(inferred.startMinutes, 660); assert.equal(inferred.durationMinutes, 60);
+  const manual = { ...inferred, startMinutes: 720, durationMinutes: 90 };
+  assert.equal(updateDraftTitle(manual, "11시 미팅 자료 확인").startMinutes, 720);
+  assert.equal(updateDraftTitle(manual, "오후 2시 미팅").startMinutes, 840);
+  assert.equal(updateDraftTitle(manual, "오후 2시 미팅").durationMinutes, 90);
+});
+
+test("참여자는 생략/빈 선택이 가능하고 복수 UUID·중복·최대 인원을 검증한다", () => {
+  const ids = [valid.meetingTypeId, "00000000-0000-4000-8000-000000000002"];
+  assert.deepEqual(eventSchema.parse(valid).participantIds, []);
+  assert.deepEqual(eventSchema.parse({ ...valid, participantIds: ids }).participantIds, ids);
+  for (const participantIds of [null, "all", ["not-a-user"], [ids[0], ids[0]], Array(501).fill(ids[0])]) assert.equal(eventSchema.safeParse({ ...valid, participantIds }).success, false);
+});
+
+test("날짜 이동은 날짜/양의 버전만 필요하고 다른 필드를 변경하지 않는다", () => {
+  assert.deepEqual(moveEventSchema.parse({ eventDate: "2026-11-01", version: 2, title: "변경 금지" }), { eventDate: "2026-11-01", version: 2 });
+  for (const body of [{ eventDate: "2026-02-30", version: 1 }, { eventDate: valid.eventDate, version: 0 }, { eventDate: valid.eventDate }]) assert.equal(moveEventSchema.safeParse(body).success, false);
+});
+
+test("공유 텍스트는 제목·한국시간·종류·강의·복수 참여자·메모를 일반 텍스트로 구성한다", () => {
+  const text = calendarShareText({ ...valid, title: "  11시 미팅  ", startMinutes: 660, durationMinutes: 60, notes: "자료 확인\n줌 접속", participantIds: [] }, { meetingType: "강사 줌미팅", course: "검증 강의 · 강사", participants: ["김강사", "이담당"] });
+  assert.equal(text, "11시 미팅\n일시: 2026-10-08 11:00~12:00 (1시간) (한국시간)\n종류: 강사 줌미팅\n강의: 검증 강의 · 강사\n참여자: 김강사, 이담당\n\n자료 확인\n줌 접속");
+  const empty = calendarShareText({ ...valid, participantIds: [] }, { participants: [] });
+  assert.equal(empty.includes("참여자:"), false); assert.equal(empty.includes("강의:"), false);
 });
