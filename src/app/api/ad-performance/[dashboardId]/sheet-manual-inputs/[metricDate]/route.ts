@@ -6,7 +6,10 @@ import {
   loadAdPerformanceSheetState,
   persistAdPerformanceSheetState,
 } from "@/lib/ad-performance/sheet-server";
-import { resolveAdPerformanceSourceDate } from "@/lib/ad-performance/sheet-workspace";
+import {
+  resolveAdPerformanceSourceDate,
+  updateSheetChatMembers,
+} from "@/lib/ad-performance/sheet-workspace";
 import { sheetManualInputSchema } from "@/lib/ad-performance/sheet-validation";
 import { adPerformanceErrorResponse } from "@/lib/ad-performance/validation";
 import { createClient } from "@/lib/supabase/server";
@@ -46,18 +49,11 @@ export async function PUT(request: Request, { params }: Context) {
     if (!sourceDates.has(input.metricDate)) {
       throw new Error("원본 시트에 없는 날짜입니다.");
     }
-    const manualInputs = { ...current.manualInputs };
-    if (
-      input.bizupDbCumulative === null &&
-      input.chatMembersCumulative === null
-    ) {
-      delete manualInputs[input.metricDate];
-    } else {
-      manualInputs[input.metricDate] = {
-        bizupDbCumulative: input.bizupDbCumulative,
-        chatMembersCumulative: input.chatMembersCumulative,
-      };
-    }
+    const manualInputs = updateSheetChatMembers(
+      current.manualInputs,
+      input.metricDate,
+      input.chatMembersCumulative,
+    );
     const saved = await persistAdPerformanceSheetState({
       context,
       actorId: user.id,

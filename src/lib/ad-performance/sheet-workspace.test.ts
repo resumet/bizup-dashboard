@@ -10,6 +10,7 @@ import {
   filterAdPerformanceSourceRowsBeforeDate,
   normalizeAdPerformanceSourceRows,
   resolveAdPerformanceSourceDate,
+  updateSheetChatMembers,
 } from "./sheet-workspace";
 
 const spreadsheetId = "1tV5C6o_MBrX2UIp26fFJ-rXV2p3sFyorGZx_IVg8_4c";
@@ -233,4 +234,22 @@ test("유입 엑셀의 어제 그로스임팩트 매체 건수로 랜딩접수 D
 
   assert.equal(metric.googleLandingLeads, 3);
   assert.equal(metric.metaLandingLeads, 5);
+});
+
+test("날짜 입력에서는 자동 누적 비즈업 DB를 보존하고 톡방누적인원만 변경한다", () => {
+  const updated = updateSheetChatMembers(
+    {
+      "2026-10-07": {
+        bizupDbCumulative: 242,
+        chatMembersCumulative: 100,
+      },
+    },
+    "2026-10-07",
+    120,
+  );
+
+  assert.deepEqual(updated["2026-10-07"], {
+    bizupDbCumulative: 242,
+    chatMembersCumulative: 120,
+  });
 });

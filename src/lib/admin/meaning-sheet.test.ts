@@ -164,7 +164,7 @@ test("신청 목록 CSV를 유튜브 경로별·인스타·경로불명 오가�
     ["강의", "I", "", "", "26.10.06", "그로스임팩트", "메타"],
     ["강의", "J", "", "", "26.10.06", "그로스임팩트", "구글"],
     ["강의", "K", "", "", "26.10.05", "그로스임팩트", "메타"],
-  ], "2026-10-06");
+  ], "2026-10-07");
 
   assert.deepEqual(result.organicChannels, [
     "꿈꾸는사람들",
@@ -185,6 +185,21 @@ test("신청 목록 CSV를 유튜브 경로별·인스타·경로불명 오가�
     초월스토리: 1,
   });
   assert.equal(result.dailyByDate["10-05"].metaLandingDb, 0);
+  assert.equal(result.bizupDbCumulativeDate, "2026-10-06");
+  assert.equal(result.bizupDbCumulativeCount, 11);
+});
+
+test("신청 목록에서 오늘 신청분을 제외한 전체 행을 누적 비즈업 DB로 집계한다", () => {
+  const result = parseMeaningTrackingApplyList([
+    ["신청일", "유입경로", "진행매체"],
+    ["26.10.06", "그로스임팩트", "메타"],
+    ["26.10.07", "직접", ""],
+    ["26.10.08", "꿈꾸는사람들", "유튜브"],
+    ["날짜없음", "그로스임팩트", "구글"],
+  ], "2026-10-08");
+
+  assert.equal(result.bizupDbCumulativeDate, "2026-10-07");
+  assert.equal(result.bizupDbCumulativeCount, 2);
 });
 
 test("Google 시트의 월일 표기를 엑셀 날짜 키와 연결한다", () => {

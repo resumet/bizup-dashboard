@@ -14,6 +14,8 @@ export type MeaningTrackingImport = {
   dailyByDate: Record<string, MeaningTrackingDailyValues>;
   organicChannels: string[];
   matchedRowCount: number;
+  bizupDbCumulativeDate?: string;
+  bizupDbCumulativeCount?: number;
 };
 
 function cellText(value: unknown) {
@@ -111,7 +113,7 @@ function trackingDate(value: unknown) {
   };
 }
 
-function previousSeoulDate(value = new Date()) {
+function currentSeoulDate(value = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Seoul",
     year: "numeric",
@@ -123,7 +125,11 @@ function previousSeoulDate(value = new Date()) {
   const today = Object.fromEntries(
     parts.map((part) => [part.type, part.value]),
   );
-  const previous = new Date(`${today.year}-${today.month}-${today.day}T00:00:00Z`);
+  return `${today.year}-${today.month}-${today.day}`;
+}
+
+function previousIsoDate(value: string) {
+  const previous = new Date(`${value}T00:00:00Z`);
   previous.setUTCDate(previous.getUTCDate() - 1);
   return previous.toISOString().slice(0, 10);
 }
@@ -162,13 +168,15 @@ function applyListHeaderColumns(row: readonly unknown[]) {
 
 export function parseMeaningTrackingApplyList(
   rows: readonly (readonly unknown[])[],
-  paidLandingDate = previousSeoulDate(),
+  todayDate = currentSeoulDate(),
 ): MeaningTrackingImport {
+  const paidLandingDate = previousIsoDate(todayDate);
   const dailyByDate: Record<string, MeaningTrackingDailyValues> = {};
   const youtubeChannels: string[] = [];
   const knownYoutubeChannels = new Set<string>();
   let columns: ReturnType<typeof applyListHeaderColumns> = null;
   let matchedRowCount = 0;
+  let bizupDbCumulativeCount = 0;
 
   for (const row of rows) {
     const detectedColumns = applyListHeaderColumns(row);
@@ -180,6 +188,7 @@ export function parseMeaningTrackingApplyList(
 
     const date = trackingDate(row[columns.date]);
     if (!date) continue;
+    if (date.fullDate < todayDate) bizupDbCumulativeCount += 1;
 
     const media = normalizedText(row[columns.media]);
     const normalizedChannel = normalizedText(row[columns.channel]);
@@ -229,6 +238,8 @@ export function parseMeaningTrackingApplyList(
       UNKNOWN_ORGANIC_CHANNEL,
     ],
     matchedRowCount,
+    bizupDbCumulativeDate: paidLandingDate,
+    bizupDbCumulativeCount,
   };
 }
 

@@ -14,6 +14,5 @@ const nullableCount = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).nulla
 
 export const sheetManualInputSchema = z.object({
   metricDate: dateValue,
-  bizupDbCumulative: nullableCount,
   chatMembersCumulative: nullableCount,
 });

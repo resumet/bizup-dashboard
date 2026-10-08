@@ -70,7 +70,6 @@ import {
   resolveAdPerformanceSourceDate,
 } from "@/lib/ad-performance/sheet-workspace";
 import type {
-  AdPerformanceSheetManualInput,
   AdPerformanceSheetState,
 } from "@/lib/ad-performance/types";
 import { cn } from "@/lib/utils";
@@ -84,12 +83,10 @@ type SelectedDate = {
 };
 
 type ManualInputDraft = {
-  bizupDbCumulative: string;
   chatMembersCumulative: string;
 };
 
 const EMPTY_MANUAL_INPUT_DRAFT: ManualInputDraft = {
-  bizupDbCumulative: "",
   chatMembersCumulative: "",
 };
 
@@ -441,7 +438,6 @@ export function MeaningSheetWorkspace({
 
     setSelectedDate({ key, label });
     setManualInputDraft({
-      bizupDbCumulative: formatInteger(saved?.bizupDbCumulative),
       chatMembersCumulative: formatInteger(saved?.chatMembersCumulative),
     });
     setManualInputError("");
@@ -453,11 +449,7 @@ export function MeaningSheetWorkspace({
 
     try {
       setBusyAction("manual");
-      const nextInput: AdPerformanceSheetManualInput = {
-        bizupDbCumulative: parseNonnegativeInteger(
-          manualInputDraft.bizupDbCumulative,
-          "누적 비즈업 DB",
-        ),
+      const nextInput = {
         chatMembersCumulative: parseNonnegativeInteger(
           manualInputDraft.chatMembersCumulative,
           "톡방누적인원",
@@ -855,7 +847,7 @@ export function MeaningSheetWorkspace({
                                 variant="ghost"
                                 size="sm"
                                 className="h-5 w-full justify-between gap-0.5 px-0.5 text-[10px] font-semibold text-primary hover:text-primary"
-                                title="누적 비즈업 DB와 톡방누적인원 입력"
+                                title="톡방누적인원 입력"
                                 onClick={() => openManualInput(cell, metricDate)}
                               >
                                 <span className="whitespace-nowrap">{cell}</span>
@@ -1191,29 +1183,11 @@ export function MeaningSheetWorkspace({
             <DialogHeader>
               <DialogTitle>{selectedDate?.label ?? "날짜별 상세 입력"}</DialogTitle>
               <DialogDescription className="sr-only">
-                누적 비즈업 DB와 톡방누적인원을 저장합니다.
+                톡방누적인원을 저장합니다.
               </DialogDescription>
             </DialogHeader>
 
             <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="meaning-bizup-db-cumulative">
-                  누적 비즈업 DB
-                </Label>
-                <Input
-                  id="meaning-bizup-db-cumulative"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  placeholder="예: 242"
-                  value={manualInputDraft.bizupDbCumulative}
-                  onChange={(event) =>
-                    setManualInputDraft((current) => ({
-                      ...current,
-                      bizupDbCumulative: event.target.value,
-                    }))
-                  }
-                />
-              </div>
               <div className="grid gap-2">
                 <Label htmlFor="meaning-chat-members-cumulative">
                   톡방누적인원

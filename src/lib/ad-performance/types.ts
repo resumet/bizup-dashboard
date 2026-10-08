@@ -38,6 +38,8 @@ export type AdPerformanceTrackingImport = {
   dailyByDate: Record<string, AdPerformanceTrackingDailyValues>;
   organicChannels: string[];
   matchedRowCount: number;
+  bizupDbCumulativeDate?: string;
+  bizupDbCumulativeCount?: number;
   sourceStoragePath?: string;
 };
 

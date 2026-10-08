@@ -93,6 +93,17 @@ export async function POST(request: Request, { params }: Context) {
     const tracking = await parseAdPerformanceTrackingFile(file);
     const previousStoragePath = current.tracking?.sourceStoragePath ?? null;
     const sourceStoragePath = await storeAdPerformanceTrackingFile(context, file);
+    const manualInputs = { ...current.manualInputs };
+    if (
+      tracking.bizupDbCumulativeDate &&
+      tracking.bizupDbCumulativeCount !== undefined
+    ) {
+      const savedInput = manualInputs[tracking.bizupDbCumulativeDate];
+      manualInputs[tracking.bizupDbCumulativeDate] = {
+        bizupDbCumulative: tracking.bizupDbCumulativeCount,
+        chatMembersCumulative: savedInput?.chatMembersCumulative ?? null,
+      };
+    }
     let saved: Awaited<ReturnType<typeof persistAdPerformanceSheetState>>;
     try {
       saved = await persistAdPerformanceSheetState({
@@ -103,6 +114,7 @@ export async function POST(request: Request, { params }: Context) {
           ...current,
           trackingFileName: file.name.replace(/[\\/]/gu, "").slice(0, 255),
           tracking: { ...tracking, sourceStoragePath },
+          manualInputs,
         },
       });
     } catch (error) {

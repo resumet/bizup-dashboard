@@ -270,3 +270,22 @@ export function sanitizeSheetManualInputs(value: unknown) {
     ),
   ) as Record<string, AdPerformanceSheetManualInput>;
 }
+
+export function updateSheetChatMembers(
+  manualInputs: Readonly<Record<string, AdPerformanceSheetManualInput>>,
+  metricDate: string,
+  chatMembersCumulative: number | null,
+) {
+  const updated = { ...manualInputs };
+  const savedInput = updated[metricDate];
+  if (savedInput?.bizupDbCumulative == null && chatMembersCumulative === null) {
+    delete updated[metricDate];
+    return updated;
+  }
+
+  updated[metricDate] = {
+    bizupDbCumulative: savedInput?.bizupDbCumulative ?? null,
+    chatMembersCumulative,
+  };
+  return updated;
+}
