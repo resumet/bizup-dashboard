@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowLeft, EllipsisVertical } from "lucide-react";
 
 import { BackLink } from "@/components/layout/back-link";
+import { Suspense } from "react";
+import { CourseCalendarSection } from "@/components/shared-calendar/course-calendar-section";
 import { CourseOperationsEditor } from "@/components/course-operations/course-editor";
 import { PendingLinkLabel } from "@/components/navigation/pending-link-label";
 import { Button } from "@/components/ui/button";
@@ -45,7 +47,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
   const supabase = await createClient();
   const user = await getAuthenticatedUser(supabase);
   if (!user) redirect("/login");
-  await requireCourseOperationsMembership(user.id);
+  const membership = await requireCourseOperationsMembership(user.id);
 
   const { data: course, error: courseError } = await supabase
     .from("courses")
@@ -223,6 +225,9 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
           notesLoadError={notesLoadError}
           loadError={loadError}
         />
+        <Suspense fallback={<p className="mt-6 text-sm text-muted-foreground">공용캘린더 일정을 불러오는 중…</p>}>
+          <CourseCalendarSection supabase={supabase} workspaceId={membership.workspace_id} courseId={courseId} />
+        </Suspense>
       </div>
     </main>
   );

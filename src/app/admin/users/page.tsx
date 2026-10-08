@@ -13,6 +13,8 @@ import { UserRoleSelect } from "@/components/admin/user-role-select";
 import { UserNameEditor } from "@/components/admin/user-name-editor";
 import { UserStatusToggle } from "@/components/admin/user-status-toggle";
 import { CommonLinksManager } from "@/components/admin/common-links-manager";
+import { CalendarMeetingTypesManager } from "@/components/admin/calendar-meeting-types-manager";
+import { calendarContext, loadMeetingTypes } from "@/lib/shared-calendar/server";
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -76,6 +78,10 @@ export default async function AdminUsersPage({
 
   if (!currentUser) redirect("/login");
   if (!isSuperAdminEmail(currentUser.email)) notFound();
+
+  const calendar = await calendarContext(true).then(async (context) => ({
+    types: await loadMeetingTypes(context.supabase, context.workspaceId), error: "",
+  })).catch(() => ({ types: [], error: "회의 항목을 불러오지 못했습니다. 새로고침해 주세요." }));
 
   const params = await searchParams;
   const queryValue = Array.isArray(params.q) ? params.q[0] : params.q;
@@ -144,6 +150,7 @@ export default async function AdminUsersPage({
 
       <div className="mx-auto max-w-[1900px] space-y-6 px-5 py-8 lg:px-8">
         <CommonLinksManager />
+        <CalendarMeetingTypesManager initialTypes={calendar.types} loadError={calendar.error} />
         <section>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             사용자 계정과 정보 설정하기
