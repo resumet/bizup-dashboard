@@ -25,9 +25,9 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const selectedCourse = uuidSchema.safeParse(courseId).success && result.courses.some((course) => course.id === courseId) ? courseId : undefined;
   return <main className="min-h-screen">
     <header className="border-b bg-background"><div className="mx-auto flex min-h-16 max-w-[1900px] items-center justify-between gap-3 px-5 py-4 lg:px-8"><BrandHomeLink /><div className="flex items-center gap-2">{context.isAdmin ? <Button asChild variant="outline" size="sm"><Link href="/admin/calendar">회의 항목 추가</Link></Button> : null}<UserAccountMenu email={context.user.email ?? ""} /></div></div></header>
-    <div className="mx-auto max-w-[1900px] space-y-6 px-5 py-8 lg:px-8">
+    <div className="mx-auto max-w-[1900px] space-y-2 px-5 py-2 lg:px-8">
       <h1 className="text-2xl font-semibold">공용캘린더</h1>
-      <SharedCalendar today={today} initialEvents={result.events} initialSources={result.sources} initialSourcesWarning={result.sourcesWarning} initialTypes={result.types} courses={result.courses} initialError={result.error} initialCourseId={selectedCourse} isAdmin={context.isAdmin} />
+      <SharedCalendar today={today} currentUserId={context.user.id} initialEvents={result.events} initialSources={result.sources} initialSourcesWarning={result.sourcesWarning} initialTypes={result.types} courses={result.courses} initialError={result.error} initialCourseId={selectedCourse} isAdmin={context.isAdmin} />
     </div>
   </main>;
 }

@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, ListPlus, Plus, RefreshCw } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { CalendarEventForm, selectClass } from "./event-form";
 import { CalendarBulkForm } from "./bulk-form";
-import { formatCalendarTime, formatLocation, formatTime, monthDays, shiftMonth } from "@/lib/shared-calendar/calendar";
+import { filterCalendarEvents, formatCalendarTime, formatLocation, formatTime, monthDays, shiftMonth } from "@/lib/shared-calendar/calendar";
 import type { CalendarCourse, CalendarEvent, CalendarSourceEvent, MeetingType } from "@/lib/shared-calendar/types";
 import { cn } from "@/lib/utils";
 
@@ -15,8 +15,8 @@ const COLORS: Record<string, string> = {
   webinar: "bg-violet-100 text-violet-900", weekly_meeting: "bg-emerald-100 text-emerald-900",
 };
 
-export function SharedCalendar({ today, initialEvents, initialSources = [], initialSourcesWarning = "", initialTypes, courses, initialError, initialCourseId, isAdmin = false }: {
-  today: string; initialEvents: CalendarEvent[]; initialSources?: CalendarSourceEvent[]; initialSourcesWarning?: string; initialTypes: MeetingType[]; courses: CalendarCourse[]; initialError?: string; initialCourseId?: string; isAdmin?: boolean;
+export function SharedCalendar({ today, currentUserId, initialEvents, initialSources = [], initialSourcesWarning = "", initialTypes, courses, initialError, initialCourseId, isAdmin = false }: {
+  today: string; currentUserId: string; initialEvents: CalendarEvent[]; initialSources?: CalendarSourceEvent[]; initialSourcesWarning?: string; initialTypes: MeetingType[]; courses: CalendarCourse[]; initialError?: string; initialCourseId?: string; isAdmin?: boolean;
 }) {
   const [month, setMonth] = useState(today.slice(0, 7));
   const [selectedDate, setSelectedDate] = useState(today);
@@ -25,6 +25,7 @@ export function SharedCalendar({ today, initialEvents, initialSources = [], init
   const [sourcesWarning, setSourcesWarning] = useState(initialSourcesWarning);
   const [showWebinars, setShowWebinars] = useState(true);
   const [showLeaves, setShowLeaves] = useState(false);
+  const [onlyMine, setOnlyMine] = useState(false);
   const [types, setTypes] = useState(initialTypes);
   const [filter, setFilter] = useState("");
   const [editor, setEditor] = useState<{ event: CalendarEvent | null; date: string } | null>(null);
@@ -92,7 +93,8 @@ export function SharedCalendar({ today, initialEvents, initialSources = [], init
     } catch (failure) { setMoveError(failure instanceof Error ? failure.message : "일정 날짜를 변경하지 못했습니다."); }
     finally { mutation.current += 1; movePending.current = false; setMoving(false); setReload((value) => value + 1); }
   }
-  const visible = filter ? events.filter((event) => event.meeting_type_id === filter) : events;
+  const visible = filterCalendarEvents(events, { meetingTypeId: filter, onlyMine, currentUserId });
+  // Linked webinars and leave have no calendar participants; their toggles stay independent.
   const visibleSources = sources.filter((event) => event.source === "webinar"
     ? showWebinars && (!filter || types.find((type) => type.id === filter)?.code === "webinar")
     : showLeaves && !filter);
@@ -101,51 +103,53 @@ export function SharedCalendar({ today, initialEvents, initialSources = [], init
   for (const list of byDay.values()) list.sort((a, b) => a.start_minutes - b.start_minutes || a.id.localeCompare(b.id));
   const dayEvents = byDay.get(selectedDate) ?? [];
 
-  return <div className="space-y-5">
-    <div className="flex flex-wrap items-center justify-between gap-3">
+  return <div className="space-y-2">
+    <div data-calendar-toolbar className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-2">
         <Button variant="outline" size="icon-sm" aria-label="이전 달" onClick={() => moveMonth(-1)}><ChevronLeft /></Button>
         <h2 className="min-w-32 text-center text-lg font-semibold">{Number(month.slice(0, 4))}년 {Number(month.slice(5))}월</h2>
         <Button variant="outline" size="icon-sm" aria-label="다음 달" onClick={() => moveMonth(1)}><ChevronRight /></Button>
-        <Button variant="ghost" onClick={() => { setMonth(today.slice(0, 7)); setSelectedDate(today); }}>오늘</Button>
+        <Button variant="ghost" size="sm" onClick={() => { setMonth(today.slice(0, 7)); setSelectedDate(today); }}>오늘</Button>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="sr-only" htmlFor="calendar-type-filter">회의 종류 필터</label>
-        <select id="calendar-type-filter" className={cn(selectClass, "w-auto max-w-48")} value={filter} onChange={(e) => setFilter(e.target.value)}><option value="">모든 종류</option>{types.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}</select>
-        <Button variant="outline" size="icon-sm" aria-label="일정 새로고침" disabled={loading} onClick={() => { setLoading(true); setReload((value) => value + 1); }}><RefreshCw className={loading ? "animate-spin" : ""} /></Button>
-        <Button variant="outline" disabled={!types.length || loading || moving} onClick={() => setBulkOpen(true)}><ListPlus />일괄 입력</Button>
-        <Button disabled={!types.length || loading || moving} onClick={() => addOnDate(selectedDate)}><Plus />일정 등록</Button>
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 sm:flex-1 sm:justify-end">
+        <div role="group" aria-label="일정 표시 옵션" className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+          <label className="flex items-center gap-2 whitespace-nowrap" title="참여자에 내가 포함된 공용 일정만 표시합니다. 강의 웨비나와 직원 휴가는 각각의 표시 옵션을 따릅니다."><input type="checkbox" checked={onlyMine} aria-describedby="calendar-mine-help" onChange={(e) => setOnlyMine(e.target.checked)} />내가 포함된 항목만 보기</label>
+          <label className="flex items-center gap-2 whitespace-nowrap"><input type="checkbox" checked={showWebinars} onChange={(e) => setShowWebinars(e.target.checked)} />강의 웨비나 표시</label>
+          <label className="flex items-center gap-2 whitespace-nowrap"><input type="checkbox" checked={showLeaves} onChange={(e) => { setShowLeaves(e.target.checked); setSources((current) => current.filter((event) => event.source !== "leave")); setSourcesWarning(""); setLoading(true); }} />직원 휴가 표시</label>
+          <span id="calendar-mine-help" className="sr-only">참여자에 내가 포함된 공용 일정만 표시합니다. 강의 웨비나와 직원 휴가는 각각의 표시 옵션을 따릅니다.</span>
+        </div>
+        <div role="group" aria-label="일정 관리" className="flex flex-wrap items-center gap-1 sm:gap-2">
+          <label className="sr-only" htmlFor="calendar-type-filter">회의 종류 필터</label>
+          <select id="calendar-type-filter" className={cn(selectClass, "w-[100px] max-w-48 px-2 sm:w-auto sm:px-3")} value={filter} onChange={(e) => setFilter(e.target.value)}><option value="">모든 종류</option>{types.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}</select>
+          <Button variant="outline" size="icon-sm" aria-label="일정 새로고침" disabled={loading} onClick={() => { setLoading(true); setReload((value) => value + 1); }}><RefreshCw className={loading ? "animate-spin" : ""} /></Button>
+          <Button variant="outline" size="sm" className="px-2 sm:px-3" disabled={!types.length || loading || moving} onClick={() => setBulkOpen(true)}><ListPlus className="hidden sm:block" />일괄 입력</Button>
+          <Button size="sm" className="px-2 sm:px-3" disabled={!types.length || loading || moving} onClick={() => addOnDate(selectedDate)}><Plus className="hidden sm:block" />일정 등록</Button>
+        </div>
       </div>
-    </div>
-    <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
-      <label className="flex items-center gap-2"><input type="checkbox" checked={showWebinars} onChange={(e) => setShowWebinars(e.target.checked)} />강의 웨비나 표시</label>
-      <label className="flex items-center gap-2"><input type="checkbox" checked={showLeaves} aria-describedby="calendar-leave-help" onChange={(e) => { setShowLeaves(e.target.checked); setSources((current) => current.filter((event) => event.source !== "leave")); setSourcesWarning(""); setLoading(true); }} />직원 휴가 표시</label>
-      <p id="calendar-leave-help" className="w-full text-xs text-muted-foreground">직원 휴가는 승인된 종일·반차만 표시합니다. 웨비나와 휴가는 원래 강의·휴가 관리 화면에서 수정합니다.</p>
     </div>
     {error || moveError ? <p role="alert" className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">{error || moveError}</p> : null}
     {sourcesWarning ? <p role="alert" className="rounded-md border border-amber-300 p-3 text-sm text-amber-900">{sourcesWarning}</p> : null}
     {notice ? <p role="status" className="text-sm text-emerald-700">{notice}</p> : null}
-    <p className="text-xs text-muted-foreground">날짜를 더블클릭하면 등록, 일정을 더블클릭하면 수정합니다. 일정을 다른 날짜로 드래그해 이동할 수 있습니다. 키보드에서는 날짜나 일정에 초점을 맞추고 Enter 키를 누르세요.</p>
     {moving ? <p role="status" className="text-sm text-muted-foreground">일정 날짜를 변경하는 중…</p> : null}
-    <div className="overflow-hidden rounded-lg border bg-background" aria-busy={loading}>
-      <div className="grid grid-cols-7 bg-muted/40">{["일", "월", "화", "수", "목", "금", "토"].map((day, index) => <div key={day} className={cn("border-b py-3 text-center text-sm font-medium", index === 0 && "text-red-600", index === 6 && "text-blue-600")}>{day}</div>)}</div>
-      <div className="grid grid-cols-7">{days.map((date) => <div key={date} data-calendar-date={date} onDoubleClick={() => addOnDate(date)} onDragOver={(e) => { if (dragging.current && !movePending.current) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropDate(date); } }} onDragLeave={(e) => { if (!(e.relatedTarget instanceof Node) || !e.currentTarget.contains(e.relatedTarget)) setDropDate((current) => current === date ? null : current); }} onDrop={(e) => { e.preventDefault(); void dropOnDate(date); }} className={cn("min-h-20 border-b border-r p-1 last:border-r-0 sm:min-h-32 sm:p-2", date.slice(0, 7) !== month && "bg-muted/30", selectedDate === date && "bg-blue-50/60", dropDate === date && "bg-blue-100 ring-2 ring-inset ring-blue-500")}>
-        <button type="button" aria-label={`${date} 일정 보기`} aria-pressed={selectedDate === date} onClick={(e) => { setSelectedDate(date); if (e.detail === 0) addOnDate(date); }} className={cn("grid size-7 place-items-center rounded-full text-sm focus-visible:outline-2 focus-visible:outline-ring", date === today && "bg-primary text-primary-foreground", date.slice(0, 7) !== month && "opacity-50")}>{Number(date.slice(8))}</button>
-        <div className="mt-1 space-y-1">{(byDay.get(date) ?? []).map((event) => "source" in event ? <CalendarSourceLink key={event.id} event={event} compact /> : <button key={event.id} type="button" disabled={moving} draggable={!moving} aria-label={`${event.title} 수정`} title={`${event.meeting_type.name} · ${event.title} · ${formatCalendarTime(event)} · ${formatLocation(event.location_kind, event.location_text)} · 더블클릭으로 수정`} onClick={(e) => { e.stopPropagation(); setSelectedDate(date); if (e.detail === 0) setEditor({ event, date }); }} onDoubleClick={(e) => { e.stopPropagation(); setSelectedDate(date); setEditor({ event, date }); }} onDragStart={(e) => { dragging.current = event; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", event.id); }} onDragEnd={() => { dragging.current = null; setDropDate(null); }} className={cn("block w-full cursor-grab truncate rounded px-1 py-1 text-left text-[10px] font-medium focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing disabled:opacity-50 sm:px-2 sm:text-xs", COLORS[event.meeting_type.code ?? ""] ?? "bg-slate-100 text-slate-900")}><span className="hidden sm:inline">{event.time_tbd ? "시간 미정" : formatTime(event.start_minutes)} </span>{event.title}</button>)}</div>
+    <div data-calendar-grid className="overflow-hidden rounded-lg border bg-background" aria-busy={loading}>
+      <div className="grid grid-cols-7 bg-muted/40">{["일", "월", "화", "수", "목", "금", "토"].map((day, index) => <div key={day} className={cn("border-b py-1 text-center text-sm font-medium", index === 0 && "text-red-600", index === 6 && "text-blue-600")}>{day}</div>)}</div>
+      <div className="grid grid-cols-7">{days.map((date) => <div key={date} data-calendar-date={date} onDoubleClick={() => addOnDate(date)} onDragOver={(e) => { if (dragging.current && !movePending.current) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropDate(date); } }} onDragLeave={(e) => { if (!(e.relatedTarget instanceof Node) || !e.currentTarget.contains(e.relatedTarget)) setDropDate((current) => current === date ? null : current); }} onDrop={(e) => { e.preventDefault(); void dropOnDate(date); }} className={cn("flex h-[clamp(58px,calc((100dvh-500px)/6),96px)] min-w-0 flex-col border-b border-r p-1 last:border-r-0 sm:h-[clamp(58px,calc((100dvh-430px)/6),112px)]", date.slice(0, 7) !== month && "bg-muted/30", selectedDate === date && "bg-blue-50/60", dropDate === date && "bg-blue-100 ring-2 ring-inset ring-blue-500")}>
+        <button type="button" aria-label={`${date} 일정 보기`} aria-pressed={selectedDate === date} onClick={(e) => { setSelectedDate(date); if (e.detail === 0) addOnDate(date); }} className={cn("grid size-[24px] shrink-0 place-items-center rounded-full text-sm focus-visible:outline-2 focus-visible:outline-ring", date === today && "bg-primary text-primary-foreground", date.slice(0, 7) !== month && "opacity-50")}>{Number(date.slice(8))}</button>
+        <div data-calendar-events className="mt-0.5 min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain">{(byDay.get(date) ?? []).map((event) => "source" in event ? <CalendarSourceLink key={event.id} event={event} compact /> : <button key={event.id} type="button" disabled={moving} draggable={!moving} aria-label={`${event.title} 수정`} title={`${event.meeting_type.name} · ${event.title} · ${formatCalendarTime(event)} · ${formatLocation(event.location_kind, event.location_text)} · 더블클릭으로 수정`} onClick={(e) => { e.stopPropagation(); setSelectedDate(date); if (e.detail === 0) setEditor({ event, date }); }} onDoubleClick={(e) => { e.stopPropagation(); setSelectedDate(date); setEditor({ event, date }); }} onDragStart={(e) => { dragging.current = event; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", event.id); }} onDragEnd={() => { dragging.current = null; setDropDate(null); }} className={cn("block w-full cursor-grab truncate rounded px-1 py-0.5 text-left text-[10px] font-medium focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing disabled:opacity-50 sm:px-2 sm:text-xs", COLORS[event.meeting_type.code ?? ""] ?? "bg-slate-100 text-slate-900")}><span className="hidden sm:inline">{event.time_tbd ? "시간 미정" : formatTime(event.start_minutes)} </span>{event.title}</button>)}</div>
       </div>)}</div>
     </div>
-    <section className="rounded-lg border bg-background p-5">
-      <h2 className="mb-4 text-lg font-semibold">{selectedDate.replaceAll("-", ".")} 일정</h2>
-      {loading ? <p role="status" className="text-sm text-muted-foreground">일정을 불러오는 중…</p> : dayEvents.length ? <ul className="divide-y">{dayEvents.map((event) => "source" in event ? <li key={event.id} className="space-y-2 py-4 first:pt-0 last:pb-0">
+    <section className="rounded-lg border bg-background p-2">
+      <h2 className="mb-1 text-base font-semibold">{selectedDate.replaceAll("-", ".")} 일정</h2>
+      {loading ? <p role="status" className="text-sm text-muted-foreground">일정을 불러오는 중…</p> : dayEvents.length ? <ul className="max-h-[clamp(72px,calc(100dvh-42rem),144px)] divide-y overflow-y-auto overscroll-contain">{dayEvents.map((event) => "source" in event ? <li key={event.id} className="space-y-1 py-2 first:pt-0 last:pb-0">
         <CalendarSourceLink event={event} />
         <p className="text-sm text-muted-foreground">{event.source === "webinar" ? "웨비나" : "직원 휴가"} · {event.time_label}</p>
-      </li> : <li key={event.id} className="space-y-2 py-4 first:pt-0 last:pb-0">
+      </li> : <li key={event.id} className="space-y-1 py-2 first:pt-0 last:pb-0">
         <button type="button" disabled={moving} title="더블클릭으로 수정" className="text-left font-semibold underline-offset-4 hover:underline" onClick={(e) => { if (e.detail === 0) setEditor({ event, date: selectedDate }); }} onDoubleClick={() => setEditor({ event, date: selectedDate })}>{event.title}</button>
         <p className="text-sm text-muted-foreground">{event.meeting_type.name} · {formatCalendarTime(event)}</p>
         <p className="text-sm text-muted-foreground">장소: {formatLocation(event.location_kind, event.location_text)}</p>
         {event.course ? <Link className="block text-sm text-blue-700 underline underline-offset-4" href={`/services/course-operations/${event.course.id}`}>{event.course.name} · {event.course.instructor_name}</Link> : null}
         {event.notes ? <p className="whitespace-pre-wrap break-words text-sm">{event.notes}</p> : null}
-      </li>)}</ul> : <p className="text-sm text-muted-foreground">{error ? "조회에 실패했습니다. 새로고침해 주세요." : "등록된 일정이 없습니다. 날짜를 더블클릭하거나 일정 등록 버튼을 눌러 주세요."}</p>}
+      </li>)}</ul> : <p className="text-sm text-muted-foreground">{error ? "조회에 실패했습니다. 새로고침해 주세요." : onlyMine || filter ? "현재 표시 조건에 맞는 일정이 없습니다." : "등록된 일정이 없습니다. 날짜를 더블클릭하거나 일정 등록 버튼을 눌러 주세요."}</p>}
     </section>
     {bulkOpen ? <CalendarBulkForm year={Number(month.slice(0, 4))} types={types} courses={courses} isAdmin={isAdmin} onClose={() => setBulkOpen(false)} onImported={(added, meetingTypes, count, alreadyImported) => {
       mutation.current += 1; const ids = new Set(added.map((event) => event.id));
@@ -164,7 +168,7 @@ export function SharedCalendar({ today, initialEvents, initialSources = [], init
 function CalendarSourceLink({ event, compact = false }: { event: CalendarSourceEvent; compact?: boolean }) {
   return <Link href={event.href} draggable={false} onDragStart={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}
     title={`${event.title} · ${event.time_label} · 원래 관리 화면에서 수정`}
-    className={compact ? cn("block w-full truncate rounded px-1 py-1 text-left text-[10px] font-medium focus-visible:outline-2 focus-visible:outline-ring sm:px-2 sm:text-xs", event.source === "webinar" ? COLORS.webinar : "bg-rose-100 text-rose-900") : "font-semibold underline-offset-4 hover:underline"}>
+    className={compact ? cn("block w-full truncate rounded px-1 py-0.5 text-left text-[10px] font-medium focus-visible:outline-2 focus-visible:outline-ring sm:px-2 sm:text-xs", event.source === "webinar" ? COLORS.webinar : "bg-rose-100 text-rose-900") : "font-semibold underline-offset-4 hover:underline"}>
     {compact ? <span className="hidden sm:inline">{event.time_label} </span> : null}{event.title}
   </Link>;
 }

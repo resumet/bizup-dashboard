@@ -1,8 +1,16 @@
 import { z } from "zod";
-import type { CalendarDraft, CalendarLocationKind } from "./types";
+import type { CalendarDraft, CalendarEvent, CalendarLocationKind } from "./types";
 
 export const START_TIMES = Array.from({ length: 27 }, (_, index) => 480 + index * 30);
 export const DURATIONS = Array.from({ length: 48 }, (_, index) => (index + 1) * 30);
+
+export function filterCalendarEvents<T extends Pick<CalendarEvent, "meeting_type_id" | "participant_ids">>(
+  events: T[],
+  { meetingTypeId, onlyMine, currentUserId }: { meetingTypeId: string; onlyMine: boolean; currentUserId: string },
+): T[] {
+  return events.filter((event) => (!meetingTypeId || event.meeting_type_id === meetingTypeId)
+    && (!onlyMine || event.participant_ids.includes(currentUserId)));
+}
 
 export function isDateKey(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/u.test(value)) return false;

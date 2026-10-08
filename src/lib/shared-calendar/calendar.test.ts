@@ -1,9 +1,35 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DURATIONS, START_TIMES, calendarShareText, eventSchema, formatDuration, formatEventTime, isDateKey, koreaToday, meetingTypeSchema, monthDays, moveEventSchema, shiftMonth, titleStartMinutes, updateDraftTitle } from "./calendar";
+import { DURATIONS, START_TIMES, calendarShareText, eventSchema, filterCalendarEvents, formatDuration, formatEventTime, isDateKey, koreaToday, meetingTypeSchema, monthDays, moveEventSchema, shiftMonth, titleStartMinutes, updateDraftTitle } from "./calendar";
 import { validateRange, parseVersion, readCalendarBody } from "./server";
 
 const valid = { title: "강사 미팅", eventDate: "2026-10-08", startMinutes: 480, durationMinutes: 30, meetingTypeId: "00000000-0000-4000-8000-000000000001", courseId: null, notes: "", locationKind: "tbd" as const, locationText: "", timeTbd: false };
+
+const visibilityEvents = [
+  { id: "mine", meeting_type_id: "zoom", participant_ids: ["me", "other"], created_by: "other" },
+  { id: "other", meeting_type_id: "zoom", participant_ids: ["other"], created_by: "me" },
+  { id: "empty", meeting_type_id: "zoom", participant_ids: [], created_by: "me" },
+  { id: "weekly", meeting_type_id: "weekly", participant_ids: ["me"], created_by: "me" },
+];
+
+test("내 일정 옵션을 끄면 참여자가 없거나 내가 참여하지 않은 일정도 표시한다", () => {
+  assert.deepEqual(filterCalendarEvents(visibilityEvents, { meetingTypeId: "", onlyMine: false, currentUserId: "me" }), visibilityEvents);
+});
+
+test("내 일정은 작성자가 아닌 참여자 ID로 판단하고 빈 참여자 일정은 제외한다", () => {
+  assert.deepEqual(filterCalendarEvents(visibilityEvents, { meetingTypeId: "", onlyMine: true, currentUserId: "me" }).map((event) => event.id), ["mine", "weekly"]);
+});
+
+test("내 일정과 회의 종류 필터는 함께 적용하며 원본 일정을 변경하지 않는다", () => {
+  assert.deepEqual(filterCalendarEvents(visibilityEvents, { meetingTypeId: "zoom", onlyMine: true, currentUserId: "me" }).map((event) => event.id), ["mine"]);
+  assert.deepEqual(filterCalendarEvents(visibilityEvents, { meetingTypeId: "zoom", onlyMine: false, currentUserId: "me" }).map((event) => event.id), ["mine", "other", "empty"]);
+  assert.equal(visibilityEvents.length, 4);
+});
+
+test("로그인 계정이 바뀌면 해당 ID를 기준으로 필터링하고 일치하는 계정이 없으면 비운다", () => {
+  assert.deepEqual(filterCalendarEvents(visibilityEvents, { meetingTypeId: "", onlyMine: true, currentUserId: "other" }).map((event) => event.id), ["mine", "other"]);
+  for (const currentUserId of ["missing", ""]) assert.deepEqual(filterCalendarEvents(visibilityEvents, { meetingTypeId: "", onlyMine: true, currentUserId }), []);
+});
 
 test("시작시간은 08:00~21:00, 30분 단위이며 경계 시간을 허용한다", () => {
   assert.equal(START_TIMES.length, 27);

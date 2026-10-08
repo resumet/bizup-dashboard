@@ -5,6 +5,8 @@ import { readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import nextEnv from "@next/env";
 import { PGlite } from "@electric-sql/pglite";
 
@@ -508,6 +510,52 @@ try {
   await leavesToggle.uncheck();
   assert.equal(await page.getByRole("link").filter({ hasText: "검증 동료 · 종일 휴가" }).count(), 0);
   passed("optional leave overlay shows approved colleague full/AM/PM schedules from SQL and never exposes pending leave or private HR notes");
+  const mineToggle = page.getByRole("checkbox", { name: "내가 포함된 항목만 보기", exact: true });
+  const manualSchedules = page.getByRole("button", { name: / 수정$/u });
+  const expectedMine = sourceBody.events.filter((event) => event.participant_ids.includes(users[0].id));
+  assert.equal(await mineToggle.isChecked(), false);
+  assert.equal(await manualSchedules.count(), sourceBody.events.length);
+  assert.equal(expectedMine.length, 2);
+  await mineToggle.check();
+  assert.equal(await manualSchedules.count(), expectedMine.length);
+  for (const event of sourceBody.events) assert.equal(await page.getByRole("button", { name: `${event.title} 수정`, exact: true }).count(), Number(event.participant_ids.includes(users[0].id)));
+  await page.getByRole("button", { name: "2026-10-15 일정 보기", exact: true }).click();
+  await page.getByText("현재 표시 조건에 맞는 일정이 없습니다.", { exact: true }).waitFor();
+  await page.getByLabel("회의 종류 필터").selectOption({ label: "주간회의" });
+  assert.equal(await manualSchedules.count(), 0);
+  await page.getByLabel("회의 종류 필터").selectOption("");
+  assert.equal(await manualSchedules.count(), expectedMine.length);
+  await mineToggle.uncheck();
+  assert.equal(await manualSchedules.count(), sourceBody.events.length);
+  passed("personal filter uses authenticated participant IDs, hides empty/non-member events in grid and daily list, combines with meeting type, and restores all events when cleared");
+
+  const participant = await login(users[3]);
+  await participant.page.goto(`${appOrigin}/calendar`);
+  await participant.page.getByRole("checkbox", { name: "내가 포함된 항목만 보기", exact: true }).check();
+  assert.equal(await participant.page.getByRole("button", { name: / 수정$/u }).count(), sourceBody.events.filter((event) => event.participant_ids.includes(users[3].id)).length);
+  await participant.page.getByRole("button", { name: "릴스 촬영 · 김선아 수정", exact: true }).waitFor();
+  assert.equal(await participant.page.getByRole("button", { name: "광고 촬영 · 김선아 수정", exact: true }).count(), 0);
+  await participant.context.close();
+  passed("a second login receives its own authenticated identity and sees its distinct participant schedules");
+
+  await mineToggle.check();
+  const personalLeaveResponse = page.waitForResponse((response) => response.url().includes("includeLeaves=true") && response.request().method() === "GET");
+  await leavesToggle.check();
+  assert.equal((await (await personalLeaveResponse).json()).sources.filter((event) => event.source === "leave").length, 3);
+  const colleagueLeave = page.locator('[data-calendar-date="2026-10-12"]').getByRole("link").filter({ hasText: "검증 동료 · 종일 휴가" });
+  await colleagueLeave.waitFor(); await webinarLink.waitFor();
+  await page.locator("section").filter({ hasText: "2026.10.15 일정" }).getByRole("link").filter({ hasText: "이지선 · 오전 반차" }).waitFor();
+  assert.equal(await manualSchedules.count(), expectedMine.length);
+  await page.getByRole("checkbox", { name: "강의 웨비나 표시", exact: true }).uncheck();
+  assert.equal(await webinarLink.count(), 0); await colleagueLeave.waitFor();
+  assert.equal(await mineToggle.isChecked(), true);
+  await page.getByRole("checkbox", { name: "강의 웨비나 표시", exact: true }).check();
+  await webinarLink.waitFor();
+  await leavesToggle.uncheck(); await colleagueLeave.waitFor({ state: "hidden" });
+  assert.equal(await manualSchedules.count(), expectedMine.length);
+  await mineToggle.uncheck();
+  passed("linked webinars and other employees' approved leave stay independent of the personal filter and follow their own display checkboxes in grid and daily list");
+
   course.free_webinar_at = "2026-10-21T10:30:00Z";
   await page.getByRole("button", { name: "일정 새로고침", exact: true }).click();
   const updatedWebinar = page.locator('[data-calendar-date="2026-10-21"]').getByRole("link").filter({ hasText: "웨비나 · 캘린더 검증 강의" });
@@ -545,6 +593,55 @@ try {
   await leavesToggle.uncheck();
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
   passed("leave permission denial and outage produce a scoped warning while manual schedules and webinar sources remain usable on mobile");
+  await mineToggle.check();
+  const membershipEvent = page.getByRole("button", { name: "줌 미팅 · 신예영 수정", exact: true });
+  await membershipEvent.dblclick();
+  dialog = page.getByRole("dialog");
+  await dialog.getByRole("checkbox", { name: "검증 사용자", exact: true }).uncheck();
+  await dialog.getByRole("button", { name: "변경 저장", exact: true }).click();
+  await page.getByRole("status").filter({ hasText: "일정을 저장" }).waitFor();
+  await membershipEvent.waitFor({ state: "hidden" });
+  assert.equal(await mineToggle.isChecked(), true);
+  assert.equal(await page.locator("section").getByRole("button", { name: "줌 미팅 · 신예영", exact: true }).count(), 0);
+  await updatedWebinar.waitFor();
+  await mineToggle.uncheck();
+  await membershipEvent.waitFor();
+  passed("saving a participant change immediately removes a no-longer-mine event from grid and daily list without deleting it or hiding the webinar");
+  assert.equal(await page.getByText("직원 휴가는 승인된 종일·반차만 표시합니다. 웨비나와 휴가는 원래 강의·휴가 관리 화면에서 수정합니다.", { exact: true }).count(), 0);
+  assert.equal(await page.getByText("날짜를 더블클릭하면 등록, 일정을 더블클릭하면 수정합니다. 일정을 다른 날짜로 드래그해 이동할 수 있습니다. 키보드에서는 날짜나 일정에 초점을 맞추고 Enter 키를 누르세요.", { exact: true }).count(), 0);
+  await page.reload();
+  await page.getByRole("button", { name: "2026-10-12 일정 보기", exact: true }).click();
+  for (const viewport of [{ width: 1366, height: 768 }, { width: 1280, height: 720 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport);
+    await page.evaluate(async () => { window.scrollTo(0, 0); await document.fonts.ready; await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))); });
+    const layout = await page.evaluate(() => {
+      const grid = document.querySelector("[data-calendar-grid]");
+      const cell = document.querySelector('[data-calendar-date="2026-10-12"]');
+      const events = cell.querySelector("[data-calendar-events]");
+      return { width: innerWidth, height: innerHeight, pageWidth: document.documentElement.scrollWidth, pageHeight: document.documentElement.scrollHeight, gridBottom: grid.getBoundingClientRect().bottom, gridHeight: grid.getBoundingClientRect().height, cellHeight: cell.getBoundingClientRect().height, eventsCount: events.children.length, eventsHeight: events.clientHeight, eventsScrollHeight: events.scrollHeight, eventsOverflow: getComputedStyle(events).overflowY };
+    });
+    console.log(`CALENDAR_LAYOUT ${JSON.stringify(layout)}`);
+    if (process.argv.includes("--screenshots")) {
+      const screenshot = join(tmpdir(), `bizup-calendar-compact-${viewport.width}x${viewport.height}-${Date.now()}.png`);
+      await page.screenshot({ path: screenshot, fullPage: true });
+      console.log(`CALENDAR_SCREENSHOT ${screenshot}`);
+    }
+    assert.ok(layout.pageWidth <= layout.width, "compact calendar must not create horizontal page overflow");
+    assert.ok(layout.cellHeight >= 55 && layout.cellHeight <= 113, "calendar rows must stay at the responsive, readable compact height");
+    assert.ok(layout.gridBottom <= layout.height, "all calendar weeks must fit within the viewport");
+    assert.ok(layout.eventsCount >= 2, "dense day must preserve every event instead of cutting off the data");
+    assert.equal(layout.eventsOverflow, "auto");
+    if (viewport.width >= 640) {
+      assert.ok(layout.pageHeight <= layout.height + 2, "desktop calendar and bounded daily details must not create vertical page scrolling");
+      const refreshBounds = await page.getByRole("button", { name: "일정 새로고침", exact: true }).boundingBox();
+      for (const name of ["강의 웨비나 표시", "직원 휴가 표시"]) {
+        const optionBounds = await page.getByRole("checkbox", { name, exact: true }).locator("..").boundingBox();
+        assert.ok(optionBounds.x + optionBounds.width <= refreshBounds.x, `${name} must be to the left of the calendar action buttons`);
+        assert.ok(optionBounds.y >= refreshBounds.y && optionBounds.y < refreshBounds.y + refreshBounds.height, "desktop options must share the action toolbar row");
+      }
+    }
+  }
+  passed("requested copy is removed, display options sit left of actions, viewport-sized calendar fits low-height desktops and mobile, and dense days retain scrollable events");
   assert.deepEqual(browserErrors, []);
   passed("all calendar and bulk browser flows finish without uncaught client errors");
   console.log(`Shared calendar browser/API/SQL checks: ${checks} passed.`);
