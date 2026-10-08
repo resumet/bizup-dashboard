@@ -1,6 +1,7 @@
 import "server-only";
 
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
+import { isCourseStatus } from "@/lib/course-operations/course-status";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -275,7 +276,7 @@ export async function loadCourseWbsBootstrap(
   const [coursesResult, activeTemplateRow, savedPeople, employeeNames, wbsOverview, inactivePeople] = await Promise.all([
     admin
       .from("courses")
-      .select("id,name,cohort,instructor_name,free_webinar_at")
+      .select("id,name,cohort,instructor_name,free_webinar_at,status")
       .eq("workspace_id", workspaceId)
       .order("free_webinar_at", { ascending: false }),
     loadActiveTemplateRow(workspaceId),
@@ -293,6 +294,7 @@ export async function loadCourseWbsBootstrap(
     cohort: row.cohort ?? "",
     instructorName: row.instructor_name ?? "",
     webinarAt: row.free_webinar_at,
+    status: isCourseStatus(row.status) ? row.status : "ongoing",
   }));
   const template = activeTemplateRow ? toTemplate(activeTemplateRow) : builtInTemplate();
   const coursesById = new Map(courses.map((course) => [course.id, course]));

@@ -9,9 +9,9 @@ function item(id: string, dueDate: string, completed = false, position = 0): Wbs
 }
 
 const courses: WbsCourse[] = [
-  { id: "later", name: "나중 강의", cohort: "", instructorName: "", webinarAt: "2026-10-20T10:30:00+09:00" },
-  { id: "soon", name: "가까운 강의", cohort: "", instructorName: "", webinarAt: "2026-10-10T10:30:00+09:00" },
-  { id: "past", name: "지난 강의", cohort: "", instructorName: "", webinarAt: "2026-09-01T10:30:00+09:00" },
+  { id: "later", name: "나중 강의", cohort: "", instructorName: "", webinarAt: "2026-10-20T10:30:00+09:00", status: "ongoing" },
+  { id: "soon", name: "가까운 강의", cohort: "", instructorName: "", webinarAt: "2026-10-10T10:30:00+09:00", status: "ongoing" },
+  { id: "past", name: "지난 강의", cohort: "", instructorName: "", webinarAt: "2026-09-01T10:30:00+09:00", status: "completed" },
 ];
 
 test("WBS dashboard summarizes progress and separates overdue and upcoming incomplete tasks", () => {

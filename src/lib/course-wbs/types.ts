@@ -1,3 +1,5 @@
+import type { CourseStatus } from "@/lib/course-operations/course-status";
+
 export type WbsItem = {
   id: string;
   title: string;
@@ -31,6 +33,7 @@ export type WbsCourse = {
   cohort: string;
   instructorName: string;
   webinarAt: string | null;
+  status: CourseStatus;
 };
 
 export type WbsSummary = {
