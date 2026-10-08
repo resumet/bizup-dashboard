@@ -6,6 +6,7 @@ export type MeaningTrackingDailyValues = {
   fullDate: string;
   googleLandingDb: number;
   metaLandingDb: number;
+  landingDbImported?: boolean;
   organicByChannel: Record<string, number>;
 };
 
@@ -110,6 +111,23 @@ function trackingDate(value: unknown) {
   };
 }
 
+function previousSeoulDate(value = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .formatToParts(value)
+    .filter((part) => part.type !== "literal");
+  const today = Object.fromEntries(
+    parts.map((part) => [part.type, part.value]),
+  );
+  const previous = new Date(`${today.year}-${today.month}-${today.day}T00:00:00Z`);
+  previous.setUTCDate(previous.getUTCDate() - 1);
+  return previous.toISOString().slice(0, 10);
+}
+
 function headerColumns(row: readonly unknown[]) {
   const normalized = row.map(normalizedText);
   const media = normalized.findIndex((value) => value === "진행매체");
@@ -144,6 +162,7 @@ function applyListHeaderColumns(row: readonly unknown[]) {
 
 export function parseMeaningTrackingApplyList(
   rows: readonly (readonly unknown[])[],
+  paidLandingDate = previousSeoulDate(),
 ): MeaningTrackingImport {
   const dailyByDate: Record<string, MeaningTrackingDailyValues> = {};
   const youtubeChannels: string[] = [];
@@ -159,7 +178,27 @@ export function parseMeaningTrackingApplyList(
     }
     if (!columns) continue;
 
+    const date = trackingDate(row[columns.date]);
+    if (!date) continue;
+
     const media = normalizedText(row[columns.media]);
+    const normalizedChannel = normalizedText(row[columns.channel]);
+    let daily = dailyByDate[date.key];
+    if (date.fullDate === paidLandingDate) {
+      daily ??= dailyByDate[date.key] = emptyDailyValues(date.fullDate);
+      daily.landingDbImported = true;
+      if (normalizedChannel === "그로스임팩트" && media === "메타") {
+        daily.metaLandingDb += 1;
+        matchedRowCount += 1;
+        continue;
+      }
+      if (normalizedChannel === "그로스임팩트" && media === "구글") {
+        daily.googleLandingDb += 1;
+        matchedRowCount += 1;
+        continue;
+      }
+    }
+
     let channel: string;
     if (media === "유튜브") {
       channel = cellText(row[columns.channel]);
@@ -176,9 +215,7 @@ export function parseMeaningTrackingApplyList(
       continue;
     }
 
-    const date = trackingDate(row[columns.date]);
-    if (!date) continue;
-    const daily = (dailyByDate[date.key] ??= emptyDailyValues(date.fullDate));
+    daily ??= dailyByDate[date.key] = emptyDailyValues(date.fullDate);
     daily.organicByChannel[channel] =
       (daily.organicByChannel[channel] ?? 0) + 1;
     matchedRowCount += 1;
@@ -228,6 +265,7 @@ export function parseMeaningTrackingSheet(
       const daily = (dailyByDate[currentDate.key] ??= emptyDailyValues(
         currentDate.fullDate,
       ));
+      daily.landingDbImported = true;
       daily.metaLandingDb += total;
       matchedRowCount += 1;
       continue;
@@ -237,6 +275,7 @@ export function parseMeaningTrackingSheet(
       const daily = (dailyByDate[currentDate.key] ??= emptyDailyValues(
         currentDate.fullDate,
       ));
+      daily.landingDbImported = true;
       daily.googleLandingDb += total;
       matchedRowCount += 1;
       continue;

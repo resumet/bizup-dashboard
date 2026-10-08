@@ -214,6 +214,12 @@ export function buildAdPerformanceMetricSnapshot(input: {
     const matchingTracked = tracked?.fullDate === metricDate ? tracked : undefined;
     const manual = input.manualInputs[metricDate];
     const sourceLandingDb = adPerformanceSourceLandingDb(row);
+    const landingDb = matchingTracked?.landingDbImported
+      ? {
+          googleLandingDb: nonnegativeInteger(matchingTracked.googleLandingDb),
+          metaLandingDb: nonnegativeInteger(matchingTracked.metaLandingDb),
+        }
+      : sourceLandingDb;
     const organicLeadsByName = Object.fromEntries(
       (input.tracking?.organicChannels ?? []).map((channel) => [
         channel,
@@ -231,8 +237,8 @@ export function buildAdPerformanceMetricSnapshot(input: {
       metaAdLeads: nonnegativeInteger(row[13]),
       googleSpend: nonnegativeInteger(row[10]),
       metaSpend: nonnegativeInteger(row[11]),
-      googleLandingLeads: sourceLandingDb.googleLandingDb,
-      metaLandingLeads: sourceLandingDb.metaLandingDb,
+      googleLandingLeads: landingDb.googleLandingDb,
+      metaLandingLeads: landingDb.metaLandingDb,
       adminCumulativeLeads: nonnegativeInteger(manual?.bizupDbCumulative),
       chatRoomMembers: manual?.chatMembersCumulative ?? null,
       organicLeadsByName,

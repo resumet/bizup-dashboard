@@ -786,13 +786,21 @@ export function MeaningSheetWorkspace({
                     ? trackedValues
                     : undefined;
                 const sourceLandingDb = adPerformanceSourceLandingDb(row);
+                const landingDb = importedValues?.landingDbImported
+                  ? {
+                      googleLandingDb: importedValues.googleLandingDb,
+                      metaLandingDb: importedValues.metaLandingDb,
+                    }
+                  : sourceLandingDb;
                 const hasSourceLandingDb = Boolean(
                   row[14]?.trim() || row[15]?.trim(),
                 );
-                const importedTotals = hasSourceLandingDb || importedValues
+                const hasLandingDb =
+                  Boolean(importedValues?.landingDbImported) || hasSourceLandingDb;
+                const importedTotals = hasLandingDb || importedValues
                   ? calculateMeaningSheetImportedTotals(
                       {
-                        ...sourceLandingDb,
+                        ...landingDb,
                         organicByChannel:
                           importedValues?.organicByChannel ?? {},
                       },
@@ -820,10 +828,10 @@ export function MeaningSheetWorkspace({
                     ? parseMeaningSheetMetricNumber(row[13])
                     : null,
                   googleLandingDb: importedValues
-                    ? sourceLandingDb.googleLandingDb
+                    ? landingDb.googleLandingDb
                     : null,
                   metaLandingDb: importedValues
-                    ? sourceLandingDb.metaLandingDb
+                    ? landingDb.metaLandingDb
                     : null,
                   chatEntries: importedValues ? chatEntries : null,
                 });
@@ -876,13 +884,13 @@ export function MeaningSheetWorkspace({
                       );
                     })}
                     <TableCell className="border-r bg-sky-500/[0.03] text-right">
-                      {hasSourceLandingDb
-                        ? formatInteger(sourceLandingDb.googleLandingDb)
+                      {hasLandingDb
+                        ? formatInteger(landingDb.googleLandingDb)
                         : ""}
                     </TableCell>
                     <TableCell className="border-r bg-sky-500/[0.03] text-right">
-                      {hasSourceLandingDb
-                        ? formatInteger(sourceLandingDb.metaLandingDb)
+                      {hasLandingDb
+                        ? formatInteger(landingDb.metaLandingDb)
                         : ""}
                     </TableCell>
                     <TableCell className="border-r bg-blue-500/[0.04] text-right font-semibold">

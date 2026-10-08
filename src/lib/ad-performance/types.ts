@@ -30,6 +30,7 @@ export type AdPerformanceTrackingDailyValues = {
   fullDate: string;
   googleLandingDb: number;
   metaLandingDb: number;
+  landingDbImported?: boolean;
   organicByChannel: Record<string, number>;
 };
 

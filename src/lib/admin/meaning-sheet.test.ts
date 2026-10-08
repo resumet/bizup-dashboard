@@ -160,7 +160,11 @@ test("신청 목록 CSV를 유튜브 경로별·인스타·경로불명 오가�
     ["강의", "E", "", "", "26.10.06", "광고", "메타"],
     ["강의", "F", "", "", "26.10.05", "초월스토리", "유튜브"],
     ["강의", "G", "", "", "26.10.05", "광고", "구글"],
-  ]);
+    ["강의", "H", "", "", "26.10.06", "그로스임팩트", "메타"],
+    ["강의", "I", "", "", "26.10.06", "그로스임팩트", "메타"],
+    ["강의", "J", "", "", "26.10.06", "그로스임팩트", "구글"],
+    ["강의", "K", "", "", "26.10.05", "그로스임팩트", "메타"],
+  ], "2026-10-06");
 
   assert.deepEqual(result.organicChannels, [
     "꿈꾸는사람들",
@@ -168,7 +172,10 @@ test("신청 목록 CSV를 유튜브 경로별·인스타·경로불명 오가�
     "인스타",
     "경로불명",
   ]);
-  assert.equal(result.matchedRowCount, 5);
+  assert.equal(result.matchedRowCount, 8);
+  assert.equal(result.dailyByDate["10-06"].landingDbImported, true);
+  assert.equal(result.dailyByDate["10-06"].metaLandingDb, 2);
+  assert.equal(result.dailyByDate["10-06"].googleLandingDb, 1);
   assert.deepEqual(result.dailyByDate["10-06"].organicByChannel, {
     꿈꾸는사람들: 2,
     인스타: 1,
@@ -177,6 +184,7 @@ test("신청 목록 CSV를 유튜브 경로별·인스타·경로불명 오가�
   assert.deepEqual(result.dailyByDate["10-05"].organicByChannel, {
     초월스토리: 1,
   });
+  assert.equal(result.dailyByDate["10-05"].metaLandingDb, 0);
 });
 
 test("Google 시트의 월일 표기를 엑셀 날짜 키와 연결한다", () => {

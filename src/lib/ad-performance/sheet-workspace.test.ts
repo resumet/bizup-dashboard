@@ -202,3 +202,35 @@ test("원본 시트 날짜 갱신 시 유입 엑셀과 수기 입력 값은 그�
   assert.equal(metrics[1]?.metaLandingLeads, 11);
   assert.equal(metrics[1]?.adminCumulativeLeads, 0);
 });
+
+test("유입 엑셀의 어제 그로스임팩트 매체 건수로 랜딩접수 DB를 갱신한다", () => {
+  const sourceRows = normalizeAdPerformanceSourceRows([
+    ["미닝웨비나", "총광고비"],
+    ["", ""],
+    ["10월7일", "", "", "", "", "", "", "", "", "", "", "", "", "", "9", "12"],
+  ]);
+  const tracking: MeaningTrackingImport = {
+    dailyByDate: {
+      "10-07": {
+        fullDate: "2026-10-07",
+        googleLandingDb: 3,
+        metaLandingDb: 5,
+        landingDbImported: true,
+        organicByChannel: {},
+      },
+    },
+    organicChannels: [],
+    matchedRowCount: 8,
+  };
+
+  const [metric] = buildAdPerformanceMetricSnapshot({
+    sourceRows,
+    dashboardStartDate: "2026-10-01",
+    tracking,
+    manualInputs: {},
+    exclusiveEndDate: "2026-10-08",
+  });
+
+  assert.equal(metric.googleLandingLeads, 3);
+  assert.equal(metric.metaLandingLeads, 5);
+});
