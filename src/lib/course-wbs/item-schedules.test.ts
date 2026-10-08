@@ -13,14 +13,14 @@ test("compares stored start dates, matching shared IDs before titles and indepen
     { courseId: "c", items: [{ ...item, startDate: "", completed: true }] },
     { courseId: "d", items: [] },
   ], item, "2026-10-08");
-  assert.deepEqual(rows.map((row) => row.course.id), ["b", "a", "c", "d", "e"]);
+  assert.deepEqual(rows.map((row) => row.course.id), ["b", "a", "c", "d"]);
   assert.equal(rows[0].item?.owner, "담당자");
   assert.equal(rows[1].item?.startDate, "2026-12-05");
   assert.equal(rows[2].item?.startDate, ""); // A due date is never substituted for a start date.
   assert.equal(rows[2].item?.completed, true);
   assert.equal(rows[3].hasWbs, true);
   assert.equal(rows[3].item, undefined);
-  assert.equal(rows[4].hasWbs, false);
+  assert.equal(rows.length, 4);
 });
 
 test("does not pick an arbitrary task when multiple independent tasks have the same title", () => {
@@ -28,14 +28,24 @@ test("does not pick an arbitrary task when multiple independent tasks have the s
   assert.equal(rows[0].item, undefined);
 });
 
-test("지난 웨비나와 완료 상태 강의는 시작 일정에서 제외한다", () => {
+test("지난 웨비나와 진행 외 상태 및 WBS 없는 강의는 시작 일정에서 제외한다", () => {
   const scoped: WbsCourse[] = [
     { ...courses[0], id: "past", webinarAt: "2026-10-07T11:00:00Z" },
     { ...courses[0], id: "today", webinarAt: "2026-10-08T11:00:00Z" },
     { ...courses[0], id: "future", webinarAt: "2026-10-13T11:00:00Z" },
     { ...courses[0], id: "completed", webinarAt: "2026-10-13T11:00:00Z", status: "completed" },
+    { ...courses[0], id: "on-hold", webinarAt: "2026-10-13T11:00:00Z", status: "on_hold" },
+    { ...courses[0], id: "canceled", webinarAt: "2026-10-13T11:00:00Z", status: "canceled" },
+    { ...courses[0], id: "without-wbs", webinarAt: "2026-10-13T11:00:00Z" },
   ];
-  const rows = schedulesForItem(scoped, [], item, "2026-10-08");
+  const rows = schedulesForItem(scoped, [
+    { courseId: "past", items: [item] },
+    { courseId: "today", items: [item] },
+    { courseId: "future", items: [item] },
+    { courseId: "completed", items: [item] },
+    { courseId: "on-hold", items: [item] },
+    { courseId: "canceled", items: [item] },
+  ], item, "2026-10-08");
   assert.deepEqual(rows.map((row) => row.course.id), ["today", "future"]);
 });
 

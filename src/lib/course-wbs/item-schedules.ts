@@ -34,7 +34,9 @@ export function schedulesForItem(
   const entriesByCourse = new Map(entries.map((entry) => [entry.courseId, entry]));
   return courses.filter((course) => {
     const webinarDate = webinarDateFromTimestamp(course.webinarAt);
-    return course.status !== "completed" && (!webinarDate || webinarDate >= today);
+    return course.status === "ongoing"
+      && entriesByCourse.has(course.id)
+      && (!webinarDate || webinarDate >= today);
   }).map((course) => {
     const entry = entriesByCourse.get(course.id);
     const sameId = entry?.items.find((item) => item.id === selection.id);
