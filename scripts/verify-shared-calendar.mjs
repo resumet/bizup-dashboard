@@ -21,7 +21,8 @@ const users = [
   { id: "00000000-0000-4000-8000-000000000011", email: "calendar-user@example.invalid", accessRole: "user" },
   { id: "00000000-0000-4000-8000-000000000012", email: "calendar-colleague@example.invalid", accessRole: "user" },
   { id: "00000000-0000-4000-8000-000000000013", email: "resumet@gmail.com", accessRole: "admin" },
-].map((user, index) => ({ ...user, role: "authenticated", aud: "authenticated", app_metadata: {}, user_metadata: { display_name: ["검증 사용자", "검증 동료", "검증 관리자"][index] }, created_at: "2026-10-08T00:00:00Z", email_confirmed_at: "2026-10-08T00:00:00Z" }));
+  ...["이지선", "윤지혜", "맹예진", "채문기"].map((name, index) => ({ id: `00000000-0000-4000-8000-${String(index + 14).padStart(12, "0")}`, email: `calendar-participant${index}@example.invalid`, accessRole: "user", displayName: name })),
+].map((user, index) => ({ ...user, role: "authenticated", aud: "authenticated", app_metadata: {}, user_metadata: { display_name: user.displayName ?? ["검증 사용자", "검증 동료", "검증 관리자"][index] }, created_at: "2026-10-08T00:00:00Z", email_confirmed_at: "2026-10-08T00:00:00Z" }));
 const course = { id: courseId, workspace_id: workspace, name: "캘린더 검증 강의", instructor_name: "검증 강사", cohort: "1기", free_webinar_at: "2026-10-20T10:00:00Z", starts_at: "2026-10-25T10:00:00Z", required_tasks: [], custom_links: [], updated_at: "2026-10-08T00:00:00Z" };
 const db = new PGlite();
 await db.exec(`
@@ -43,6 +44,7 @@ for (const user of users) {
 }
 await db.exec(await readFile("supabase/migrations/20261008090358_shared_calendar.sql", "utf8"));
 await db.exec(await readFile("supabase/migrations/20261008100344_shared_calendar_participants.sql", "utf8"));
+await db.exec(await readFile("supabase/migrations/20261008102522_shared_calendar_location_bulk_import.sql", "utf8"));
 
 function session(user) {
   const now = Math.floor(Date.now() / 1000);
@@ -64,6 +66,7 @@ function exclusive(callback) {
 }
 let outage = false;
 let participantOutage = false;
+let failAfterBulkCommit = false;
 const fixture = createServer(async (request, response) => {
   const url = new URL(request.url, "http://127.0.0.1");
   const chunks = []; for await (const chunk of request) chunks.push(chunk);
@@ -76,6 +79,20 @@ const fixture = createServer(async (request, response) => {
   if (url.pathname === "/auth/v1/admin/users") return participantOutage ? send(503, { message: "Fixture participant outage" }) : send(200, { users, aud: "authenticated" });
   if (!url.pathname.startsWith("/rest/v1/")) return send(404, { code: "fixture_endpoint_missing" });
   const table = url.pathname.split("/").at(-1);
+  if (url.pathname === "/rest/v1/rpc/shared_calendar_import") {
+    try {
+      const result = await exclusive(async () => {
+        await db.exec("reset role");
+        if (!user) throw Object.assign(new Error("Missing fixture session"), { code: "42501" });
+        await db.query("select set_config('request.jwt.claim.sub', $1, false)", [user.id]);
+        await db.exec("set role authenticated");
+        try { return (await db.query("select public.shared_calendar_import($1,$2,$3::jsonb,$4) as result", [body.p_workspace_id, body.p_request_id, JSON.stringify(body.p_events), body.p_create_types])).rows[0].result; }
+        finally { await db.exec("reset role"); }
+      });
+      if (failAfterBulkCommit) { failAfterBulkCommit = false; return send(503, { code: "fixture_response_lost", message: "Response unavailable after commit" }); }
+      return send(200, result);
+    } catch (error) { return send(error.code === "42501" ? 403 : 400, { code: error.code, message: error.message }); }
+  }
   if (table === "shared_calendar_events" && url.searchParams.get("select")?.includes("!meeting_type_id(")) {
     // PostgREST cannot use a single-column hint for this composite foreign key.
     return send(400, { code: "PGRST200", message: "Invalid composite relationship hint" });
@@ -98,6 +115,8 @@ const fixture = createServer(async (request, response) => {
       const clauses = [];
       for (const [key, value] of url.searchParams) {
         if (!["id", "workspace_id", "event_date", "meeting_type_id", "course_id", "version"].includes(key)) continue;
+        const inList = /^in\.\((.+)\)$/u.exec(value);
+        if (inList) { params.push(inList[1].split(",")); clauses.push(`${key} = any($${params.length}::uuid[])`); continue; }
         const match = /^(eq|gte|lte)\.(.+)$/u.exec(value); if (!match) continue;
         params.push(match[2]); clauses.push(`${key} ${({ eq: "=", gte: ">=", lte: "<=" })[match[1]]} $${params.length}`);
       }
@@ -141,6 +160,7 @@ let appOutput = "";
 for (const stream of [app.stdout, app.stderr]) stream.on("data", (data) => { appOutput = (appOutput + data.toString()).slice(-6000); });
 let browser;
 let checks = 0;
+const browserErrors = [];
 const passed = (label) => { checks += 1; console.log(`PASS ${label}`); };
 try {
   let ready = false;
@@ -159,6 +179,7 @@ try {
       await route.fulfill({ status: result.status, headers: { "Content-Type": "application/json" }, body: await result.text() });
     });
     const page = await context.newPage();
+    page.on("pageerror", (error) => browserErrors.push(error.message));
     await page.goto(`${appOrigin}/login`);
     await page.getByLabel("이메일", { exact: true }).fill(user.email);
     await page.getByLabel("비밀번호", { exact: true }).fill("LocalFixtureOnly!1");
@@ -168,6 +189,7 @@ try {
   assert.equal((await fetch(`${appOrigin}/api/shared-calendar?from=2026-10-01&to=2026-10-31`)).status, 401);
   assert.equal((await fetch(`${appOrigin}/api/shared-calendar/participants`)).status, 401);
   assert.equal((await fetch(`${appOrigin}/api/shared-calendar/${courseId}/move`, { method: "PATCH" })).status, 401);
+  assert.equal((await fetch(`${appOrigin}/api/shared-calendar/bulk`, { method: "POST" })).status, 401);
   passed("unauthenticated calendar API returns 401");
   const { page, context } = await login(users[0], { permissions: ["clipboard-read", "clipboard-write"] });
   await page.getByRole("link", { name: /공용캘린더/u }).click();
@@ -197,7 +219,7 @@ try {
   await dialog.getByRole("checkbox", { name: "검증 동료", exact: true }).check();
   assert.equal(await dialog.locator('input[type="checkbox"]:checked').count(), 2);
   await dialog.getByRole("button", { name: "전체 선택", exact: true }).click();
-  assert.equal(await dialog.locator('input[type="checkbox"]:checked').count(), 3);
+  assert.equal(await dialog.locator('input[type="checkbox"]:checked').count(), users.length);
   await dialog.getByRole("button", { name: "선택 해제", exact: true }).click();
   assert.equal(await dialog.locator('input[type="checkbox"]:checked').count(), 0);
   await dialog.getByRole("checkbox", { name: "검증 사용자", exact: true }).check();
@@ -209,6 +231,11 @@ try {
   await dialog.getByLabel("시작시간", { exact: true }).selectOption("1260");
   await dialog.getByLabel("소요시간", { exact: true }).selectOption("90");
   await dialog.getByLabel("메모", { exact: true }).fill("강의 자료 확인");
+  assert.deepEqual(await dialog.getByLabel("장소", { exact: true }).locator("option").evaluateAll((options) => options.map((option) => option.textContent)), ["온라인", "장소미정", "입력"]);
+  await dialog.getByLabel("장소", { exact: true }).selectOption("online");
+  assert.equal(await dialog.getByLabel("장소 직접 입력", { exact: true }).count(), 0);
+  await dialog.getByLabel("장소", { exact: true }).selectOption("custom");
+  await dialog.getByLabel("장소 직접 입력", { exact: true }).fill("오산 테스트 스튜디오");
   const savedResponse = page.waitForResponse((response) => response.url() === `${appOrigin}/api/shared-calendar` && response.request().method() === "POST");
   await dialog.getByRole("button", { name: "일정 등록", exact: true }).click();
   const saved = await savedResponse;
@@ -218,10 +245,12 @@ try {
   if (stored.event_date instanceof Date) stored.event_date = stored.event_date.toISOString().slice(0, 10);
   assert.equal(stored.start_minutes, 1260); assert.equal(stored.duration_minutes, 90); assert.equal(stored.course_id, courseId);
   assert.deepEqual(stored.participant_ids, [users[0].id, users[1].id]);
+  assert.equal(stored.location_kind, "custom"); assert.equal(stored.location_text, "오산 테스트 스튜디오");
   passed("normal user creates a Zoom meeting through the real API into RLS-protected SQL");
   await page.goto(`${appOrigin}/services/course-operations/${courseId}`);
   await page.getByRole("heading", { name: "공용캘린더 일정", exact: true }).waitFor();
   await page.getByText("검증 줌미팅", { exact: true }).waitFor();
+  await page.getByText("장소: 오산 테스트 스튜디오", { exact: true }).waitFor();
   passed("linked course detail renders persisted calendar event at the bottom");
   await page.goto(`${appOrigin}/calendar`);
   const eventButton = page.getByRole("button", { name: "검증 줌미팅 수정", exact: true });
@@ -234,6 +263,7 @@ try {
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
   assert.ok(clipboard.includes("검증 줌미팅")); assert.ok(clipboard.includes("강의 자료 확인"));
   assert.ok(clipboard.includes("참여자: 검증 사용자, 검증 동료")); assert.ok(clipboard.includes("21:00~22:30"));
+  assert.ok(clipboard.includes("장소: 오산 테스트 스튜디오"));
   passed("event single-click does not edit; double-click restores participants and share copies usable plain text");
   await page.evaluate(() => { Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async () => { throw new Error("Clipboard denied fixture"); } } }); });
   await dialog.getByRole("button", { name: "공유", exact: true }).click();
@@ -251,6 +281,7 @@ try {
   const movedEvent = (await moved.json()).event;
   assert.equal(movedEvent.event_date, movedDate); assert.equal(movedEvent.start_minutes, 1260); assert.equal(movedEvent.duration_minutes, 90);
   assert.deepEqual(movedEvent.participant_ids, stored.participant_ids); assert.equal(movedEvent.title, stored.title);
+  assert.equal(movedEvent.location_text, stored.location_text);
   assert.equal(movedEvent.version, stored.version + 1);
   passed("native mouse drag changes only the date and preserves title, duration, course and participants");
   const staleMove = await context.request.patch(`${appOrigin}/api/shared-calendar/${stored.id}/move`, { data: { eventDate: createdDate, version: stored.version } });
@@ -268,7 +299,8 @@ try {
   const latestResponse = await context.request.get(`${appOrigin}/api/shared-calendar?from=${movedDate}&to=${movedDate}`);
   const latestEvent = (await latestResponse.json()).events.find((event) => event.id === stored.id);
   const oldClient = await context.request.patch(`${appOrigin}/api/shared-calendar/${stored.id}`, { data: { title: latestEvent.title, eventDate: latestEvent.event_date, startMinutes: latestEvent.start_minutes, durationMinutes: latestEvent.duration_minutes, meetingTypeId: latestEvent.meeting_type_id, courseId, notes: latestEvent.notes, version: latestEvent.version } });
-  assert.equal(oldClient.status(), 200); assert.deepEqual((await oldClient.json()).event.participant_ids, stored.participant_ids);
+  assert.equal(oldClient.status(), 200); const oldClientEvent = (await oldClient.json()).event;
+  assert.deepEqual(oldClientEvent.participant_ids, stored.participant_ids); assert.equal(oldClientEvent.location_text, stored.location_text);
   passed("older open clients that omit participants preserve the current selection");
   const conflict = await context.request.patch(`${appOrigin}/api/shared-calendar/${stored.id}`, { data: { title: "오래된 수정", eventDate: stored.event_date, startMinutes: 540, durationMinutes: 60, meetingTypeId: stored.meeting_type_id, courseId, notes: "", version: stored.version } });
   assert.equal(conflict.status(), 409, await conflict.text());
@@ -337,6 +369,91 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "mobile calendar must not cause horizontal overflow");
   passed("month navigation and mobile layout work without horizontal overflow");
+  const sample = `날짜 / 시간 / 구분 / 대상자 / 장소 / 참여 인원
+1. 10월 12일(월) / 오전 11시 / 줌 미팅 / 신예영 / 온라인 / 전원
+2. 10월 12일(월) / 오후 3시 / 줌 미팅 / 신민철 / 온라인 / 전원
+3. 10월 15일(목) / 오후 1시 / 릴스 촬영 / 김선아 / 오산 / 이지선, 윤지혜
+4. 10월 16일(금) / 오후 1시 / 릴스 촬영 / 신민철 / 강남 / 이지선, 윤지혜
+5. 10월 20일(화) / 오후 2시 / 광고 촬영 / 김선아 / 장소 미정 / 맹예진, 채문기
+6. 10월 21일(수) / 오후 2시 / 광고 촬영 / 신민철 / 장소 미정 / 맹예진, 채문기
+7. 10월 21일(수) / 시간 미정 / 릴스 촬영 / 김해준 / 장소 미정 / 이지선, 윤지혜
+8. 10월 23일(금) / 오전 9시~12시 / 릴스 촬영 / 신예영 / 수서 / 이지선, 윤지혜
+9. 10월 23일(금) / 오후 2시~5~6시 / 광고 촬영 / 신예영 / 장소 미정 / 맹예진
+10. 10월 29일(목) / 시간 미정 / 광고 촬영 / 김해준 / 장소 미정 / 맹예진`;
+  await admin.page.goto(`${appOrigin}/calendar`);
+  await admin.page.getByRole("button", { name: "일괄 입력", exact: true }).click();
+  dialog = admin.page.getByRole("dialog"); await dialog.waitFor();
+  await dialog.getByLabel("적용 연도", { exact: true }).fill("2026");
+  await dialog.getByLabel("일정 목록", { exact: true }).fill(sample);
+  await dialog.getByRole("button", { name: "분석 및 미리보기", exact: true }).click();
+  await dialog.getByRole("region", { name: "10번 일정", exact: true }).waitFor();
+  assert.equal(await dialog.getByRole("region").count(), 10);
+  const ninth = dialog.getByRole("region", { name: "9번 일정", exact: true });
+  assert.equal(await dialog.getByRole("button", { name: "10개 일정 등록", exact: true }).isDisabled(), true);
+  await dialog.getByRole("checkbox", { name: /새 구분 추가/u }).check();
+  assert.equal(await dialog.getByRole("button", { name: "10개 일정 등록", exact: true }).isDisabled(), true);
+  await ninth.getByLabel("종료시간 선택", { exact: true }).selectOption("240");
+  assert.equal(await ninth.getByLabel("소요시간", { exact: true }).inputValue(), "240");
+  const eighth = dialog.getByRole("region", { name: "8번 일정", exact: true });
+  assert.equal(await eighth.getByLabel("소요시간", { exact: true }).inputValue(), "180");
+  assert.equal(await eighth.getByLabel("장소 직접 입력", { exact: true }).inputValue(), "수서");
+  assert.equal(await dialog.getByRole("region", { name: "7번 일정", exact: true }).getByRole("checkbox", { name: "시간 미정", exact: true }).isChecked(), true);
+  await dialog.getByRole("region", { name: "1번 일정", exact: true }).getByLabel("연결 강의", { exact: true }).selectOption(courseId);
+  passed("ten-row bulk preview parses locations, participants and TBD times, and requires resolving ambiguous end times and new types");
+  const countEvents = () => exclusive(async () => { await db.exec("reset role"); return (await db.query("select count(*)::integer as count from shared_calendar_events")).rows[0].count; });
+  const beforeBulk = await countEvents();
+  failAfterBulkCommit = true;
+  const lostResponse = admin.page.waitForResponse((response) => response.url() === `${appOrigin}/api/shared-calendar/bulk`);
+  await dialog.getByRole("button", { name: "10개 일정 등록", exact: true }).click();
+  const lost = await lostResponse; assert.equal(lost.status(), 500);
+  const originalBulkPayload = lost.request().postDataJSON();
+  await dialog.getByRole("alert").filter({ hasText: "서버 처리 여부를 확인하지 못했습니다" }).waitFor();
+  assert.equal(await dialog.getByLabel("일정 목록", { exact: true }).isDisabled(), true);
+  assert.equal(await countEvents(), beforeBulk + 10);
+  const retriedResponse = admin.page.waitForResponse((response) => response.url() === `${appOrigin}/api/shared-calendar/bulk`);
+  await dialog.getByRole("button", { name: "10개 일정 등록", exact: true }).click();
+  const retried = await retriedResponse; assert.equal(retried.status(), 200, await retried.text());
+  const imported = await retried.json(); assert.equal(imported.alreadyImported, true); assert.equal(imported.events.length, 10);
+  assert.equal(retried.request().postDataJSON().requestId, originalBulkPayload.requestId);
+  assert.equal(await countEvents(), beforeBulk + 10);
+  await admin.page.getByRole("status").filter({ hasText: "이미 등록된 10개 일정" }).waitFor();
+  passed("bulk RPC atomically creates ten schedules and retry after a lost committed response does not duplicate them");
+  const importedEighth = imported.events.find((event) => event.title === "릴스 촬영 · 신예영");
+  assert.equal(importedEighth.duration_minutes, 180); assert.equal(importedEighth.location_text, "수서");
+  const importedNinth = imported.events.find((event) => event.title === "광고 촬영 · 신예영");
+  assert.equal(importedNinth.duration_minutes, 240);
+  assert.equal(imported.events.find((event) => event.title === "릴스 촬영 · 김해준").time_tbd, true);
+  assert.equal(imported.events.find((event) => event.title === "줌 미팅 · 신예영").participant_ids.length, users.length);
+  assert.equal(imported.events.find((event) => event.title === "릴스 촬영 · 김선아").participant_ids.length, 2);
+  const replayed = await admin.context.request.post(`${appOrigin}/api/shared-calendar/bulk`, { data: originalBulkPayload });
+  assert.equal(replayed.status(), 200); assert.equal(await countEvents(), beforeBulk + 10);
+  passed("bulk import persists selected duration, custom locations, all/named participants and safe replay");
+  await admin.page.getByRole("button", { name: "릴스 촬영 · 김해준 수정", exact: true }).dblclick();
+  dialog = admin.page.getByRole("dialog"); await dialog.waitFor();
+  assert.equal(await dialog.getByRole("checkbox", { name: "시간 미정", exact: true }).isChecked(), true);
+  assert.equal(await dialog.getByLabel("시작시간", { exact: true }).isDisabled(), true);
+  await dialog.getByLabel("장소", { exact: true }).selectOption("custom");
+  await dialog.getByLabel("장소 직접 입력", { exact: true }).fill("강남 스튜디오");
+  await dialog.getByRole("button", { name: "변경 저장", exact: true }).click();
+  await admin.page.getByRole("status").filter({ hasText: "일정을 저장" }).waitFor();
+  assert.ok((await admin.page.getByRole("button", { name: "릴스 촬영 · 김해준 수정", exact: true }).getAttribute("title")).includes("시간 미정"));
+  assert.ok((await admin.page.getByRole("button", { name: "릴스 촬영 · 김해준 수정", exact: true }).getAttribute("title")).includes("강남 스튜디오"));
+  passed("imported TBD schedule reopens and edits location without exposing a placeholder start time");
+  await page.reload();
+  await page.getByRole("button", { name: "일괄 입력", exact: true }).click();
+  dialog = page.getByRole("dialog"); await dialog.getByLabel("일정 목록", { exact: true }).fill("10월 12일(월) / 11시 / 줌 미팅 / 강사 / 온라인 / 없는사용자");
+  await dialog.getByRole("button", { name: "분석 및 미리보기", exact: true }).click();
+  await dialog.getByRole("alert").filter({ hasText: "매칭되지 않은 참여자" }).waitFor();
+  assert.equal(await dialog.getByRole("button", { name: "1개 일정 등록", exact: true }).isDisabled(), true);
+  await dialog.getByRole("button", { name: "참여자 없음", exact: true }).click();
+  assert.equal(await dialog.getByRole("button", { name: "1개 일정 등록", exact: true }).isDisabled(), false);
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+  await dialog.getByRole("button", { name: "취소", exact: true }).click();
+  assert.equal((await context.request.post(`${appOrigin}/api/shared-calendar/bulk`, { data: originalBulkPayload })).status(), 403);
+  assert.equal((await context.request.post(`${appOrigin}/api/shared-calendar/bulk`, { headers: { Origin: "https://attacker.invalid" }, data: originalBulkPayload })).status(), 403);
+  passed("unmatched participants require explicit confirmation, mobile bulk UI fits, and non-admin/type and cross-origin writes are rejected");
+  assert.deepEqual(browserErrors, []);
+  passed("all calendar and bulk browser flows finish without uncaught client errors");
   console.log(`Shared calendar browser/API/SQL checks: ${checks} passed.`);
 } catch (error) { console.error(appOutput); throw error; }
 finally { await browser?.close(); app.kill(); await new Promise((resolve) => fixture.close(resolve)); await db.close(); }

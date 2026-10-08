@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { formatEventTime } from "@/lib/shared-calendar/calendar";
+import { formatCalendarTime, formatLocation } from "@/lib/shared-calendar/calendar";
 import { loadCalendarEvents } from "@/lib/shared-calendar/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -15,7 +15,8 @@ export async function CourseCalendarSection({ supabase, workspaceId, courseId }:
     <CardContent>
       {result.error ? <p role="alert" className="text-sm text-destructive">{result.error}</p> : result.events.length ? <ul className="divide-y">{result.events.map((event) => <li key={event.id} className="space-y-1 py-3 first:pt-0 last:pb-0">
         <p className="font-medium">{event.title}</p>
-        <p className="text-sm text-muted-foreground">{event.event_date.replaceAll("-", ".")} · {formatEventTime(event.start_minutes, event.duration_minutes)} · {event.meeting_type.name}</p>
+        <p className="text-sm text-muted-foreground">{event.event_date.replaceAll("-", ".")} · {formatCalendarTime(event)} · {event.meeting_type.name}</p>
+        <p className="text-sm text-muted-foreground">장소: {formatLocation(event.location_kind, event.location_text)}</p>
         {event.notes ? <p className="whitespace-pre-wrap break-words text-sm">{event.notes}</p> : null}
       </li>)}</ul> : <p className="text-sm text-muted-foreground">연결된 일정이 없습니다. 공용캘린더에서 강사 줌미팅에 이 강의를 연결해 주세요.</p>}
     </CardContent>

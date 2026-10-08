@@ -6,6 +6,7 @@ export type MeetingType = {
 
 export type CalendarCourse = { id: string; name: string; instructor_name: string; cohort: string | null };
 export type CalendarPerson = { id: string; name: string; active: boolean };
+export type CalendarLocationKind = "online" | "tbd" | "custom";
 
 export type CalendarEvent = {
   id: string;
@@ -17,6 +18,9 @@ export type CalendarEvent = {
   course_id: string | null;
   notes: string;
   participant_ids: string[];
+  location_kind: CalendarLocationKind;
+  location_text: string;
+  time_tbd: boolean;
   version: number;
   meeting_type: MeetingType;
   course: CalendarCourse | null;
@@ -31,4 +35,7 @@ export type CalendarDraft = {
   courseId: string | null;
   notes: string;
   participantIds: string[];
+  locationKind: CalendarLocationKind;
+  locationText: string;
+  timeTbd: boolean;
 };

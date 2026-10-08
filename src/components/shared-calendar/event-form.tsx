@@ -5,8 +5,9 @@ import { Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DURATIONS, START_TIMES, calendarShareText, eventSchema, formatDuration, formatEventTime, formatTime, updateDraftTitle } from "@/lib/shared-calendar/calendar";
+import { DURATIONS, START_TIMES, calendarShareText, eventSchema, formatDuration, formatCalendarTime, formatTime, updateDraftTitle } from "@/lib/shared-calendar/calendar";
 import type { CalendarCourse, CalendarDraft, CalendarEvent, CalendarPerson, MeetingType } from "@/lib/shared-calendar/types";
+import { LocationFields } from "./location-fields";
 
 export const selectClass = "h-9 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50";
 
@@ -23,10 +24,11 @@ export function CalendarEventForm({ event, date, types, courses, initialCourseId
   const [draft, setDraft] = useState<CalendarDraft>(() => event ? {
     title: event.title, eventDate: event.event_date, startMinutes: event.start_minutes,
     durationMinutes: event.duration_minutes, meetingTypeId: event.meeting_type_id, courseId: event.course_id, notes: event.notes, participantIds: event.participant_ids ?? [],
+    locationKind: event.location_kind ?? "tbd", locationText: event.location_text ?? "", timeTbd: event.time_tbd ?? false,
   } : {
     title: "", eventDate: date, startMinutes: 540, durationMinutes: 60,
     meetingTypeId: (initialCourseId ? types.find((type) => type.code === "instructor_zoom") : types[0])?.id ?? "",
-    courseId: initialCourseId ?? null, notes: "", participantIds: [],
+    courseId: initialCourseId ?? null, notes: "", participantIds: [], locationKind: "tbd", locationText: "", timeTbd: false,
   });
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
@@ -117,15 +119,17 @@ export function CalendarEventForm({ event, date, types, courses, initialCourseId
               <option value="" disabled>종류 선택</option>{types.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
             </select></label>
           </div>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.timeTbd} onChange={(e) => setDraft({ ...draft, timeTbd: e.target.checked })} />시간 미정</label>
           <div className="grid grid-cols-2 gap-4">
-            <label className="grid gap-2">시작시간<select aria-label="시작시간" className={selectClass} value={draft.startMinutes} onChange={(e) => setDraft({ ...draft, startMinutes: Number(e.target.value) })}>
+            <label className="grid gap-2">시작시간<select aria-label="시작시간" disabled={draft.timeTbd} className={selectClass} value={draft.startMinutes} onChange={(e) => setDraft({ ...draft, startMinutes: Number(e.target.value) })}>
               {START_TIMES.map((minutes) => <option key={minutes} value={minutes}>{formatTime(minutes)}</option>)}
             </select></label>
             <label className="grid gap-2">소요시간<select aria-label="소요시간" className={selectClass} value={draft.durationMinutes} onChange={(e) => setDraft({ ...draft, durationMinutes: Number(e.target.value) })}>
               {DURATIONS.map((minutes) => <option key={minutes} value={minutes}>{formatDuration(minutes)}</option>)}
             </select></label>
           </div>
-          <p className="text-xs text-muted-foreground">한국시간 · 시작 08:00~21:00 · 소요 30분~24시간, 30분 단위<br />{formatEventTime(draft.startMinutes, draft.durationMinutes)}</p>
+          <p className="text-xs text-muted-foreground">한국시간 · 시작 08:00~21:00 · 소요 30분~24시간, 30분 단위<br />{formatCalendarTime({ start_minutes: draft.startMinutes, duration_minutes: draft.durationMinutes, time_tbd: draft.timeTbd })}</p>
+          <LocationFields kind={draft.locationKind} text={draft.locationText} onChange={(locationKind, locationText) => setDraft({ ...draft, locationKind, locationText })} />
           {selectedType?.code === "instructor_zoom" ? <label className="grid gap-2">연결 강의<select aria-label="연결 강의" className={selectClass} value={draft.courseId ?? ""} onChange={(e) => setDraft({ ...draft, courseId: e.target.value || null })}>
             <option value="">연결 안 함</option>{courses.map((course) => <option key={course.id} value={course.id}>{course.name} · {course.instructor_name}{course.cohort ? ` · ${course.cohort}` : ""}</option>)}
           </select><span className="text-xs text-muted-foreground">연결하면 강의 상세페이지에도 일정이 표시됩니다.</span></label> : null}

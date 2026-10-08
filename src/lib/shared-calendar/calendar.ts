@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { CalendarDraft } from "./types";
+import type { CalendarDraft, CalendarLocationKind } from "./types";
 
 export const START_TIMES = Array.from({ length: 27 }, (_, index) => 480 + index * 30);
 export const DURATIONS = Array.from({ length: 48 }, (_, index) => (index + 1) * 30);
@@ -19,7 +19,10 @@ export const eventSchema = z.object({
   courseId: z.uuid("연결할 강의를 선택해 주세요.").nullable(),
   notes: z.string().trim().max(2000, "메모는 2,000자까지 입력할 수 있습니다."),
   participantIds: z.array(z.uuid("참여자를 다시 선택해 주세요.")).max(500, "참여자는 최대 500명까지 선택할 수 있습니다.").refine((ids) => new Set(ids).size === ids.length, "참여자가 중복되었습니다.").default([]),
-});
+  locationKind: z.enum(["online", "tbd", "custom"]).default("tbd"),
+  locationText: z.string().trim().max(200, "장소는 200자까지 입력할 수 있습니다.").default(""),
+  timeTbd: z.boolean().default(false),
+}).refine((event) => event.locationKind === "custom" ? event.locationText.length > 0 : event.locationText === "", { message: "직접 입력할 장소를 입력해 주세요. 온라인·장소미정은 별도 장소 텍스트를 사용하지 않습니다.", path: ["locationText"] });
 
 export const versionSchema = z.object({ version: z.number().int().positive() });
 export const moveEventSchema = versionSchema.extend({ eventDate: eventSchema.shape.eventDate });
@@ -41,6 +44,14 @@ export function formatEventTime(start: number, duration: number) {
   return `${formatTime(start)}~${end >= 1440 ? "다음 날 " : ""}${formatTime(end)} (${formatDuration(duration)})`;
 }
 
+export function formatCalendarTime(event: { start_minutes: number; duration_minutes: number; time_tbd?: boolean }) {
+  return event.time_tbd ? `시간 미정 (예정 소요 ${formatDuration(event.duration_minutes)})` : formatEventTime(event.start_minutes, event.duration_minutes);
+}
+
+export function formatLocation(kind: CalendarLocationKind, text: string) {
+  return kind === "online" ? "온라인" : kind === "custom" ? text : "장소미정";
+}
+
 // Only exact half-hour times inside the allowed start window are inferred.
 // Bare 1–7 o'clock means afternoon; explicit 오전/오후 always takes precedence.
 export function titleStartMinutes(title: string): number | null {
@@ -58,11 +69,12 @@ export function titleStartMinutes(title: string): number | null {
 
 export function updateDraftTitle(draft: CalendarDraft, title: string): CalendarDraft {
   const inferred = titleStartMinutes(title);
-  return { ...draft, title, ...(inferred !== null && inferred !== titleStartMinutes(draft.title) ? { startMinutes: inferred } : {}) };
+  return { ...draft, title, ...(inferred !== null && inferred !== titleStartMinutes(draft.title) ? { startMinutes: inferred, timeTbd: false } : {}) };
 }
 
 export function calendarShareText(draft: CalendarDraft, details: { meetingType?: string; course?: string; participants: string[] }) {
-  return [draft.title.trim(), `일시: ${draft.eventDate} ${formatEventTime(draft.startMinutes, draft.durationMinutes)} (한국시간)`,
+  return [draft.title.trim(), `일시: ${draft.eventDate} ${formatCalendarTime({ start_minutes: draft.startMinutes, duration_minutes: draft.durationMinutes, time_tbd: draft.timeTbd })} (한국시간)`,
+    `장소: ${formatLocation(draft.locationKind ?? "tbd", draft.locationText ?? "")}`,
     details.meetingType ? `종류: ${details.meetingType}` : "", details.course ? `강의: ${details.course}` : "",
     details.participants.length ? `참여자: ${details.participants.join(", ")}` : "",
     draft.notes.trim() ? `\n${draft.notes.trim()}` : ""].filter(Boolean).join("\n");

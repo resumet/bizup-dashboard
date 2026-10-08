@@ -3,7 +3,7 @@ import test from "node:test";
 import { DURATIONS, START_TIMES, calendarShareText, eventSchema, formatDuration, formatEventTime, isDateKey, koreaToday, meetingTypeSchema, monthDays, moveEventSchema, shiftMonth, titleStartMinutes, updateDraftTitle } from "./calendar";
 import { validateRange, parseVersion, readCalendarBody } from "./server";
 
-const valid = { title: "강사 미팅", eventDate: "2026-10-08", startMinutes: 480, durationMinutes: 30, meetingTypeId: "00000000-0000-4000-8000-000000000001", courseId: null, notes: "" };
+const valid = { title: "강사 미팅", eventDate: "2026-10-08", startMinutes: 480, durationMinutes: 30, meetingTypeId: "00000000-0000-4000-8000-000000000001", courseId: null, notes: "", locationKind: "tbd" as const, locationText: "", timeTbd: false };
 
 test("시작시간은 08:00~21:00, 30분 단위이며 경계 시간을 허용한다", () => {
   assert.equal(START_TIMES.length, 27);
@@ -84,7 +84,15 @@ test("날짜 이동은 날짜/양의 버전만 필요하고 다른 필드를 변
 
 test("공유 텍스트는 제목·한국시간·종류·강의·복수 참여자·메모를 일반 텍스트로 구성한다", () => {
   const text = calendarShareText({ ...valid, title: "  11시 미팅  ", startMinutes: 660, durationMinutes: 60, notes: "자료 확인\n줌 접속", participantIds: [] }, { meetingType: "강사 줌미팅", course: "검증 강의 · 강사", participants: ["김강사", "이담당"] });
-  assert.equal(text, "11시 미팅\n일시: 2026-10-08 11:00~12:00 (1시간) (한국시간)\n종류: 강사 줌미팅\n강의: 검증 강의 · 강사\n참여자: 김강사, 이담당\n\n자료 확인\n줌 접속");
+  assert.equal(text, "11시 미팅\n일시: 2026-10-08 11:00~12:00 (1시간) (한국시간)\n장소: 장소미정\n종류: 강사 줌미팅\n강의: 검증 강의 · 강사\n참여자: 김강사, 이담당\n\n자료 확인\n줌 접속");
   const empty = calendarShareText({ ...valid, participantIds: [] }, { participants: [] });
   assert.equal(empty.includes("참여자:"), false); assert.equal(empty.includes("강의:"), false);
+});
+
+test("장소 입력을 검증하고 공유문에 장소·시간 미정을 표시한다", () => {
+  for (const locationKind of ["online", "tbd"]) assert.ok(eventSchema.safeParse({ ...valid, locationKind }).success);
+  assert.ok(eventSchema.safeParse({ ...valid, locationKind: "custom", locationText: "오산 스튜디오", timeTbd: true }).success);
+  for (const patch of [{ locationKind: "custom", locationText: " " }, { locationKind: "custom", locationText: "a".repeat(201) }, { locationKind: "office" }, { locationKind: "online", locationText: "오산" }, { timeTbd: "true" }]) assert.equal(eventSchema.safeParse({ ...valid, ...patch }).success, false);
+  const text = calendarShareText({ ...valid, participantIds: [], locationKind: "custom", locationText: "오산", timeTbd: true }, { participants: [] });
+  assert.ok(text.includes("시간 미정")); assert.ok(text.includes("장소: 오산")); assert.equal(text.includes("08:00"), false);
 });

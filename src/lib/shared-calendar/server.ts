@@ -9,8 +9,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { eventSchema, isDateKey, meetingTypeSchema, moveEventSchema, uuidSchema, versionSchema } from "./calendar";
 import type { CalendarCourse, CalendarEvent, CalendarPerson, MeetingType } from "./types";
+import { bulkImportSchema } from "./bulk";
 
-const EVENT_SELECT = "id,title,event_date,start_minutes,duration_minutes,meeting_type_id,course_id,notes,participant_ids,version,meeting_type:shared_calendar_meeting_types!shared_calendar_events_meeting_type_id_workspace_id_fkey(id,name,code),course:courses(id,name,instructor_name,cohort)";
+const EVENT_SELECT = "id,title,event_date,start_minutes,duration_minutes,meeting_type_id,course_id,notes,participant_ids,location_kind,location_text,time_tbd,version,meeting_type:shared_calendar_meeting_types!shared_calendar_events_meeting_type_id_workspace_id_fkey(id,name,code),course:courses(id,name,instructor_name,cohort)";
 const headers = { "Cache-Control": "private, no-store" };
 
 export class CalendarError extends Error {
@@ -31,6 +32,7 @@ function checkDatabase(error: { code?: string } | null) {
   if (!error) return;
   if (error.code === "23505") throw new CalendarError("이미 등록된 회의 항목입니다.", 409);
   if (error.code === "42501") throw new CalendarError("이 작업을 수행할 권한이 없습니다.", 403);
+  if (error.code === "40001") throw new CalendarError("이미 처리된 일괄 입력 요청의 내용이 다릅니다. 내용을 다시 확인해 주세요.", 409);
   if (error.code === "23503" || error.code === "23514") throw new CalendarError("회의 종류, 강의, 참여자 또는 시간 조건을 확인해 주세요. 새 참여자는 같은 워크스페이스의 활성 사용자만 선택할 수 있습니다.");
   throw new Error(`Calendar database error: ${error.code ?? "UNKNOWN"}`);
 }
@@ -140,8 +142,12 @@ export async function saveCalendarEvent(context: Awaited<ReturnType<typeof calen
     if (!course) throw new CalendarError("연결할 강의를 찾을 수 없습니다.");
   }
   // Old, already-open clients may omit participants: preserve them on updates.
+  const hasField = (name: string) => !eventId || Object.hasOwn(body as object, name);
+  if (eventId && hasField("locationKind") !== hasField("locationText")) throw new CalendarError("장소 선택과 장소 텍스트를 함께 전송해 주세요.");
   const row = { title: input.title, event_date: input.eventDate, start_minutes: input.startMinutes, duration_minutes: input.durationMinutes, meeting_type_id: input.meetingTypeId, course_id: input.courseId, notes: input.notes,
-    ...(!eventId || Object.hasOwn(body as object, "participantIds") ? { participant_ids: input.participantIds } : {}) };
+    ...(hasField("participantIds") ? { participant_ids: input.participantIds } : {}),
+    ...(hasField("locationKind") ? { location_kind: input.locationKind, location_text: input.locationText } : {}),
+    ...(hasField("timeTbd") ? { time_tbd: input.timeTbd } : {}) };
   const query = eventId
     ? supabase.from("shared_calendar_events").update(row).eq("id", eventId).eq("workspace_id", workspaceId).eq("version", parseVersion(body))
     : supabase.from("shared_calendar_events").insert({ ...row, workspace_id: workspaceId, created_by: user.id });
@@ -177,4 +183,22 @@ export async function addMeetingType(context: Awaited<ReturnType<typeof calendar
   const { data, error } = await context.supabase.from("shared_calendar_meeting_types").insert({ workspace_id: context.workspaceId, name: parsed.data.name }).select("id,name,code").single();
   checkDatabase(error);
   return data as MeetingType;
+}
+
+export async function importCalendarEvents(context: Awaited<ReturnType<typeof calendarContext>>, body: unknown) {
+  const parsed = bulkImportSchema.safeParse(body);
+  if (!parsed.success) throw new CalendarError(`일괄 입력을 확인해 주세요: ${parsed.error.issues[0].message}`);
+  const input = parsed.data;
+  if (input.createMissingTypes && !context.isAdmin) throw new CalendarError("관리자만 새로운 구분을 추가할 수 있습니다.", 403);
+  if (input.events.some((event) => event.newMeetingTypeName) && !input.createMissingTypes) throw new CalendarError("새 구분 추가를 확인하거나 기존 회의 종류를 선택해 주세요.");
+  const { data, error } = await context.supabase.rpc("shared_calendar_import", { p_workspace_id: context.workspaceId, p_request_id: input.requestId, p_events: input.events, p_create_types: input.createMissingTypes });
+  checkDatabase(error);
+  const ids = data?.eventIds as string[] | undefined;
+  if (!ids || !Array.isArray(ids)) throw new Error("Calendar import returned invalid IDs");
+  const [saved, meetingTypes] = await Promise.all([
+    context.supabase.from("shared_calendar_events").select(EVENT_SELECT).eq("workspace_id", context.workspaceId).in("id", ids).order("event_date").order("start_minutes"),
+    loadMeetingTypes(context.supabase, context.workspaceId),
+  ]);
+  checkDatabase(saved.error);
+  return { events: (saved.data ?? []) as unknown as CalendarEvent[], meetingTypes, alreadyImported: Boolean(data.alreadyImported), count: ids.length };
 }

@@ -31,6 +31,7 @@ test("공용캘린더 마이그레이션: CRUD, 시간/강의 제약, 워크스�
     `);
     await db.exec(await readFile("supabase/migrations/20261008090358_shared_calendar.sql", "utf8"));
     await db.exec(await readFile("supabase/migrations/20261008100344_shared_calendar_participants.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations/20261008102522_shared_calendar_location_bulk_import.sql", "utf8"));
     const types = (await db.query<{ id: string; code: string; workspace_id: string }>("select id, code, workspace_id from shared_calendar_meeting_types")).rows;
     const zoom = types.find((type) => type.workspace_id === W1 && type.code === "instructor_zoom")!.id;
     const weekly = types.find((type) => type.workspace_id === W1 && type.code === "weekly_meeting")!.id;
