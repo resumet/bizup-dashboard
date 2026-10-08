@@ -1,15 +1,18 @@
 import { calendarContext, calendarFailure, calendarResponse, loadCalendarEvents, loadMeetingTypes, readCalendarBody, saveCalendarEvent, validateRange } from "@/lib/shared-calendar/server";
+import { calendarLeaveOption, loadCalendarSources } from "@/lib/shared-calendar/sources-server";
 
 export async function GET(request: Request) {
   try {
     const context = await calendarContext();
     const params = new URL(request.url).searchParams;
     const range = validateRange(params.get("from"), params.get("to"));
-    const [events, meetingTypes] = await Promise.all([
+    const includeLeaves = calendarLeaveOption(params.get("includeLeaves"));
+    const [events, meetingTypes, sourceResult] = await Promise.all([
       loadCalendarEvents(context.supabase, context.workspaceId, range),
       loadMeetingTypes(context.supabase, context.workspaceId),
+      loadCalendarSources(context, range, includeLeaves),
     ]);
-    return calendarResponse({ events, meetingTypes });
+    return calendarResponse({ events, meetingTypes, ...sourceResult });
   } catch (error) { return calendarFailure(error); }
 }
 

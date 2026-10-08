@@ -8,6 +8,16 @@ export type CalendarCourse = { id: string; name: string; instructor_name: string
 export type CalendarPerson = { id: string; name: string; active: boolean };
 export type CalendarLocationKind = "online" | "tbd" | "custom";
 
+export type CalendarSourceEvent = {
+  id: string;
+  source: "webinar" | "leave";
+  title: string;
+  event_date: string;
+  start_minutes: number;
+  time_label: string;
+  href: string;
+};
+
 export type CalendarEvent = {
   id: string;
   title: string;

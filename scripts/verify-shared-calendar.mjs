@@ -33,6 +33,7 @@ await db.exec(`
   create table public.workspaces(id uuid primary key);
   create table public.workspace_members(workspace_id uuid, user_id uuid, role text);
   create table public.courses(id uuid primary key, workspace_id uuid);
+  create function public.is_workspace_member(w uuid) returns boolean language sql stable as $$ select exists(select 1 from public.workspace_members where workspace_id=w and user_id=auth.uid()) $$;
   grant usage on schema auth to authenticated;
   grant select on courses to authenticated;
   insert into workspaces values ('${workspace}');
@@ -45,6 +46,15 @@ for (const user of users) {
 await db.exec(await readFile("supabase/migrations/20261008090358_shared_calendar.sql", "utf8"));
 await db.exec(await readFile("supabase/migrations/20261008100344_shared_calendar_participants.sql", "utf8"));
 await db.exec(await readFile("supabase/migrations/20261008102522_shared_calendar_location_bulk_import.sql", "utf8"));
+await db.exec(await readFile("supabase/migrations_archive/20260929/202609210002_hr_leave_management.sql", "utf8"));
+for (const [userId, date, unit, status] of [
+  [users[1].id, "2026-10-12", "full", "approved"],
+  [users[3].id, "2026-10-15", "am", "approved"],
+  [users[4].id, "2026-10-16", "pm", "approved"],
+  [users[1].id, "2026-10-13", "am", "pending"],
+  [users[1].id, "2026-10-14", "pm", "rejected"],
+  [users[1].id, "2026-10-17", "full", "cancelled"],
+]) await db.query("insert into hr_leave_requests(workspace_id,user_id,leave_date,unit,status,reason,review_note) values($1,$2,$3,$4,$5,'private calendar fixture reason','private calendar fixture review')", [workspace, userId, date, unit, status]);
 
 function session(user) {
   const now = Math.floor(Date.now() / 1000);
@@ -66,6 +76,8 @@ function exclusive(callback) {
 }
 let outage = false;
 let participantOutage = false;
+let leaveOutage = false;
+let personnelAllowed = true;
 let failAfterBulkCommit = false;
 const fixture = createServer(async (request, response) => {
   const url = new URL(request.url, "http://127.0.0.1");
@@ -79,6 +91,11 @@ const fixture = createServer(async (request, response) => {
   if (url.pathname === "/auth/v1/admin/users") return participantOutage ? send(503, { message: "Fixture participant outage" }) : send(200, { users, aud: "authenticated" });
   if (!url.pathname.startsWith("/rest/v1/")) return send(404, { code: "fixture_endpoint_missing" });
   const table = url.pathname.split("/").at(-1);
+  if (table === "personnel_access") {
+    assert.equal(body.p_workspace_id, workspace);
+    return send(200, personnelAllowed && users.some((item) => item.id === body.p_user_id));
+  }
+  if (table === "personnel_directory") return send(200, users.map((item) => ({ user_id: item.id, name: item.user_metadata.display_name, active: true })));
   if (url.pathname === "/rest/v1/rpc/shared_calendar_import") {
     try {
       const result = await exclusive(async () => {
@@ -104,8 +121,15 @@ const fixture = createServer(async (request, response) => {
     const rows = id ? (member ? [{ user_id: member.id, workspace_id: workspace, role: member.accessRole, workspaces: { is_primary: true } }] : []) : users.map((item) => ({ user_id: item.id, workspace_id: workspace, role: item.accessRole }));
     return send(200, single ? rows[0] ?? null : rows);
   }
-  if (table === "courses") return send(200, single ? course : [course]);
-  if (!["shared_calendar_events", "shared_calendar_meeting_types"].includes(table)) return send(200, single ? null : []);
+  if (table === "courses") {
+    const inRange = url.searchParams.getAll("free_webinar_at").every((value) => {
+      const [operator, timestamp] = [value.slice(0, value.indexOf(".")), value.slice(value.indexOf(".") + 1)];
+      return operator === "gte" ? Date.parse(course.free_webinar_at) >= Date.parse(timestamp) : operator === "lt" ? Date.parse(course.free_webinar_at) < Date.parse(timestamp) : true;
+    });
+    return send(200, single ? course : inRange ? [course] : []);
+  }
+  if (table === "hr_leave_requests" && leaveOutage) return send(503, { code: "fixture_leave_outage" });
+  if (!["shared_calendar_events", "shared_calendar_meeting_types", "hr_leave_requests"].includes(table)) return send(200, single ? null : []);
   if (outage && request.method === "GET") return send(503, { code: "fixture_outage" });
   try {
     const rows = await exclusive(async () => {
@@ -114,7 +138,7 @@ const fixture = createServer(async (request, response) => {
       const params = [];
       const clauses = [];
       for (const [key, value] of url.searchParams) {
-        if (!["id", "workspace_id", "event_date", "meeting_type_id", "course_id", "version"].includes(key)) continue;
+        if (!["id", "workspace_id", "event_date", "meeting_type_id", "course_id", "version", "leave_date", "status", "user_id"].includes(key)) continue;
         const inList = /^in\.\((.+)\)$/u.exec(value);
         if (inList) { params.push(inList[1].split(",")); clauses.push(`${key} = any($${params.length}::uuid[])`); continue; }
         const match = /^(eq|gte|lte)\.(.+)$/u.exec(value); if (!match) continue;
@@ -132,9 +156,10 @@ const fixture = createServer(async (request, response) => {
         const assignments = keys.map((key, index) => `${key}=$${params.length + index + 1}`).join(",");
         result = await db.query(`update ${table} set ${assignments}${where} returning *`, [...params, ...keys.map((key) => body[key])]);
       } else if (request.method === "DELETE") result = await db.query(`delete from ${table}${where} returning *`, params);
-      else result = await db.query(`select * from ${table}${where} order by ${table === "shared_calendar_events" ? "event_date,start_minutes,id" : "created_at,name"} limit 500 offset ${Number(url.searchParams.get("offset") ?? 0)}`, params);
+      else result = await db.query(`select * from ${table}${where} order by ${table === "shared_calendar_events" ? "event_date,start_minutes,id" : table === "hr_leave_requests" ? "leave_date,id" : "created_at,name"} limit 500 offset ${Number(url.searchParams.get("offset") ?? 0)}`, params);
       await db.exec("reset role");
       for (const row of result.rows) {
+        if (table === "hr_leave_requests" && row.leave_date instanceof Date) row.leave_date = row.leave_date.toISOString().slice(0, 10);
         if (table === "shared_calendar_events") {
           if (row.event_date instanceof Date) row.event_date = row.event_date.toISOString().slice(0, 10);
           row.meeting_type = (await db.query("select id,name,code from shared_calendar_meeting_types where id=$1", [row.meeting_type_id])).rows[0];
@@ -452,6 +477,74 @@ try {
   assert.equal((await context.request.post(`${appOrigin}/api/shared-calendar/bulk`, { data: originalBulkPayload })).status(), 403);
   assert.equal((await context.request.post(`${appOrigin}/api/shared-calendar/bulk`, { headers: { Origin: "https://attacker.invalid" }, data: originalBulkPayload })).status(), 403);
   passed("unmatched participants require explicit confirmation, mobile bulk UI fits, and non-admin/type and cross-origin writes are rejected");
+  await page.goto(`${appOrigin}/calendar`);
+  const webinarCell = page.locator('[data-calendar-date="2026-10-20"]');
+  const webinarLink = webinarCell.getByRole("link").filter({ hasText: "웨비나 · 캘린더 검증 강의" });
+  await webinarLink.waitFor();
+  assert.ok((await webinarLink.getAttribute("title")).includes("19:00"));
+  assert.equal(await webinarLink.getAttribute("draggable"), "false");
+  assert.equal(await webinarLink.getAttribute("href"), `/services/course-operations/${courseId}`);
+  await page.getByRole("checkbox", { name: "강의 웨비나 표시", exact: true }).uncheck();
+  assert.equal(await webinarLink.count(), 0);
+  await page.getByRole("checkbox", { name: "강의 웨비나 표시", exact: true }).check();
+  await webinarLink.waitFor();
+  await webinarLink.click(); await page.waitForURL(`${appOrigin}/services/course-operations/${courseId}`);
+  assert.equal(await page.getByRole("dialog").count(), 0);
+  passed("course webinar automatically appears at the Korean start time, toggles off/on, and opens its original course instead of a calendar editor");
+  await page.goto(`${appOrigin}/calendar`);
+  const leavesToggle = page.getByRole("checkbox", { name: "직원 휴가 표시", exact: true });
+  assert.equal(await leavesToggle.isChecked(), false);
+  const withoutLeaves = await context.request.get(`${appOrigin}/api/shared-calendar?from=2026-10-01&to=2026-10-31`);
+  assert.equal((await withoutLeaves.json()).sources.some((event) => event.source === "leave"), false);
+  const leaveResponse = page.waitForResponse((response) => response.url().includes("includeLeaves=true") && response.request().method() === "GET");
+  await leavesToggle.check();
+  const sourceBody = await (await leaveResponse).json();
+  assert.equal(sourceBody.sources.filter((event) => event.source === "leave").length, 3);
+  assert.ok(!JSON.stringify(sourceBody).includes("private calendar fixture"));
+  await page.locator('[data-calendar-date="2026-10-12"]').getByRole("link").filter({ hasText: "검증 동료 · 종일 휴가" }).waitFor();
+  await page.locator('[data-calendar-date="2026-10-15"]').getByRole("link").filter({ hasText: "이지선 · 오전 반차" }).waitFor();
+  await page.locator('[data-calendar-date="2026-10-16"]').getByRole("link").filter({ hasText: "윤지혜 · 오후 반차" }).waitFor();
+  assert.equal(await page.locator('[data-calendar-date="2026-10-13"]').getByRole("link").count(), 0);
+  await leavesToggle.uncheck();
+  assert.equal(await page.getByRole("link").filter({ hasText: "검증 동료 · 종일 휴가" }).count(), 0);
+  passed("optional leave overlay shows approved colleague full/AM/PM schedules from SQL and never exposes pending leave or private HR notes");
+  course.free_webinar_at = "2026-10-21T10:30:00Z";
+  await page.getByRole("button", { name: "일정 새로고침", exact: true }).click();
+  const updatedWebinar = page.locator('[data-calendar-date="2026-10-21"]').getByRole("link").filter({ hasText: "웨비나 · 캘린더 검증 강의" });
+  await updatedWebinar.waitFor();
+  assert.ok((await updatedWebinar.getAttribute("title")).includes("19:30"));
+  assert.equal(await webinarLink.count(), 0);
+  await page.getByLabel("회의 종류 필터").selectOption({ label: "주간회의" });
+  assert.equal(await updatedWebinar.count(), 0);
+  await page.getByLabel("회의 종류 필터").selectOption({ label: "웨비나" });
+  await updatedWebinar.waitFor();
+  await page.getByLabel("회의 종류 필터").selectOption("");
+  passed("changing the source webinar date/time moves the overlay without duplicate storage and meeting-type filtering stays accurate");
+  leaveOutage = true;
+  await leavesToggle.check();
+  await page.getByRole("alert").filter({ hasText: "직원 휴가 일정을 불러오지 못했습니다" }).waitFor();
+  await updatedWebinar.waitFor();
+  assert.ok(await page.getByRole("button", { name: /수정$/u }).count());
+  leaveOutage = false; personnelAllowed = false;
+  const forbiddenLeaves = await context.request.get(`${appOrigin}/api/shared-calendar?from=2026-10-01&to=2026-10-31&includeLeaves=true`);
+  const forbiddenBody = await forbiddenLeaves.json();
+  assert.equal(forbiddenLeaves.status(), 200);
+  assert.equal(forbiddenBody.sources.some((event) => event.source === "leave"), false);
+  assert.match(forbiddenBody.sourcesWarning, /활성 직원/u);
+  personnelAllowed = true;
+  assert.equal((await context.request.get(`${appOrigin}/api/shared-calendar?from=2026-10-01&to=2026-10-31&includeLeaves=yes`)).status(), 400);
+  await exclusive(async () => { await db.exec("reset role"); await db.query("update hr_leave_requests set status='cancelled' where user_id=$1 and leave_date='2026-10-12'", [users[1].id]); });
+  const cancelledLeaveResponse = page.waitForResponse((response) => response.url().includes("includeLeaves=true") && response.request().method() === "GET");
+  await page.getByRole("button", { name: "일정 새로고침", exact: true }).click();
+  const cancelledLeaveBody = await (await cancelledLeaveResponse).json();
+  assert.equal(cancelledLeaveBody.sources.filter((event) => event.source === "leave").length, 2);
+  assert.equal(cancelledLeaveBody.sourcesWarning, "");
+  await page.locator('[data-calendar-date="2026-10-12"]').getByRole("link").filter({ hasText: "검증 동료 · 종일 휴가" }).waitFor({ state: "hidden" });
+  assert.equal(await exclusive(async () => { await db.exec("reset role"); return (await db.query("select count(*)::integer as count from hr_leave_requests")).rows[0].count; }), 6);
+  passed("cancelling an approved leave removes its overlay on refresh without deleting HR history or copying schedules");
+  await leavesToggle.uncheck();
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+  passed("leave permission denial and outage produce a scoped warning while manual schedules and webinar sources remain usable on mobile");
   assert.deepEqual(browserErrors, []);
   passed("all calendar and bulk browser flows finish without uncaught client errors");
   console.log(`Shared calendar browser/API/SQL checks: ${checks} passed.`);
