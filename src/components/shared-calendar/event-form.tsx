@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Share2 } from "lucide-react";
+import { CalendarPlus, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DURATIONS, START_TIMES, calendarShareText, eventSchema, formatDuration, formatCalendarTime, formatTime, updateDraftTitle } from "@/lib/shared-calendar/calendar";
 import type { CalendarCourse, CalendarDraft, CalendarEvent, CalendarPerson, MeetingType } from "@/lib/shared-calendar/types";
+import { buildGoogleCalendarUrl } from "@/lib/shared-calendar/google-calendar";
 import { LocationFields } from "./location-fields";
 
 export const selectClass = "h-9 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50";
@@ -148,6 +149,12 @@ export function CalendarEventForm({ event, date, types, courses, initialCourseId
         {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
         {copyNotice ? <p role="status" className="text-sm text-muted-foreground">{copyNotice}</p> : null}
         {manualCopy ? <label className="grid gap-2 text-sm">공유 텍스트<textarea aria-label="공유 텍스트" readOnly autoFocus onFocus={(e) => e.currentTarget.select()} className="min-h-40 rounded-md border p-3 text-sm" value={manualCopy} /></label> : null}
+        {event ? <div className="space-y-2 rounded-md border p-3">
+          <Button asChild type="button" variant="outline" className="w-full" disabled={busy}>
+            <a href={busy ? undefined : buildGoogleCalendarUrl(event)} target="_blank" rel="noopener noreferrer" aria-disabled={busy} aria-describedby="calendar-google-help" tabIndex={busy ? -1 : undefined}><CalendarPlus />내 Google 캘린더로 보내기</a>
+          </Button>
+          <p id="calendar-google-help" className="text-xs text-muted-foreground">Google 계정을 선택한 뒤 캘린더에서 저장을 눌러 추가하세요. 저장된 일정 정보를 보냅니다. 수정한 내용은 변경 저장 후 보내세요.{event.time_tbd ? " 시간 미정 일정은 종일 일정으로 열립니다." : ""}</p>
+        </div> : null}
         {confirmDelete ? <div className="rounded-md border border-destructive/40 p-3"><p className="mb-3">이 일정을 삭제할까요? 모든 사용자와 연결 강의에서 사라집니다.</p><div className="flex gap-2"><Button type="button" variant="destructive" disabled={busy} onClick={remove}>삭제 확인</Button><Button type="button" variant="outline" disabled={busy} onClick={() => setConfirmDelete(false)}>삭제 취소</Button></div></div> : null}
         <DialogFooter>
           {event ? <Button type="button" variant="destructive" className="sm:mr-auto" disabled={busy} onClick={() => setConfirmDelete(true)}>일정 삭제</Button> : null}

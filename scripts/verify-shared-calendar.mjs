@@ -16,6 +16,7 @@ nextEnv.loadEnvConfig(process.cwd());
 const upstream = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin;
 const arg = process.argv.indexOf("--playwright-module");
 const modulePath = arg < 0 ? createRequire(import.meta.url).resolve("playwright") : process.argv[arg + 1];
+const executableArg = process.argv.indexOf("--browser-executable");
 const { chromium } = await import(pathToFileURL(modulePath).href);
 const workspace = "00000000-0000-4000-8000-000000000001";
 const courseId = "00000000-0000-4000-8000-000000000021";
@@ -197,7 +198,7 @@ try {
     if (ready) break; await new Promise((resolve) => setTimeout(resolve, 250));
   }
   assert.ok(ready);
-  browser = await chromium.launch({ headless: true });
+  browser = await chromium.launch({ headless: true, ...(executableArg >= 0 ? { executablePath: process.argv[executableArg + 1] } : {}) });
   async function login(user, options = {}) {
     const context = await browser.newContext(options);
     await context.route(`${upstream}/**`, async (route) => {
@@ -224,6 +225,7 @@ try {
   await page.getByRole("button", { name: "일정 등록", exact: true }).click();
   let dialog = page.getByRole("dialog");
   await dialog.waitFor();
+  assert.equal(await dialog.getByRole("link", { name: "내 Google 캘린더로 보내기", exact: true }).count(), 0);
   assert.equal(await dialog.getByLabel("시작시간", { exact: true }).locator("option").count(), 27);
   assert.equal(await dialog.getByLabel("소요시간", { exact: true }).locator("option").count(), 48);
   passed("dashboard card opens calendar with 08:00–21:00 starts and half-hour durations");
@@ -285,6 +287,41 @@ try {
   await eventButton.dblclick(); dialog = page.getByRole("dialog"); await dialog.waitFor();
   await dialog.getByRole("checkbox", { name: "검증 사용자", exact: true }).waitFor();
   assert.equal(await dialog.locator('input[type="checkbox"]:checked').count(), 2);
+  const googleLink = dialog.getByRole("link", { name: "내 Google 캘린더로 보내기", exact: true });
+  const googleHref = await googleLink.getAttribute("href");
+  const chooser = new URL(googleHref);
+  assert.equal(chooser.origin, "https://accounts.google.com");
+  assert.equal(chooser.pathname, "/AccountChooser");
+  const template = new URL(chooser.searchParams.get("continue"));
+  const compactDay = stored.event_date.replaceAll("-", "");
+  assert.equal(template.origin, "https://calendar.google.com");
+  assert.equal(template.searchParams.get("text"), stored.title);
+  assert.equal(template.searchParams.get("dates"), `${compactDay}T210000/${compactDay}T223000`);
+  assert.equal(template.searchParams.get("ctz"), "Asia/Seoul");
+  assert.equal(template.searchParams.get("location"), stored.location_text);
+  assert.ok(template.searchParams.get("details").includes(stored.notes));
+  assert.equal(await googleLink.getAttribute("target"), "_blank");
+  assert.match(await googleLink.getAttribute("rel"), /noopener/u);
+  await dialog.getByLabel("일정 제목", { exact: true }).fill("저장하지 않은 변경");
+  assert.equal(await googleLink.getAttribute("href"), googleHref);
+  await dialog.getByLabel("일정 제목", { exact: true }).fill(stored.title);
+  // Stop at the external handoff: no real Google account or calendar is changed.
+  await context.route("https://accounts.google.com/**", (route) => route.fulfill({ contentType: "text/html", body: "<title>Google account handoff fixture</title>" }));
+  const googlePopup = page.waitForEvent("popup");
+  await googleLink.click();
+  const popup = await googlePopup;
+  await popup.waitForURL(googleHref);
+  await popup.close();
+  await context.unroute("https://accounts.google.com/**");
+  const unchanged = await exclusive(async () => { await db.exec("reset role"); return (await db.query("select title, version from shared_calendar_events where id=$1", [stored.id])).rows[0]; });
+  assert.equal(unchanged.title, stored.title); assert.equal(unchanged.version, stored.version);
+  const beforeMobile = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await googleLink.scrollIntoViewIfNeeded();
+  assert.ok(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth));
+  await page.screenshot({ path: join(tmpdir(), "calendar-google-event.png"), fullPage: true });
+  await page.setViewportSize(beforeMobile);
+  passed("saved event opens Google account selection in a new tab with Korean times and persisted data; unsaved edits stay local and mobile actions fit");
   await dialog.getByRole("button", { name: "공유", exact: true }).click();
   await dialog.getByRole("status").filter({ hasText: "공유 내용을 클립보드에 복사" }).waitFor();
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
@@ -322,6 +359,11 @@ try {
   await dialog.getByLabel("일정 제목", { exact: true }).fill("동료가 수정한 미팅");
   await dialog.getByRole("button", { name: "변경 저장", exact: true }).click();
   await colleague.page.getByRole("status").filter({ hasText: "일정을 저장" }).waitFor();
+  await colleague.page.getByRole("button", { name: "동료가 수정한 미팅 수정", exact: true }).dblclick();
+  dialog = colleague.page.getByRole("dialog");
+  const changedChooser = new URL(await dialog.getByRole("link", { name: "내 Google 캘린더로 보내기", exact: true }).getAttribute("href"));
+  assert.equal(new URL(changedChooser.searchParams.get("continue")).searchParams.get("text"), "동료가 수정한 미팅");
+  await dialog.getByRole("button", { name: "취소", exact: true }).click();
   passed("another workspace member can edit shared schedules");
   const latestResponse = await context.request.get(`${appOrigin}/api/shared-calendar?from=${movedDate}&to=${movedDate}`);
   const latestEvent = (await latestResponse.json()).events.find((event) => event.id === stored.id);
@@ -459,6 +501,11 @@ try {
   dialog = admin.page.getByRole("dialog"); await dialog.waitFor();
   assert.equal(await dialog.getByRole("checkbox", { name: "시간 미정", exact: true }).isChecked(), true);
   assert.equal(await dialog.getByLabel("시작시간", { exact: true }).isDisabled(), true);
+  const tbdChooser = new URL(await dialog.getByRole("link", { name: "내 Google 캘린더로 보내기", exact: true }).getAttribute("href"));
+  const tbdTemplate = new URL(tbdChooser.searchParams.get("continue"));
+  assert.match(tbdTemplate.searchParams.get("dates"), /^\d{8}\/\d{8}$/u);
+  assert.ok(tbdTemplate.searchParams.get("details").includes("시간 미정"));
+  await dialog.getByText(/시간 미정 일정은 종일 일정으로 열립니다/u).waitFor();
   await dialog.getByLabel("장소", { exact: true }).selectOption("custom");
   await dialog.getByLabel("장소 직접 입력", { exact: true }).fill("강남 스튜디오");
   await dialog.getByRole("button", { name: "변경 저장", exact: true }).click();
