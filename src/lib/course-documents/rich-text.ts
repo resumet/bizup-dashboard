@@ -1,4 +1,5 @@
 import type { CourseDocumentBlock, RichTextNode } from "./types";
+import { normalizeNotionCalloutNodes } from "./rich-text-paste";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
@@ -100,6 +101,12 @@ export function richTextDocumentToBlocks(document: { content?: RichTextNode[] | 
       content: withBlockId(node, id),
     };
   });
+}
+
+export function repairCourseDocumentCallouts(blocks: CourseDocumentBlock[]) {
+  const document = blocksToRichTextDocument(blocks);
+  const content = normalizeNotionCalloutNodes(document.content);
+  return content === document.content ? blocks : richTextDocumentToBlocks({ content });
 }
 
 export function richTextCharacterCount(blocks: CourseDocumentBlock[]) {

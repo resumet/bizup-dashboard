@@ -11,7 +11,8 @@ const CHECKED_TEXT_PATTERN = /^\s*(?:☑|✅|✔|✓|\[x\])\s*/iu;
 const UNCHECKED_TEXT_PATTERN = /^\s*(?:☐|□|\[\s\])\s*/u;
 
 function calloutParagraphs(text: string, markdown: boolean): RichTextNode[] {
-  return text.replace(/^\n|\n$/gu, "").split("\n").map((line) => {
+  return text.replace(/^\n|\n$/gu, "").split("\n").map((originalLine) => {
+    const line = markdown ? originalLine.replace(/\\$/u, "") : originalLine;
     const content: RichTextNode[] = [];
     // Only interpret inline formatting in callouts. Ordinary pasted text stays literal.
     const tokens = markdown ? /(`+)([^`]+)\1|\*\*([^*\n]+)\*\*/gu : /$^/gu;
@@ -26,21 +27,25 @@ function calloutParagraphs(text: string, markdown: boolean): RichTextNode[] {
   });
 }
 
+function maskCalloutCode(text: string) {
+  return text.replace(
+    /^ {0,3}(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^ {0,3}\1[^\n]*(?:\n|$)|(?![\s\S]))|(`+)[^`\n]*\2/gmu,
+    (code) => " ".repeat(code.length),
+  );
+}
+
 /** Imports Notion's Markdown callouts without interpreting arbitrary HTML as markup. */
 export function notionCalloutPasteDocument(text: string): { type: "doc"; content: RichTextNode[] } | null {
   const normalized = text.replace(/\r\n?/gu, "\n");
   // Tags in fenced or inline code are examples, not callouts.
-  const searchable = normalized.replace(
-    /^ {0,3}(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^ {0,3}\1[^\n]*(?:\n|$)|(?![\s\S]))|(`+)[^`\n]*\2/gmu,
-    (code) => " ".repeat(code.length),
-  );
+  const searchable = maskCalloutCode(normalized);
   const content: RichTextNode[] = [];
   let offset = 0;
-  for (const match of searchable.matchAll(/<aside(?:\s[^<>]*?)?>([\s\S]*?)<\/aside\s*>/giu)) {
+  for (const match of searchable.matchAll(/(\\?(?:<|&lt;)aside(?:\s[^<>]*?)?(?:>|&gt;))([\s\S]*?)(\\?(?:<|&lt;)\/aside\s*(?:>|&gt;))/giu)) {
     const before = normalized.slice(offset, match.index).replace(/\n$/u, "");
     if (before) content.push(...calloutParagraphs(before, false));
-    const openingLength = match[0].indexOf(">") + 1;
-    const closingOffset = match[0].lastIndexOf("<");
+    const openingLength = match[1].length;
+    const closingOffset = match[0].length - match[3].length;
     content.push({
       type: "blockquote",
       content: calloutParagraphs(normalized.slice(match.index + openingLength, match.index + closingOffset), true),
@@ -51,6 +56,108 @@ export function notionCalloutPasteDocument(text: string): { type: "doc"; content
   const after = normalized.slice(offset).replace(/^\n/u, "");
   if (after) content.push(...calloutParagraphs(after, false));
   return { type: "doc", content };
+}
+
+function inlineContentSlice(content: RichTextNode[], from: number, to: number): RichTextNode[] {
+  const result: RichTextNode[] = [];
+  let offset = 0;
+  for (const node of content) {
+    const length = node.type === "text" ? (node.text?.length ?? 0) : 1;
+    const start = Math.max(from, offset);
+    const end = Math.min(to, offset + length);
+    if (start < end) result.push(node.type === "text"
+      ? { ...node, text: node.text?.slice(start - offset, end - offset) }
+      : node);
+    offset += length;
+  }
+  return result;
+}
+
+function formatCalloutNode(node: RichTextNode): RichTextNode {
+  if (node.type === "codeBlock") return node;
+  if (!node.content) return node;
+  return { ...node, content: node.content.flatMap((child): RichTextNode[] => {
+    if (child.type !== "text" || child.marks?.some((mark) => mark.type === "code")) return [formatCalloutNode(child)];
+    return calloutParagraphs(child.text ?? "", true).flatMap((paragraph, index) => [
+      ...(index ? [{ type: "hardBreak" } as RichTextNode] : []),
+      ...(paragraph.content ?? []).map((text) => {
+        const marks = [...(child.marks ?? []), ...(text.marks ?? []).filter((mark) => !child.marks?.some((existing) => existing.type === mark.type))];
+        return { ...text, ...(marks.length ? { marks } : {}) };
+      }),
+    ]);
+  }) };
+}
+
+/** Repairs literal callout tags after HTML parsing, keeping links, lists and inline marks. */
+export function normalizeNotionCalloutNodes(nodes: RichTextNode[]): RichTextNode[] {
+  const nested = nodes.map((node) => {
+    if (!node.content || ["paragraph", "heading", "codeBlock"].includes(node.type)) return node;
+    const content = normalizeNotionCalloutNodes(node.content);
+    return content === node.content ? node : { ...node, content };
+  });
+  const input = nested.every((node, index) => node === nodes[index]) ? nodes : nested;
+  const delimiters: { nodeIndex: number; from: number; to: number; closing: boolean; paired: boolean }[] = [];
+  input.forEach((node, nodeIndex) => {
+    if (node.type !== "paragraph" && node.type !== "heading") return;
+    const text = (node.content ?? []).map((child) => {
+      const value = child.type === "text" ? child.text ?? "" : "\n";
+      return child.marks?.some((mark) => mark.type === "code") ? " ".repeat(value.length) : value;
+    }).join("");
+    for (const match of maskCalloutCode(text).matchAll(/\\?(?:<|&lt;)(\/?)aside(?:\s[^<>]*?)?(?:>|&gt;)/giu)) {
+      delimiters.push({ nodeIndex, from: match.index, to: match.index + match[0].length, closing: Boolean(match[1]), paired: false });
+    }
+  });
+  const openings: typeof delimiters = [];
+  for (const delimiter of delimiters) {
+    if (!delimiter.closing) openings.push(delimiter);
+    else {
+      const opening = openings.pop();
+      if (opening) opening.paired = delimiter.paired = true;
+    }
+  }
+  const paired = delimiters.filter((delimiter) => delimiter.paired);
+  if (!paired.length) return input;
+
+  const result: RichTextNode[] = [];
+  const quotes: RichTextNode[] = [];
+  function append(node: RichTextNode) {
+    (quotes.at(-1)?.content ?? result).push(node);
+  }
+  input.forEach((node, nodeIndex) => {
+    const markers = paired.filter((delimiter) => delimiter.nodeIndex === nodeIndex);
+    if (!markers.length) {
+      append(quotes.length ? formatCalloutNode(node) : node);
+      return;
+    }
+    const content = node.content ?? [];
+    const length = content.reduce((sum, child) => sum + (child.type === "text" ? child.text?.length ?? 0 : 1), 0);
+    let offset = 0;
+    function appendRange(to: number) {
+      const portion = inlineContentSlice(content, offset, to);
+      if (portion.length) {
+        const block = { ...node, content: portion };
+        append(quotes.length ? formatCalloutNode(block) : block);
+      }
+    }
+    for (const marker of markers) {
+      appendRange(marker.from);
+      if (marker.closing) {
+        const quote = quotes.pop();
+        if (quote && !quote.content?.length) quote.content = [{ type: "paragraph" }];
+      } else {
+        const quote: RichTextNode = {
+          type: "blockquote",
+          ...(node.attrs?.blockId ? { attrs: { blockId: node.attrs.blockId } } : {}),
+          content: [],
+        };
+        append(quote);
+        quotes.push(quote);
+      }
+      offset = marker.to;
+    }
+    appendRange(length);
+  });
+  return result;
 }
 
 function calloutNodeElement(document: Document, node: RichTextNode): HTMLElement {
@@ -67,13 +174,6 @@ function calloutNodeElement(document: Document, node: RichTextNode): HTMLElement
     }
   }
   return element;
-}
-
-function clipboardWrapperText(node: Node): string {
-  if (node.nodeType === 3) return node.textContent ?? "";
-  if (node.nodeName === "BR") return "\n";
-  const text = Array.from(node.childNodes).map(clipboardWrapperText).join("");
-  return /^(?:P|DIV)$/u.test(node.nodeName) && !text.endsWith("\n") ? `${text}\n` : text;
 }
 
 function firstTextNode(element: Element) {
@@ -121,17 +221,6 @@ export function normalizeRichTextPasteHtml(html: string) {
 
   const document = new DOMParser().parseFromString(html, "text/html");
   let changed = false;
-
-  // Some clipboard sources wrap literal Markdown in paragraphs instead of sending plain text.
-  const elements = Array.from(document.body.querySelectorAll("*"));
-  if (elements.every((element) => /^(?:P|DIV|SPAN|BR)$/u.test(element.tagName))
-    && !document.body.querySelector("[data-pm-slice]")) {
-    const callouts = notionCalloutPasteDocument(clipboardWrapperText(document.body).replace(/\n$/u, ""));
-    if (callouts) {
-      document.body.replaceChildren(...callouts.content.map((node) => calloutNodeElement(document, node)));
-      changed = true;
-    }
-  }
 
   for (const aside of Array.from(document.body.querySelectorAll("aside"))) {
     // Leave pasted code examples intact.

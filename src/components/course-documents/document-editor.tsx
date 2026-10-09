@@ -77,8 +77,9 @@ import {
   blocksToRichTextDocument,
   richTextCharacterCount,
   richTextDocumentToBlocks,
+  repairCourseDocumentCallouts,
 } from "@/lib/course-documents/rich-text";
-import { normalizeRichTextPasteHtml, notionCalloutPasteDocument } from "@/lib/course-documents/rich-text-paste";
+import { normalizeNotionCalloutNodes, normalizeRichTextPasteHtml, notionCalloutPasteDocument } from "@/lib/course-documents/rich-text-paste";
 import type {
   CourseDocumentBlock,
   CourseDocumentDetail,
@@ -238,17 +239,22 @@ function ToolbarButton({
 }
 
 export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, document, fixedTitle = false }: Props) {
+  const initialDocument = useMemo(() => {
+    const original = document?.content ?? [];
+    const blocks = repairCourseDocumentCallouts(original);
+    return { blocks, repaired: blocks !== original, content: blocksToRichTextDocument(blocks) as JSONContent };
+  }, [document?.content]);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<Editor | null>(null);
-  const dirtyRef = useRef(false);
+  const dirtyRef = useRef(initialDocument.repaired);
   const [title, setTitle] = useState(document?.title ?? "");
-  const [blocks, setBlocks] = useState<CourseDocumentBlock[]>(document?.content ?? []);
+  const [blocks, setBlocks] = useState<CourseDocumentBlock[]>(initialDocument.blocks);
   const [status, setStatus] = useState<CourseDocumentStatus>(document?.status ?? "draft");
   const [leadGateAfterBlockId, setLeadGateAfterBlockId] = useState<string | null>(
     document?.leadGateEnabled ? document.leadGateAfterBlockId : null,
   );
   const [preview, setPreview] = useState(false);
-  const [dirty, setDirty] = useState(false);
+  const [dirty, setDirty] = useState(initialDocument.repaired);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -262,7 +268,6 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
   const [buttonUrl, setButtonUrl] = useState("");
   const [gateDialogOpen, setGateDialogOpen] = useState(false);
 
-  const initialContent = useMemo(() => blocksToRichTextDocument(document?.content ?? []) as JSONContent, [document?.content]);
   const leadGateEnabled = mode === "admin" && Boolean(leadGateAfterBlockId);
   const characterCount = useMemo(() => richTextCharacterCount(blocks), [blocks]);
 
@@ -327,13 +332,21 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
       ButtonLink,
       BlockIdentity,
     ],
-    content: initialContent,
+    content: initialDocument.content,
     editorProps: {
       attributes: {
         class: "course-rich-text-editor",
         "aria-label": "문서 본문",
       },
       transformPastedHTML: normalizeRichTextPasteHtml,
+      transformPasted: (slice, view, plainText) => {
+        if (plainText || !slice.content.size) return slice;
+        const original = slice.content.toJSON() as RichTextNode[];
+        const normalized = normalizeNotionCalloutNodes(original);
+        return normalized === original ? slice : Slice.maxOpen(Fragment.fromArray(
+          normalized.map((node) => view.state.schema.nodeFromJSON(node)),
+        ));
+      },
       clipboardTextParser: (text, context, plainText) => {
         const { schema } = context.doc.type;
         const callouts = plainText ? null : notionCalloutPasteDocument(text);
