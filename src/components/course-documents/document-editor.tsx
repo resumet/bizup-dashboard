@@ -13,6 +13,7 @@ import { FontSize, LineHeight, TextStyle } from "@tiptap/extension-text-style";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Plugin } from "@tiptap/pm/state";
+import { Fragment, Slice } from "@tiptap/pm/model";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Bold,
@@ -77,7 +78,7 @@ import {
   richTextCharacterCount,
   richTextDocumentToBlocks,
 } from "@/lib/course-documents/rich-text";
-import { normalizeRichTextPasteHtml } from "@/lib/course-documents/rich-text-paste";
+import { normalizeRichTextPasteHtml, notionCalloutPasteDocument } from "@/lib/course-documents/rich-text-paste";
 import type {
   CourseDocumentBlock,
   CourseDocumentDetail,
@@ -333,6 +334,16 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
         "aria-label": "문서 본문",
       },
       transformPastedHTML: normalizeRichTextPasteHtml,
+      clipboardTextParser: (text, context, plainText) => {
+        const { schema } = context.doc.type;
+        const callouts = plainText ? null : notionCalloutPasteDocument(text);
+        const content = callouts
+          ? schema.nodeFromJSON(callouts).content
+          : Fragment.from(text.split(/(?:\r\n?|\n)+/u).map((line) => (
+            schema.nodes.paragraph.create(null, line ? schema.text(line, context.marks()) : undefined)
+          )));
+        return Slice.maxOpen(content);
+      },
       handlePaste: (_view, event) => {
         const file = imageFileFromTransfer(event.clipboardData);
         const html = event.clipboardData?.getData("text/html").trim();
