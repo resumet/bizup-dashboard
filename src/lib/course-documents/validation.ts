@@ -71,6 +71,7 @@ const richTextNodeSchema: z.ZodType<RichTextNode> = z.lazy(() => z.object({
     "taskList",
     "taskItem",
     "blockquote",
+    "callout",
     "codeBlock",
     "horizontalRule",
     "hardBreak",
@@ -92,6 +93,9 @@ const richTextNodeSchema: z.ZodType<RichTextNode> = z.lazy(() => z.object({
   }
   if (node.type === "heading" && node.attrs?.level !== 1 && node.attrs?.level !== 2 && node.attrs?.level !== 3) {
     context.addIssue({ code: "custom", path: ["attrs", "level"], message: "제목 단계가 올바르지 않습니다." });
+  }
+  if (node.type === "callout" && (typeof node.attrs?.icon !== "string" || node.attrs.icon.length > 64)) {
+    context.addIssue({ code: "custom", path: ["attrs", "icon"], message: "콜아웃 아이콘이 올바르지 않습니다." });
   }
   const urls: unknown[] = [];
   if (node.type === "image") urls.push(node.attrs?.src);

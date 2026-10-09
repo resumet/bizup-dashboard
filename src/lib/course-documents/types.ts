@@ -48,6 +48,7 @@ export type RichTextNode = {
     | "taskList"
     | "taskItem"
     | "blockquote"
+    | "callout"
     | "codeBlock"
     | "horizontalRule"
     | "hardBreak"

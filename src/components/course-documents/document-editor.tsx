@@ -43,6 +43,7 @@ import {
   Rows3,
   Save,
   Strikethrough,
+  StickyNote,
   Table2,
   Trash2,
   Underline,
@@ -51,6 +52,7 @@ import {
 } from "lucide-react";
 
 import { DocumentRenderer } from "@/components/course-documents/document-renderer";
+import { Callout } from "@/components/course-documents/callout-extension";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -112,6 +114,7 @@ const TOP_LEVEL_BLOCKS = [
   "orderedList",
   "taskList",
   "blockquote",
+  "callout",
   "codeBlock",
   "horizontalRule",
   "image",
@@ -330,6 +333,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Placeholder.configure({ placeholder: "본문을 입력하거나 이미지를 붙여넣으세요" }),
       ButtonLink,
+      Callout,
       BlockIdentity,
     ],
     content: initialDocument.content,
@@ -655,6 +659,17 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
               <ListChecks />체크 항목
             </Button>
             <ToolbarButton label="인용문" active={Boolean(editor?.isActive("blockquote"))} onClick={() => editor?.chain().focus().toggleBlockquote().run()}><Quote /></ToolbarButton>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" size="sm" variant={editor?.isActive("callout") ? "secondary" : "ghost"} onMouseDown={(event) => event.preventDefault()}><StickyNote />콜아웃</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onSelect={() => editor?.chain().focus().toggleWrap("callout").run()}>{editor?.isActive("callout") ? "콜아웃 해제" : "콜아웃 넣기"}</DropdownMenuItem>
+                {editor?.isActive("callout") ? ["💡", "⚠️", "🔍", "✅", "❌", "📌"].map((icon) => (
+                  <DropdownMenuItem key={icon} onSelect={() => editor?.chain().focus().updateAttributes("callout", { icon }).run()}>{icon} 아이콘</DropdownMenuItem>
+                )) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <span className="mx-1 h-5 w-px shrink-0 bg-border" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

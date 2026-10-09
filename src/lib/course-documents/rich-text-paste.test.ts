@@ -12,14 +12,15 @@ test("노션에서 텍스트로 복사한 콜아웃의 태그를 숨기고 이�
   );
   assert.ok(document);
   assert.deepEqual(document.content, [{
-    type: "blockquote",
+    type: "callout",
+    attrs: { icon: "🔍" },
     content: [
-      { type: "paragraph", content: [{ type: "text", text: "🔍" }] },
       { type: "paragraph", content: [
         { type: "text", text: "체크", marks: [{ type: "bold" }] },
         { type: "text", text: " — 이 제목만 보고 처음 방문한 사람이 “여기에 어떤 정보가 있겠구나”라고 예상할 수 있는가?" },
+        { type: "hardBreak" },
+        { type: "text", text: "YES라면 사용해도 좋습니다." },
       ] },
-      { type: "paragraph", content: [{ type: "text", text: "YES라면 사용해도 좋습니다." }] },
     ],
   }]);
   const blocks = richTextDocumentToBlocks(document);
@@ -30,7 +31,7 @@ test("노션에서 텍스트로 복사한 콜아웃의 태그를 숨기고 이�
 test("콜아웃 앞뒤 내용과 여러 콜아웃의 순서를 유지한다", () => {
   const document = notionCalloutPasteDocument('**원문**\n<aside>첫 번째</aside>\n중간\n<aside class="callout">**두 번째**</aside>\n끝');
   assert.ok(document);
-  assert.deepEqual(document.content.map((node) => node.type), ["paragraph", "blockquote", "paragraph", "blockquote", "paragraph"]);
+  assert.deepEqual(document.content.map((node) => node.type), ["paragraph", "callout", "paragraph", "callout", "paragraph"]);
   assert.equal(document.content[0].content?.[0].text, "**원문**");
   assert.equal(document.content[2].content?.[0].text, "중간");
   assert.equal(document.content[4].content?.[0].text, "끝");
@@ -52,7 +53,7 @@ test("코드 예시 안의 aside는 그대로 두고 실제 콜아웃만 변환�
 
   const document = notionCalloutPasteDocument("```html\n<aside>예시</aside>\n```\n<aside>본문 `**코드**`와 **강조**</aside>");
   assert.ok(document);
-  assert.equal(document.content.filter((node) => node.type === "blockquote").length, 1);
+  assert.equal(document.content.filter((node) => node.type === "callout").length, 1);
   assert.deepEqual(document.content.at(-1)?.content?.[0].content, [
     { type: "text", text: "본문 " },
     { type: "text", text: "**코드**", marks: [{ type: "code" }] },
@@ -64,8 +65,9 @@ test("코드 예시 안의 aside는 그대로 두고 실제 콜아웃만 변환�
 test("콜아웃 안의 임의 HTML은 실행 가능한 노드로 바꾸지 않는다", () => {
   const document = notionCalloutPasteDocument('<aside><script>alert(1)</script>\n<img src=x onerror=alert(1)>\n**체크**</aside>');
   assert.ok(document);
-  assert.equal(document.content[0].content?.[0].content?.[0].text, "<script>alert(1)</script>");
-  assert.equal(document.content[0].content?.[1].content?.[0].text, "<img src=x onerror=alert(1)>");
+  assert.match(JSON.stringify(document), /<script>alert\(1\)<\/script>/u);
+  assert.match(JSON.stringify(document), /<img src=x onerror=alert\(1\)>/u);
+  assert.doesNotMatch(JSON.stringify(document), /"type":"image"/u);
 });
 
 test("HTML 서식과 섞인 문자 태그를 변환할 때 제목, 링크, 굵은 글씨, 목록을 유지한다", () => {
@@ -80,7 +82,7 @@ test("HTML 서식과 섞인 문자 태그를 변환할 때 제목, 링크, 굵�
     { type: "paragraph", content: [{ type: "text", text: "</aside>" }] },
     heading,
   ]);
-  assert.deepEqual(normalized, [heading, { type: "blockquote", content: [bold, link, list] }, heading]);
+  assert.deepEqual(normalized, [heading, { type: "callout", attrs: { icon: "💡" }, content: [bold, link, list] }, heading]);
   assert.equal(normalizeNotionCalloutNodes(normalized), normalized);
 });
 
@@ -94,7 +96,7 @@ test("태그가 여러 텍스트 노드로 나뉘어도 주변 문구와 서식�
     ],
   }]);
   assert.equal(normalized[0].content?.[0].text, "앞 ");
-  assert.equal(normalized[1].type, "blockquote");
+  assert.equal(normalized[1].type, "callout");
   assert.deepEqual(normalized[1].content?.[0].content?.[0], { type: "text", text: "체크", marks: [{ type: "italic" }, { type: "bold" }] });
   assert.equal(normalized[2].content?.[0].text, " 뒤");
 });
@@ -117,7 +119,7 @@ test("저장된 태그를 작성창에서 복구한 뒤 저장하고 다시 열�
   const repaired = repairCourseDocumentCallouts(broken);
   assert.equal(courseDocumentContentSchema.safeParse(repaired).success, true);
   assert.equal(repaired[0].id, broken[0].id);
-  assert.equal(repaired[0].type === "rich_text" ? repaired[0].content.type : null, "blockquote");
+  assert.equal(repaired[0].type === "rich_text" ? repaired[0].content.type : null, "callout");
   const reopened = blocksToRichTextDocument(repaired);
   assert.deepEqual(richTextDocumentToBlocks(reopened), repaired);
   assert.equal(repairCourseDocumentCallouts(repaired), repaired);

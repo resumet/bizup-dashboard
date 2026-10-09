@@ -2,6 +2,8 @@ import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 
 import type { CourseDocumentBlock, RichTextMark, RichTextNode } from "@/lib/course-documents/types";
+import { DEFAULT_CALLOUT_ICON } from "@/lib/course-documents/callout";
+import { repairCourseDocumentCallouts } from "@/lib/course-documents/rich-text";
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/gu;
 const ALLOWED_FONT_SIZES = new Set(["12px", "14px", "16px", "18px", "20px", "24px", "28px", "32px", "40px", "48px"]);
@@ -84,6 +86,12 @@ function renderRichTextNode(node: RichTextNode, key: string): ReactNode {
   }
 
   const children = node.content?.map((child, index) => renderRichTextNode(child, `${key}-${index}`)) ?? null;
+  if (node.type === "callout") return (
+    <div key={key} className="course-document-callout" data-course-document-callout="" data-icon={typeof node.attrs?.icon === "string" ? node.attrs.icon : DEFAULT_CALLOUT_ICON}>
+      <span className="course-document-callout-icon" aria-hidden="true">{typeof node.attrs?.icon === "string" ? node.attrs.icon : DEFAULT_CALLOUT_ICON}</span>
+      <div className="course-document-callout-content" data-callout-content="">{children}</div>
+    </div>
+  );
   if (node.type === "table") {
     return (
       <div key={key} className="my-7 overflow-x-auto rounded-xl border">
@@ -126,7 +134,7 @@ function renderRichTextNode(node: RichTextNode, key: string): ReactNode {
 export function DocumentRenderer({ blocks }: { blocks: CourseDocumentBlock[] }) {
   return (
     <div className="space-y-6">
-      {blocks.map((block) => {
+      {repairCourseDocumentCallouts(blocks).map((block) => {
         if (block.type === "rich_text") return renderRichTextNode(block.content, block.id);
         if (block.type === "heading1") return <h2 key={block.id} className="pt-4 text-3xl font-bold tracking-tight text-balance sm:text-4xl">{block.content}</h2>;
         if (block.type === "heading2") return <h3 key={block.id} className="pt-3 text-2xl font-semibold tracking-tight text-balance">{block.content}</h3>;

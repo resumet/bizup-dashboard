@@ -1,4 +1,6 @@
 import type { RichTextNode } from "./types";
+import { createCallout, decodeCalloutEntities, inlineNodeText, leadingCalloutIcon } from "./callout";
+import { calloutMarkdownBlocks, calloutMarkdownInline } from "./callout-markdown";
 
 const CHECKBOX_SELECTOR = [
   'input[type="checkbox"]',
@@ -11,20 +13,10 @@ const CHECKED_TEXT_PATTERN = /^\s*(?:☑|✅|✔|✓|\[x\])\s*/iu;
 const UNCHECKED_TEXT_PATTERN = /^\s*(?:☐|□|\[\s\])\s*/u;
 
 function calloutParagraphs(text: string, markdown: boolean): RichTextNode[] {
-  return text.replace(/^\n|\n$/gu, "").split("\n").map((originalLine) => {
-    const line = markdown ? originalLine.replace(/\\$/u, "") : originalLine;
-    const content: RichTextNode[] = [];
-    // Only interpret inline formatting in callouts. Ordinary pasted text stays literal.
-    const tokens = markdown ? /(`+)([^`]+)\1|\*\*([^*\n]+)\*\*/gu : /$^/gu;
-    let offset = 0;
-    for (const match of line.matchAll(tokens)) {
-      if (match.index > offset) content.push({ type: "text", text: line.slice(offset, match.index) });
-      content.push({ type: "text", text: match[2] ?? match[3], marks: [{ type: match[2] ? "code" : "bold" }] });
-      offset = match.index + match[0].length;
-    }
-    if (offset < line.length) content.push({ type: "text", text: line.slice(offset) });
-    return { type: "paragraph", ...(content.length ? { content } : {}) };
-  });
+  if (markdown) return calloutMarkdownBlocks(text);
+  return text.replace(/^\n|\n$/gu, "").split("\n").map((line) => ({
+    type: "paragraph", ...(line ? { content: [{ type: "text", text: line }] } : {}),
+  }));
 }
 
 function maskCalloutCode(text: string) {
@@ -46,10 +38,7 @@ export function notionCalloutPasteDocument(text: string): { type: "doc"; content
     if (before) content.push(...calloutParagraphs(before, false));
     const openingLength = match[1].length;
     const closingOffset = match[0].length - match[3].length;
-    content.push({
-      type: "blockquote",
-      content: calloutParagraphs(normalized.slice(match.index + openingLength, match.index + closingOffset), true),
-    });
+    content.push(createCallout(calloutMarkdownBlocks(normalized.slice(match.index + openingLength, match.index + closingOffset))));
     offset = match.index + match[0].length;
   }
   if (!content.length) return null;
@@ -58,119 +47,151 @@ export function notionCalloutPasteDocument(text: string): { type: "doc"; content
   return { type: "doc", content };
 }
 
-function inlineContentSlice(content: RichTextNode[], from: number, to: number): RichTextNode[] {
-  const result: RichTextNode[] = [];
-  let offset = 0;
-  for (const node of content) {
-    const length = node.type === "text" ? (node.text?.length ?? 0) : 1;
-    const start = Math.max(from, offset);
-    const end = Math.min(to, offset + length);
-    if (start < end) result.push(node.type === "text"
-      ? { ...node, text: node.text?.slice(start - offset, end - offset) }
-      : node);
-    offset += length;
-  }
-  return result;
-}
-
 function formatCalloutNode(node: RichTextNode): RichTextNode {
   if (node.type === "codeBlock") return node;
   if (!node.content) return node;
+  if (node.type !== "paragraph" && node.type !== "heading") return { ...node, content: formatCalloutBlocks(node.content) };
   return { ...node, content: node.content.flatMap((child): RichTextNode[] => {
     if (child.type !== "text" || child.marks?.some((mark) => mark.type === "code")) return [formatCalloutNode(child)];
-    return calloutParagraphs(child.text ?? "", true).flatMap((paragraph, index) => [
-      ...(index ? [{ type: "hardBreak" } as RichTextNode] : []),
-      ...(paragraph.content ?? []).map((text) => {
-        const marks = [...(child.marks ?? []), ...(text.marks ?? []).filter((mark) => !child.marks?.some((existing) => existing.type === mark.type))];
-        return { ...text, ...(marks.length ? { marks } : {}) };
-      }),
-    ]);
+    return calloutMarkdownInline(decodeCalloutEntities(child.text ?? "").replace(/\\[ \t]*(?=\n|$)/gu, ""), child.marks);
   }) };
 }
 
-/** Repairs literal callout tags after HTML parsing, keeping links, lists and inline marks. */
-export function normalizeNotionCalloutNodes(nodes: RichTextNode[]): RichTextNode[] {
-  const nested = nodes.map((node) => {
-    if (!node.content || ["paragraph", "heading", "codeBlock"].includes(node.type)) return node;
-    const content = normalizeNotionCalloutNodes(node.content);
-    return content === node.content ? node : { ...node, content };
-  });
-  const input = nested.every((node, index) => node === nodes[index]) ? nodes : nested;
-  const delimiters: { nodeIndex: number; from: number; to: number; closing: boolean; paired: boolean }[] = [];
-  input.forEach((node, nodeIndex) => {
-    if (node.type !== "paragraph" && node.type !== "heading") return;
-    const text = (node.content ?? []).map((child) => {
-      const value = child.type === "text" ? child.text ?? "" : "\n";
-      return child.marks?.some((mark) => mark.type === "code") ? " ".repeat(value.length) : value;
-    }).join("");
-    for (const match of maskCalloutCode(text).matchAll(/\\?(?:<|&lt;)(\/?)aside(?:\s[^<>]*?)?(?:>|&gt;)/giu)) {
-      delimiters.push({ nodeIndex, from: match.index, to: match.index + match[0].length, closing: Boolean(match[1]), paired: false });
-    }
-  });
-  const openings: typeof delimiters = [];
-  for (const delimiter of delimiters) {
-    if (!delimiter.closing) openings.push(delimiter);
-    else {
-      const opening = openings.pop();
-      if (opening) opening.paired = delimiter.paired = true;
-    }
-  }
-  const paired = delimiters.filter((delimiter) => delimiter.paired);
-  if (!paired.length) return input;
-
+function formatCalloutBlocks(nodes: RichTextNode[]): RichTextNode[] {
   const result: RichTextNode[] = [];
-  const quotes: RichTextNode[] = [];
-  function append(node: RichTextNode) {
-    (quotes.at(-1)?.content ?? result).push(node);
+  let plain: RichTextNode[] = [];
+  function flush() {
+    if (plain.length) {
+      const source = plain.map(inlineNodeText).join("\n\n");
+      const blockMarkdown = /^ {0,3}(?:[-*+]\s|\d+[.)]\s|#{1,6}\s|`{3,}|~{3,}|>\s)/mu.test(source);
+      result.push(...(blockMarkdown ? calloutMarkdownBlocks(source) : plain.map(formatCalloutNode)));
+    }
+    plain = [];
   }
-  input.forEach((node, nodeIndex) => {
-    const markers = paired.filter((delimiter) => delimiter.nodeIndex === nodeIndex);
-    if (!markers.length) {
-      append(quotes.length ? formatCalloutNode(node) : node);
-      return;
+  for (const node of nodes) {
+    if (node.type === "paragraph" && node.content?.every((child) => (child.type === "text" && !child.marks?.length) || child.type === "hardBreak")) {
+      plain.push(node);
+    } else {
+      flush();
+      result.push(formatCalloutNode(node));
     }
-    const content = node.content ?? [];
-    const length = content.reduce((sum, child) => sum + (child.type === "text" ? child.text?.length ?? 0 : 1), 0);
-    let offset = 0;
-    function appendRange(to: number) {
-      const portion = inlineContentSlice(content, offset, to);
-      if (portion.length) {
-        const block = { ...node, content: portion };
-        append(quotes.length ? formatCalloutNode(block) : block);
-      }
-    }
-    for (const marker of markers) {
-      appendRange(marker.from);
-      if (marker.closing) {
-        const quote = quotes.pop();
-        if (quote && !quote.content?.length) quote.content = [{ type: "paragraph" }];
-      } else {
-        const quote: RichTextNode = {
-          type: "blockquote",
-          ...(node.attrs?.blockId ? { attrs: { blockId: node.attrs.blockId } } : {}),
-          content: [],
-        };
-        append(quote);
-        quotes.push(quote);
-      }
-      offset = marker.to;
-    }
-    appendRange(length);
-  });
+  }
+  flush();
+  while (result[0]?.type === "paragraph" && !inlineNodeText(result[0]).trim()) result.shift();
+  while (result.at(-1)?.type === "paragraph" && !inlineNodeText(result.at(-1)!).trim()) result.pop();
   return result;
 }
 
+type IndexedNode = { node: RichTextNode; from: number; to: number; rootIndex: number; children?: IndexedNode[] };
+
+function equalNodeValue(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (!left || !right || typeof left !== "object" || typeof right !== "object") return false;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left) && Array.isArray(right) && left.length === right.length
+      && left.every((value, index) => equalNodeValue(value, right[index]));
+  }
+  const keys = Object.keys(left);
+  const other = right as Record<string, unknown>;
+  return keys.length === Object.keys(right).length
+    && keys.every((key) => Object.hasOwn(other, key) && equalNodeValue((left as Record<string, unknown>)[key], other[key]));
+}
+
+/** Tags may end inside a list item, so index the entire tree rather than sibling paragraphs. */
+export function normalizeNotionCalloutNodes(nodes: RichTextNode[]): RichTextNode[] {
+  let source = "";
+  function indexNode(node: RichTextNode, rootIndex: number, code = false): IndexedNode {
+    const from = source.length;
+    const protectedCode = code || node.type === "codeBlock" || Boolean(node.marks?.some((mark) => mark.type === "code"));
+    let children: IndexedNode[] | undefined;
+    if (node.type === "text") source += protectedCode ? " ".repeat(node.text?.length ?? 0) : node.text ?? "";
+    else if (node.type === "hardBreak") source += "\n";
+    else if (node.content?.length) {
+      source += "\n";
+      children = node.content.map((child) => indexNode(child, rootIndex, protectedCode));
+      source += "\n";
+    } else source += "\uFFFC";
+    return { node, from, to: source.length, rootIndex, children };
+  }
+  const tree = nodes.map((node, index) => indexNode(node, index));
+  function extract(items: IndexedNode[], from: number, to: number): RichTextNode[] {
+    return items.flatMap((item): RichTextNode[] => {
+      if (item.to <= from || item.from >= to) return [];
+      if (from <= item.from && to >= item.to) return [item.node];
+      if (item.node.type === "text") {
+        const text = item.node.text?.slice(Math.max(0, from - item.from), Math.min(item.to, to) - item.from);
+        return text ? [{ ...item.node, text }] : [];
+      }
+      if (!item.children) return [item.node];
+      const content = extract(item.children, from, to);
+      return content.length ? [{ ...item.node, content }] : [];
+    });
+  }
+  type Marker = { from: number; to: number };
+  const openings: Marker[] = [];
+  const pairs: { opening: Marker; closing: Marker }[] = [];
+  for (const match of maskCalloutCode(source).matchAll(/\\?(?:<|&lt;)(\/?)aside(?:\s[^<>]*?)?(?:>|&gt;)/giu)) {
+    const marker = { from: match.index, to: match.index + match[0].length };
+    if (!match[1]) openings.push(marker);
+    else {
+      const opening = openings.pop();
+      if (opening) pairs.push({ opening, closing: marker });
+    }
+  }
+  pairs.sort((a, b) => a.opening.from - b.opening.from);
+  function range(from: number, to: number): RichTextNode[] {
+    const result: RichTextNode[] = [];
+    let cursor = from;
+    for (const pair of pairs) {
+      if (pair.opening.from < cursor || pair.closing.to > to) continue;
+      result.push(...extract(tree, cursor, pair.opening.from));
+      const original = tree.find((item) => item.from <= pair.opening.from && item.to >= pair.opening.to)?.node;
+      const attrs = original?.attrs?.blockId ? { blockId: original.attrs.blockId } : undefined;
+      result.push(createCallout(formatCalloutBlocks(range(pair.opening.to, pair.closing.from)), attrs));
+      cursor = pair.closing.to;
+    }
+    result.push(...extract(tree, cursor, to));
+    return result;
+  }
+  const input = pairs.length ? range(0, source.length) : nodes;
+  const normalized = input.map((node) => {
+    if (!node.content || ["paragraph", "heading", "codeBlock"].includes(node.type)) return node;
+    const content = normalizeNotionCalloutNodes(node.content);
+    const legacy = node.type === "blockquote" && content[0]?.type === "paragraph" && leadingCalloutIcon(inlineNodeText(content[0]));
+    const next = node.type === "callout" || legacy
+      ? createCallout(formatCalloutBlocks(content), node.attrs)
+      : content === node.content ? node : { ...node, content };
+    return equalNodeValue(next, node) ? node : next;
+  });
+  return normalized.every((node, index) => node === nodes[index]) && normalized.length === nodes.length ? nodes : normalized;
+}
+
 function calloutNodeElement(document: Document, node: RichTextNode): HTMLElement {
-  const element = document.createElement(node.type === "blockquote" ? "blockquote" : "p");
+  const tags: Partial<Record<RichTextNode["type"], string>> = {
+    paragraph: "p", bulletList: "ul", orderedList: "ol", listItem: "li", taskList: "ul", taskItem: "li",
+    blockquote: "blockquote", codeBlock: "pre", hardBreak: "br", horizontalRule: "hr",
+    table: "table", tableRow: "tr", tableHeader: "th", tableCell: "td",
+  };
+  const element = document.createElement(node.type === "heading" ? `h${node.attrs?.level ?? 2}` : tags[node.type] ?? "p");
+  if (node.type === "taskList") element.setAttribute("data-type", "taskList");
+  if (node.type === "taskItem") {
+    element.setAttribute("data-type", "taskItem");
+    element.setAttribute("data-checked", String(node.attrs?.checked ?? false));
+  }
   for (const child of node.content ?? []) {
     if (child.type !== "text") {
       element.append(calloutNodeElement(document, child));
-    } else if (child.marks?.length) {
-      const mark = document.createElement(child.marks[0].type === "bold" ? "strong" : "code");
-      mark.textContent = child.text ?? "";
-      element.append(mark);
     } else {
-      element.append(document.createTextNode(child.text ?? ""));
+      let text: Node = document.createTextNode(child.text ?? "");
+      for (const mark of child.marks ?? []) {
+        const tag = ({ bold: "strong", italic: "em", strike: "s", code: "code", link: "a" } as Record<string, string>)[mark.type];
+        if (!tag) continue;
+        const wrapper = document.createElement(tag);
+        if (mark.type === "link" && typeof mark.attrs?.href === "string") wrapper.setAttribute("href", mark.attrs.href);
+        wrapper.append(text);
+        text = wrapper;
+      }
+      element.append(text);
     }
   }
   return element;
@@ -222,15 +243,20 @@ export function normalizeRichTextPasteHtml(html: string) {
   const document = new DOMParser().parseFromString(html, "text/html");
   let changed = false;
 
-  for (const aside of Array.from(document.body.querySelectorAll("aside"))) {
+  for (const aside of Array.from(document.body.querySelectorAll('aside, figure.callout, .notion-callout-block, [data-block-type="callout"]'))) {
     // Leave pasted code examples intact.
     if (aside.closest("pre, code")) continue;
-    const quote = document.createElement("blockquote");
+    const quote = document.createElement("div");
+    quote.setAttribute("data-course-document-callout", "");
+    quote.setAttribute("data-icon", "");
+    const body = document.createElement("div");
+    body.setAttribute("data-callout-content", "");
     if (!aside.children.length) {
-      quote.append(...calloutParagraphs(aside.textContent ?? "", true).map((node) => calloutNodeElement(document, node)));
+      body.append(...calloutMarkdownBlocks(aside.textContent ?? "").map((node) => calloutNodeElement(document, node)));
     } else {
-      quote.append(...Array.from(aside.childNodes));
+      body.append(...Array.from(aside.childNodes));
     }
+    quote.append(body);
     aside.replaceWith(quote);
     changed = true;
   }
