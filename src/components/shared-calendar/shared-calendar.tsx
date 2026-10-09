@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, ListPlus, Plus, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, ListPlus, Plus, RefreshCw, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CalendarEventForm, selectClass } from "./event-form";
 import { CalendarBulkForm } from "./bulk-form";
 import { filterCalendarEvents, formatCalendarTime, formatLocation, formatTime, monthDays, shiftMonth } from "@/lib/shared-calendar/calendar";
-import type { CalendarCourse, CalendarEvent, CalendarSourceEvent, MeetingType } from "@/lib/shared-calendar/types";
+import type { CalendarCourse, CalendarEvent, CalendarSearchResult, CalendarSourceEvent, MeetingType } from "@/lib/shared-calendar/types";
 import { cn } from "@/lib/utils";
 
 const COLORS: Record<string, string> = {
@@ -28,6 +30,12 @@ export function SharedCalendar({ today, currentUserId, initialEvents, initialSou
   const [onlyMine, setOnlyMine] = useState(false);
   const [types, setTypes] = useState(initialTypes);
   const [filter, setFilter] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<CalendarSearchResult[] | null>(null);
+  const [searchPending, setSearchPending] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const [pendingSearchResult, setPendingSearchResult] = useState<CalendarSearchResult | null>(null);
+  const [details, setDetails] = useState<CalendarSearchResult | null>(null);
   const [editor, setEditor] = useState<{ event: CalendarEvent | null; date: string } | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [error, setError] = useState(initialError ?? "");
@@ -65,6 +73,11 @@ export function SharedCalendar({ today, currentUserId, initialEvents, initialSou
     return () => { active = false; controller?.abort(); window.clearInterval(timer); window.removeEventListener("focus", onVisible); };
   }, [month, reload, showLeaves]);
 
+  useEffect(() => {
+    if (!pendingSearchResult || loading || month !== pendingSearchResult.event_date.slice(0, 7)) return;
+    setDetails(pendingSearchResult); setPendingSearchResult(null);
+  }, [loading, month, pendingSearchResult]);
+
   function moveMonth(offset: number) {
     const next = shiftMonth(month, offset);
     if (next < "2000-01" || next > "2100-12") return;
@@ -74,6 +87,25 @@ export function SharedCalendar({ today, currentUserId, initialEvents, initialSou
   function addOnDate(date: string) {
     if (!types.length || loading || movePending.current) return;
     setSelectedDate(date); setNotice(""); setEditor({ event: null, date });
+  }
+
+  async function search(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const query = searchQuery.trim();
+    if (!query) { setSearchResults(null); setSearchError(""); return; }
+    setSearchPending(true); setSearchError(""); setSearchResults([]);
+    try {
+      const response = await fetch(`/api/shared-calendar/search?q=${encodeURIComponent(query)}`, { cache: "no-store" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.message || "검색 결과를 불러오지 못했습니다.");
+      setSearchResults(body.results ?? []);
+    } catch (failure) { setSearchError(failure instanceof Error ? failure.message : "검색 결과를 불러오지 못했습니다."); }
+    finally { setSearchPending(false); }
+  }
+
+  function selectSearchResult(result: CalendarSearchResult) {
+    setSearchResults(null); setSearchQuery(""); setSearchError(""); setPendingSearchResult(result);
+    setSelectedDate(result.event_date); setMonth(result.event_date.slice(0, 7)); setLoading(true); setReload((value) => value + 1);
   }
 
   async function dropOnDate(date: string) {
@@ -112,6 +144,12 @@ export function SharedCalendar({ today, currentUserId, initialEvents, initialSou
         <Button variant="ghost" size="sm" onClick={() => { setMonth(today.slice(0, 7)); setSelectedDate(today); }}>오늘</Button>
       </div>
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 sm:flex-1 sm:justify-end">
+        <form role="search" onSubmit={search} className="flex min-w-[220px] flex-1 items-center gap-1 sm:max-w-sm">
+          <label className="sr-only" htmlFor="calendar-search">공용 캘린더 검색</label>
+          <Input id="calendar-search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="일정, 강의, 강사 검색" maxLength={100} />
+          <Button type="submit" variant="outline" size="icon-sm" aria-label="검색" disabled={searchPending}><Search className={searchPending ? "animate-pulse" : ""} /></Button>
+          {searchResults !== null ? <Button type="button" variant="ghost" size="icon-sm" aria-label="검색 닫기" onClick={() => { setSearchResults(null); setSearchQuery(""); setSearchError(""); }}><X /></Button> : null}
+        </form>
         <div role="group" aria-label="일정 표시 옵션" className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
           <label className="flex items-center gap-2 whitespace-nowrap" title="참여자에 내가 포함된 공용 일정만 표시합니다. 강의 웨비나와 직원 휴가는 각각의 표시 옵션을 따릅니다."><input type="checkbox" checked={onlyMine} aria-describedby="calendar-mine-help" onChange={(e) => setOnlyMine(e.target.checked)} />내가 포함된 항목만 보기</label>
           <label className="flex items-center gap-2 whitespace-nowrap"><input type="checkbox" checked={showWebinars} onChange={(e) => setShowWebinars(e.target.checked)} />강의 웨비나 표시</label>
@@ -127,10 +165,11 @@ export function SharedCalendar({ today, currentUserId, initialEvents, initialSou
         </div>
       </div>
     </div>
-    {error || moveError ? <p role="alert" className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">{error || moveError}</p> : null}
+    {error || moveError || searchError ? <p role="alert" className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">{error || moveError || searchError}</p> : null}
     {sourcesWarning ? <p role="alert" className="rounded-md border border-amber-300 p-3 text-sm text-amber-900">{sourcesWarning}</p> : null}
     {notice ? <p role="status" className="text-sm text-emerald-700">{notice}</p> : null}
     {moving ? <p role="status" className="text-sm text-muted-foreground">일정 날짜를 변경하는 중…</p> : null}
+    {searchResults !== null ? <CalendarSearchResults results={searchResults} pending={searchPending} onSelect={selectSearchResult} /> : <>
     <div data-calendar-grid className="overflow-hidden rounded-lg border bg-background" aria-busy={loading}>
       <div className="grid grid-cols-7 bg-muted/40">{["일", "월", "화", "수", "목", "금", "토"].map((day, index) => <div key={day} className={cn("border-b py-1 text-center text-sm font-medium", index === 0 && "text-red-600", index === 6 && "text-blue-600")}>{day}</div>)}</div>
       <div className="grid grid-cols-7">{days.map((date) => <div key={date} data-calendar-date={date} onDoubleClick={() => addOnDate(date)} onDragOver={(e) => { if (dragging.current && !movePending.current) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropDate(date); } }} onDragLeave={(e) => { if (!(e.relatedTarget instanceof Node) || !e.currentTarget.contains(e.relatedTarget)) setDropDate((current) => current === date ? null : current); }} onDrop={(e) => { e.preventDefault(); void dropOnDate(date); }} className={cn("flex h-[clamp(58px,calc((100dvh-500px)/6),96px)] min-w-0 flex-col border-b border-r p-1 last:border-r-0 sm:h-[clamp(58px,calc((100dvh-430px)/6),112px)]", date.slice(0, 7) !== month && "bg-muted/30", selectedDate === date && "bg-blue-50/60", dropDate === date && "bg-blue-100 ring-2 ring-inset ring-blue-500")}>
@@ -151,6 +190,7 @@ export function SharedCalendar({ today, currentUserId, initialEvents, initialSou
         {event.notes ? <p className="whitespace-pre-wrap break-words text-sm">{event.notes}</p> : null}
       </li>)}</ul> : <p className="text-sm text-muted-foreground">{error ? "조회에 실패했습니다. 새로고침해 주세요." : onlyMine || filter ? "현재 표시 조건에 맞는 일정이 없습니다." : "등록된 일정이 없습니다. 날짜를 더블클릭하거나 일정 등록 버튼을 눌러 주세요."}</p>}
     </section>
+    </>}
     {bulkOpen ? <CalendarBulkForm year={Number(month.slice(0, 4))} types={types} courses={courses} isAdmin={isAdmin} onClose={() => setBulkOpen(false)} onImported={(added, meetingTypes, count, alreadyImported) => {
       mutation.current += 1; const ids = new Set(added.map((event) => event.id));
       setEvents((current) => [...current.filter((event) => !ids.has(event.id)), ...added].sort((a, b) => a.start_minutes - b.start_minutes));
@@ -162,7 +202,36 @@ export function SharedCalendar({ today, currentUserId, initialEvents, initialSou
       mutation.current += 1; setEvents((current) => [...current.filter((item) => item.id !== event.id), event].sort((a, b) => a.start_minutes - b.start_minutes));
       setSelectedDate(event.event_date); setMonth(event.event_date.slice(0, 7)); setEditor(null); setMoveError(""); setNotice("일정을 저장했습니다."); setReload((value) => value + 1);
     }} onDeleted={(id) => { mutation.current += 1; setEvents((current) => current.filter((event) => event.id !== id)); setEditor(null); setNotice("일정을 삭제했습니다."); }} /> : null}
+    {details ? <CalendarSearchDetails result={details} onClose={() => setDetails(null)} /> : null}
   </div>;
+}
+
+function CalendarSearchResults({ results, pending, onSelect }: { results: CalendarSearchResult[]; pending: boolean; onSelect: (result: CalendarSearchResult) => void }) {
+  return <section data-calendar-search-results className="rounded-lg border bg-background p-3">
+    <h2 className="mb-2 text-base font-semibold">검색 결과</h2>
+    {pending ? <p role="status" className="text-sm text-muted-foreground">검색 중…</p> : results.length ? <ul className="divide-y">{results.map((result) => <li key={result.id}>
+      <button type="button" className="w-full px-1 py-3 text-left hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring" onClick={() => onSelect(result)}>
+        <p className="font-medium">{result.title}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{result.event_date.replaceAll("-", ".")} · {result.time_label} · {result.detail_label}</p>
+      </button>
+    </li>)}</ul> : <p className="text-sm text-muted-foreground">일치하는 일정이 없습니다.</p>}
+  </section>;
+}
+
+function CalendarSearchDetails({ result, onClose }: { result: CalendarSearchResult; onClose: () => void }) {
+  return <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+    <DialogContent className="sm:max-w-lg">
+      <DialogHeader><DialogTitle>{result.title}</DialogTitle></DialogHeader>
+      <dl className="space-y-3 text-sm">
+        <div><dt className="text-muted-foreground">일시</dt><dd>{result.event_date.replaceAll("-", ".")} · {result.time_label}</dd></div>
+        <div><dt className="text-muted-foreground">구분</dt><dd>{result.detail_label}</dd></div>
+        {result.location_label ? <div><dt className="text-muted-foreground">장소</dt><dd>{result.location_label}</dd></div> : null}
+        {result.course ? <div><dt className="text-muted-foreground">강의</dt><dd>{result.course.name} · {result.course.instructor_name}</dd></div> : null}
+        {result.notes ? <div><dt className="text-muted-foreground">메모</dt><dd className="whitespace-pre-wrap break-words">{result.notes}</dd></div> : null}
+      </dl>
+      <DialogFooter>{result.href ? <Button asChild variant="outline"><Link href={result.href}>원래 관리 화면 열기</Link></Button> : null}<Button type="button" onClick={onClose}>닫기</Button></DialogFooter>
+    </DialogContent>
+  </Dialog>;
 }
 
 function CalendarSourceLink({ event, compact = false }: { event: CalendarSourceEvent; compact?: boolean }) {

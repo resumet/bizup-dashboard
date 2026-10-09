@@ -38,3 +38,9 @@ test("승인된 활성 직원 휴가의 날짜·종일/반차만 공개하고 �
   for (const event of events) assert.deepEqual(Object.keys(event).sort(), ["event_date", "href", "id", "source", "start_minutes", "time_label", "title"]);
   assert.ok(!JSON.stringify(events).includes("비공개"));
 });
+
+test("보류·취소 강의는 공용 캘린더 웨비나 일정을 만들지 않는다", () => {
+  for (const status of ["on_hold", "canceled"]) {
+    assert.equal(webinarCalendarSource({ ...course, status }), null);
+  }
+});

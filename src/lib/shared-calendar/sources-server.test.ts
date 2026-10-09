@@ -43,8 +43,10 @@ test("연동 조회는 범위·워크스페이스·직원 권한을 검증하고
       assert.ok(calls.every((url) => url.pathname.endsWith("/courses")));
       const url = calls[0];
       assert.equal(url.searchParams.get("workspace_id"), `eq.${workspaceId}`);
+      assert.equal(url.searchParams.get("select"), "id,name,instructor_name,cohort,free_webinar_at,status");
       assert.equal(url.searchParams.get("free_webinar_at"), "gte.2026-10-01T00:00:00+09:00");
       assert.deepEqual(url.searchParams.getAll("free_webinar_at"), ["gte.2026-10-01T00:00:00+09:00", "lt.2026-11-01T00:00:00+09:00"]);
+      assert.equal(url.searchParams.get("status"), "not.in.(on_hold,canceled)");
     });
     await t.test("일반 활성 직원도 승인된 동료 일정의 최소 정보만 볼 수 있다", async () => {
       calls.length = 0;

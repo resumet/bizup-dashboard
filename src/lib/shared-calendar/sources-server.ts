@@ -20,9 +20,10 @@ export async function loadCalendarWebinars(supabase: SupabaseClient, workspaceId
   until.setUTCDate(until.getUTCDate() + 1);
   const rows: CalendarSourceEvent[] = [];
   for (let offset = 0; ; offset += 500) {
-    const { data, error } = await supabase.from("courses").select("id,name,instructor_name,cohort,free_webinar_at")
+    const { data, error } = await supabase.from("courses").select("id,name,instructor_name,cohort,free_webinar_at,status")
       .eq("workspace_id", workspaceId).gte("free_webinar_at", `${range.from}T00:00:00+09:00`)
       .lt("free_webinar_at", `${until.toISOString().slice(0, 10)}T00:00:00+09:00`)
+      .not("status", "in", "(on_hold,canceled)")
       .order("free_webinar_at").order("id").range(offset, offset + 499);
     if (error) throw new Error(`Calendar webinar lookup failed: ${error.code}`);
     for (const course of (data ?? []) as CalendarWebinar[]) {

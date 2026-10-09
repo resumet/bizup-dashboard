@@ -3,10 +3,14 @@ import { isDateKey } from "./calendar";
 import type { CalendarCourse, CalendarPerson, CalendarSourceEvent } from "./types";
 import type { HrLeaveUnit } from "@/lib/hr-leave/types";
 
-export type CalendarWebinar = CalendarCourse & { free_webinar_at: string | null };
+export type CalendarWebinar = CalendarCourse & {
+  free_webinar_at: string | null;
+  status?: string | null;
+};
 export type CalendarLeave = { id: string; user_id: string; leave_date: string; unit: HrLeaveUnit; status: string };
 
 export function webinarCalendarSource(course: CalendarWebinar): CalendarSourceEvent | null {
+  if (course.status === "on_hold" || course.status === "canceled") return null;
   if (!course.free_webinar_at) return null;
   const date = toKoreaDate(course.free_webinar_at);
   if (!isDateKey(date)) return null;

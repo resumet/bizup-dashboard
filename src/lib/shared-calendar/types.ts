@@ -18,6 +18,19 @@ export type CalendarSourceEvent = {
   href: string;
 };
 
+export type CalendarSearchResult = {
+  id: string;
+  source: "event" | CalendarSourceEvent["source"];
+  title: string;
+  event_date: string;
+  time_label: string;
+  detail_label: string;
+  location_label?: string;
+  notes?: string;
+  course?: CalendarCourse | null;
+  href?: string;
+};
+
 export type CalendarEvent = {
   id: string;
   title: string;

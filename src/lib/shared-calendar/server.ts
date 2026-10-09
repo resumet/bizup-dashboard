@@ -7,8 +7,9 @@ import { requireCourseOperationsMembership } from "@/lib/course-operations/serve
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { eventSchema, isDateKey, meetingTypeSchema, moveEventSchema, uuidSchema, versionSchema } from "./calendar";
-import type { CalendarCourse, CalendarEvent, CalendarPerson, MeetingType } from "./types";
+import { eventSchema, formatCalendarTime, formatLocation, isDateKey, meetingTypeSchema, moveEventSchema, uuidSchema, versionSchema } from "./calendar";
+import { webinarCalendarSource, type CalendarWebinar } from "./sources";
+import type { CalendarCourse, CalendarEvent, CalendarPerson, CalendarSearchResult, MeetingType } from "./types";
 import { bulkImportSchema } from "./bulk";
 
 const EVENT_SELECT = "id,title,event_date,start_minutes,duration_minutes,meeting_type_id,course_id,notes,participant_ids,location_kind,location_text,time_tbd,version,meeting_type:shared_calendar_meeting_types!shared_calendar_events_meeting_type_id_workspace_id_fkey(id,name,code),course:courses(id,name,instructor_name,cohort)";
@@ -54,6 +55,12 @@ export function validateRange(from: string | null, to: string | null) {
   return { from, to };
 }
 
+export function validateCalendarSearchQuery(value: string | null) {
+  const query = value?.trim().replace(/\s+/gu, " ") ?? "";
+  if (!query || query.length > 100) throw new CalendarError("검색어는 1~100자로 입력해 주세요.");
+  return query.toLocaleLowerCase("ko-KR");
+}
+
 export async function loadMeetingTypes(supabase: SupabaseClient, workspaceId: string): Promise<MeetingType[]> {
   const { data, error } = await supabase.from("shared_calendar_meeting_types").select("id,name,code").eq("workspace_id", workspaceId).order("created_at").order("name");
   checkDatabase(error);
@@ -83,6 +90,40 @@ export async function loadCalendarCourses(supabase: SupabaseClient, workspaceId:
     rows.push(...(data ?? []));
     if (!data || data.length < 500) return rows;
   }
+}
+
+function includesCalendarSearchText(values: Array<string | null | undefined>, query: string) {
+  return values.some((value) => value?.toLocaleLowerCase("ko-KR").includes(query));
+}
+
+export async function loadCalendarSearchResults(supabase: SupabaseClient, workspaceId: string, query: string): Promise<CalendarSearchResult[]> {
+  const [events, webinars] = await Promise.all([
+    loadCalendarEvents(supabase, workspaceId, {}),
+    (async () => {
+      const rows: CalendarWebinar[] = [];
+      for (let offset = 0; ; offset += 500) {
+        const { data, error } = await supabase.from("courses").select("id,name,instructor_name,cohort,free_webinar_at,status")
+          .eq("workspace_id", workspaceId).not("status", "in", "(on_hold,canceled)")
+          .order("free_webinar_at").order("id").range(offset, offset + 499);
+        checkDatabase(error);
+        rows.push(...(data ?? []) as CalendarWebinar[]);
+        if (!data || data.length < 500) return rows;
+      }
+    })(),
+  ]);
+  const eventResults = events.flatMap((event): CalendarSearchResult[] => includesCalendarSearchText([
+    event.title, event.notes, event.meeting_type.name, event.course?.name, event.course?.instructor_name, event.course?.cohort,
+  ], query) ? [{
+    id: event.id, source: "event", title: event.title, event_date: event.event_date,
+    time_label: formatCalendarTime(event), detail_label: event.meeting_type.name,
+    location_label: formatLocation(event.location_kind, event.location_text), notes: event.notes, course: event.course,
+  }] : []);
+  const webinarResults = webinars.flatMap((course): CalendarSearchResult[] => {
+    const event = webinarCalendarSource(course);
+    if (!event || !includesCalendarSearchText([course.name, course.instructor_name, course.cohort], query)) return [];
+    return [{ id: event.id, source: event.source, title: event.title, event_date: event.event_date, time_label: event.time_label, detail_label: "웨비나", course, href: event.href }];
+  });
+  return [...eventResults, ...webinarResults].sort((left, right) => right.event_date.localeCompare(left.event_date) || left.title.localeCompare(right.title, "ko")).slice(0, 100);
 }
 
 // Called only after calendarContext verifies the caller's workspace membership.
