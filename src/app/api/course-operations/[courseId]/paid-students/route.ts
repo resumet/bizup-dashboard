@@ -55,14 +55,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ cou
     if (error) throw new CourseOrderError(error.code === "PGRST202" && hasRemovals
       ? "취소·환불 제외 승인 기능의 DB 업데이트가 필요합니다. 관리자에게 문의해 주세요."
       : error.code === "P0001" ? error.message : "유료수강생 명단을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.", 409);
-    if (!changes.some(change => change.kind === "add")) return Response.json({ jobId: data, appliedCount: changes.length, addedRows: [] }, { headers });
+    const summary = {
+      addedCount: changes.filter(change => change.kind === "add").length,
+      updatedCount: changes.filter(change => change.kind === "update" || change.kind === "merge").length,
+      removedCount: changes.filter(change => change.kind === "remove").length,
+    };
+    if (!summary.addedCount) return Response.json({ jobId: data, appliedCount: changes.length, ...summary, addedRows: [] }, { headers });
     try {
       const { rows } = await loadJobRoster(admin, data);
       const addedRows = selectNewStudentInvites(changes, state.orders, rows);
-      return Response.json({ jobId: data, appliedCount: changes.length, addedRows }, { headers });
+      return Response.json({ jobId: data, appliedCount: changes.length, ...summary, addedRows }, { headers });
     } catch {
       // The transaction already committed. Never report a save failure or invite a retry of it.
-      return Response.json({ jobId: data, appliedCount: changes.length, addedRows: [], inviteError: "명단은 저장했지만 신규 발송 대상을 불러오지 못했습니다. 유료수강생 탭에서 발송 대상을 선택해 주세요." }, { headers });
+      return Response.json({ jobId: data, appliedCount: changes.length, ...summary, addedRows: [], inviteError: "명단은 저장했지만 신규 발송 대상을 불러오지 못했습니다. 유료수강생 탭에서 발송 대상을 선택해 주세요." }, { headers });
     }
   } catch (error) { return courseOrderErrorResponse(error); }
 }

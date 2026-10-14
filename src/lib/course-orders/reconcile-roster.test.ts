@@ -23,6 +23,24 @@ const enrollment = (id: string, values: Record<string, unknown> = {}): Reconcile
 const state = (orders: ReconcileOrder[], enrollments: ReconcileEnrollment[]): RosterSnapshot => ({ courseName: "강의", webinarDate: "2026-09-20", jobId: "job", version: 1, orders, enrollments });
 const refund = order("old", { status: "전액환불", current_amount: 0, refund_amount: 120000 });
 
+test("동일 주문의 결제항목·옵션·금액 변경을 각각 감지하고 저장 후에는 변경 없음으로 처리한다", () => {
+  for (const patch of [{ product_name: "새 강의" }, { option_name: "심화반" }, { payment_amount: 150000 }]) {
+    const source = order("same", { product_name: "강의", ...patch });
+    const saved = enrollment("same", { productName: "강의", memo: "보존", groupChatJoined: true });
+    const original = structuredClone(saved);
+    const plan = planPaidRoster(state([source], [saved]), [source.id]);
+    assert.equal(plan.changes.length, 1);
+    assert.equal(plan.changes[0].kind, "update");
+    assert.deepEqual(plan.changes[0].before, { productName: "강의", optionName: "기본반", paymentAmount: 120000 });
+    assert.deepEqual(saved, original);
+    saved.normalized_values = { ...saved.normalized_values, ...plan.changes[0].after };
+    assert.equal(planPaidRoster(state([source], [saved]), [source.id]).unchangedCount, 1);
+  }
+  const legacy = planPaidRoster(state([order("same", { product_name: "강의" })], [enrollment("same")]), ["same"]);
+  assert.equal(legacy.changes[0].before?.productName, "");
+  assert.equal(legacy.changes[0].after.productName, "강의");
+});
+
 test("환불 후 재결제는 기존 결제자와 연결하며 실제 수강생 연락처를 매칭에 쓰지 않는다", () => {
   const old = enrollment("old", { customerName: "수정한 이름", hasDifferentStudent: true, studentName: "실제학생", studentPhone: "01099998888", groupChatJoined: true });
   const before = structuredClone(old);
@@ -32,6 +50,28 @@ test("환불 후 재결제는 기존 결제자와 연결하며 실제 수강생 
   assert.equal(plan.changes[0].targetId, "old");
   assert.deepEqual(plan.changes[0].after, { optionName: "심화반", paymentAmount: 150000 });
   assert.deepEqual(old, before); // Preview is read-only.
+});
+
+test("결제항목명 변경으로 주문 키가 바뀌어도 유일한 결제ID·주문번호로 기존 행을 갱신한다", () => {
+  const original = enrollment("old", { paymentId: "payment-1", memo: "보존", customerName: "수정된 이름", hasDifferentStudent: true, studentPhone: "01099998888" });
+  const changed = order("new", { payment_id: "payment-1", product_name: "새 결제항목", option_name: "심화반", payment_amount: 200000 });
+  const plan = planPaidRoster(state([changed], [original]), ["new"]);
+  assert.equal(plan.changes.length, 1);
+  assert.equal(plan.changes[0].kind, "update");
+  assert.equal(plan.changes[0].targetId, "old");
+  assert.equal(plan.conflicts.length, 0);
+  assert.equal(planAutomaticPaidRosterSync(state([changed], [original])).changes[0].kind, "update");
+  const tracked = enrollment("old", { orderSourceId: "order-1", orderPaymentId: "payment-2" });
+  assert.equal(planPaidRoster(state([{ ...changed, order_id: "order-1", payment_id: "payment-3" }], [tracked]), ["new"]).changes[0].kind, "update");
+  for (const snapshot of [
+    state([changed, { ...changed, id: "another", record_key: "another" }], [original]),
+    state([changed], [original, { ...original, id: "duplicate" }]),
+  ]) {
+    const ambiguous = planPaidRoster(snapshot, ["new"]);
+    assert.equal(ambiguous.changes.length, 0);
+    assert.equal(ambiguous.conflicts.length, 1);
+  }
+  assert.equal(planPaidRoster(state([{ ...changed, payment_id: "different" }], [enrollment("old", { paymentId: "payment-1" })]), ["new"]).conflicts.length, 1);
 });
 
 test("이미 생긴 중복은 환불 전 명단을 유지하고 재결제 추가분만 정리하도록 제안한다", () => {
@@ -165,7 +205,7 @@ test("주문 갱신 자동 동기화는 명시적 환불만 제외하고 재결�
   assert.equal(ambiguousRepurchase.reviewRequiredCount, 2);
 });
 
-test("선택 반영은 가격·옵션만 수정하고 개인 정보 보존, 중복 정리, 이력, 동시 수정 검증을 원자적으로 수행한다", async () => {
+test("선택 반영은 결제항목·가격·옵션을 수정하고 개인 정보 보존, 중복 정리, 이력, 동시 수정 검증을 원자적으로 수행한다", async () => {
   const db = new PGlite();
   const actor = randomUUID(), outsider = randomUUID(), workspace = randomUUID(), course = randomUUID();
   try {
@@ -199,6 +239,7 @@ test("선택 반영은 가격·옵션만 수정하고 개인 정보 보존, 중�
         "utf8",
       ),
     );
+    await db.exec(await readFile("supabase/migrations/20261014132913_track_paid_roster_payment_items.sql", "utf8"));
     await db.query("insert into auth.users values($1),($2)", [actor, outsider]);
     await db.query("insert into workspaces(id,name) values($1,'Test')", [workspace]);
     await db.query("insert into workspace_members(workspace_id,user_id) values($1,$2)", [workspace, actor]);
@@ -240,11 +281,22 @@ test("선택 반영은 가격·옵션만 수정하고 개인 정보 보존, 중�
     const after = await snapshot();
     assert.equal(after.enrollments.length, 1);
     const saved = after.enrollments[0];
-    assert.deepEqual(saved.normalized_values, { ...original.normalized_values, optionName: "심화반", paymentAmount: "150000.00", orderRecordKey: "new" });
+    assert.deepEqual(saved.normalized_values, { ...original.normalized_values, optionName: "심화반", paymentAmount: "150000.00", orderRecordKey: "new", orderPaymentId: "new-payment" });
     assert.deepEqual(saved.original_values, { ...original.original_values, "옵션명": "심화반", "결제금액": "150000.00" });
     assert.equal(saved.normalized_phone, original.normalized_phone);
     assert.equal(saved.is_extra_participant, true);
     assert.equal(planPaidRoster(after, [newId]).changes.length, 0);
+    await db.query("update course_orders set record_key='renamed',product_name='변경된 결제항목',option_name='최종반',payment_amount=170000 where id=$1", [newId]);
+    const paymentChange = await snapshot();
+    assert.equal(planPaidRoster(paymentChange, [newId]).changes[0].after.productName, "변경된 결제항목");
+    await apply(paymentChange, [newId]);
+    const paymentSaved = (await snapshot()).enrollments[0];
+    assert.deepEqual(paymentSaved.normalized_values, { ...saved.normalized_values, orderRecordKey: "renamed", productName: "변경된 결제항목", optionName: "최종반", paymentAmount: "170000.00" });
+    assert.equal(paymentSaved.original_values["주문항목명"], "변경된 결제항목");
+    assert.equal(planPaidRoster(await snapshot(), [newId]).changes.length, 0);
+    // Restore the fixture key for subsequent refund/re-activation assertions.
+    await db.query("update course_orders set record_key='new' where id=$1", [newId]);
+    await apply(await snapshot(), [newId]);
     assert.equal((await db.query<{ count: number }>("select count(*)::int count from job_enrollments where job_id=$1 and version=$2", [jobId, before.version])).rows[0].count, 2);
     await assert.rejects(apply(before, [newId]), /미리보기/); // Replay is rejected.
     const fresh = await snapshot();

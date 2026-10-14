@@ -112,11 +112,11 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
 
   async function applyRoster(selectedIds: string[]) {
     if (!rosterPreview) return;
-    const result = await responseData<{ jobId: string; addedRows: RosterRow[]; inviteError?: string }>(await fetch(`/api/course-operations/${courseId}/paid-students`, {
+    const result = await responseData<{ jobId: string; addedRows: RosterRow[]; addedCount: number; updatedCount: number; removedCount: number; inviteError?: string }>(await fetch(`/api/course-operations/${courseId}/paid-students`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "apply", orderIds: rosterPreview.orderIds, token: rosterPreview.token, selectedIds }),
     }));
-    setRosterPreview(null); setNotice("선택한 변경 사항을 유료수강생 명단에 반영했습니다.");
+    setRosterPreview(null); setNotice(`유료수강생 명단에 신규 ${result.addedCount}건 · 결제항목·금액 갱신 ${result.updatedCount}건 · 제외 ${result.removedCount}건을 반영했습니다.`);
     setNewStudentInvite(result.addedRows.length ? result : null);
     if (result.inviteError) setError(result.inviteError);
     if (!result.addedRows.length) onRosterSaved?.();

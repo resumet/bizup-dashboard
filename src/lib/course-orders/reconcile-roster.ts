@@ -4,7 +4,7 @@ import { isPaymentBeforeWebinar } from "./eligibility";
 export type ReconcileOrder = {
   id: string; record_key: string; member_name: string; phone: string; email: string;
   status: string; current_amount: number; refund_amount: number; payment_amount: number; option_name: string;
-  payment_date: string | null;
+  payment_date: string | null; product_name?: string; order_id?: string; payment_id?: string;
 };
 export type ReconcileEnrollment = {
   id: string; source_row_number: number; normalized_phone: string | null;
@@ -18,8 +18,8 @@ export type RosterSnapshot = {
 export type RosterChange = {
   id: string; kind: "add" | "update" | "merge" | "remove"; orderId: string | null;
   targetId: string | null; removeIds: string[]; name: string; phone: string;
-  reason: string; before: { optionName: string; paymentAmount: number } | null;
-  after: { optionName: string; paymentAmount: number };
+  reason: string; before: { productName?: string; optionName: string; paymentAmount: number } | null;
+  after: { productName?: string; optionName: string; paymentAmount: number };
   exclusionReason?: "refund" | "partial_refund" | "before_webinar" | "missing_order";
 };
 export type RosterPlan = { changes: RosterChange[]; conflicts: { name: string; reason: string }[]; unchangedCount: number };
@@ -58,6 +58,7 @@ function duplicateHasEdits(row: ReconcileEnrollment, keep: ReconcileEnrollment, 
   if (text(v.refundedAt)) return true;
   return normalize(text(v.customerName)) !== normalize(order.member_name)
     || phone(text(v.phone)) !== phone(order.phone) || normalize(text(v.email)) !== normalize(order.email)
+    || (Boolean(text(v.productName)) && v.productName !== order.product_name)
     || text(v.optionName) !== order.option_name || amount(v.paymentAmount) !== Number(order.payment_amount);
 }
 
@@ -96,7 +97,34 @@ export function planPaidRoster(snapshot: RosterSnapshot, orderIds: string[]): Ro
     });
     let target = exact;
     let removeIds: string[] = [];
-    let reason = "같은 주문의 결제금액 또는 옵션명이 변경되었습니다.";
+    let reason = "같은 주문의 결제항목(주문항목명·옵션명) 또는 결제금액이 변경되었습니다.";
+    // Product names are part of the import key. A renamed item therefore loses
+    // its old source key; only a unique stable transaction can reconnect it.
+    if (!target) {
+      const transactionMatches = (row: ReconcileEnrollment, candidate: ReconcileOrder) => {
+        const sourceOrderId = text(row.normalized_values.orderSourceId);
+        const paymentId = text(row.normalized_values.orderPaymentId) || text(row.normalized_values.paymentId);
+        return sourceOrderId && candidate.order_id
+          ? sourceOrderId === candidate.order_id
+          : Boolean(paymentId && candidate.payment_id && paymentId === candidate.payment_id);
+      };
+      const candidates = snapshot.enrollments.filter(row =>
+        !row.is_manually_added && !text(row.normalized_values.refundedAt)
+        && text(row.normalized_values.orderRecordKey)
+        && !ordersByKey.has(text(row.normalized_values.orderRecordKey))
+        && transactionMatches(row, order));
+      if (candidates.length) {
+        const unmatchedOrders = snapshot.orders.filter(candidate => isRosterEligibleOrder(snapshot, candidate)
+          && !byKey.has(candidate.record_key) && candidates.some(row => transactionMatches(row, candidate)));
+        if (candidates.length !== 1 || unmatchedOrders.length !== 1) {
+          for (const candidate of candidates) usedTargets.add(candidate.id);
+          plan.conflicts.push({ name: order.member_name, reason: "같은 주문번호·결제ID에 여러 결제항목이 있어 변경할 기존 수강생을 확정할 수 없습니다. 명단을 직접 확인해 주세요." });
+          continue;
+        }
+        target = candidates[0];
+        reason = "같은 주문번호·결제ID의 결제항목이 변경되어 기존 수강생의 결제항목과 금액을 갱신합니다.";
+      }
+    }
     if (reusable.length) {
       if (reusable.length !== 1 || activeCounts.get(person) !== 1) {
         plan.conflicts.push({ name: order.member_name, reason: "같은 결제자의 환불·결제 주문이 여러 건이라 연결할 기존 수강생을 확정할 수 없습니다. 명단에서 직접 확인해 주세요." });
@@ -114,7 +142,7 @@ export function planPaidRoster(snapshot: RosterSnapshot, orderIds: string[]): Ro
         removeIds = [exact.id];
         reason += " 재결제로 추가된 중복 1건을 정리하고 환불 전부터 있던 명단의 참여 이력과 연결 수강생 정보를 유지합니다.";
       }
-    } else if (!exact && samePerson.length) {
+    } else if (!target && samePerson.length) {
       // Missing old source orders and manual rows cannot safely be assumed to be a repurchase.
       const uncertain = samePerson.some(row => !ordersByKey.has(text(row.normalized_values.orderRecordKey)));
       if (uncertain) {
@@ -127,10 +155,16 @@ export function planPaidRoster(snapshot: RosterSnapshot, orderIds: string[]): Ro
       continue;
     }
     if (target) usedTargets.add(target.id);
-    const before = target ? { optionName: text(target.normalized_values.optionName), paymentAmount: amount(target.normalized_values.paymentAmount) } : null;
-    const after = { optionName: order.option_name, paymentAmount: Number(order.payment_amount) };
+    const before = target ? {
+      ...(typeof order.product_name === "string" ? { productName: text(target.normalized_values.productName) || text(target.original_values["주문항목명"]) } : {}),
+      optionName: text(target.normalized_values.optionName), paymentAmount: amount(target.normalized_values.paymentAmount),
+    } : null;
+    const after = {
+      ...(typeof order.product_name === "string" ? { productName: order.product_name } : {}),
+      optionName: order.option_name, paymentAmount: Number(order.payment_amount),
+    };
     if (target && !removeIds.length && target.normalized_values.orderRecordKey === order.record_key
-      && before!.optionName === after.optionName && before!.paymentAmount === after.paymentAmount) {
+      && before!.productName === after.productName && before!.optionName === after.optionName && before!.paymentAmount === after.paymentAmount) {
       plan.unchangedCount++;
       continue;
     }

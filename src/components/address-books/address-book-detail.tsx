@@ -53,6 +53,7 @@ import {
 } from "@/components/ui/table";
 import { formatPhone } from "@/lib/jobs/filter";
 import { isProtectedAddressBook } from "@/lib/address-books/protected-book";
+import { ContactCoursesDialog } from "./contact-courses-dialog";
 import { getTemplateInputVariables } from "@/lib/messages/custom-template";
 import { formatTemplateSelectionLabel } from "@/lib/messages/shoong-guide";
 type Contact = {
@@ -121,6 +122,7 @@ export function AddressBookDetail({
     {},
   );
   const [testing, setTesting] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const selectedTemplate = templates.find(
     (template) => template.id === templateId,
   );
@@ -276,6 +278,7 @@ export function AddressBookDetail({
     );
   return (
     <div className="space-y-5">
+      {selectedContact && <ContactCoursesDialog key={selectedContact.id} bookId={book.id} contact={selectedContact} onClose={() => setSelectedContact(null)} />}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold">{book.name}</h1>
@@ -558,7 +561,7 @@ export function AddressBookDetail({
           <TableBody>
             {contacts.map((c) => (
               <TableRow key={c.id}>
-                <TableCell>{c.name || "-"}</TableCell>
+                <TableCell><button type="button" className="text-left font-medium underline underline-offset-4 hover:text-primary" onClick={() => setSelectedContact(c)}>{c.name || "이름 없음"}</button></TableCell>
                 <TableCell className="font-mono">
                   {formatPhone(c.normalized_phone)}
                 </TableCell>
