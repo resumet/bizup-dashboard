@@ -63,7 +63,7 @@ export function AddressBookManager({
   canDelete,
 }: {
   initialBooks: Book[];
-  exclusionRosters?: { id: string; name: string; is_order_roster: boolean }[];
+  exclusionRosters?: { id: string; name: string }[];
   exclusionLoadError?: string;
   loadError?: string;
   canDelete: boolean;
@@ -146,7 +146,7 @@ export function AddressBookManager({
   function toggleBook(bookId: string, checked: boolean) {
     setSelectedBookIds((current) => {
       const next = new Set(current);
-      if (checked && current.size < 3 && exclusionKey !== `address-book:${bookId}`) next.add(bookId);
+      if (checked && current.size < 3) next.add(bookId);
       else next.delete(bookId);
       return next;
     });
@@ -283,7 +283,7 @@ export function AddressBookManager({
                             onCheckedChange={(checked) =>
                               toggleBook(book.id, checked === true)
                             }
-                            disabled={merging || exclusionKey === `address-book:${book.id}` || (!selectedBookIds.has(book.id) && selectedBookIds.size >= 3)}
+                            disabled={merging || (!selectedBookIds.has(book.id) && selectedBookIds.size >= 3)}
                             aria-label={`${book.name} 선택`}
                           />
                           <Label
@@ -306,21 +306,12 @@ export function AddressBookManager({
                     onChange={(event) => setExclusionKey(event.target.value)}
                     className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm">
                     <option value="">제외할 명단을 선택하세요</option>
-                    <optgroup label="유료 수강생 명단">
-                      {exclusionRosters.filter(roster => roster.is_order_roster).map(roster =>
-                        <option key={roster.id} value={`roster:${roster.id}`}>{roster.name}</option>)}
-                    </optgroup>
-                    <optgroup label="수강생 매니저 명단">
-                      {exclusionRosters.filter(roster => !roster.is_order_roster).map(roster =>
-                        <option key={roster.id} value={`roster:${roster.id}`}>{roster.name}</option>)}
-                    </optgroup>
-                    <optgroup label="주소록">
-                      {initialBooks.filter(book => !selectedBookIds.has(book.id)).map(book =>
-                        <option key={book.id} value={`address-book:${book.id}`}>{book.name}</option>)}
-                    </optgroup>
+                    {exclusionRosters.map(roster =>
+                      <option key={roster.id} value={`roster:${roster.id}`}>{roster.name}</option>)}
                   </select>
-                  <p className="text-xs text-muted-foreground">합칠 주소록 1~3개와 제외할 명단 1개를 선택하세요. 전화번호가 같은 사람을 제외합니다. 수강생 명단은 저장된 최신 명단을 사용하며 환불자는 제외 대상에 포함하지 않습니다.</p>
+                  <p className="text-xs text-muted-foreground">각 강의의 수강생관리 및 정산 → 유료수강생 탭에 저장된 최신 명단을 사용합니다. 합칠 주소록 1~3개에서 전화번호가 같은 사람을 제외하며, 환불자는 제외 대상에 포함하지 않습니다.</p>
                   {exclusionLoadError && <p role="alert" className="text-sm text-destructive">{exclusionLoadError}</p>}
+                  {!exclusionLoadError && exclusionRosters.length === 0 && <p role="status" className="text-sm text-muted-foreground">저장된 유료수강생 명단이 없습니다. 해당 강의의 수강생관리 및 정산에서 유료수강생 명단을 먼저 저장해 주세요.</p>}
                 </div>}
                 <p className="text-sm text-muted-foreground" aria-live="polite">
                   {selectedBooks.length.toLocaleString("ko-KR")}개 주소록 선택 · 병합

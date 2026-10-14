@@ -19,14 +19,22 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
     [uuid(3), [contact('01077778888'), contact('01099990000')]],
     [uuid(4), [contact('+82 10 1111 2222'), contact('01055556666')]],
   ]);
+  const course = { id: uuid(50), name: '미닝 강의', instructor_name: '미닝', cohort: '3', free_webinar_at: '2026-10-01T10:00:00Z', workspace_id: workspace };
+  const roster = { name: '이전 강의명', is_order_roster: true, workspace_id: workspace, latest_version: 2, course };
   const rosters = [
-    { id: uuid(10), name: '미닝 유료강의 수강생', is_order_roster: true, workspace_id: workspace, latest_version: 2 },
-    { id: uuid(11), name: '외부 수강생', is_order_roster: true, workspace_id: otherWorkspace, latest_version: 1 },
+    { ...roster, id: uuid(10) },
+    { ...roster, id: uuid(11), workspace_id: otherWorkspace },
+    { ...roster, id: uuid(12), is_order_roster: false },
+    { ...roster, id: uuid(13), course: null },
+    { ...roster, id: uuid(14), course: { ...course, workspace_id: otherWorkspace } },
+    { ...roster, id: uuid(15), course: { ...course, id: uuid(51), cohort: '4' } },
   ];
   const enrollments = [
     { id: uuid(20), job_id: uuid(10), version: 2, normalized_phone: '01000000000', normalized_values: { customerName: '결제자', hasDifferentStudent: true, studentName: '실수강생', studentPhone: '01011112222' } },
     { id: uuid(21), job_id: uuid(10), version: 2, normalized_phone: '01033334444', normalized_values: { customerName: '환불자', refundedAt: '2026-10-01' } },
     { id: uuid(22), job_id: uuid(10), version: 1, normalized_phone: '01033334444', normalized_values: { customerName: '이전버전' } },
+    { id: uuid(23), job_id: uuid(15), version: 2, normalized_phone: '+82 10 1111 2222', normalized_values: { customerName: '수강생1' } },
+    { id: uuid(24), job_id: uuid(15), version: 2, normalized_phone: '01055556666', normalized_values: { customerName: '수강생2' } },
   ];
   let authenticated = true, authorized = true, failInsert = false;
   const created = [], saved = [], audit = [], deleted = [];
@@ -45,11 +53,12 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
       }
       let rows = table === 'address_books' ? books : table === 'course_jobs' ? rosters : table === 'job_enrollments' ? enrollments :
         [...contacts].flatMap(([id, items]) => items.map((item, index) => ({ ...item, id: uuid(2000 + index), address_book_id: id })));
-      rows = rows.filter(row => filters.every(([key, value]) => row[key] === value) && sets.every(([key, values]) => values.includes(row[key])));
+      rows = rows.filter(row => filters.every(([key, value]) => key.split('.').reduce((item, part) => item?.[part], row) === value) && sets.every(([key, values]) => values.includes(row[key])));
       return { data: rows.slice(start, end + 1), error: null };
     };
     const query = {
       select() { return query; }, eq(key, value) { filters.push([key, value]); return query; },
+      returns() { return query; },
       in(key, values) { sets.push([key, values]); return query; }, order() { return query; },
       range(from, to) { start = from; end = to; return query; }, insert(value) { insert = value; return query; },
       delete() { deleting = true; return query; },
@@ -60,20 +69,28 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
   } };
   try {
     await fs.mkdir(cache, { recursive: true });
-    const api = await build({ entryPoints: ['src/app/api/address-books/merge/route.ts'], bundle: true, write: false, platform: 'node', format: 'cjs', packages: 'external', plugins: [{ name: 'services', setup(b) {
+    const api = await build({ stdin: { contents: "export { POST } from './src/app/api/address-books/merge/route'; export { paidExclusionRostersQuery, paidExclusionRosterOption } from './src/lib/address-books/paid-rosters';", loader: 'ts', resolveDir: process.cwd() }, bundle: true, write: false, platform: 'node', format: 'cjs', packages: 'external', plugins: [{ name: 'services', setup(b) {
       b.onResolve({ filter: /^(server-only|@\/lib\/supabase\/(server|admin|auth)|@\/lib\/course-operations\/server)$/ }, args => ({ path: args.path, namespace: 'fixture' }));
       b.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({ contents: args.path === 'server-only' ? '' : args.path.endsWith('/admin') ? 'export const createAdminClient=()=>global.__mergeAdmin' : args.path.endsWith('/auth') ? 'export const getAuthenticatedUser=async()=>global.__mergeUser()' : args.path.includes('course-operations') ? 'export const requireCourseOperationsMembership=async()=>global.__mergeMembership()' : 'export const createClient=async()=>({})' }));
     } }] });
     const apiPath = path.join(cache, 'route.cjs'); await fs.writeFile(apiPath, api.outputFiles[0].text);
-    const { POST } = require(apiPath);
-    const input = { name: '새 명단', mode: 'subtract', sourceBookIds: [uuid(1), uuid(2), uuid(3)], exclusion: { kind: 'address-book', id: uuid(4) } };
+    const { POST, paidExclusionRostersQuery, paidExclusionRosterOption } = require(apiPath);
+    const listed = await paidExclusionRostersQuery(global.__mergeAdmin, workspace).order('updated_at', { ascending: false });
+    const options = listed.data.map(paidExclusionRosterOption);
+    assert.deepEqual(options.map(option => option.id), [uuid(10), uuid(15)]);
+    assert.match(options[0].name, /3기.*미닝 강의.*미닝/);
+    assert.match(options[1].name, /4기/);
+    const input = { name: '새 명단', mode: 'subtract', sourceBookIds: [uuid(1), uuid(2), uuid(3)], exclusion: { kind: 'roster', id: uuid(15) } };
     const request = body => POST(new Request('http://fixture/api/address-books/merge', { method: 'POST', body: JSON.stringify(body) }));
     for (const body of [null, { ...input, sourceBookIds: [] }, { ...input, sourceBookIds: [uuid(1), uuid(2), uuid(3), uuid(4)] }, { ...input, sourceBookIds: [uuid(1), uuid(1)] }, { ...input, exclusion: undefined }, { ...input, exclusion: { kind: 'address-book', id: uuid(1) } }, { ...input, mode: 'union' }]) assert.equal((await request(body)).status, 400);
     authenticated = false; assert.equal((await request(input)).status, 401); authenticated = true;
     authorized = false; assert.equal((await request(input)).status, 403); authorized = true;
     assert.equal((await request({ ...input, sourceBookIds: [uuid(5)] })).status, 404);
-    assert.equal((await request({ ...input, exclusion: { kind: 'address-book', id: uuid(5) } })).status, 404);
-    assert.equal((await request({ ...input, exclusion: { kind: 'roster', id: uuid(11) } })).status, 404);
+    assert.equal((await request({ ...input, exclusion: { kind: 'address-book', id: uuid(5) } })).status, 400);
+    for (const id of [11, 12, 13, 14]) assert.equal((await request({ ...input, exclusion: { kind: 'roster', id: uuid(id) } })).status, 404);
+    rosters[0].course = null;
+    assert.equal((await request({ ...input, exclusion: { kind: 'roster', id: uuid(10) } })).status, 404);
+    rosters[0].course = course;
     assert.equal(created.length, 0);
     failInsert = true; assert.equal((await request(input)).status, 500); failInsert = false;
     assert.equal(deleted.length, 1); assert.equal(saved.length, 0);
@@ -84,11 +101,11 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
     const original = structuredClone([...contacts]);
     const paginated = Array.from({ length: 1001 }, (_, n) => contact(`010${String(n).padStart(8, '0')}`));
     contacts.set(uuid(3), paginated);
-    const large = await (await request({ ...input, sourceBookIds: [uuid(3)], exclusion: { kind: 'address-book', id: uuid(4) } })).json();
+    const large = await (await request({ ...input, sourceBookIds: [uuid(3)] })).json();
     assert.equal(large.contactCount, 1001);
     contacts.set(uuid(3), original.find(([id]) => id === uuid(3))[1]);
 
-    const ui = await build({ stdin: { contents: `import React from 'react';import{createRoot}from'react-dom/client';import{AddressBookManager}from'./src/components/address-books/address-book-manager';createRoot(document.getElementById('root')).render(<AddressBookManager initialBooks={${JSON.stringify(books.slice(0, 4))}} exclusionRosters={${JSON.stringify(rosters.slice(0, 1))}} canDelete={false}/>);`, resolveDir: process.cwd(), loader: 'tsx' }, bundle: true, write: false, platform: 'browser', jsx: 'automatic', define: { 'process.env': '{}' }, plugins: [{ name: 'router', setup(b) {
+    const ui = await build({ stdin: { contents: `import React from 'react';import{createRoot}from'react-dom/client';import{AddressBookManager}from'./src/components/address-books/address-book-manager';createRoot(document.getElementById('root')).render(<AddressBookManager initialBooks={${JSON.stringify(books.slice(0, 4))}} exclusionRosters={location.search?[]:${JSON.stringify(options)}} canDelete={false}/>);`, resolveDir: process.cwd(), loader: 'tsx' }, bundle: true, write: false, platform: 'browser', jsx: 'automatic', define: { 'process.env': '{}' }, plugins: [{ name: 'router', setup(b) {
       b.onResolve({ filter: /^next\/(navigation|link)$/ }, args => ({ path: args.path, namespace: 'fixture' }));
       b.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({ resolveDir: process.cwd(), contents: args.path.endsWith('link') ? 'import React from "react";export default function Link(p){return React.createElement("a",p)}' : 'const router={refresh(){},push(url){window.pushed=url}};export const useRouter=()=>router;' }));
     } }] });
@@ -120,6 +137,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
     await done.getByRole('button', { name: '닫기', exact: true }).click();
     await open(); await dialog.getByRole('radio', { name: '유료 수강생 제외하기' }).check();
     await dialog.getByLabel('새 주소록 이름').fill('유료 수강생 제외'); await choose(0);
+    assert.equal(await dialog.locator('#merge-exclusion option').count(), 3);
+    assert.equal(await dialog.locator('option[value^="address-book:"]').count(), 0);
     assert.equal(await dialog.getByRole('button', { name: '새 주소록 만들기' }).isDisabled(), true);
     await dialog.getByLabel('제외할 유료 수강생 명단', { exact: true }).selectOption(`roster:${uuid(10)}`);
     await dialog.screenshot({ path: path.join(cache, 'subtract-desktop.png') });
@@ -129,12 +148,17 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
     await page.setViewportSize({ width: 390, height: 844 });
     await open(); await dialog.getByRole('radio', { name: '유료 수강생 제외하기' }).check();
     await dialog.getByLabel('새 주소록 이름').fill('세 명단에서 유료 제외'); await choose(0); await choose(1); await choose(2);
-    await dialog.getByLabel('제외할 유료 수강생 명단', { exact: true }).selectOption(`address-book:${uuid(4)}`);
+    await dialog.getByLabel('제외할 유료 수강생 명단', { exact: true }).selectOption(`roster:${uuid(15)}`);
     assert.equal(await dialog.locator(`option[value="address-book:${uuid(1)}"]`).count(), 0);
     await dialog.screenshot({ path: path.join(cache, 'subtract-mobile.png') });
     assert.equal(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth), true);
     await submit(); await done.waitFor(); assert.match(await done.getByRole('status').textContent(), /생성 3명.*일치하여 제외 2명/);
+    await page.goto(`http://127.0.0.1:${server.address().port}/?empty=1`);
+    await open(); await dialog.getByRole('radio', { name: '유료 수강생 제외하기' }).check();
+    await dialog.getByRole('status').filter({ hasText: '저장된 유료수강생 명단이 없습니다' }).waitFor();
+    await dialog.getByLabel('새 주소록 이름').fill('빈 명단 검증'); await choose(0);
+    assert.equal(await dialog.getByRole('button', { name: '새 주소록 만들기' }).isDisabled(), true);
     assert.deepEqual([...contacts], original); assert.deepEqual(errors, []);
-    console.log('PASS: real API + browser; union 3, subtract 1/3, normalized phone matching, latest roster/refunds/linked learners, pagination, limits, workspace authorization, rollback, desktop/mobile, originals unchanged');
+    console.log('PASS: only saved paid-tab rosters linked to authorized courses; course labels; reject ordinary/unlinked/cross-workspace rosters and address books; empty state; union/subtract 1/3; latest roster/refunds/linked learners; pagination; rollback; desktop/mobile');
   } finally { await browser?.close(); await new Promise(resolve => server ? server.close(resolve) : resolve()); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

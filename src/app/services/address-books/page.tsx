@@ -8,6 +8,7 @@ import { hasAdminAccess } from "@/lib/admin/access";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
+import { paidExclusionRostersQuery, paidExclusionRosterOption } from "@/lib/address-books/paid-rosters";
 
 export default async function AddressBooksPage() {
   const supabase = await createClient();
@@ -20,8 +21,7 @@ export default async function AddressBooksPage() {
       .select("id,name,contact_count,updated_at")
       .eq("workspace_id", membership.workspace_id)
       .order("updated_at", { ascending: false }),
-    supabase.from("course_jobs").select("id,name,is_order_roster")
-      .eq("workspace_id", membership.workspace_id)
+    paidExclusionRostersQuery(supabase, membership.workspace_id)
       .order("updated_at", { ascending: false }),
   ]);
 
@@ -42,8 +42,8 @@ export default async function AddressBooksPage() {
       <div className="mx-auto max-w-[1900px] px-5 py-10 lg:px-8">
         <AddressBookManager
           initialBooks={booksResult.data ?? []}
-          exclusionRosters={rostersResult.data ?? []}
-          exclusionLoadError={rostersResult.error ? "수강생 명단을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요." : undefined}
+          exclusionRosters={(rostersResult.data ?? []).map(paidExclusionRosterOption)}
+          exclusionLoadError={rostersResult.error ? "저장된 유료수강생 명단을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요." : undefined}
           loadError={booksResult.error?.message}
           canDelete={hasAdminAccess(user.email, membership.role)}
         />
