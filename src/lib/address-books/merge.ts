@@ -1,3 +1,5 @@
+import { normalizePhoneForStorage } from "@/lib/import/roster";
+
 export type MergeableAddressBookContact = {
   normalized_phone: string;
   name: string | null;
@@ -18,11 +20,12 @@ function cleanOptionalValue(value: string | null) {
 
 export function mergeAddressBookContacts(
   contactGroups: readonly (readonly MergeableAddressBookContact[])[],
-  options: { callSalesOnly?: boolean } = {},
+  options: { callSalesOnly?: boolean; excludedPhones?: readonly string[] } = {},
 ) {
   const contactsByPhone = new Map<string, MergedAddressBookContact>();
   const excludedContacts: Array<MergeableAddressBookContact & { sourceGroupIndex: number }> = [];
   let sourceContactCount = 0;
+  let duplicateCount = 0;
 
   for (const [sourceGroupIndex, contacts] of contactGroups.entries()) {
     for (const contact of contacts) {
@@ -36,10 +39,12 @@ export function mergeAddressBookContacts(
 
       const name = cleanOptionalValue(contact.name);
       const email = cleanOptionalValue(contact.email);
-      const existing = contactsByPhone.get(normalizedPhone);
+      const phoneKey = normalizePhoneForStorage(normalizedPhone);
+      if (!phoneKey) continue;
+      const existing = contactsByPhone.get(phoneKey);
 
       if (!existing) {
-        contactsByPhone.set(normalizedPhone, {
+        contactsByPhone.set(phoneKey, {
           normalized_phone: normalizedPhone,
           name,
           email,
@@ -47,18 +52,27 @@ export function mergeAddressBookContacts(
         continue;
       }
 
-      contactsByPhone.set(normalizedPhone, {
-        normalized_phone: normalizedPhone,
+      duplicateCount += 1;
+      contactsByPhone.set(phoneKey, {
+        normalized_phone: existing.normalized_phone,
         name: existing.name ?? name,
         email: existing.email ?? email,
       });
     }
   }
 
+  const excludedPhones = new Set((options.excludedPhones ?? [])
+    .map(normalizePhoneForStorage).filter((phone): phone is string => Boolean(phone)));
+  let matchedExclusionCount = 0;
+  for (const phone of excludedPhones) {
+    if (contactsByPhone.delete(phone)) matchedExclusionCount += 1;
+  }
+
   return {
     contacts: Array.from(contactsByPhone.values()),
     sourceContactCount,
-    duplicateCount: sourceContactCount - excludedContacts.length - contactsByPhone.size,
+    duplicateCount,
+    matchedExclusionCount,
     excludedContacts,
   };
 }

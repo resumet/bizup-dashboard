@@ -92,3 +92,42 @@ test("모두 제외되거나 번호가 비어 있어도 제외 건수와 목록�
   assert.equal(noneExcluded.excludedContacts.length, 0);
   assert.equal(noneExcluded.contacts.length, 1);
 });
+
+test("세 주소록을 합치고 제외 명단과 같은 번호를 한 번만 차감한다", () => {
+  const contact = (phone: string) => ({ normalized_phone: phone, name: "신청자", email: null });
+  const groups = [
+    [contact("010-1111-2222"), contact("01033334444")],
+    [contact("01011112222"), contact("01055556666")],
+    [contact("01077778888"), contact("01033334444")],
+  ];
+  const before = structuredClone(groups);
+  const result = mergeAddressBookContacts(groups, {
+    excludedPhones: ["+82 10 1111 2222", "01011112222", "01055556666", "01099990000", ""],
+  });
+  assert.deepEqual(result.contacts.map(contact => contact.normalized_phone), ["01033334444", "01077778888"]);
+  assert.equal(result.sourceContactCount, 6);
+  assert.equal(result.duplicateCount, 2);
+  assert.equal(result.matchedExclusionCount, 2);
+  assert.deepEqual(groups, before);
+});
+
+test("제외 명단에 모두 포함되면 결과가 비어도 실제 제외 인원을 반환한다", () => {
+  const result = mergeAddressBookContacts([[
+    { normalized_phone: "01011112222", name: null, email: null },
+  ]], { excludedPhones: ["010-1111-2222"] });
+  assert.equal(result.contacts.length, 0);
+  assert.equal(result.matchedExclusionCount, 1);
+  assert.equal(result.duplicateCount, 0);
+});
+
+test("콜세일즈 번호 제외와 명단 제외 건수는 겹치지 않는다", () => {
+  const result = mergeAddressBookContacts([[
+    { normalized_phone: "0212345678", name: null, email: null },
+    { normalized_phone: "01011112222", name: null, email: null },
+    { normalized_phone: "01033334444", name: null, email: null },
+  ]], { callSalesOnly: true, excludedPhones: ["0212345678", "01011112222"] });
+  assert.equal(result.contacts.length, 1);
+  assert.equal(result.excludedContacts.length, 1);
+  assert.equal(result.matchedExclusionCount, 1);
+  assert.equal(result.duplicateCount, 0);
+});

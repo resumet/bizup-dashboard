@@ -3,17 +3,29 @@ import { mergeAddressBookContacts } from "@/lib/address-books/merge";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
+import { z } from "zod";
+import { loadJobEnrollmentRows } from "@/lib/jobs/server";
+import { paidRosterStudents } from "@/lib/course-orders/paid-student-share";
+import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 
 export const runtime = "nodejs";
 
-const MAX_SOURCE_BOOKS = 100;
 const INSERT_CHUNK_SIZE = 500;
 
-type MergeAddressBooksBody = {
-  name?: unknown;
-  sourceBookIds?: unknown;
-  callSalesOnly?: unknown;
-};
+const mergeSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  sourceBookIds: z.array(z.uuid()).min(1).max(3),
+  callSalesOnly: z.boolean().default(false),
+  mode: z.enum(["union", "subtract"]).default("union"),
+  exclusion: z.object({ kind: z.enum(["address-book", "roster"]), id: z.uuid() }).optional(),
+}).superRefine((value, context) => {
+  if (new Set(value.sourceBookIds).size !== value.sourceBookIds.length
+    || (value.mode === "union" && (value.sourceBookIds.length < 2 || value.exclusion))
+    || (value.mode === "subtract" && !value.exclusion)
+    || (value.exclusion?.kind === "address-book" && value.sourceBookIds.includes(value.exclusion.id))) {
+    context.addIssue({ code: "custom", message: "주소록 선택을 확인해 주세요." });
+  }
+});
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -23,84 +35,57 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as MergeAddressBooksBody;
-    const name = typeof body.name === "string" ? body.name.trim() : "";
-    if (body.callSalesOnly !== undefined && typeof body.callSalesOnly !== "boolean") {
-      return Response.json({ message: "콜세일즈용 여부를 확인해 주세요." }, { status: 400 });
-    }
-    const callSalesOnly = body.callSalesOnly === true;
-    const sourceBookIds = Array.isArray(body.sourceBookIds)
-      ? Array.from(
-          new Set(
-            body.sourceBookIds.filter(
-              (value): value is string =>
-                typeof value === "string" && value.trim().length > 0,
-            ),
-          ),
-        )
-      : [];
-
-    if (!name) {
-      return Response.json(
-        { message: "새 주소록 이름을 입력해 주세요." },
-        { status: 400 },
-      );
-    }
-    if (name.length > 200) {
-      return Response.json(
-        { message: "주소록 이름은 200자 이하로 입력해 주세요." },
-        { status: 400 },
-      );
-    }
-    if (sourceBookIds.length < 2) {
-      return Response.json(
-        { message: "병합할 주소록을 2개 이상 선택해 주세요." },
-        { status: 400 },
-      );
-    }
-    if (sourceBookIds.length > MAX_SOURCE_BOOKS) {
-      return Response.json(
-        { message: `한 번에 최대 ${MAX_SOURCE_BOOKS}개의 주소록을 병합할 수 있습니다.` },
-        { status: 400 },
-      );
-    }
+    const parsed = mergeSchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) return Response.json({
+      message: "새 주소록 이름(200자 이하)과 명단 선택을 확인해 주세요. 합치기는 2~3개, 제외하기는 1~3개의 주소록과 별도의 제외 명단 1개가 필요합니다.",
+    }, { status: 400 });
+    const { name, sourceBookIds, callSalesOnly, mode, exclusion } = parsed.data;
 
     const admin = createAdminClient();
-    const { data: membership, error: membershipError } = await admin
-      .from("workspace_members")
-      .select("workspace_id")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle();
-    if (membershipError || !membership) {
+    const membership = await requireCourseOperationsMembership(user.id).catch(() => null);
+    if (!membership) {
       return Response.json(
         { message: "워크스페이스 권한이 없습니다." },
         { status: 403 },
       );
     }
 
+    const bookIds = [...sourceBookIds, ...(exclusion?.kind === "address-book" ? [exclusion.id] : [])];
     const { data: sourceBooks, error: sourceBooksError } = await admin
       .from("address_books")
       .select("id,name")
       .eq("workspace_id", membership.workspace_id)
-      .in("id", sourceBookIds);
+      .in("id", bookIds);
     if (sourceBooksError) {
       throw new Error(`주소록 조회 실패: ${sourceBooksError.code}`);
     }
-    if ((sourceBooks?.length ?? 0) !== sourceBookIds.length) {
+    if ((sourceBooks?.length ?? 0) !== bookIds.length) {
       return Response.json(
         { message: "선택한 주소록 중 조회할 수 없는 항목이 있습니다." },
         { status: 404 },
       );
     }
 
-    const contactGroups = await Promise.all(
+    // Authorize the exclusion roster before reading any enrollment data with admin privileges.
+    let roster: { id: string; latest_version: number } | null = null;
+    if (exclusion?.kind === "roster") {
+      const { data, error } = await admin.from("course_jobs").select("id,latest_version")
+        .eq("workspace_id", membership.workspace_id).eq("id", exclusion.id).maybeSingle();
+      if (error) throw new Error(`제외 명단 조회 실패: ${error.code}`);
+      if (!data) return Response.json({ message: "제외할 수강생 명단을 찾을 수 없습니다." }, { status: 404 });
+      roster = data;
+    }
+    const [contactGroups, excludedPhones] = await Promise.all([Promise.all(
       sourceBookIds.map((bookId) =>
         loadAllAddressBookContacts(admin, bookId),
       ),
-    );
-    const merged = mergeAddressBookContacts(contactGroups, { callSalesOnly });
-    if (merged.contacts.length === 0 && merged.excludedContacts.length === 0) {
+    ), exclusion?.kind === "address-book"
+      ? loadAllAddressBookContacts(admin, exclusion.id).then(contacts => contacts.map(contact => contact.normalized_phone))
+      : roster
+        ? loadJobEnrollmentRows(admin, roster.id, roster.latest_version).then(rows => paidRosterStudents(rows).map(student => student.phone))
+        : Promise.resolve([])]);
+    const merged = mergeAddressBookContacts(contactGroups, { callSalesOnly, excludedPhones });
+    if (merged.contacts.length === 0 && merged.excludedContacts.length === 0 && merged.matchedExclusionCount === 0) {
       return Response.json(
         { message: "선택한 주소록에 병합할 연락처가 없습니다." },
         { status: 400 },
@@ -154,6 +139,9 @@ export async function POST(request: Request) {
         source_contact_count: merged.sourceContactCount,
         contact_count: merged.contacts.length,
         duplicate_count: merged.duplicateCount,
+        mode,
+        exclusion: exclusion ?? null,
+        matched_exclusion_count: merged.matchedExclusionCount,
       },
     });
 
@@ -162,6 +150,7 @@ export async function POST(request: Request) {
         id: newBook.id,
         contactCount: merged.contacts.length,
         duplicateCount: merged.duplicateCount,
+        matchedExclusionCount: merged.matchedExclusionCount,
         excludedCount: merged.excludedContacts.length,
         excludedContacts: merged.excludedContacts.map(({ sourceGroupIndex, ...contact }) => ({
           ...contact,

@@ -13,11 +13,15 @@ export default async function AddressBooksPage() {
   const supabase = await createClient();
   const user = await getAuthenticatedUser(supabase);
   if (!user) redirect("/login");
-  const [membership, booksResult] = await Promise.all([
-    requireCourseOperationsMembership(user.id),
+  const membership = await requireCourseOperationsMembership(user.id);
+  const [booksResult, rostersResult] = await Promise.all([
     supabase
       .from("address_books")
       .select("id,name,contact_count,updated_at")
+      .eq("workspace_id", membership.workspace_id)
+      .order("updated_at", { ascending: false }),
+    supabase.from("course_jobs").select("id,name,is_order_roster")
+      .eq("workspace_id", membership.workspace_id)
       .order("updated_at", { ascending: false }),
   ]);
 
@@ -38,6 +42,8 @@ export default async function AddressBooksPage() {
       <div className="mx-auto max-w-[1900px] px-5 py-10 lg:px-8">
         <AddressBookManager
           initialBooks={booksResult.data ?? []}
+          exclusionRosters={rostersResult.data ?? []}
+          exclusionLoadError={rostersResult.error ? "수강생 명단을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요." : undefined}
           loadError={booksResult.error?.message}
           canDelete={hasAdminAccess(user.email, membership.role)}
         />

@@ -56,10 +56,14 @@ type Book = {
 
 export function AddressBookManager({
   initialBooks,
+  exclusionRosters = [],
+  exclusionLoadError,
   loadError,
   canDelete,
 }: {
   initialBooks: Book[];
+  exclusionRosters?: { id: string; name: string; is_order_roster: boolean }[];
+  exclusionLoadError?: string;
   loadError?: string;
   canDelete: boolean;
 }) {
@@ -72,9 +76,12 @@ export function AddressBookManager({
   const [mergeOpen, setMergeOpen] = useState(false);
   const [mergeName, setMergeName] = useState("");
   const [callSalesOnly, setCallSalesOnly] = useState(false);
+  const [mergeMode, setMergeMode] = useState<"union" | "subtract">("union");
+  const [exclusionKey, setExclusionKey] = useState("");
   const [mergeResult, setMergeResult] = useState<{
     id: string; contactCount: number; duplicateCount: number;
     excludedCount: number; excludedContacts: ExcludedMergeContact[];
+    matchedExclusionCount: number;
   } | null>(null);
   const [selectedBookIds, setSelectedBookIds] = useState<Set<string>>(
     () => new Set(),
@@ -129,26 +136,22 @@ export function AddressBookManager({
       setSelectedBookIds(new Set());
       setMergeError("");
       setCallSalesOnly(false);
+      setMergeMode("union");
+      setExclusionKey("");
     }
   }
 
   function toggleBook(bookId: string, checked: boolean) {
     setSelectedBookIds((current) => {
       const next = new Set(current);
-      if (checked) next.add(bookId);
+      if (checked && current.size < 3 && exclusionKey !== `address-book:${bookId}`) next.add(bookId);
       else next.delete(bookId);
       return next;
     });
   }
 
-  function toggleAllBooks(checked: boolean) {
-    setSelectedBookIds(
-      checked ? new Set(initialBooks.map((book) => book.id)) : new Set(),
-    );
-  }
-
   async function mergeBooks() {
-    if (selectedBooks.length < 2 || !mergeName.trim()) return;
+    if (!canMerge) return;
     setMerging(true);
     setMergeError("");
     try {
@@ -159,6 +162,10 @@ export function AddressBookManager({
           name: mergeName.trim(),
           sourceBookIds: selectedBooks.map((book) => book.id),
           callSalesOnly,
+          mode: mergeMode,
+          ...(mergeMode === "subtract" ? { exclusion: {
+            kind: exclusionKey.split(":")[0], id: exclusionKey.split(":")[1],
+          } } : {}),
         }),
       });
       const body = (await response.json()) as NonNullable<typeof mergeResult> & { message?: string };
@@ -166,12 +173,8 @@ export function AddressBookManager({
         throw new Error(body.message || "주소록 병합에 실패했습니다.");
       }
       setMergeOpen(false);
-      if (callSalesOnly) {
-        setMergeResult(body);
-        router.refresh();
-      } else {
-        router.push(`/services/address-books/${body.id}`);
-      }
+      setMergeResult(body);
+      router.refresh();
     } catch (caught) {
       setMergeError(
         caught instanceof Error ? caught.message : "주소록 병합에 실패했습니다.",
@@ -204,9 +207,9 @@ export function AddressBookManager({
     }
   }
 
-  const allBooksSelected =
-    initialBooks.length > 0 && selectedBookIds.size === initialBooks.length;
-  const someBooksSelected = selectedBookIds.size > 0 && !allBooksSelected;
+  const canMerge = selectedBooks.length >= (mergeMode === "subtract" ? 1 : 2)
+    && selectedBooks.length <= 3 && Boolean(mergeName.trim())
+    && (mergeMode === "union" || Boolean(exclusionKey));
 
   return (
     <>
@@ -217,20 +220,28 @@ export function AddressBookManager({
         <div className="flex flex-wrap gap-2">
           <Dialog open={mergeOpen} onOpenChange={changeMergeDialog}>
             <DialogTrigger asChild>
-              <Button variant="outline" disabled={initialBooks.length < 2}>
+              <Button variant="outline" disabled={initialBooks.length === 0}>
                 <GitMerge />
                 주소록 병합
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl" aria-describedby={undefined}>
               <DialogHeader>
                 <DialogTitle>새 주소록으로 병합</DialogTitle>
-                <DialogDescription>
-                  2개 이상의 주소록을 선택하세요. 원본 주소록은 유지되며, 같은
-                  전화번호는 새 주소록에 한 번만 저장됩니다.
-                </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-2">
+                <fieldset className="grid gap-2" disabled={merging}>
+                  <legend className="mb-2 text-sm font-medium">만들기 방식</legend>
+                  <div className="flex flex-wrap gap-x-6 gap-y-3">
+                    {([
+                      ["union", "목록 합치기"], ["subtract", "유료 수강생 제외하기"],
+                    ] as const).map(([mode, label]) => <label key={mode} className="flex cursor-pointer items-center gap-2 text-sm">
+                      <input type="radio" name="merge-mode" value={mode} checked={mergeMode === mode}
+                        onChange={() => { setMergeMode(mode); setExclusionKey(""); setMergeError(""); }} />
+                      {label}
+                    </label>)}
+                  </div>
+                </fieldset>
                 <div className="grid gap-2">
                   <Label htmlFor="merged-book-name">새 주소록 이름</Label>
                   <Input
@@ -251,32 +262,12 @@ export function AddressBookManager({
                 </div>
                 <div className="overflow-hidden rounded-lg border">
                   <div className="flex items-center gap-3 border-b bg-muted/40 px-4 py-3">
-                    <Checkbox
-                      id="select-all-address-books"
-                      checked={
-                        allBooksSelected
-                          ? true
-                          : someBooksSelected
-                            ? "indeterminate"
-                            : false
-                      }
-                      onCheckedChange={(checked) =>
-                        toggleAllBooks(checked === true)
-                      }
-                      disabled={merging}
-                      aria-label="주소록 전체 선택"
-                    />
-                    <Label
-                      htmlFor="select-all-address-books"
-                      className="flex-1 cursor-pointer font-medium"
-                    >
-                      전체 선택
-                    </Label>
+                    <span className="flex-1 text-sm font-medium">합칠 주소록 (최대 3개)</span>
                     <span className="text-sm text-muted-foreground">
-                      {initialBooks.length.toLocaleString("ko-KR")}개
+                      {selectedBooks.length} / 3개 선택
                     </span>
                   </div>
-                  <div className="max-h-[42vh] overflow-y-auto">
+                  <div className="max-h-[25vh] overflow-y-auto">
                     {initialBooks.map((book) => {
                       const checkboxId = `merge-book-${book.id}`;
                       return (
@@ -290,7 +281,7 @@ export function AddressBookManager({
                             onCheckedChange={(checked) =>
                               toggleBook(book.id, checked === true)
                             }
-                            disabled={merging}
+                            disabled={merging || exclusionKey === `address-book:${book.id}` || (!selectedBookIds.has(book.id) && selectedBookIds.size >= 3)}
                             aria-label={`${book.name} 선택`}
                           />
                           <Label
@@ -307,10 +298,33 @@ export function AddressBookManager({
                     })}
                   </div>
                 </div>
+                {mergeMode === "subtract" && <div className="grid gap-2">
+                  <Label htmlFor="merge-exclusion">제외할 유료 수강생 명단</Label>
+                  <select id="merge-exclusion" value={exclusionKey} disabled={merging}
+                    onChange={(event) => setExclusionKey(event.target.value)}
+                    className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm">
+                    <option value="">제외할 명단을 선택하세요</option>
+                    <optgroup label="유료 수강생 명단">
+                      {exclusionRosters.filter(roster => roster.is_order_roster).map(roster =>
+                        <option key={roster.id} value={`roster:${roster.id}`}>{roster.name}</option>)}
+                    </optgroup>
+                    <optgroup label="수강생 매니저 명단">
+                      {exclusionRosters.filter(roster => !roster.is_order_roster).map(roster =>
+                        <option key={roster.id} value={`roster:${roster.id}`}>{roster.name}</option>)}
+                    </optgroup>
+                    <optgroup label="주소록">
+                      {initialBooks.filter(book => !selectedBookIds.has(book.id)).map(book =>
+                        <option key={book.id} value={`address-book:${book.id}`}>{book.name}</option>)}
+                    </optgroup>
+                  </select>
+                  <p className="text-xs text-muted-foreground">합칠 주소록 1~3개와 제외할 명단 1개를 선택하세요. 전화번호가 같은 사람을 제외합니다. 수강생 명단은 저장된 최신 명단을 사용하며 환불자는 제외 대상에 포함하지 않습니다.</p>
+                  {exclusionLoadError && <p role="alert" className="text-sm text-destructive">{exclusionLoadError}</p>}
+                </div>}
                 <p className="text-sm text-muted-foreground" aria-live="polite">
                   {selectedBooks.length.toLocaleString("ko-KR")}개 주소록 선택 · 병합
                   전 {selectedContactCount.toLocaleString("ko-KR")}명
                 </p>
+                <p className="text-xs text-muted-foreground">{mergeMode === "union" ? "합칠 주소록을 2~3개 선택하세요. " : ""}같은 전화번호는 한 번만 저장합니다. 원본 명단은 유지하고 새 주소록을 만듭니다.</p>
                 {mergeError && (
                   <Alert variant="destructive">
                     <AlertTitle>병합 실패</AlertTitle>
@@ -328,10 +342,10 @@ export function AddressBookManager({
                 </Button>
                 <Button
                   onClick={mergeBooks}
-                  disabled={merging || selectedBooks.length < 2 || !mergeName.trim()}
+                  disabled={merging || !canMerge}
                 >
                   {merging ? <Loader2 className="animate-spin" /> : <GitMerge />}
-                  {merging ? "병합 중..." : "병합하기"}
+                  {merging ? "생성 중..." : "새 주소록 만들기"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -340,16 +354,15 @@ export function AddressBookManager({
           <Dialog open={mergeResult !== null} onOpenChange={(nextOpen) => {
             if (!nextOpen) { setMergeResult(null); changeMergeDialog(false); }
           }}>
-            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl" aria-describedby={undefined}>
               <DialogHeader>
-                <DialogTitle>콜세일즈용 주소록 생성 완료</DialogTitle>
-                <DialogDescription>제외 목록은 저장되지 않으며 이 창을 닫으면 사라집니다. 원본 주소록은 유지됩니다.</DialogDescription>
+                <DialogTitle>주소록 생성 완료</DialogTitle>
               </DialogHeader>
               {mergeResult && <>
-                <p className="text-sm" role="status">생성 {mergeResult.contactCount.toLocaleString("ko-KR")}명 · 중복 정리 {mergeResult.duplicateCount.toLocaleString("ko-KR")}건 · 010 외 번호 제외 {mergeResult.excludedCount.toLocaleString("ko-KR")}건</p>
-                <div>
+                <p className="text-sm" role="status">생성 {mergeResult.contactCount.toLocaleString("ko-KR")}명 · 중복 정리 {mergeResult.duplicateCount.toLocaleString("ko-KR")}건{mergeMode === "subtract" && ` · 선택 명단과 일치하여 제외 ${mergeResult.matchedExclusionCount.toLocaleString("ko-KR")}명`}{callSalesOnly && ` · 010 외 번호 제외 ${mergeResult.excludedCount.toLocaleString("ko-KR")}건`}</p>
+                {callSalesOnly && <div>
                   <h3 className="mb-2 font-semibold">제외한 항목 목록 ({mergeResult.excludedCount.toLocaleString("ko-KR")}건)</h3>
-                  <p className="mb-3 text-xs text-muted-foreground">원본 주소록의 항목 수 기준입니다. 같은 번호가 여러 주소록에 있으면 각각 표시합니다.</p>
+                  <p className="mb-3 text-xs text-muted-foreground">원본 주소록의 항목 수 기준입니다. 같은 번호가 여러 주소록에 있으면 각각 표시합니다. 제외 목록은 이 창을 닫으면 사라집니다.</p>
                   {mergeResult.excludedContacts.length > 0 ? <div className="max-h-[45vh] overflow-auto rounded-lg border">
                     <Table>
                       <TableHeader><TableRow><TableHead>원본 주소록</TableHead><TableHead>이름</TableHead><TableHead>전화번호</TableHead><TableHead>이메일</TableHead></TableRow></TableHeader>
@@ -358,7 +371,7 @@ export function AddressBookManager({
                       </TableRow>)}</TableBody>
                     </Table>
                   </div> : <p className="rounded-lg border p-6 text-center text-sm text-muted-foreground">010 외 번호로 제외한 항목이 없습니다.</p>}
-                </div>
+                </div>}
                 {mergeResult.contactCount === 0 && <p className="text-sm text-muted-foreground">모든 연락처가 제외되어 빈 주소록을 생성했습니다.</p>}
                 <DialogFooter>
                   <Button variant="outline" onClick={() => { setMergeResult(null); changeMergeDialog(false); }}>닫기</Button>
