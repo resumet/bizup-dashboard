@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { StudentSettlementOverview } from "@/components/course-operations/student-settlement-overview";
+import { StudentComparisonDialog } from "@/components/course-operations/student-comparison-dialog";
 import { BackLink } from "@/components/layout/back-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -33,14 +34,15 @@ export default async function StudentSettlementsPage() {
   return (
     <main className="min-h-screen">
       <header className="border-b bg-background">
-        <div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
+        <div className="mx-auto flex min-h-18 max-w-[1900px] items-center px-5 py-3 lg:px-8">
           <Button variant="ghost" size="sm" asChild>
             <BackLink href="/work">
               <ArrowLeft />뒤로가기
             </BackLink>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
-          <span className="font-semibold">수강생관리 및 정산</span>
+          <span className="min-w-0 flex-1 font-semibold">수강생관리 및 정산</span>
+          <div className="ml-auto shrink-0 pl-3"><StudentComparisonDialog /></div>
         </div>
       </header>
 
