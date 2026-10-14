@@ -2,6 +2,7 @@ import { parseAddressBookFile } from "@/lib/address-books/parse";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
+import { isProtectedAddressBook } from "@/lib/address-books/protected-book";
 
 export const runtime = "nodejs";
 
@@ -11,6 +12,7 @@ export async function POST(request: Request) {
   try {
     const form = await request.formData(); const file = form.get("file"); const name = String(form.get("name") ?? "").trim();
     if (!(file instanceof File) || !name) return Response.json({ message: "주소록 이름과 Excel/CSV 파일을 입력해 주세요." }, { status: 400 });
+    if (isProtectedAddressBook({ name })) return Response.json({ message: "전체 명단은 고정 주소록 이름입니다. 다른 이름을 입력해 주세요." }, { status: 400 });
     const admin = createAdminClient(); const { data: membership } = await admin.from("workspace_members").select("workspace_id").eq("user_id", user.id).limit(1).single();
     if (!membership) return Response.json({ message: "워크스페이스 권한이 없습니다." }, { status: 403 });
     const parsed = await parseAddressBookFile(new Uint8Array(await file.arrayBuffer()), file.name);

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { loadJobEnrollmentRows } from "@/lib/jobs/server";
 import { paidRosterStudents } from "@/lib/course-orders/paid-student-share";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
+import { isProtectedAddressBook } from "@/lib/address-books/protected-book";
 
 export const runtime = "nodejs";
 
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
       message: "새 주소록 이름(200자 이하)과 명단 선택을 확인해 주세요. 합치기는 2~3개, 제외하기는 1~3개의 주소록과 별도의 제외 명단 1개가 필요합니다.",
     }, { status: 400 });
     const { name, sourceBookIds, callSalesOnly, mode, exclusion } = parsed.data;
+    if (isProtectedAddressBook({ name })) return Response.json({ message: "전체 명단은 고정 주소록 이름입니다. 다른 이름을 입력해 주세요." }, { status: 400 });
 
     const admin = createAdminClient();
     const membership = await requireCourseOperationsMembership(user.id).catch(() => null);

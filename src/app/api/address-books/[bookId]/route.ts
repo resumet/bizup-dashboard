@@ -2,6 +2,7 @@ import { hasAdminAccess } from "@/lib/admin/access";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { isProtectedAddressBook } from "@/lib/address-books/protected-book";
 
 type Context = { params: Promise<{ bookId: string }> };
 
@@ -18,6 +19,13 @@ export async function PATCH(request: Request, { params }: Context) {
       { message: "주소록 이름을 입력해 주세요." },
       { status: 400 },
     );
+  }
+  const { data: book, error: bookError } = await supabase.from("address_books")
+    .select("id,name").eq("id", bookId).maybeSingle();
+  if (bookError) return Response.json({ message: "주소록을 조회하지 못했습니다." }, { status: 400 });
+  if (!book) return Response.json({ message: "주소록을 찾을 수 없습니다." }, { status: 404 });
+  if (isProtectedAddressBook(book) || isProtectedAddressBook({ name })) {
+    return Response.json({ message: "전체 명단은 이름을 변경할 수 없습니다." }, { status: 403 });
   }
   const { error } = await supabase
     .from("address_books")
@@ -69,6 +77,9 @@ export async function DELETE(_: Request, { params }: Context) {
       { message: "관리자만 주소록을 삭제할 수 있습니다." },
       { status: 403 },
     );
+  }
+  if (isProtectedAddressBook(book)) {
+    return Response.json({ message: "전체 명단은 삭제할 수 없습니다." }, { status: 403 });
   }
 
   const { data: linkedCourses, error: linkedCoursesError } = await admin

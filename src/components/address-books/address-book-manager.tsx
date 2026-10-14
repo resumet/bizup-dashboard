@@ -38,6 +38,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ExcludedMergeContact } from "@/lib/address-books/merge";
+import { isProtectedAddressBook, pinProtectedAddressBook } from "@/lib/address-books/protected-book";
 import {
   Table,
   TableBody,
@@ -55,7 +56,7 @@ type Book = {
 };
 
 export function AddressBookManager({
-  initialBooks,
+  initialBooks: unsortedBooks,
   exclusionRosters = [],
   exclusionLoadError,
   loadError,
@@ -68,6 +69,7 @@ export function AddressBookManager({
   canDelete: boolean;
 }) {
   const router = useRouter();
+  const initialBooks = useMemo(() => pinProtectedAddressBook(unsortedBooks), [unsortedBooks]);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -185,7 +187,7 @@ export function AddressBookManager({
   }
 
   async function deleteBook() {
-    if (!canDelete || !deleteTarget) return;
+    if (!canDelete || !deleteTarget || isProtectedAddressBook(deleteTarget)) return;
     setDeleting(true);
     setDeleteError("");
     try {
@@ -498,12 +500,7 @@ export function AddressBookManager({
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/services/address-books/${book.id}`}>
-                            관리
-                          </Link>
-                        </Button>
-                        <Button
+                        {!isProtectedAddressBook(book) && <Button
                           variant="outline"
                           size="sm"
                           className="text-destructive hover:text-destructive"
@@ -515,7 +512,7 @@ export function AddressBookManager({
                         >
                           <Trash2 />
                           삭제
-                        </Button>
+                        </Button>}
                       </div>
                     </TableCell>
                   </TableRow>

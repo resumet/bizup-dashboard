@@ -52,6 +52,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatPhone } from "@/lib/jobs/filter";
+import { isProtectedAddressBook } from "@/lib/address-books/protected-book";
 import { getTemplateInputVariables } from "@/lib/messages/custom-template";
 import { formatTemplateSelectionLabel } from "@/lib/messages/shoong-guide";
 type Contact = {
@@ -193,6 +194,7 @@ export function AddressBookDetail({
     router.push(contactsHref(nextPage, nextKeyword, nextSort));
   }
   async function rename() {
+    if (isProtectedAddressBook(book)) return;
     setBusy(true);
     const response = await fetch(`/api/address-books/${book.id}`, {
       method: "PATCH",
@@ -286,7 +288,7 @@ export function AddressBookDetail({
                 Excel 다운로드
               </a>
             </Button>
-            <Dialog>
+            {!isProtectedAddressBook(book) && <Dialog>
               <DialogTrigger asChild>
                 <Button variant="outline">
                   <Pencil />
@@ -304,7 +306,7 @@ export function AddressBookDetail({
                   </Button>
                 </DialogFooter>
               </DialogContent>
-            </Dialog>
+            </Dialog>}
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="outline">
