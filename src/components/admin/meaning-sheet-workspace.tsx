@@ -49,30 +49,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  meaningSheetDateKey,
-} from "@/lib/admin/meaning-tracking";
-import {
-  calculateChatRoomEntries,
-  calculateMeaningSheetImportedTotals,
-  calculateMeaningSheetUnitCosts,
   formatMeaningSheetSourceCell,
   formatMeaningSheetWon,
-  parseMeaningSheetMetricNumber,
 } from "@/lib/admin/meaning-sheet-metrics";
 import {
   buildMeaningSheetHeaders,
-} from "@/lib/admin/meaning-sheet";
+} from "@/lib/admin/meaning-sheet-headers";
 import {
   AD_PERFORMANCE_VISIBLE_SOURCE_COLUMN_COUNT,
-  adPerformanceSourceLandingDb,
   canonicalGoogleSpreadsheetUrl,
   extractGoogleSpreadsheetId,
-  resolveAdPerformanceSourceDate,
 } from "@/lib/ad-performance/sheet-workspace";
 import type {
   AdPerformanceSheetState,
 } from "@/lib/ad-performance/types";
 import { cn } from "@/lib/utils";
+import { adPerformanceSheetRow } from "@/lib/ad-performance/sheet-row";
 
 const HEADER_ROW_COUNT = 2;
 const PAGE_SIZE = 100;
@@ -110,13 +102,6 @@ function parseNonnegativeInteger(value: string, label: string) {
   return parsed;
 }
 
-function previousIsoDate(value: string) {
-  const date = new Date(`${value}T00:00:00Z`);
-  if (Number.isNaN(date.valueOf())) return null;
-  date.setUTCDate(date.getUTCDate() - 1);
-  return date.toISOString().slice(0, 10);
-}
-
 type SheetOption = { name: string; rowCount: number };
 
 export function MeaningSheetWorkspace({
@@ -141,7 +126,7 @@ export function MeaningSheetWorkspace({
   );
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [busyAction, setBusyAction] = useState<
-    "preview" | "connect" | "refresh" | "upload" | "reset" | "manual" | null
+    "preview" | "connect" | "refresh" | "upload" | "reset" | "manual" | "export" | null
   >(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -153,6 +138,7 @@ export function MeaningSheetWorkspace({
   const [isTableFullscreen, setIsTableFullscreen] = useState(false);
   const tableFullscreenRef = useRef<HTMLDivElement>(null);
   const sheetVersionRef = useRef(sheetState?.version ?? 0);
+  const exportInProgressRef = useRef(false);
 
   const sourceRows = sheetState?.sourceRows ?? [];
   const tracking = sheetState?.tracking ?? null;
@@ -410,6 +396,34 @@ export function MeaningSheetWorkspace({
     }
   }
 
+  async function downloadExcel() {
+    if (!sheetState || !dataRows.length || busyAction !== null || exportInProgressRef.current) return;
+    exportInProgressRef.current = true;
+    setBusyAction("export");
+    setError("");
+    setNotice("");
+    try {
+      const { buildAdPerformanceXlsx, adPerformanceExportFileName } = await import("@/lib/ad-performance/export-xlsx");
+      const blob = await buildAdPerformanceXlsx(sheetState, dashboardStartDate);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = adPerformanceExportFileName(sheetState.sheetName);
+      document.body.appendChild(link);
+      try {
+        link.click();
+      } finally {
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "엑셀 파일을 다운로드하지 못했습니다.");
+    } finally {
+      exportInProgressRef.current = false;
+      setBusyAction(null);
+    }
+  }
+
   async function toggleTableFullscreen() {
     setFullscreenError("");
 
@@ -520,6 +534,16 @@ export function MeaningSheetWorkspace({
           <RefreshCw />
         )}
         데이터 갱신
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        disabled={!dataRows.length || busyAction !== null}
+        onClick={() => void downloadExcel()}
+        title="표의 전체 데이터를 엑셀로 다운로드"
+      >
+        {busyAction === "export" ? <Loader2 className="animate-spin" /> : <Download />}
+        {busyAction === "export" ? "엑셀 생성 중" : "엑셀 다운로드"}
       </Button>
     </>
   );
@@ -756,81 +780,10 @@ export function MeaningSheetWorkspace({
             <TableBody>
               {visibleRows.map((row, rowIndex) => {
                 const sourceRow = start + rowIndex + HEADER_ROW_COUNT + 1;
-                const metricDate = resolveAdPerformanceSourceDate(
-                  row[0],
-                  dashboardStartDate,
-                );
-                const dateKey = meaningSheetDateKey(row[0]);
-                const manualInput = metricDate
-                  ? manualInputs[metricDate]
-                  : undefined;
-                const previousDateKey = metricDate
-                  ? previousIsoDate(metricDate)
-                  : null;
-                const previousManualInput = previousDateKey
-                  ? manualInputs[previousDateKey]
-                  : undefined;
-                const trackedValues = dateKey
-                    ? tracking?.dailyByDate[dateKey]
-                    : undefined;
-                const importedValues =
-                  trackedValues?.fullDate === metricDate
-                    ? trackedValues
-                    : undefined;
-                const sourceLandingDb = adPerformanceSourceLandingDb(row);
-                const landingDb = importedValues?.landingDbImported
-                  ? {
-                      googleLandingDb: importedValues.googleLandingDb,
-                      metaLandingDb: importedValues.metaLandingDb,
-                    }
-                  : sourceLandingDb;
-                const hasSourceLandingDb = Boolean(
-                  row[14]?.trim() || row[15]?.trim(),
-                );
-                const hasLandingDb =
-                  Boolean(importedValues?.landingDbImported) || hasSourceLandingDb;
-                const importedTotals = hasLandingDb || importedValues
-                  ? calculateMeaningSheetImportedTotals(
-                      {
-                        ...landingDb,
-                        organicByChannel:
-                          importedValues?.organicByChannel ?? {},
-                      },
-                      organicChannels,
-                    )
-                  : null;
-                const chatEntries = calculateChatRoomEntries(
-                  manualInput?.chatMembersCumulative,
-                  previousManualInput?.chatMembersCumulative,
-                );
-                const unitCosts = calculateMeaningSheetUnitCosts({
-                  totalAdSpend: importedValues
-                    ? parseMeaningSheetMetricNumber(row[1])
-                    : null,
-                  googleAdSpend: importedValues
-                    ? parseMeaningSheetMetricNumber(row[10])
-                    : null,
-                  metaAdSpend: importedValues
-                    ? parseMeaningSheetMetricNumber(row[11])
-                    : null,
-                  googleAdDb: importedValues
-                    ? parseMeaningSheetMetricNumber(row[12])
-                    : null,
-                  metaAdDb: importedValues
-                    ? parseMeaningSheetMetricNumber(row[13])
-                    : null,
-                  googleLandingDb: importedValues
-                    ? landingDb.googleLandingDb
-                    : null,
-                  metaLandingDb: importedValues
-                    ? landingDb.metaLandingDb
-                    : null,
-                  chatEntries: importedValues ? chatEntries : null,
-                });
-                const visibleSourceRow = row.slice(
-                  0,
-                  AD_PERFORMANCE_VISIBLE_SOURCE_COLUMN_COUNT,
-                );
+                const {
+                  metricDate, manualInput, importedValues, landingDb, hasLandingDb,
+                  importedTotals, chatEntries, unitCosts, visibleSourceRow,
+                } = adPerformanceSheetRow(row, dashboardStartDate, sheetState);
 
                 return (
                   <TableRow key={sourceRow}>
