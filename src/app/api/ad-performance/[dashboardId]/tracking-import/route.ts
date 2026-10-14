@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { createHash } from "node:crypto";
+import { applyTrackingToSheet } from "@/lib/ad-performance/sheet-update";
+import { createSheetUpdatePreview, sheetUpdateReviewResponse } from "@/lib/ad-performance/sheet-update-review";
 
 import { requireCourseOperationsMembership, requireCourseOperationsUser } from "@/lib/course-operations/server";
 import {
@@ -91,19 +94,21 @@ export async function POST(request: Request, { params }: Context) {
     );
     if (!current) throw new Error("원본 시트를 먼저 연결해 주세요.");
     const tracking = await parseAdPerformanceTrackingFile(file);
+    const next = applyTrackingToSheet({
+      ...current,
+      trackingFileName: file.name.replace(/[\\/]/gu, "").slice(0, 255),
+    }, tracking, context.startDate);
+    const preview = createSheetUpdatePreview({
+      current, next, startDate: context.startDate, dashboardId: context.dashboardId,
+      actorId: user.id,
+      fileDigest: createHash("sha256").update(Buffer.from(await file.arrayBuffer())).digest("hex"),
+    });
+    const reviewResponse = sheetUpdateReviewResponse(preview, {
+      action: formData.get("action"), version: formData.get("version"), fingerprint: formData.get("fingerprint"),
+    });
+    if (reviewResponse) return reviewResponse;
     const previousStoragePath = current.tracking?.sourceStoragePath ?? null;
     const sourceStoragePath = await storeAdPerformanceTrackingFile(context, file);
-    const manualInputs = { ...current.manualInputs };
-    if (
-      tracking.bizupDbCumulativeDate &&
-      tracking.bizupDbCumulativeCount !== undefined
-    ) {
-      const savedInput = manualInputs[tracking.bizupDbCumulativeDate];
-      manualInputs[tracking.bizupDbCumulativeDate] = {
-        bizupDbCumulative: tracking.bizupDbCumulativeCount,
-        chatMembersCumulative: savedInput?.chatMembersCumulative ?? null,
-      };
-    }
     let saved: Awaited<ReturnType<typeof persistAdPerformanceSheetState>>;
     try {
       saved = await persistAdPerformanceSheetState({
@@ -111,10 +116,8 @@ export async function POST(request: Request, { params }: Context) {
         actorId: user.id,
         expectedVersion: current.version,
         state: {
-          ...current,
-          trackingFileName: file.name.replace(/[\\/]/gu, "").slice(0, 255),
-          tracking: { ...tracking, sourceStoragePath },
-          manualInputs,
+          ...next,
+          tracking: { ...next.tracking!, sourceStoragePath },
         },
       });
     } catch (error) {

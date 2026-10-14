@@ -65,6 +65,8 @@ import type {
 } from "@/lib/ad-performance/types";
 import { cn } from "@/lib/utils";
 import { adPerformanceSheetRow } from "@/lib/ad-performance/sheet-row";
+import { SheetUpdateDialog } from "@/components/ad-performance/sheet-update-dialog";
+import type { SheetUpdatePreview } from "@/lib/ad-performance/sheet-update";
 
 const HEADER_ROW_COUNT = 2;
 const PAGE_SIZE = 100;
@@ -139,6 +141,12 @@ export function MeaningSheetWorkspace({
   const tableFullscreenRef = useRef<HTMLDivElement>(null);
   const sheetVersionRef = useRef(sheetState?.version ?? 0);
   const exportInProgressRef = useRef(false);
+  const updateInProgressRef = useRef(false);
+  const [pendingUpdate, setPendingUpdate] = useState<{
+    action: "upload" | "refresh";
+    file: File | null;
+    preview: SheetUpdatePreview;
+  } | null>(null);
 
   const sourceRows = sheetState?.sourceRows ?? [];
   const tracking = sheetState?.tracking ?? null;
@@ -305,37 +313,7 @@ export function MeaningSheetWorkspace({
   }
 
   async function refreshSource() {
-    setBusyAction("refresh");
-    setError("");
-    try {
-      const response = await fetch(
-        `/api/ad-performance/${dashboardId}/source-sheet`,
-        { method: "POST" },
-      );
-      if (!response.ok) {
-        throw new Error(
-          await errorFromResponse(
-            response,
-            "구글 시트 데이터를 갱신하지 못했습니다.",
-          ),
-        );
-      }
-      const result = (await response.json()) as { addedDateCount?: number };
-      const addedDateCount = result.addedDateCount ?? 0;
-      refreshAfterSave(
-        addedDateCount > 0
-          ? `새 날짜 ${addedDateCount.toLocaleString("ko-KR")}건을 추가하고 구글 시트 데이터를 갱신했습니다.`
-          : "구글 시트 데이터를 갱신했습니다.",
-      );
-    } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "구글 시트 데이터를 갱신하지 못했습니다.",
-      );
-    } finally {
-      setBusyAction(null);
-    }
+    await requestSheetUpdate("refresh", null);
   }
 
   async function uploadTracking(event: FormEvent<HTMLFormElement>) {
@@ -344,28 +322,51 @@ export function MeaningSheetWorkspace({
       setError("추가할 엑셀 파일을 선택해 주세요.");
       return;
     }
-    setBusyAction("upload");
+    await requestSheetUpdate("upload", selectedFile);
+  }
+
+  async function requestSheetUpdate(action: "upload" | "refresh", file: File | null, confirmation?: SheetUpdatePreview) {
+    if (updateInProgressRef.current || busyAction !== null) return;
+    updateInProgressRef.current = true;
+    setBusyAction(action);
     setError("");
+    setNotice("");
     try {
-      const formData = new FormData();
-      formData.set("file", selectedFile);
+      const review = { action: confirmation ? "confirm" : "preview", version: confirmation?.version, fingerprint: confirmation?.fingerprint };
+      let body: FormData | string;
+      if (action === "upload") {
+        if (!file) throw new Error("추가할 엑셀 파일을 선택해 주세요.");
+        const formData = new FormData();
+        formData.set("file", file);
+        formData.set("action", review.action);
+        if (confirmation) {
+          formData.set("version", String(confirmation.version));
+          formData.set("fingerprint", confirmation.fingerprint);
+        }
+        body = formData;
+      } else body = JSON.stringify(review);
       const response = await fetch(
-        `/api/ad-performance/${dashboardId}/tracking-import`,
-        { method: "POST", body: formData },
+        `/api/ad-performance/${dashboardId}/${action === "upload" ? "tracking-import" : "source-sheet"}`,
+        { method: "POST", body, ...(action === "refresh" ? { headers: { "Content-Type": "application/json" } } : {}) },
       );
-      if (!response.ok) {
-        throw new Error(
-          await errorFromResponse(response, "유입 엑셀을 추가하지 못했습니다."),
-        );
+      const result = await response.json() as { preview?: SheetUpdatePreview; saved?: boolean; message?: string };
+      if (result.preview && (response.ok || response.status === 409)) {
+        setPendingUpdate({ action, file, preview: result.preview });
+        setTrackingDialogOpen(false);
+        if (response.status === 409) setError(result.message ?? "변경 내역을 다시 확인해 주세요.");
+        return;
       }
+      if (!response.ok || !result.saved) throw new Error(result.message || "데이터를 업데이트하지 못했습니다.");
+      setPendingUpdate(null);
       setTrackingDialogOpen(false);
       setSelectedFile(null);
-      refreshAfterSave("유입 엑셀을 추가했습니다.");
+      refreshAfterSave("확인한 변경 내역을 과거 날짜까지 반영했습니다.");
     } catch (caught) {
       setError(
-        caught instanceof Error ? caught.message : "유입 엑셀을 추가하지 못했습니다.",
+        caught instanceof Error ? caught.message : "데이터를 업데이트하지 못했습니다.",
       );
     } finally {
+      updateInProgressRef.current = false;
       setBusyAction(null);
     }
   }
@@ -551,6 +552,14 @@ export function MeaningSheetWorkspace({
   return (
     <div className="mt-8 flex min-h-0 flex-1 flex-col gap-3">
       {toolbarContainer ? createPortal(toolbar, toolbarContainer) : null}
+      {pendingUpdate ? <SheetUpdateDialog
+        key={pendingUpdate.preview.fingerprint}
+        preview={pendingUpdate.preview}
+        busy={busyAction !== null}
+        error={error}
+        onCancel={() => { setPendingUpdate(null); setError(""); }}
+        onConfirm={() => void requestSheetUpdate(pendingUpdate.action, pendingUpdate.file, pendingUpdate.preview)}
+      /> : null}
 
       {error ? (
         <Alert variant="destructive">
@@ -1114,7 +1123,7 @@ export function MeaningSheetWorkspace({
                   ) : (
                     <Upload />
                   )}
-                  추가
+                  변경 내역 확인
                 </Button>
               </div>
             </DialogFooter>

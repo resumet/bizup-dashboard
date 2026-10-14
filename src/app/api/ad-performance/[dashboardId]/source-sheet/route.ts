@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { applyTrackingToSheet } from "@/lib/ad-performance/sheet-update";
+import { createSheetUpdatePreview, sheetUpdateReviewResponse } from "@/lib/ad-performance/sheet-update-review";
 
 import { requireCourseOperationsMembership, requireCourseOperationsUser } from "@/lib/course-operations/server";
 import {
@@ -61,7 +63,7 @@ export async function PUT(request: Request, { params }: Context) {
   }
 }
 
-export async function POST(_request: Request, { params }: Context) {
+export async function POST(request: Request, { params }: Context) {
   try {
     const supabase = await createClient();
     const user = await requireCourseOperationsUser(supabase);
@@ -79,6 +81,11 @@ export async function POST(_request: Request, { params }: Context) {
       context.startDate,
     );
     if (!current) throw new Error("원본 시트를 먼저 연결해 주세요.");
+    const input = z.object({
+      action: z.enum(["preview", "confirm"]).default("preview"),
+      version: z.number().int().nonnegative().optional(),
+      fingerprint: z.string().optional(),
+    }).parse(await request.json());
 
     const workbook = await loadGoogleWorkbook(
       current.spreadsheetUrl,
@@ -97,19 +104,20 @@ export async function POST(_request: Request, { params }: Context) {
         )
       : current.tracking;
     const previousDateCount = Math.max(0, current.sourceRows.length - 2);
+    const next = applyTrackingToSheet({
+      ...current, spreadsheetId: workbook.spreadsheetId, sheetName: selectedSheet.name,
+      sourceRows: selectedSheet.rows,
+    }, tracking, context.startDate);
+    const preview = createSheetUpdatePreview({
+      current, next, startDate: context.startDate, dashboardId: context.dashboardId, actorId: user.id,
+    });
+    const reviewResponse = sheetUpdateReviewResponse(preview, input);
+    if (reviewResponse) return reviewResponse;
     const saved = await persistAdPerformanceSheetState({
       context,
       actorId: user.id,
       expectedVersion: current.version,
-      state: {
-        spreadsheetUrl: current.spreadsheetUrl,
-        spreadsheetId: workbook.spreadsheetId,
-        sheetName: selectedSheet.name,
-        sourceRows: selectedSheet.rows,
-        trackingFileName: current.trackingFileName,
-        tracking,
-        manualInputs: current.manualInputs,
-      },
+      state: next,
     });
     return Response.json({
       saved: true,

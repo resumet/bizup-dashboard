@@ -40,6 +40,7 @@ export type AdPerformanceTrackingImport = {
   matchedRowCount: number;
   bizupDbCumulativeDate?: string;
   bizupDbCumulativeCount?: number;
+  applicationCountsByDate?: Record<string, number>;
   sourceStoragePath?: string;
 };
 

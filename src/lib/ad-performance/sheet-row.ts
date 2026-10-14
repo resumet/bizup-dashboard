@@ -42,8 +42,8 @@ export function adPerformanceSheetRow(
   const previousManualInput = previousDateKey
     ? manualInputs[previousDateKey]
     : undefined;
-  const trackedValues = dateKey
-      ? tracking?.dailyByDate[dateKey]
+  const trackedValues = dateKey && metricDate
+      ? tracking?.dailyByDate[metricDate] ?? tracking?.dailyByDate[dateKey]
       : undefined;
   const importedValues =
     trackedValues?.fullDate === metricDate

@@ -16,6 +16,7 @@ export type MeaningTrackingImport = {
   matchedRowCount: number;
   bizupDbCumulativeDate?: string;
   bizupDbCumulativeCount?: number;
+  applicationCountsByDate?: Record<string, number>;
 };
 
 function cellText(value: unknown) {
@@ -177,6 +178,7 @@ export function parseMeaningTrackingApplyList(
   let columns: ReturnType<typeof applyListHeaderColumns> = null;
   let matchedRowCount = 0;
   let bizupDbCumulativeCount = 0;
+  const applicationCountsByDate: Record<string, number> = {};
 
   for (const row of rows) {
     const detectedColumns = applyListHeaderColumns(row);
@@ -188,13 +190,17 @@ export function parseMeaningTrackingApplyList(
 
     const date = trackingDate(row[columns.date]);
     if (!date) continue;
-    if (date.fullDate < todayDate) bizupDbCumulativeCount += 1;
+    if (date.fullDate < todayDate) {
+      bizupDbCumulativeCount += 1;
+      applicationCountsByDate[date.fullDate] = (applicationCountsByDate[date.fullDate] ?? 0) + 1;
+    }
 
     const media = normalizedText(row[columns.media]);
     const normalizedChannel = normalizedText(row[columns.channel]);
-    let daily = dailyByDate[date.key];
-    if (date.fullDate === paidLandingDate) {
-      daily ??= dailyByDate[date.key] = emptyDailyValues(date.fullDate);
+    const dailyKey = dailyByDate[date.key] && dailyByDate[date.key].fullDate !== date.fullDate ? date.fullDate : date.key;
+    let daily = dailyByDate[dailyKey];
+    if (date.fullDate < todayDate) {
+      daily ??= dailyByDate[dailyKey] = emptyDailyValues(date.fullDate);
       daily.landingDbImported = true;
       if (normalizedChannel === "그로스임팩트" && media === "메타") {
         daily.metaLandingDb += 1;
@@ -224,7 +230,7 @@ export function parseMeaningTrackingApplyList(
       continue;
     }
 
-    daily ??= dailyByDate[date.key] = emptyDailyValues(date.fullDate);
+    daily ??= dailyByDate[dailyKey] = emptyDailyValues(date.fullDate);
     daily.organicByChannel[channel] =
       (daily.organicByChannel[channel] ?? 0) + 1;
     matchedRowCount += 1;
@@ -240,6 +246,7 @@ export function parseMeaningTrackingApplyList(
     matchedRowCount,
     bizupDbCumulativeDate: paidLandingDate,
     bizupDbCumulativeCount,
+    applicationCountsByDate,
   };
 }
 
@@ -267,13 +274,14 @@ export function parseMeaningTrackingSheet(
     }
 
     if (!currentDate) continue;
+    const dailyKey = dailyByDate[currentDate.key] && dailyByDate[currentDate.key].fullDate !== currentDate.fullDate ? currentDate.fullDate : currentDate.key;
     const media = normalizedText(row[columns.media]);
     if (!media) continue;
 
     const total = numericValue(row[columns.total]);
 
     if (media === "메타") {
-      const daily = (dailyByDate[currentDate.key] ??= emptyDailyValues(
+      const daily = (dailyByDate[dailyKey] ??= emptyDailyValues(
         currentDate.fullDate,
       ));
       daily.landingDbImported = true;
@@ -283,7 +291,7 @@ export function parseMeaningTrackingSheet(
     }
 
     if (media === "구글") {
-      const daily = (dailyByDate[currentDate.key] ??= emptyDailyValues(
+      const daily = (dailyByDate[dailyKey] ??= emptyDailyValues(
         currentDate.fullDate,
       ));
       daily.landingDbImported = true;
@@ -303,7 +311,7 @@ export function parseMeaningTrackingSheet(
       knownOrganicChannels.add(channel);
       organicChannels.push(channel);
     }
-    const daily = (dailyByDate[currentDate.key] ??= emptyDailyValues(
+    const daily = (dailyByDate[dailyKey] ??= emptyDailyValues(
       currentDate.fullDate,
     ));
     daily.organicByChannel[channel] =

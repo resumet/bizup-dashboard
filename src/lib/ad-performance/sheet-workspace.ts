@@ -209,7 +209,7 @@ export function buildAdPerformanceMetricSnapshot(input: {
 
     const trackingKey = meaningSheetDateKey(row[0]);
     const tracked = trackingKey
-      ? input.tracking?.dailyByDate[trackingKey]
+      ? input.tracking?.dailyByDate[metricDate] ?? input.tracking?.dailyByDate[trackingKey]
       : undefined;
     const matchingTracked = tracked?.fullDate === metricDate ? tracked : undefined;
     const manual = input.manualInputs[metricDate];

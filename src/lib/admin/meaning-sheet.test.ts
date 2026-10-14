@@ -172,7 +172,7 @@ test("신청 목록 CSV를 유튜브 경로별·인스타·경로불명 오가�
     "인스타",
     "경로불명",
   ]);
-  assert.equal(result.matchedRowCount, 8);
+  assert.equal(result.matchedRowCount, 9);
   assert.equal(result.dailyByDate["10-06"].landingDbImported, true);
   assert.equal(result.dailyByDate["10-06"].metaLandingDb, 2);
   assert.equal(result.dailyByDate["10-06"].googleLandingDb, 1);
@@ -184,7 +184,8 @@ test("신청 목록 CSV를 유튜브 경로별·인스타·경로불명 오가�
   assert.deepEqual(result.dailyByDate["10-05"].organicByChannel, {
     초월스토리: 1,
   });
-  assert.equal(result.dailyByDate["10-05"].metaLandingDb, 0);
+  assert.equal(result.dailyByDate["10-05"].metaLandingDb, 1);
+  assert.equal(result.dailyByDate["10-05"].landingDbImported, true);
   assert.equal(result.bizupDbCumulativeDate, "2026-10-06");
   assert.equal(result.bizupDbCumulativeCount, 11);
 });

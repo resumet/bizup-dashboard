@@ -286,7 +286,8 @@ export async function parseAdPerformanceTrackingFile(file: File) {
 
 function parseTrackingRows(rows: readonly (readonly unknown[])[]) {
   const applyList = parseMeaningTrackingApplyList(rows);
-  if (Object.keys(applyList.dailyByDate).length && applyList.matchedRowCount) {
+  if ((Object.keys(applyList.dailyByDate).length && applyList.matchedRowCount)
+    || Object.keys(applyList.applicationCountsByDate ?? {}).length) {
     return applyList;
   }
 
