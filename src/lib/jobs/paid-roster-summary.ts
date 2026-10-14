@@ -1,7 +1,9 @@
 import type { RosterRow } from "./types";
+import { isCashPaymentMethod } from "@/lib/course-orders/student-roster";
 
 export type PaidRosterSummary = {
   payerCount: number;
+  cashPayerCount: number;
   paymentAmount: number;
   options: Array<{ optionName: string; payerCount: number }>;
 };
@@ -19,6 +21,7 @@ function payerKey(row: RosterRow) {
 
 export function summarizePaidRoster(rows: RosterRow[]): PaidRosterSummary {
   const payers = new Set<string>();
+  const cashPayers = new Set<string>();
   const optionPayers = new Map<string, Set<string>>();
   let paymentCents = 0;
 
@@ -28,6 +31,7 @@ export function summarizePaidRoster(rows: RosterRow[]): PaidRosterSummary {
     const amount = Number(row.values.paymentAmount);
 
     payers.add(payer);
+    if (isCashPaymentMethod(row.values.paymentMethod)) cashPayers.add(payer);
     paymentCents += Number.isFinite(amount) ? Math.round(amount * 100) : 0;
 
     const option = optionPayers.get(optionName) ?? new Set<string>();
@@ -37,6 +41,7 @@ export function summarizePaidRoster(rows: RosterRow[]): PaidRosterSummary {
 
   return {
     payerCount: payers.size,
+    cashPayerCount: cashPayers.size,
     paymentAmount: paymentCents / 100,
     options: [...optionPayers]
       .map(([optionName, option]) => ({

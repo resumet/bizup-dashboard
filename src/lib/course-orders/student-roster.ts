@@ -147,13 +147,15 @@ export function summarizeOrderStudents(students: OrderStudent[]) {
   };
 }
 
+export function isCashPaymentMethod(paymentMethod?: string) {
+  return (paymentMethod ?? "")
+    .normalize("NFKC")
+    .split("/")
+    .some((method) => method.trim() === "현금결제");
+}
+
 export function summarizeCashPayments(students: OrderStudent[]) {
-  const cashPayments = students.filter((student) =>
-    (student.paymentMethod ?? "")
-      .normalize("NFKC")
-      .split("/")
-      .some((method) => method.trim() === "현금결제"),
-  );
+  const cashPayments = students.filter((student) => isCashPaymentMethod(student.paymentMethod));
   return {
     count: cashPayments.length,
     amount: cashPayments.reduce((sum, student) => sum + Math.round(student.amount * 100), 0) / 100,

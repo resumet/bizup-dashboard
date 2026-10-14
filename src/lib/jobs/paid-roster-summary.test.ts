@@ -64,3 +64,23 @@ test("전화번호가 없으면 이메일로 중복 제외하고 연락처가 �
     { optionName: "옵션 없음", payerCount: 3 },
   ]);
 });
+
+test("현금결제자는 기존 결제자 기준으로 중복 제외하고 복합 결제도 포함한다", () => {
+  const cash = (value: RosterRow, method: string) => ({ ...value, values: { ...value.values, paymentMethod: method } });
+  const summary = summarizePaidRoster([
+    cash(row("1", "01012345678", "기본반", "100000"), "현금결제"),
+    cash(row("2", "01012345678", "심화반", "200000"), " 현금결제 / 신용카드 "),
+    cash(row("3", "01099998888", "기본반", "100000"), "신용카드"),
+    cash(row("4", "", "기본반", "100000", " PAYER@example.com "), "현금결제"),
+    cash(row("5", "", "심화반", "200000", "payer@example.com"), "현금결제"),
+    cash(row("6", "01077778888", "기본반", "100000"), "무통장입금"),
+  ]);
+  assert.equal(summary.cashPayerCount, 2);
+  assert.equal(summary.payerCount, 4);
+  assert.equal(summary.paymentAmount, 800000);
+});
+
+test("결제방법이 미입력이거나 현금결제자가 없으면 0명을 반환한다", () => {
+  assert.equal(summarizePaidRoster([]).cashPayerCount, 0);
+  assert.equal(summarizePaidRoster([row("1", "01012345678", "기본반", "100000")]).cashPayerCount, 0);
+});
