@@ -22,7 +22,7 @@ export default async function MessageStudioPage() {
     supabase
       .from("courses")
       .select(
-        "id,name,instructor_name,payment_link,inquiry_link,curriculum_link,free_gift_link",
+        "id,name,status,instructor_name,payment_link,inquiry_link,curriculum_link,free_gift_link",
       )
       .order("updated_at", { ascending: false }),
   ]);

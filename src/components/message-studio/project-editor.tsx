@@ -1,5 +1,6 @@
 "use client";
 
+import { isSelectableCourse } from "@/lib/course-operations/course-status";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -738,6 +739,7 @@ function DashboardCourseSelect({
   onChange: (value: string) => void;
 }) {
   const id = `field-${label}`;
+  const selectedCourse = courses.find((course) => course.id === value);
   return (
     <div className="grid gap-2">
       <Label htmlFor={id}>
@@ -748,14 +750,16 @@ function DashboardCourseSelect({
         <SelectTrigger id={id} className="w-full">
           <SelectValue
             placeholder={
-              courses.length > 0
+              courses.some(isSelectableCourse)
                 ? `${label}을 선택하세요`
-                : "강의 대시보드에 등록된 강의가 없습니다"
+                : "선택할 수 있는 강의가 없습니다"
             }
-          />
+          >
+            {selectedCourse ? (display === "course" ? selectedCourse.name : selectedCourse.instructor_name || "강사 미입력") : undefined}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {courses.map((course) => (
+          {courses.filter(isSelectableCourse).map((course) => (
             <SelectItem key={course.id} value={course.id}>
               {display === "course"
                 ? course.name
@@ -788,7 +792,7 @@ function DashboardLinkSelect({
 }) {
   const id = `field-${field}`;
   const seen = new Set<string>();
-  const options = courses.flatMap((course) => {
+  const options = courses.filter(isSelectableCourse).flatMap((course) => {
     const url = course[field]?.trim();
     if (!url || seen.has(url)) return [];
     seen.add(url);

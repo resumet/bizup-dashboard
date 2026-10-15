@@ -1,5 +1,6 @@
 "use client";
 
+import { isSelectableCourse } from "@/lib/course-operations/course-status";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { CalendarPlus, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ export function CalendarEventForm({ event, date, types, courses, initialCourseId
   const [copyBusy, setCopyBusy] = useState(false);
   const [copyNotice, setCopyNotice] = useState("");
   const [manualCopy, setManualCopy] = useState("");
+  const selectedCourse = courses.find((course) => course.id === draft.courseId);
   const selectedType = types.find((type) => type.id === draft.meetingTypeId);
   const knownIds = new Set(people.map((person) => person.id));
   const peopleOptions = [...people.filter((person) => person.active || draft.participantIds.includes(person.id)),
@@ -132,7 +134,9 @@ export function CalendarEventForm({ event, date, types, courses, initialCourseId
           <p className="text-xs text-muted-foreground">한국시간 · 시작 08:00~21:00 · 소요 30분~24시간, 30분 단위<br />{formatCalendarTime({ start_minutes: draft.startMinutes, duration_minutes: draft.durationMinutes, time_tbd: draft.timeTbd })}</p>
           <LocationFields kind={draft.locationKind} text={draft.locationText} onChange={(locationKind, locationText) => setDraft({ ...draft, locationKind, locationText })} />
           {selectedType?.code === "instructor_zoom" ? <label className="grid gap-2">연결 강의<select aria-label="연결 강의" className={selectClass} value={draft.courseId ?? ""} onChange={(e) => setDraft({ ...draft, courseId: e.target.value || null })}>
-            <option value="">연결 안 함</option>{courses.map((course) => <option key={course.id} value={course.id}>{course.name} · {course.instructor_name}{course.cohort ? ` · ${course.cohort}` : ""}</option>)}
+            <option value="">연결 안 함</option>
+            {selectedCourse && !isSelectableCourse(selectedCourse) ? <option value={selectedCourse.id} hidden disabled>{selectedCourse.name} · {selectedCourse.instructor_name}</option> : null}
+            {courses.filter(isSelectableCourse).map((course) => <option key={course.id} value={course.id}>{course.name} · {course.instructor_name}{course.cohort ? ` · ${course.cohort}` : ""}</option>)}
           </select><span className="text-xs text-muted-foreground">연결하면 강의 상세페이지에도 일정이 표시됩니다.</span></label> : null}
           <fieldset className="space-y-2 rounded-md border p-3" aria-describedby="calendar-participant-help">
             <legend className="px-1 text-sm font-medium">참여자</legend>

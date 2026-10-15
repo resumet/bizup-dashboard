@@ -1,4 +1,5 @@
 export type MessageCourse = {
+  status?: string | null;
   id: string;
   name: string;
   instructor_name: string;

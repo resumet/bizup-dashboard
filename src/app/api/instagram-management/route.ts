@@ -37,7 +37,7 @@ export async function GET() {
     const { membership, admin } = await requireCourseDocumentMember();
     const { data: courses, error: coursesError } = await admin
       .from("courses")
-      .select("id,name,instructor_name,cohort,free_webinar_at")
+      .select("id,name,status,instructor_name,cohort,free_webinar_at")
       .eq("workspace_id", membership.workspace_id)
       .order("free_webinar_at", { ascending: false });
     if (coursesError) throw new Error(`강의 조회 실패: ${coursesError.code}`);
@@ -112,6 +112,7 @@ export async function GET() {
         id: course.id,
         name: course.name,
         instructorName: course.instructor_name,
+        status: course.status,
         cohort: course.cohort ?? "",
         freeWebinarAt: course.free_webinar_at,
         externalEditEnabled: setting?.external_edit_enabled ?? false,

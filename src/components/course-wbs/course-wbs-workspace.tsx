@@ -1,5 +1,6 @@
 "use client";
 
+import { isSelectableCourse } from "@/lib/course-operations/course-status";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
@@ -339,7 +340,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
   }, [courses, wbsSummaries]);
   const coursesWithoutWbs = useMemo(() => {
     const savedIds = new Set(wbsSummaries.map((summary) => summary.courseId));
-    return courses.filter((entry) => !savedIds.has(entry.id));
+    return courses.filter((entry) => isSelectableCourse(entry) && !savedIds.has(entry.id));
   }, [courses, wbsSummaries]);
   const coursesById = useMemo(() => new Map(courses.map((entry) => [entry.id, entry])), [courses]);
   const scheduleEntries = useMemo(() => courseId && courseReady

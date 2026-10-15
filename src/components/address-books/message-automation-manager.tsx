@@ -1,5 +1,6 @@
 "use client";
 
+import { isSelectableCourse } from "@/lib/course-operations/course-status";
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 import {
@@ -588,7 +589,7 @@ export function MessageAutomationManager({
                           )}
                         </SelectTrigger>
                         <SelectContent>
-                          {courses.map((course) => (
+                          {courses.filter(isSelectableCourse).map((course) => (
                             <SelectItem key={course.id} value={course.id}>
                               <span className="flex min-w-0 items-center gap-2">
                                 <span className="truncate">

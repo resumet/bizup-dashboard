@@ -1,5 +1,6 @@
 "use client";
 
+import { isSelectableCourse } from "@/lib/course-operations/course-status";
 import { useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -197,6 +198,7 @@ export function AdPerformanceDashboard({
     [initialData.metrics, totalBudget],
   );
   const course = initialData.courses.find((item) => item.id === courseId) ?? null;
+  const draftCourse = initialData.courses.find((item) => item.id === draftCourseId);
 
   async function saveSettings() {
     if (!draftCourseId) {
@@ -357,10 +359,12 @@ export function AdPerformanceDashboard({
               <Label>강의</Label>
               <Select value={draftCourseId} onValueChange={setDraftCourseId}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder={initialData.courses.length ? "강의를 선택하세요" : "선택할 강의가 없습니다"} />
+                  <SelectValue placeholder={initialData.courses.some(isSelectableCourse) ? "강의를 선택하세요" : "선택할 강의가 없습니다"}>
+                    {draftCourse ? `${draftCourse.name} · ${draftCourse.instructorName || "강사 미지정"}` : undefined}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {initialData.courses.map((item) => (
+                  {initialData.courses.filter(isSelectableCourse).map((item) => (
                     <SelectItem key={item.id} value={item.id}>
                       {item.name} · {item.instructorName || "강사 미지정"}
                     </SelectItem>

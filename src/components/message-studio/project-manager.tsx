@@ -1,5 +1,6 @@
 "use client";
 
+import { isSelectableCourse } from "@/lib/course-operations/course-status";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -120,7 +121,7 @@ export function MessageStudioProjectManager({
                     <SelectValue placeholder="강의 대시보드에서 선택하세요" />
                   </SelectTrigger>
                   <SelectContent>
-                    {courses.map((course) => (
+                    {courses.filter(isSelectableCourse).map((course) => (
                       <SelectItem key={course.id} value={course.id}>
                         {course.name} ·{" "}
                         {course.instructor_name || "강사 미입력"}
@@ -128,7 +129,7 @@ export function MessageStudioProjectManager({
                     ))}
                   </SelectContent>
                 </Select>
-                {courses.length === 0 ? (
+                {!courses.some(isSelectableCourse) ? (
                   <p className="text-sm text-muted-foreground">
                     먼저 강의 운영 자동화에서 강의를 만들어 주세요.
                   </p>

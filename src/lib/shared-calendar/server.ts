@@ -85,7 +85,7 @@ export async function loadCalendarEvents(supabase: SupabaseClient, workspaceId: 
 export async function loadCalendarCourses(supabase: SupabaseClient, workspaceId: string): Promise<CalendarCourse[]> {
   const rows: CalendarCourse[] = [];
   for (let offset = 0; ; offset += 500) {
-    const { data, error } = await supabase.from("courses").select("id,name,instructor_name,cohort").eq("workspace_id", workspaceId).order("name").order("id").range(offset, offset + 499);
+    const { data, error } = await supabase.from("courses").select("id,name,status,instructor_name,cohort").eq("workspace_id", workspaceId).order("name").order("id").range(offset, offset + 499);
     checkDatabase(error);
     rows.push(...(data ?? []));
     if (!data || data.length < 500) return rows;

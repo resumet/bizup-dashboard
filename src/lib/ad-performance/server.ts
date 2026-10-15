@@ -33,6 +33,7 @@ type OrganicChannelRow = { id: string; name: string; sort_order: number };
 type OrganicValueRow = { channel_id: string; metric_date: string; lead_count: number | string };
 
 type CourseRow = {
+  status?: string | null;
   id: string;
   name: string;
   instructor_name: string;
@@ -60,6 +61,7 @@ function toCourse(row: CourseRow): AdPerformanceCourse {
     id: row.id,
     name: row.name,
     instructorName: row.instructor_name,
+    status: row.status,
     startsAt: row.starts_at,
   };
 }
@@ -90,7 +92,7 @@ function isMissingMigration(error: { code?: string } | null | undefined) {
 export async function loadAdPerformanceIndex(workspaceId: string): Promise<AdPerformanceIndexData> {
   const admin = createAdminClient();
   const [coursesResult, dashboardsResult] = await Promise.all([
-    admin.from("courses").select("id,name,instructor_name,starts_at").eq("workspace_id", workspaceId).order("starts_at", { ascending: false }),
+    admin.from("courses").select("id,name,status,instructor_name,starts_at").eq("workspace_id", workspaceId).order("starts_at", { ascending: false }),
     admin.from("ad_performance_dashboard_summaries").select("id,course_id,start_date,total_budget,updated_at,metric_count,spend,ad_leads,paid_landing_leads,organic_landing_leads,admin_cumulative_leads").eq("workspace_id", workspaceId).order("updated_at", { ascending: false }),
   ]);
   if (coursesResult.error) throw new Error(`강의 목록 조회 실패: ${coursesResult.error.code}`);
@@ -142,7 +144,7 @@ export async function loadAdPerformanceDashboard(
   const dashboard = dashboardResult.data as DashboardRow;
   const exclusiveEndDate = currentSeoulDate();
   const [coursesResult, linkedDashboardsResult, metricsResult, channelsResult, organicValuesResult, sheetState] = await Promise.all([
-    admin.from("courses").select("id,name,instructor_name,starts_at").eq("workspace_id", workspaceId).order("starts_at", { ascending: false }),
+    admin.from("courses").select("id,name,status,instructor_name,starts_at").eq("workspace_id", workspaceId).order("starts_at", { ascending: false }),
     admin.from("ad_performance_dashboards").select("course_id").eq("workspace_id", workspaceId).neq("id", dashboardId),
     admin.from("ad_performance_dashboard_metrics").select(metricColumns).eq("dashboard_id", dashboardId).order("metric_date", { ascending: true }),
     admin.from("ad_performance_organic_channels").select("id,name,sort_order").eq("dashboard_id", dashboardId).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),

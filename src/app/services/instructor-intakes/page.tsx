@@ -1,3 +1,4 @@
+import { DEFAULT_SELECTABLE_COURSE_STATUS } from "@/lib/course-operations/course-status";
 import Link from "next/link";
 import {
   CreateIntake,
@@ -26,6 +27,7 @@ export default async function InstructorIntakesPage() {
         .from("courses")
         .select("id,name,instructor_name,cohort,free_webinar_at")
         .eq("workspace_id", workspaceId)
+        .eq("status", DEFAULT_SELECTABLE_COURSE_STATUS)
         .order("updated_at", { ascending: false }),
     ]);
   const rows = error ? [] : (data as IntakeRow[]).map(normalizeIntake);

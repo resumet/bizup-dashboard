@@ -4,7 +4,7 @@ export type MeetingType = {
   code: string | null;
 };
 
-export type CalendarCourse = { id: string; name: string; instructor_name: string; cohort: string | null };
+export type CalendarCourse = { status?: string | null; id: string; name: string; instructor_name: string; cohort: string | null };
 export type CalendarPerson = { id: string; name: string; active: boolean };
 export type CalendarLocationKind = "online" | "tbd" | "custom";
 

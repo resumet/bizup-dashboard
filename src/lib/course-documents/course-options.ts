@@ -1,3 +1,4 @@
+import { isSelectableCourse } from "@/lib/course-operations/course-status";
 import { COURSE_COMPLETION_AFTER_DAYS } from "@/lib/course-operations/course-list-status";
 import { getWebinarDayDifference } from "@/lib/course-operations/webinar-proximity";
 
@@ -7,7 +8,7 @@ export function activeInstagramCourses(
   courses: readonly CourseDocumentCourse[],
   todayKoreaDate: string,
 ) {
-  return courses.filter((course) => {
+  return courses.filter(isSelectableCourse).filter((course) => {
     const days = getWebinarDayDifference(course.freeWebinarAt, todayKoreaDate);
     return days === null || days > -COURSE_COMPLETION_AFTER_DAYS;
   });

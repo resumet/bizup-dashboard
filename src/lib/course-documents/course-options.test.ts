@@ -40,3 +40,11 @@ test("강의 선택 항목에 기수·강의명·강사명·웨비나 날짜를 
     "2기 · 마케팅 실전 클래스 · 김강사 · 2026. 10. 1.",
   );
 });
+
+test("미래 웨비나라도 보류·완료·취소 강의는 선택 목록에서 제외한다", () => {
+  const courses = ["ongoing", "on_hold", "completed", "canceled"].map((status) =>
+    course({ id: status, status, freeWebinarAt: "2026-10-02T19:30:00+09:00" }),
+  );
+  assert.deepEqual(activeInstagramCourses(courses, "2026-10-01").map(({ id }) => id), ["ongoing"]);
+  assert.equal(courses.length, 4);
+});

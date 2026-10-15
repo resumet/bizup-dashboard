@@ -108,6 +108,7 @@ export type CourseDocumentMaterial = {
 };
 
 export type CourseDocumentCourse = {
+  status?: string | null;
   id: string;
   name: string;
   instructorName: string;

@@ -7,6 +7,13 @@ export const COURSE_STATUSES = [
 
 export type CourseStatus = (typeof COURSE_STATUSES)[number];
 
+export const DEFAULT_SELECTABLE_COURSE_STATUS: CourseStatus = "ongoing";
+
+export function isSelectableCourse(course: { status?: string | null }) {
+  // Older saved options may not have status; preserve their existing display.
+  return !["on_hold", "completed", "canceled"].includes(course.status ?? "");
+}
+
 export const COURSE_STATUS_LABELS: Record<CourseStatus, string> = {
   ongoing: "진행",
   on_hold: "보류",

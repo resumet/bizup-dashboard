@@ -1,3 +1,4 @@
+import { DEFAULT_SELECTABLE_COURSE_STATUS } from "@/lib/course-operations/course-status";
 import { NextResponse } from "next/server";
 import { start } from "workflow/api";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -117,6 +118,7 @@ export async function GET(request: Request) {
     const coursesQuery = admin.from("courses")
       .select("id,name,instructor_name,free_webinar_at")
       .eq("workspace_id",workspaceId)
+      .eq("status", DEFAULT_SELECTABLE_COURSE_STATUS)
       .order("free_webinar_at",{ascending:false});
     const [result,batch,requests,emailSettingsResult,coursesResult] = await Promise.all([channelsQuery,batchQuery,requestsQuery,emailSettingsQuery,coursesQuery]);
     if (batch.error || requests.error || coursesResult.error) throw batch.error ?? requests.error ?? coursesResult.error;

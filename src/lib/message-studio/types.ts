@@ -17,6 +17,7 @@ export type MessageStudioProject = {
 };
 
 export type MessageStudioCourseOption = {
+  status?: string | null;
   id: string;
   name: string;
   instructor_name: string;
