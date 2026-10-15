@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 import { withWorkflow } from "workflow/next";
+import { HTML_LIMITED_BOT_UA_RE } from "next/dist/shared/lib/router/utils/html-bots";
 
 const nextConfig: NextConfig = {
+  // Preserve Next's default crawlers and send Kakao previews metadata in <head>.
+  htmlLimitedBots: new RegExp(`${HTML_LIMITED_BOT_UA_RE.source}|KakaoTalk|KakaoStory|KakaoBot`, "i"),
   async headers() {
     return ["/auth/callback", "/auth/confirm", "/auth/invite-error", "/set-password"].map((source) => ({
       source,

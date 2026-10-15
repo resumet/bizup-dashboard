@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { ZodError } from "zod";
+import { cache } from "react";
 
 import { requireCourseOperationsMembership, requireCourseOperationsUser } from "@/lib/course-operations/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -18,7 +19,7 @@ export async function requireCourseDocumentMember() {
   return { user, membership, admin: createAdminClient() };
 }
 
-export async function getExternalCourse(accessToken: string) {
+export const getExternalCourse = cache(async (accessToken: string) => {
   if (!/^[a-f0-9]{48}$/u.test(accessToken)) throw new Error("NOT_FOUND");
   const admin = createAdminClient();
   const { data: settings, error: settingsError } = await admin
@@ -32,14 +33,14 @@ export async function getExternalCourse(accessToken: string) {
 
   const { data: course, error: courseError } = await admin
     .from("courses")
-    .select("id,name,instructor_name,cohort")
+    .select("id,name,instructor_name,cohort,banner_image_path,updated_at")
     .eq("id", settings.course_id)
     .eq("workspace_id", settings.workspace_id)
     .maybeSingle();
   if (courseError) throw new Error(`강의 조회 실패: ${courseError.code}`);
   if (!course) throw new Error("NOT_FOUND");
   return { admin, settings, course };
-}
+});
 
 export function toDocumentSummary(row: Record<string, unknown>): CourseDocumentSummary {
   const leadRelation = row.course_document_leads;

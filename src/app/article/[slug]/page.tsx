@@ -1,22 +1,28 @@
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 
 import { DocumentRenderer } from "@/components/course-documents/document-renderer";
 import { LeadGateForm } from "@/components/course-documents/lead-gate-form";
 import { toDocumentDetail, unlockCookieName, verifyUnlockToken } from "@/lib/course-documents/server";
 import { splitDocumentAtLeadGate } from "@/lib/course-documents/validation";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getPublishedCourseDocument } from "@/lib/course-documents/public-share";
+import { instagramShareMetadata } from "@/lib/course-documents/share-metadata";
 
 type Props = { params: Promise<{ slug: string }> };
 
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const result = await getPublishedCourseDocument(slug);
+  return instagramShareMetadata(result?.course ?? null, `/article/${encodeURIComponent(slug)}/share-image`);
+}
+
 export default async function PublicCourseDocumentPage({ params }: Props) {
   const { slug } = await params;
-  const admin = createAdminClient();
-  const { data, error } = await admin.from("course_documents").select("id,course_id,instructor_name,title,slug,content,status,lead_gate_enabled,lead_gate_after_block_id,created_at,updated_at,published_at,courses!inner(name)").eq("slug", slug).is("deleted_at", null).maybeSingle();
-  if (error) throw new Error(`공개 문서 조회 실패: ${error.code}`);
-  if (!data || data.status !== "published") notFound();
+  const result = await getPublishedCourseDocument(slug);
+  if (!result) notFound();
+  const { data, course } = result;
   const document = toDocumentDetail(data);
-  const course = Array.isArray(data.courses) ? data.courses[0] : data.courses;
   const cookieStore = await cookies();
   const unlocked = verifyUnlockToken(cookieStore.get(unlockCookieName(document.id))?.value, document.id);
   const split = splitDocumentAtLeadGate(document.content, document.leadGateEnabled, document.leadGateAfterBlockId);

@@ -207,7 +207,8 @@ export function InstagramManagementWorkspace() {
     finally { setBusy(false); }
   }
 
-  const externalUrl = selectedCourse?.externalAccessToken ? `/write/${selectedCourse.externalAccessToken}` : "";
+  // A fresh preview URL avoids reusing the former dashboard preview in messengers.
+  const externalUrl = selectedCourse?.externalAccessToken ? `/write/${selectedCourse.externalAccessToken}?preview=instagram` : "";
   const assignedDocumentIds = new Set(selectedCourse?.materials.flatMap((material) => material.documentId ? [material.documentId] : []) ?? []);
   const legacyDocuments = selectedCourse?.documents.filter((document) => !assignedDocumentIds.has(document.id)) ?? [];
   const assignedMaterialCount = selectedCourse?.materials.filter((material) => material.title).length ?? 0;
