@@ -1,12 +1,41 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Copy, ExternalLink, Trash2, Upload } from "lucide-react";
+import { Copy, ExternalLink, Share2, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { LandingUtm, UtmImportResult } from "@/lib/course-landing-utms/model";
+
+function UtmShareButton({ items, instructorName, disabled }: { items: LandingUtm[]; instructorName: string; disabled: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState("");
+  const name = instructorName.trim().replace(/\s*강사님?$/u, "");
+  const content = [name ? `[${name}강사님 UTM]` : "[강의 UTM]", ...items.map(item => {
+    const medium = item.medium === "인스타그램" ? "인스타" : item.medium;
+    const label = item.channel === "오가닉" && item.medium === "무료강의 안내방" ? `오가닉 ${medium}` : medium;
+    return `${label} ${item.short_url || item.url}`;
+  })].join("\n");
+  async function copy() {
+    setCopied(false); setError("");
+    try { await navigator.clipboard.writeText(content); setCopied(true); }
+    catch { setError("복사하지 못했습니다. 공유 내용을 직접 선택해 복사해 주세요."); }
+  }
+  return <Dialog onOpenChange={() => { setCopied(false); setError(""); }}>
+    <DialogTrigger asChild><Button type="button" variant="outline" disabled={disabled}><Share2 />공유하기</Button></DialogTrigger>
+    <DialogContent className="sm:max-w-xl" aria-describedby={undefined}>
+      <DialogHeader><DialogTitle>UTM 공유하기</DialogTitle></DialogHeader>
+      {items.length ? <>
+        <p aria-label="UTM 공유 내용" className="max-h-[50dvh] overflow-y-auto whitespace-pre-wrap rounded-md border bg-muted/40 p-3 break-all select-all">{content}</p>
+        {items.some(item => !item.short_url) && <p className="text-sm text-muted-foreground">단축링크가 없는 항목은 전체 URL로 표시됩니다.</p>}
+        {copied && <p role="status" className="text-sm text-emerald-700">공유 내용을 복사했습니다.</p>}
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      </> : <p className="text-sm text-muted-foreground">공유할 UTM이 없습니다. 엑셀 업데이트로 항목을 추가해 주세요.</p>}
+      <DialogFooter><Button type="button" disabled={!items.length} onClick={() => void copy()}><Copy />복사하기</Button></DialogFooter>
+    </DialogContent>
+  </Dialog>;
+}
 
 function UtmUrlButton({ item }: { item: LandingUtm }) {
   const [copied, setCopied] = useState(false);
@@ -28,7 +57,7 @@ function UtmUrlButton({ item }: { item: LandingUtm }) {
   </Dialog>;
 }
 
-export function CourseLandingUtms({ courseId }: { courseId: string }) {
+export function CourseLandingUtms({ courseId, instructorName }: { courseId: string; instructorName: string }) {
   const [items, setItems] = useState<LandingUtm[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -94,7 +123,10 @@ export function CourseLandingUtms({ courseId }: { courseId: string }) {
   return <Card>
     <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
       <CardTitle>랜딩페이지 UTM</CardTitle>
-      <Button type="button" variant="outline" disabled={loading || saving || deleting} onClick={() => input.current?.click()}><Upload />{saving ? "업데이트 중…" : "엑셀 업데이트"}</Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variant="outline" disabled={loading || saving || deleting} onClick={() => input.current?.click()}><Upload />{saving ? "업데이트 중…" : "엑셀 업데이트"}</Button>
+        <UtmShareButton items={items} instructorName={instructorName} disabled={loading || saving || deleting} />
+      </div>
     </CardHeader>
     <CardContent className="space-y-4">
       <input ref={input} type="file" className="hidden" aria-label="UTM 엑셀 파일" accept=".xlsx" disabled={loading || saving || deleting} onChange={event => { const file = event.target.files?.[0]; if (file) void upload(file); }} />

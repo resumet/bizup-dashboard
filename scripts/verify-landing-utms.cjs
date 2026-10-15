@@ -71,7 +71,7 @@ const workbook = rows => writeXlsxFile([headers, ...rows].map(row => row.map(val
     const mocks = {'server-only':'','@/lib/supabase/admin':'exports.createAdminClient=()=>fixture.admin;','@/lib/supabase/server':'exports.createClient=async()=>({});','@/lib/supabase/auth':'exports.getAuthenticatedUser=async()=>fixture.getUser();'};
     const backend = await build({entryPoints:['src/app/api/course-operations/[courseId]/landing-utms/route.ts'],bundle:true,write:false,platform:'node',format:'cjs',packages:'external',plugins:[{name:'services',setup(p){p.onResolve({filter:/.*/},a=>Object.hasOwn(mocks,a.path)?{path:a.path,namespace:'fixture'}:undefined);p.onLoad({filter:/.*/,namespace:'fixture'},a=>({contents:mocks[a.path],loader:'js'}));}}]});
     const loaded={exports:{}};new Function('require','module','exports','fixture',backend.outputFiles[0].text)(require,loaded,loaded.exports,fixture);
-    const frontend=await build({stdin:{resolveDir:process.cwd(),loader:'tsx',contents:`import React from 'react';import{createRoot}from'react-dom/client';import{CourseLandingUtms}from'./src/components/course-operations/course-landing-utms';createRoot(document.getElementById('root')).render(<main className="p-4"><CourseLandingUtms courseId="${C}"/></main>);`},bundle:true,write:false,platform:'browser',jsx:'automatic',define:{'process.env': '{}'}});
+    const frontend=await build({stdin:{resolveDir:process.cwd(),loader:'tsx',contents:`import React from 'react';import{createRoot}from'react-dom/client';import{CourseLandingUtms}from'./src/components/course-operations/course-landing-utms';createRoot(document.getElementById('root')).render(<main className="p-4"><CourseLandingUtms courseId="${C}" instructorName="김선아"/></main>);`},bundle:true,write:false,platform:'browser',jsx:'automatic',define:{'process.env': '{}'}});
     const css=(await require('postcss')([require('@tailwindcss/postcss')()]).process(await fs.readFile('src/app/globals.css','utf8'),{from:'src/app/globals.css'})).css;
     server=http.createServer(async(req,res)=>{try{
       if(req.url.startsWith('/api/')){
@@ -93,6 +93,9 @@ const workbook = rows => writeXlsxFile([headers, ...rows].map(row => row.map(val
     const initialBuffer=await workbook(original);
     browser=await chromium.launch({channel:'msedge',headless:true});const context=await browser.newContext({viewport:{width:1280,height:900},permissions:['clipboard-read','clipboard-write']});page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.goto(base);await page.getByText('등록된 UTM이 없습니다.',{exact:false}).waitFor();
+    const shareButton=page.getByRole('button',{name:'공유하기',exact:true});
+    await shareButton.click();const shareDialog=page.getByRole('dialog',{name:'UTM 공유하기',exact:true});
+    await shareDialog.getByText('공유할 UTM이 없습니다.',{exact:false}).waitFor();assert.equal(await shareDialog.getByRole('button',{name:'복사하기',exact:true}).isDisabled(),true);await page.keyboard.press('Escape');
     const upload=async(buffer)=>{await page.getByLabel('UTM 엑셀 파일').setInputFiles({name:'utm.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer});};
     await upload(initialBuffer);await page.getByText('추가 8건 · 업데이트 0건 · 변경 없음 0건을 반영했습니다.',{exact:true}).waitFor();await page.getByRole('cell',{name:'두시간부업만일로와',exact:true}).waitFor();assert.equal(await page.getByRole('row').count(),9);
     const ids=(await stored(C)).map(row=>row.id);await upload(initialBuffer);await page.getByText('추가 0건 · 업데이트 0건 · 변경 없음 8건을 반영했습니다.',{exact:true}).waitFor();assert.deepEqual((await stored(C)).map(row=>row.id),ids);
@@ -111,6 +114,17 @@ const workbook = rows => writeXlsxFile([headers, ...rows].map(row => row.map(val
     await dialog.getByRole('button',{name:'복사하기',exact:true}).click();await dialog.getByRole('status').filter({hasText:'URL을 복사했습니다.'}).waitFor();
     assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),edited[4]);
     await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});assert.equal(await urlButton.evaluate(button=>button===document.activeElement),true);
+    await shareButton.click();await shareDialog.waitFor();
+    const shareText=await shareDialog.getByLabel('UTM 공유 내용').textContent();
+    assert.equal(shareText.split('\n')[0],'[김선아강사님 UTM]');assert.equal(shareText.split('\n').length,10);
+    assert.ok(shareText.includes('구글 https://m.site.naver.com/paid'));assert.ok(shareText.includes('메타 https://m.site.naver.com/paid'));
+    assert.ok(shareText.includes('인스타 https://m.site.naver.com/organic'));assert.ok(shareText.includes('오가닉 무료강의 안내방 https://m.site.naver.com/organic'));
+    assert.ok(shareText.includes('유튜브 '+edited[5]));assert.ok(shareText.includes('블로그 '+entry('신규추천','블로그','')[4]));
+    await page.evaluate(()=>{window.originalWriteText=navigator.clipboard.writeText.bind(navigator.clipboard);navigator.clipboard.writeText=async()=>{throw new Error('denied');};});
+    await shareDialog.getByRole('button',{name:'복사하기',exact:true}).click();await shareDialog.getByRole('alert').filter({hasText:'직접 선택해 복사'}).waitFor();
+    await page.evaluate(()=>{navigator.clipboard.writeText=window.originalWriteText;});
+    await shareDialog.getByRole('button',{name:'복사하기',exact:true}).click();await shareDialog.getByRole('status').waitFor();assert.equal((await page.evaluate(()=>navigator.clipboard.readText())).replace(/\r\n/g,'\n'),shareText);
+    await page.keyboard.press('Escape');assert.equal(await shareButton.evaluate(button=>button===document.activeElement),true);
     const prior=await stored(C);await upload(await workbook([entry('정상행'),entry('실패행','유튜브','javascript:test')]));await page.getByRole('alert').filter({hasText:'3행 단축 링크'}).waitFor();assert.deepEqual(await stored(C),prior);
     await page.reload();await page.getByRole('cell',{name:'신규추천',exact:true}).waitFor();assert.equal(await page.getByRole('row').count(),10);
     await fs.mkdir('tmp/landing-utms',{recursive:true});await page.screenshot({path:'tmp/landing-utms/desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});await page.screenshot({path:'tmp/landing-utms/mobile.png',fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));assert.deepEqual(errors,[]);
@@ -119,6 +133,10 @@ const workbook = rows => writeXlsxFile([headers, ...rows].map(row => row.map(val
     assert.ok(await dialog.evaluate(element=>element.scrollWidth<=element.clientWidth),'Mobile URL dialog must fit its viewport');
     await dialog.getByRole('button',{name:'복사하기',exact:true}).click();assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),original[1][4]);
     await page.screenshot({path:'tmp/landing-utms/mobile-url-dialog.png',fullPage:true});await page.keyboard.press('Escape');
+    await shareButton.click();await shareDialog.waitFor();assert.equal(await shareDialog.getByRole('status').count(),0);
+    assert.ok(await shareDialog.evaluate(element=>element.scrollWidth<=element.clientWidth),'Mobile share dialog must fit');
+    await shareDialog.getByRole('button',{name:'복사하기',exact:true}).click();assert.equal((await page.evaluate(()=>navigator.clipboard.readText())).replace(/\r\n/g,'\n'),shareText);
+    await page.screenshot({path:'tmp/landing-utms/mobile-share-dialog.png',fullPage:true});await page.keyboard.press('Escape');
     const remove=(id,extra={})=>fetch(endpoint,{method:'DELETE',headers:{'content-type':'application/json'},body:JSON.stringify({id}),...extra});
     const candidate=(await stored(C)).find(row=>row.referral_code==='신규추천');
     user=null;assert.equal((await remove(candidate.id)).status,401);user={id:U2};assert.equal((await remove(candidate.id)).status,403);user={id:U};
@@ -136,6 +154,7 @@ const workbook = rows => writeXlsxFile([headers, ...rows].map(row => row.map(val
     await deleteDialog.getByRole('button',{name:'삭제',exact:true}).click();await deleteDialog.waitFor({state:'hidden'});
     assert.equal((await stored(C)).length,8);assert.equal(await page.getByRole('cell',{name:'신규추천',exact:true}).count(),0);
     await page.reload();await page.getByRole('button',{name:'두시간부업만일로와 유튜브 URL 보기'}).waitFor();assert.equal(await page.getByRole('row').count(),9);
+    await shareButton.click();await shareDialog.waitFor();assert.ok(!(await shareDialog.getByLabel('UTM 공유 내용').textContent()).includes('블로그 '));await page.keyboard.press('Escape');
     assert.equal((await remove(candidate.id)).status,404);
     // An explicit later Excel upload may register a deleted combination again.
     assert.equal((await post(await workbook([entry('신규추천','블로그','')]))).status,200);assert.equal((await stored(C)).length,9);
@@ -146,6 +165,6 @@ const workbook = rows => writeXlsxFile([headers, ...rows].map(row => row.map(val
     assert.equal((await remove(changed.id)).status,401);
     await db.exec(`set request.jwt.claim.sub='${U}'; set role authenticated;`);assert.equal((await db.query('select * from course_landing_utms')).rows.length,0);await db.exec('reset role');
     assert.deepEqual(errors,[]);
-    console.log('PASS: real XLSX → API → PostgreSQL → UI; imports, URL/copy and mobile layout; deletion icon, cancel, failure/retry, persistence, re-import, course isolation and auth/CSRF/disabled-account checks.');
+    console.log('PASS: real XLSX → API → PostgreSQL → UI; imports, URL/copy, sharing format/clipboard/failure/empty-state and mobile layout; deletion icon, cancel, failure/retry, persistence, re-import, course isolation and auth/CSRF/disabled-account checks.');
   }catch(error){if(page)console.error((await page.locator('body').innerText()).slice(-1800));throw error;}finally{await browser?.close();if(server)await new Promise(resolve=>server.close(resolve));await db.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

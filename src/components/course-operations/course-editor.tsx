@@ -1334,7 +1334,7 @@ export function CourseOperationsEditor({
 
         </div>
 
-        {courseId ? <CourseLandingUtms key={courseId} courseId={courseId} /> : null}
+        {courseId ? <CourseLandingUtms key={courseId} courseId={courseId} instructorName={draft.instructorName} /> : null}
 
         {courseId ? (
           <CourseNotesCard
