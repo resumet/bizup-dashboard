@@ -132,6 +132,8 @@ export function calculateCostSettlement(input: {
   totalSales: number;
   pgFee: number;
   novaFee: number;
+  additionalServiceFee?: number;
+  manualCashSales?: number;
   costs: SettlementCost[];
   instructorRatioPercent: number;
 }) {
@@ -147,7 +149,10 @@ export function calculateCostSettlement(input: {
     ? Math.min(100, Math.max(0, input.instructorRatioPercent))
     : 50;
   const companyRatioPercent = 100 - instructorRatioPercent;
-  const settlementTargetRevenue = roundWon(input.totalSales - input.pgFee - input.novaFee);
+  const manualCashSales = roundWon(input.manualCashSales ?? 0);
+  const additionalServiceFee = roundWon(input.additionalServiceFee ?? 0);
+  const totalSales = roundWon(input.totalSales + manualCashSales);
+  const settlementTargetRevenue = roundWon(totalSales - input.pgFee - input.novaFee - additionalServiceFee);
   const distributionBase = roundWon(settlementTargetRevenue - costs.shared);
   const instructorBase = roundWon(distributionBase * instructorRatioPercent / 100);
   const companyBase = roundWon(distributionBase * companyRatioPercent / 100);
@@ -158,10 +163,13 @@ export function calculateCostSettlement(input: {
   const instructorFinal = roundWon(instructorSupply + vat);
   const companyFinal = roundWon(companyBase - costs.company - (costs.sharedCompany - defaultCompanyShared));
   return {
-    totalSales: roundWon(input.totalSales),
+    totalSales,
+    originalSales: roundWon(input.totalSales),
+    manualCashSales,
+    additionalServiceFee,
     pgFee: roundWon(input.pgFee),
     novaFee: roundWon(input.novaFee),
-    totalFee: roundWon(input.pgFee + input.novaFee),
+    totalFee: roundWon(input.pgFee + input.novaFee + additionalServiceFee),
     settlementTargetRevenue,
     costs,
     instructorRatioPercent,

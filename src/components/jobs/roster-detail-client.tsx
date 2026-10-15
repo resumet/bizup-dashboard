@@ -1,5 +1,7 @@
 "use client";
 
+import { PaymentMethodBadge } from "@/components/jobs/payment-method";
+
 import { refundDate } from "@/lib/jobs/refund";
 import { buildInviteClipboardText } from "@/lib/messages/invite";
 import { RefundedRoster } from "@/components/jobs/refunded-roster";
@@ -681,7 +683,7 @@ export function RosterDetailClient({
                   {showColumn("email") && <TableCell>{row.values.email || "-"}</TableCell>}
                   {showColumn("optionName") && <TableCell>{row.values.optionName || "-"}</TableCell>}
                   {paidRoster ? <>
-                    {showColumn("paymentMethod") && <TableCell>{row.values.paymentMethod || "—"}</TableCell>}
+                    {showColumn("paymentMethod") && <TableCell><PaymentMethodBadge value={row.values.paymentMethod} /></TableCell>}
                     {showColumn("rs") && <TableCell>{row.values.rs || row.values.source || "—"}</TableCell>}
                     {showColumn("paymentId") && <TableCell><PaymentIdButton value={row.values.paymentId} name={row.values.customerName} /></TableCell>}
                     {showColumn("paymentAmount") && <TableCell className="text-right tabular-nums">{row.values.paymentAmount ? `${Number(row.values.paymentAmount).toLocaleString("ko-KR")}원` : "—"}</TableCell>}

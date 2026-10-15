@@ -2,6 +2,7 @@ import "server-only";
 
 import { calculateCostSettlement, normalizeName, type SettlementAnalysis, type SettlementCost } from "@/lib/course-settlements/engine";
 import { sanitizeSettlementStatementDraft } from "@/lib/course-settlements/statement";
+import { loadManualCashSummary } from "@/lib/course-settlements/manual-cash-server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { CashFlowCoursePlan, CashFlowDashboardData } from "./types";
 
@@ -85,16 +86,19 @@ export async function loadCashFlowDashboard(workspaceId: string): Promise<CashFl
     costsByCourse.set(courseId, costs);
   }
 
-  const plans: CashFlowCoursePlan[] = courseRows.map((course) => {
+  const plans: CashFlowCoursePlan[] = await Promise.all(courseRows.map(async (course) => {
     const settlement = settlements.get(course.id);
     const analysis = settlement && isSettlementAnalysis(settlement.analysis_snapshot) ? settlement.analysis_snapshot : null;
     const instructor = analysis?.instructorResults.find((item) => normalizeName(item.instructor) === normalizeName(course.instructor_name)) ?? null;
     const draft = sanitizeSettlementStatementDraft(settlement?.statement_draft, course.name);
+    const manualCash = instructor ? await loadManualCashSummary(admin, course.id) : null;
     const autoInstructorPayout = instructor
       ? Math.max(0, calculateCostSettlement({
           totalSales: instructor.totalSales,
           pgFee: instructor.pgFee,
           novaFee: instructor.systemNovaFee,
+          additionalServiceFee: instructor.additionalServiceFee,
+          manualCashSales: manualCash?.amount ?? 0,
           costs: costsByCourse.get(course.id) ?? [],
           instructorRatioPercent: draft.instructorRatioPercent,
         }).instructorFinal)
@@ -113,7 +117,7 @@ export async function loadCashFlowDashboard(workspaceId: string): Promise<CashFl
       autoInstructorPayout,
       hasSettlement: Boolean(instructor),
     };
-  });
+  }));
 
   return {
     currentMonth,

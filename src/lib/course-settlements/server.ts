@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { filterSettlementCosts, loadCourseCosts } from "@/lib/course-costs/server";
 import type { CourseCost } from "@/lib/course-costs/types";
 import { sanitizeSettlementStatementDraft } from "@/lib/course-settlements/statement";
+import { loadManualCashSummary } from "./manual-cash-server";
 
 type SettlementRecord = {
   id: string;
@@ -80,7 +81,8 @@ export async function loadSettlementState(
   admin: ReturnType<typeof createAdminClient>,
   settlement: SettlementRecord,
 ) {
-  const [uploadResult, attachmentResult] = await Promise.all([
+  const [manualCash, uploadResult, attachmentResult] = await Promise.all([
+    loadManualCashSummary(admin, settlement.course_id),
     admin
       .from("course_settlement_uploads")
       .select(
@@ -198,6 +200,7 @@ export async function loadSettlementState(
     courseCosts,
     appliedCourseCosts,
     costsAreSnapshot: snapshots.length > 0 || legacyConfirmed,
+    manualCash,
   };
 }
 

@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { PaymentMethodField } from "@/components/jobs/payment-method";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { RosterRow } from "@/lib/jobs/types";
@@ -203,7 +204,7 @@ export function ManualEnrollmentName({
               />
               {paidRoster ? <>
                 <FormField id={`${fieldPrefix}-rs`} label="RS" value={form.rs} onChange={(value) => setField("rs", value)} />
-                <FormField id={`${fieldPrefix}-payment-method`} label="결제방법" value={form.paymentMethod} onChange={(value) => setField("paymentMethod", value)} />
+                <PaymentMethodField id={`${fieldPrefix}-payment-method`} value={form.paymentMethod} onChange={(value) => setField("paymentMethod", value)} />
                 <FormField id={`${fieldPrefix}-payment-amount`} label="결제금액" inputMode="decimal" value={form.paymentAmount} onChange={(value) => setField("paymentAmount", value)} onBlur={() => setField("paymentAmount", formatPaymentAmount(form.paymentAmount))} />
                 <FormField id={`${fieldPrefix}-payment-id`} label="결제ID" value={form.paymentId} onChange={(value) => setField("paymentId", value)} />
               </> : <><FormField

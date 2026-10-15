@@ -1,5 +1,7 @@
 "use client";
 
+import { PaymentMethodBadge } from "@/components/jobs/payment-method";
+
 import { useMemo, useState } from "react";
 import { Download, Search } from "lucide-react";
 
@@ -176,7 +178,7 @@ export function PublicCourseStudentRoster({ courseName, students, summary }: { c
                   <TableCell className="whitespace-nowrap">{student.phone}</TableCell>
                   <TableCell>{student.email || "—"}</TableCell>
                   <TableCell>{student.optionName || "—"}</TableCell>
-                  <TableCell>{student.inflowType || "—"}</TableCell><TableCell>{student.paymentMethod || "—"}</TableCell>
+                  <TableCell>{student.inflowType || "—"}</TableCell><TableCell><PaymentMethodBadge value={student.paymentMethod} /></TableCell>
                   <TableCell className="whitespace-nowrap text-right font-medium tabular-nums">{WON_FORMATTER.format(student.amount)}</TableCell>
                   <TableCell className="whitespace-normal text-muted-foreground">{student.memo || "—"}</TableCell>
                 </TableRow>

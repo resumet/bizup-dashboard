@@ -20,6 +20,8 @@ import { createSettlementStatementDraft, type SettlementStatementDraft } from "@
 const ISSUER = "주식회사 비즈업클래스";
 const currency = (value: number) => `${roundWon(value).toLocaleString("ko-KR")}원`;
 
+import type { ManualCashSummary } from "@/lib/course-settlements/manual-cash";
+
 type CalculationRow = { code: string; label: string; value: number; formula: string; emphasized?: boolean };
 
 function SummaryMetric({ label, value, unit = "원", tone = "default" }: {
@@ -111,8 +113,9 @@ function printCostSection(title: string, burden: CourseCostBurden, costs: Course
   return `<section class="cost-section"><div class="section-heading"><h3>${title}</h3><span>${rows.length.toLocaleString("ko-KR")}건</span></div><table><thead><tr><th>비용명</th><th>담당자</th><th class="number">금액</th></tr></thead><tbody>${body}</tbody><tfoot><tr class="total"><td colspan="2">${title} 총합</td><td class="number">${currency(total)}</td></tr></tfoot></table></section>`;
 }
 
-export function SettlementStatement({ instructor, monthlyAnalyses, courseId, courseName, courseCosts, appliedCourseCosts, costsAreSnapshot, draft: savedDraft, onChange, onSave, onConfirm, onReopen, busy }: {
+export function SettlementStatement({ instructor, manualCash, monthlyAnalyses, courseId, courseName, courseCosts, appliedCourseCosts, costsAreSnapshot, draft: savedDraft, onChange, onSave, onConfirm, onReopen, busy }: {
   instructor: AggregatedInstructorSettlement;
+  manualCash: ManualCashSummary;
   monthlyAnalyses: MonthlyAnalysis[];
   courseId: string;
   courseName: string;
@@ -136,9 +139,11 @@ export function SettlementStatement({ instructor, monthlyAnalyses, courseId, cou
     totalSales: instructor.totalSales,
     pgFee: instructor.pgFee,
     novaFee: instructor.systemNovaFee,
+    additionalServiceFee: instructor.additionalServiceFee,
+    manualCashSales: manualCash.amount,
     costs: settlementCosts,
     instructorRatioPercent: draft.instructorRatioPercent,
-  }), [draft.instructorRatioPercent, instructor.pgFee, instructor.systemNovaFee, instructor.totalSales, settlementCosts]);
+  }), [draft.instructorRatioPercent, instructor.additionalServiceFee, manualCash.amount, instructor.pgFee, instructor.systemNovaFee, instructor.totalSales, settlementCosts]);
   const transactionMetrics = useMemo(() => {
     const payers = new Set<string>();
     let paymentCount = 0;
@@ -158,16 +163,19 @@ export function SettlementStatement({ instructor, monthlyAnalyses, courseId, cou
         if (row.cancellationAmount !== 0) refundCount += 1;
       }
     }
-    return { payerCount: payers.size, paymentCount, refundCount };
-  }, [instructor.instructor, monthlyAnalyses]);
+    return { payerCount: payers.size + manualCash.payerCount, paymentCount: paymentCount + manualCash.paymentCount, refundCount };
+  }, [instructor.instructor, monthlyAnalyses, manualCash.payerCount, manualCash.paymentCount]);
   const defaultInstructorShared = roundWon(calculation.costs.shared * calculation.instructorRatioPercent / 100);
   const sharedInstructorAdjustment = calculation.costs.sharedInstructor - defaultInstructorShared;
   const sharedCompanyAdjustment = calculation.costs.sharedCompany - (calculation.costs.shared - defaultInstructorShared);
   const calculationRows: CalculationRow[] = [
-    { code: "A", label: "전체 매출", value: calculation.totalSales, formula: "원본 결제 매출 합계" },
+    { code: "A1", label: "원본 매출", value: calculation.originalSales, formula: "원본 결제 매출 합계" },
+    { code: "A2", label: "현금결제 매출", value: calculation.manualCashSales, formula: `수동 추가 현금결제 ${manualCash.payerCount}명 합계` },
+    { code: "A", label: "전체 매출", value: calculation.totalSales, formula: "A1 + A2" },
     { code: "B", label: "PG 수수료", value: calculation.pgFee, formula: "결제대행사 수수료 합계" },
     { code: "C", label: "노바 수수료", value: calculation.novaFee, formula: "시스템 노바 수수료 합계" },
-    { code: "D", label: "정산대상 매출", value: calculation.settlementTargetRevenue, formula: "A − B − C" },
+    { code: "C1", label: "부가서비스", value: calculation.additionalServiceFee, formula: "부가서비스 이용료 합계" },
+    { code: "D", label: "정산대상 매출", value: calculation.settlementTargetRevenue, formula: "A − B − C − C1" },
     { code: "E", label: "공동 부담액", value: calculation.costs.shared, formula: "공동 부담 비용 총합" },
     { code: "F", label: "분배 기준액", value: calculation.distributionBase, formula: "D − E" },
     { code: "G", label: "강사 기본분", value: calculation.instructorBase, formula: `F × ${calculation.instructorRatioPercent}%` },
@@ -192,7 +200,7 @@ export function SettlementStatement({ instructor, monthlyAnalyses, courseId, cou
   }
 
   function downloadDraft() {
-    const payload = { kind: "bizup-course-settlement", version: 3, savedAt: new Date().toISOString(), issuer: ISSUER, instructor, draft, costs: appliedCourseCosts, ledgerCosts: courseCosts, calculation };
+    const payload = { kind: "bizup-course-settlement", version: 3, savedAt: new Date().toISOString(), issuer: ISSUER, instructor, manualCash, draft, costs: appliedCourseCosts, ledgerCosts: courseCosts, calculation };
     const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" }));
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -211,7 +219,7 @@ export function SettlementStatement({ instructor, monthlyAnalyses, courseId, cou
     const countSummary = `<div class="metric-grid"><div><span>전체 결제자 수</span><strong>${transactionMetrics.payerCount.toLocaleString("ko-KR")}명</strong></div><div><span>결제 건수</span><strong>${transactionMetrics.paymentCount.toLocaleString("ko-KR")}건</strong></div><div><span>환불 건수</span><strong>${transactionMetrics.refundCount.toLocaleString("ko-KR")}건</strong></div></div>`;
     const costs = [printCostSection("공동 부담액", "SHARED", appliedCourseCosts), printCostSection("회사 부담액", "COMPANY", appliedCourseCosts), printCostSection("강사 부담액", "INSTRUCTOR", appliedCourseCosts)].join("");
     const flow = calculationRows.map((row) => `<tr${row.emphasized ? ' class="highlight"' : ""}><td class="code">${row.code}</td><th>${row.label}</th><td class="number">${currency(row.value)}</td><td class="formula">${escapePrintHtml(row.formula)}</td></tr>`).join("");
-    const body = `<header class="document-header"><div><p class="eyebrow">BIZUP CLASS · SETTLEMENT</p><h1>${escapePrintHtml(draft.lectureName)} 최종 정산서</h1><p class="meta">강의기간 ${escapePrintHtml(draft.coursePeriod)} · 정산기간 ${escapePrintHtml(draft.settlementPeriod)} · 발행일 ${escapePrintHtml(draft.issueDate)} · 담당자 ${escapePrintHtml(draft.manager)}</p></div><div class="document-status">${escapePrintHtml(draft.status)}</div></header>${companyInformation}<h2>정산 요약</h2>${primarySummary}${countSummary}<h2>비용 상세</h2>${costs}<h2>최종 정산 계산</h2><p class="section-description">항목 코드를 기준으로 각 계산식의 연결 관계를 확인할 수 있습니다.</p><table class="calculation-table"><thead><tr><th class="code">코드</th><th>항목</th><th class="number">금액</th><th>계산식</th></tr></thead><tbody>${flow}</tbody></table>`;
+    const body = `<header class="document-header"><div><p class="eyebrow">BIZUP CLASS · SETTLEMENT</p><h1>${escapePrintHtml(draft.lectureName)} 최종 정산서</h1><p class="meta">강의기간 ${escapePrintHtml(draft.coursePeriod)} · 정산기간 ${escapePrintHtml(draft.settlementPeriod)} · 발행일 ${escapePrintHtml(draft.issueDate)} · 담당자 ${escapePrintHtml(draft.manager)}</p></div><div class="document-status">${escapePrintHtml(draft.status)}</div></header>${companyInformation}<h2>정산 요약</h2>${primarySummary}${countSummary}<h2>비용 상세</h2>${costs}<h2>최종 정산 계산</h2><table class="calculation-table"><thead><tr><th class="code">코드</th><th>항목</th><th class="number">금액</th><th>계산식</th></tr></thead><tbody>${flow}</tbody></table>`;
     setError("");
     setPrinting(true);
     try { await printStatementWithStudents(`${draft.lectureName.replace(/[\\/:*?"<>|]/gu, "_")}_최종_정산서`, body, courseId); }
@@ -261,7 +269,7 @@ export function SettlementStatement({ instructor, monthlyAnalyses, courseId, cou
         <CostTable title="강사 부담액" description="강사 단독 부담 비용" burden="INSTRUCTOR" costs={appliedCourseCosts} />
       </CardContent></Card>
 
-      <Card><CardHeader><div className="flex items-center gap-3"><div className="rounded-xl bg-blue-100 p-2.5 text-blue-700 dark:bg-blue-950 dark:text-blue-300"><ReceiptText className="size-5" /></div><div><CardTitle>최종 정산 계산</CardTitle><CardDescription>각 항목의 코드를 수식에 연결해 계산 흐름을 확인할 수 있습니다.</CardDescription></div></div></CardHeader><CardContent className="space-y-5">
+      <Card><CardHeader><div className="flex items-center gap-3"><div className="rounded-xl bg-blue-100 p-2.5 text-blue-700 dark:bg-blue-950 dark:text-blue-300"><ReceiptText className="size-5" /></div><div><CardTitle>최종 정산 계산</CardTitle></div></div></CardHeader><CardContent className="space-y-5">
         <div className="overflow-hidden rounded-xl border"><Table><TableHeader className="bg-muted/50"><TableRow><TableHead className="w-16 px-4 text-center">코드</TableHead><TableHead>항목</TableHead><TableHead className="text-right">금액</TableHead><TableHead className="min-w-52 px-4">계산식</TableHead></TableRow></TableHeader><TableBody>{calculationRows.map((row) => <TableRow key={row.code} className={row.emphasized ? "bg-blue-50/70 dark:bg-blue-950/20" : ""}><TableCell className="px-4 text-center"><span className={`inline-flex size-8 items-center justify-center rounded-lg font-bold ${row.emphasized ? "bg-blue-600 text-white" : "bg-muted text-foreground"}`}>{row.code}</span></TableCell><TableCell className={row.emphasized ? "font-bold" : "font-medium"}>{row.label}</TableCell><TableCell className={`text-right tabular-nums ${row.emphasized ? "text-base font-bold text-blue-700 dark:text-blue-300" : "font-medium"}`}>{currency(row.value)}</TableCell><TableCell className="px-4 font-mono text-xs text-muted-foreground">{row.formula}</TableCell></TableRow>)}</TableBody></Table></div>
         {missingEvidence.length ? <Alert variant="destructive"><AlertTriangle /><AlertTitle>필수 증빙 미등록 {missingEvidence.length}건</AlertTitle><AlertDescription>{missingEvidence.map((cost) => cost.name).join(", ")}</AlertDescription></Alert> : null}
         {!confirmed ? <div><Label>예외 확정 사유</Label><Textarea className="mt-2" placeholder="필수 증빙 없이 확정해야 하는 사유를 기록하세요." value={draft.exceptionReason} onChange={(event) => patchDraft({ exceptionReason: event.target.value })} /></div> : draft.exceptionReason ? <Alert><AlertTitle>예외 확정 사유</AlertTitle><AlertDescription>{draft.exceptionReason}</AlertDescription></Alert> : null}

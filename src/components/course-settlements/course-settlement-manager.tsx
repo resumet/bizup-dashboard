@@ -49,6 +49,8 @@ import {
 } from "@/lib/course-settlements/statement";
 import type { CourseCost } from "@/lib/course-costs/types";
 
+import type { ManualCashSummary } from "@/lib/course-settlements/manual-cash";
+
 type SettlementUpload = {
   id: string;
   fileName: string;
@@ -78,6 +80,7 @@ type SettlementState = {
   courseCosts: CourseCost[];
   appliedCourseCosts: CourseCost[];
   costsAreSnapshot: boolean;
+  manualCash: ManualCashSummary;
 };
 
 type StateResponse = { state?: SettlementState | null; message?: string };
@@ -172,6 +175,7 @@ export function CourseSettlementManager({
   const [analysis, setAnalysis] = useState<SettlementAnalysis | null>(null);
   const [courseCosts, setCourseCosts] = useState<CourseCost[]>([]);
   const [appliedCourseCosts, setAppliedCourseCosts] = useState<CourseCost[]>([]);
+  const [manualCash, setManualCash] = useState<ManualCashSummary>({ payerCount: 0, paymentCount: 0, amount: 0 });
   const [costsAreSnapshot, setCostsAreSnapshot] = useState(false);
   const [draft, setDraft] = useState<SettlementStatementDraft>(() =>
     sanitizeSettlementStatementDraft(null, courseName),
@@ -184,6 +188,7 @@ export function CourseSettlementManager({
   const [notice, setNotice] = useState("");
 
   const applyState = useCallback((state: SettlementState, preserveDraft = false) => {
+    setManualCash(state.manualCash ?? { payerCount: 0, paymentCount: 0, amount: 0 });
     setSettlementId(state.settlementId);
     setUploads(state.uploads);
     setAnalysis(state.analysis);
@@ -398,7 +403,7 @@ export function CourseSettlementManager({
     const safeInstructor = instructor.instructor.replace(/[\/:*?"<>|]/gu, "_");
     printHtmlDocument(
       `${safeInstructor}_정산표`,
-      `<h1>${escapePrintHtml(instructor.instructor)} 정산표</h1><p class="meta">계산 엔진 ${SETTLEMENT_ENGINE_VERSION} · 누적 총매출 대비 PG사 수수료 ${pgFeeRate} · PG사 수수료 차감 후 매출 대비 노바 수수료 ${novaFeeRate}</p><table><thead><tr><th>기간</th><th>원본</th><th>총매출</th><th>PG수수료</th><th>시스템노바</th><th>부가서비스</th><th>최종 정산금</th></tr></thead><tbody>${summaryRows}<tr class="total"><td colspan="2">누적</td><td class="number">${currency(instructor.totalSales)}</td><td class="number">${currency(instructor.pgFee)}</td><td class="number">${currency(instructor.systemNovaFee)}</td><td class="number">${currency(instructor.additionalServiceFee)}</td><td class="number">${currency(instructor.finalSettlement)}</td></tr></tbody></table>${details}`,
+      `<h1>${escapePrintHtml(instructor.instructor)} 정산표</h1><p class="meta">계산 엔진 ${SETTLEMENT_ENGINE_VERSION} · 누적 총매출 대비 PG사 수수료 ${pgFeeRate} · PG사 수수료 차감 후 매출 대비 노바 수수료 ${novaFeeRate}</p><table><thead><tr><th>기간</th><th>원본</th><th>총매출</th><th>PG수수료</th><th>시스템노바</th><th>부가서비스</th><th>최종 정산금</th></tr></thead><tbody>${summaryRows}<tr class="total"><td colspan="2">누적</td><td class="number">${currency(instructor.totalSales)}</td><td class="number">${currency(instructor.pgFee)}</td><td class="number">${currency(instructor.systemNovaFee)}</td><td class="number">${currency(instructor.additionalServiceFee)}</td><td class="number">${currency(instructor.finalSettlement + manualCash.amount)}</td></tr></tbody></table><p>수동 추가 현금결제 ${manualCash.payerCount}명 · ${currency(manualCash.amount)}</p><p>누적 최종 정산금 = 누적 총매출 − PG사 수수료 − 노바 수수료 − 부가서비스 + 수동 추가 현금결제액</p>${details}`,
     );
   }
 
@@ -604,6 +609,7 @@ export function CourseSettlementManager({
             courseId={courseId}
             courseName={courseName}
             instructor={instructor}
+            manualCash={manualCash}
             analysis={analysis}
             targetInstructor={targetInstructor}
             onPrint={printInstructorReport}
@@ -620,6 +626,7 @@ export function CourseSettlementManager({
           {showStatement && instructor ? (
             <SettlementStatement
               instructor={instructor}
+              manualCash={manualCash}
               monthlyAnalyses={analysis.monthlyAnalyses}
               courseId={courseId}
               courseName={courseName}
@@ -646,6 +653,7 @@ function InstructorSettlementSection({
   instructor,
   analysis,
   targetInstructor,
+  manualCash,
   onPrint,
 }: {
   courseId: string;
@@ -653,6 +661,7 @@ function InstructorSettlementSection({
   instructor: AggregatedInstructorSettlement | null;
   analysis: SettlementAnalysis;
   targetInstructor: string;
+  manualCash: ManualCashSummary;
   onPrint: () => void;
 }) {
   if (!instructor) {
@@ -677,9 +686,6 @@ function InstructorSettlementSection({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold">{instructor.instructor} 누적 정산</h3>
-          <p className="mt-1 text-muted-foreground">
-            전체 엑셀에서 강사명이 일치하는 거래만 추출한 결과입니다.
-          </p>
         </div>
         <div className="flex flex-wrap items-start gap-2">
           <RosterComparisonButton
@@ -703,9 +709,12 @@ function InstructorSettlementSection({
           value={instructor.systemNovaFee}
           description={`PG사 수수료 차감 후 매출의 ${novaFeeRate}`}
         />
+        <Metric label="부가서비스" value={instructor.additionalServiceFee} />
+        {manualCash.payerCount > 0 ? <Metric label="현금결제" value={manualCash.amount} description={`${manualCash.payerCount.toLocaleString("ko-KR")}명 · 수동 추가`} /> : null}
         <Metric
           label="누적 최종 정산금"
-          value={instructor.finalSettlement}
+          value={instructor.finalSettlement + manualCash.amount}
+          description="누적 총매출 − PG사 수수료 − 노바 수수료 − 부가서비스 + 수동 추가 현금결제액"
           emphasized
         />
       </div>

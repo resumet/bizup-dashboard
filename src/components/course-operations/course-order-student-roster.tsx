@@ -1,5 +1,7 @@
 "use client";
 
+import { PaymentMethodBadge } from "@/components/jobs/payment-method";
+
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, MoreHorizontal, Send, Trash2 } from "lucide-react";
@@ -101,7 +103,7 @@ export function CourseOrderStudentRoster({ courseId, students, onDelete, onResto
                 <TableCell>{formatOrderStudentPhone(student.phone)}</TableCell>
                 <TableCell>{student.email || "—"}</TableCell>
                 <TableCell className="min-w-40 max-w-80 whitespace-normal break-words">{student.optionName || "—"}</TableCell>
-                <TableCell>{student.paymentMethod || "—"}</TableCell><TableCell>{student.rs || "—"}</TableCell><TableCell><PaymentIdButton value={student.paymentId} name={student.name} /></TableCell>
+                <TableCell><PaymentMethodBadge value={student.paymentMethod} /></TableCell><TableCell>{student.rs || "—"}</TableCell><TableCell><PaymentIdButton value={student.paymentId} name={student.name} /></TableCell>
                 <TableCell className="text-right tabular-nums">{money(student.amount)}</TableCell>
                 <TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" aria-label={`${student.name || "이름 없음"} 메뉴`} disabled={Boolean(preparing)}>{preparing === student.orderId ? <Loader2 className="animate-spin" /> : <MoreHorizontal />}</Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
