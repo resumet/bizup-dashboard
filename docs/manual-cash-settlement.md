@@ -12,4 +12,10 @@
 
 기존 `job_enrollments.normalized_values`와 `is_manually_added`를 사용하므로 신규 마이그레이션은 없다.
 
+비용 저장으로 정산 결과가 초기화되면, 보관된 활성 엑셀이 있는 경우 정산 화면의 `검증 및 저장`이 다시 활성화된다. 새 파일을 선택하지 않아도 저장된 월별 분석을 재검증하고 최신 비용을 반영한다. 검증을 마치면 새 변경이나 파일 선택 전까지 버튼을 비활성화한다.
+
+최종 정산서에서는 강의명만 필수다. 강의기간, 정산기간, 담당자 등 선택 입력값이 비어 있어도 저장·정산 확정·인쇄/PDF 출력이 가능하다. 비용의 필수 증빙 관련 확정 조건은 기존대로 적용한다.
+
 검증: `npx tsx --conditions=react-server --test src/lib/course-settlements/manual-cash.test.ts`, `node scripts/verify-manual-cash-settlement.cjs` (Playwright 설치 필요, 외부 설치는 `PLAYWRIGHT_PACKAGE_PATH` 지정).
+
+재검증 API와 선택 항목 확정 검증: `node scripts/verify-settlement-revalidation.cjs` (실제 라우트 코드, 모의 DB 사용).

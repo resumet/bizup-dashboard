@@ -39,13 +39,8 @@ export async function POST(_: Request, { params }: Context) {
       course.name,
     );
     if (draft.confirmedAt) throw new Error("이미 확정된 정산서입니다.");
-    if (
-      !draft.lectureName ||
-      !draft.coursePeriod ||
-      !draft.settlementPeriod ||
-      !draft.manager
-    ) {
-      throw new Error("강의명, 강의기간, 정산기간, 담당자를 모두 입력해 주세요.");
+    if (!draft.lectureName) {
+      throw new Error("강의명을 입력해 주세요.");
     }
 
     const costs = filterSettlementCosts(

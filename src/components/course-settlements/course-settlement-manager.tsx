@@ -246,6 +246,7 @@ export function CourseSettlementManager({
     analysis?.instructorResults.find(
       (item) => normalizeName(item.instructor) === targetInstructor,
     ) ?? null;
+  const canRevalidate = !analysis && uploads.length > 0;
 
   function chooseFiles(selected: FileList | null) {
     if (!selected) return;
@@ -266,7 +267,7 @@ export function CourseSettlementManager({
   }
 
   async function uploadAndAnalyze() {
-    if (!settlementId || !pendingFiles.length) return;
+    if (!settlementId || (!pendingFiles.length && !canRevalidate)) return;
     setFileBusy(true);
     setError("");
     setNotice("");
@@ -281,7 +282,9 @@ export function CourseSettlementManager({
       if (state) applyState(state);
       setPendingFiles([]);
       setNotice(
-        `${pendingFiles.length}개 엑셀의 전체 내역과 '${targetInstructor}' 강사 내역을 검증하고 저장했습니다.`,
+        pendingFiles.length
+          ? `${pendingFiles.length}개 엑셀의 전체 내역과 '${targetInstructor}' 강사 내역을 검증하고 저장했습니다.`
+          : "저장된 정산 엑셀을 다시 검증하고 최신 비용을 반영했습니다.",
       );
     } catch (caught) {
       setError(
@@ -455,7 +458,7 @@ export function CourseSettlementManager({
           />
           <Button
             onClick={uploadAndAnalyze}
-            disabled={fileBusy || !settlementId || !pendingFiles.length}
+            disabled={fileBusy || statementBusy || !settlementId || (!pendingFiles.length && !canRevalidate)}
           >
             {fileBusy ? <Loader2 className="animate-spin" /> : <Calculator />}
             검증 및 저장

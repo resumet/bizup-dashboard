@@ -195,6 +195,7 @@ export function SettlementStatement({ instructor, manualCash, monthlyAnalyses, c
 
   async function run(action: () => Promise<SettlementStatementDraft>, success: string) {
     setError(""); setNotice("");
+    if (!draft.lectureName.trim()) { setError("강의명을 입력해 주세요."); return; }
     try { onChange(await action()); setNotice(success); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "요청을 처리하지 못했습니다."); }
   }
@@ -210,8 +211,8 @@ export function SettlementStatement({ instructor, manualCash, monthlyAnalyses, c
   }
 
   async function printStatement() {
-    if (!draft.lectureName.trim() || !draft.coursePeriod.trim() || !draft.settlementPeriod.trim() || !draft.manager.trim()) {
-      setError("PDF 출력 전에 강의명, 강의기간, 정산기간, 담당자를 모두 입력해 주세요.");
+    if (!draft.lectureName.trim()) {
+      setError("PDF 출력 전에 강의명을 입력해 주세요.");
       return;
     }
     const companyInformation = `<div class="company-grid"><section class="company-card"><div class="company-title"><span>TO</span><strong>정산 대상 회사</strong></div><dl><dt>회사/사업자명</dt><dd>${escapePrintHtml(targetCompanyName)}</dd><dt>대표자</dt><dd>${escapePrintHtml(draft.recipientRepresentative || instructor.instructor)}</dd><dt>사업자등록번호</dt><dd>${escapePrintHtml(draft.recipientBusinessNumber || "-")}</dd><dt>연락처</dt><dd>${escapePrintHtml(draft.recipientContact || "-")}</dd></dl></section><section class="company-card issuer"><div class="company-title"><span>FROM</span><strong>비즈업클래스 회사 정보</strong></div><dl><dt>회사명</dt><dd>${ISSUER}</dd><dt>대표자</dt><dd>${escapePrintHtml(draft.issuerRepresentative || "-")}</dd><dt>사업자등록번호</dt><dd>${escapePrintHtml(draft.issuerBusinessNumber || "-")}</dd><dt>연락처</dt><dd>${escapePrintHtml(draft.issuerContact || "-")}</dd></dl></section></div>`;
@@ -236,9 +237,9 @@ export function SettlementStatement({ instructor, manualCash, monthlyAnalyses, c
     { label: "비즈업 사업자등록번호", key: "issuerBusinessNumber", placeholder: "000-00-00000" },
     { label: "비즈업 연락처", key: "issuerContact", placeholder: "전화번호 / 이메일" },
     { label: "강의명", key: "lectureName", placeholder: "", required: true },
-    { label: "강의기간", key: "coursePeriod", placeholder: "", required: true },
-    { label: "정산기간", key: "settlementPeriod", placeholder: "", required: true },
-    { label: "비즈업 정산 담당자", key: "manager", placeholder: "", required: true },
+    { label: "강의기간", key: "coursePeriod", placeholder: "" },
+    { label: "정산기간", key: "settlementPeriod", placeholder: "" },
+    { label: "비즈업 정산 담당자", key: "manager", placeholder: "" },
   ];
 
   return (
@@ -258,7 +259,7 @@ export function SettlementStatement({ instructor, manualCash, monthlyAnalyses, c
       <section aria-label="결제 현황" className="grid gap-4 sm:grid-cols-3"><SummaryMetric label="전체 결제자 수" value={transactionMetrics.payerCount} unit="명" /><SummaryMetric label="결제 건수" value={transactionMetrics.paymentCount} unit="건" /><SummaryMetric label="환불 건수" value={transactionMetrics.refundCount} unit="건" /></section>
 
       <Card><CardHeader><CardTitle>정산서 정보</CardTitle><CardDescription>상단 회사 정보와 문서 발행에 사용할 내용을 입력하세요.</CardDescription></CardHeader><CardContent className="grid gap-x-4 gap-y-5 md:grid-cols-2 lg:grid-cols-4">
-        {inputFields.map(({ label, key, placeholder, required }) => <div className="space-y-2" key={key}><Label>{label}{required ? " *" : ""}</Label><Input disabled={confirmed} value={String(draft[key])} placeholder={placeholder} onChange={(event) => patchDraft({ [key]: event.target.value })} /></div>)}
+        {inputFields.map(({ label, key, placeholder, required }) => <div className="space-y-2" key={key}><Label htmlFor={`statement-${courseId}-${key}`}>{label}{required ? " *" : ""}</Label><Input id={`statement-${courseId}-${key}`} required={required} disabled={confirmed} value={String(draft[key])} placeholder={placeholder} onChange={(event) => patchDraft({ [key]: event.target.value })} /></div>)}
         <div className="space-y-2"><Label>발행일</Label><Input disabled={confirmed} type="date" value={draft.issueDate} onChange={(event) => patchDraft({ issueDate: event.target.value })} /></div>
         <div className="space-y-2"><Label>강사 배분율 (%)</Label><Input disabled={confirmed} type="number" min="0" max="100" step="0.1" value={draft.instructorRatioPercent} onChange={(event) => patchDraft({ instructorRatioPercent: Number(event.target.value) })} /></div>
       </CardContent></Card>

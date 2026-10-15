@@ -25,9 +25,11 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
     const result = { instructor: '강사', totalSales: 1000000, pgFee: 30000, systemNovaFee: 20000, additionalServiceFee: 50000, finalSettlement: 900000, tossSales: 1000000, cashSales: 0, settlementAmount: 900000 };
     const instructor = { ...result, monthlySettlements: [{ fileName: 'test.xlsx', periodLabel: '2026-10', result }] };
     const month = { fileName: 'test.xlsx', periodLabel: '2026-10', instructorResults: [result], totals: result, comparisons: [], allMatched: true, detailsByInstructor: { 강사: { toss: [], cash: [], service: [] } } };
-    const state = { settlementId: 'settlement', status: '분석완료', latestVersion: 1, updatedAt: '', uploads: [], attachments: [], courseCosts: [], appliedCourseCosts: [], costsAreSnapshot: false,
-      manualCash: { payerCount: 0, paymentCount: 0, amount: 0 }, draft: { lectureName: '검증 강의', coursePeriod: '2026-10', settlementPeriod: '2026-10', manager: '담당자' },
-      analysis: { engineVersion: 'test', monthlyAnalyses: [month], instructorResults: [instructor], totals: result, matchedCount: 0, comparisonCount: 0, allMatched: true } };
+    const analysis = { engineVersion: 'test', monthlyAnalyses: [month], instructorResults: [instructor], totals: result, matchedCount: 0, comparisonCount: 0, allMatched: true };
+    const cost = { id: 'changed-cost', name: '수정된 비용', burdenType: 'COMPANY', grossAmount: 10000, managerName: '', attachments: [] };
+    const state = { settlementId: 'settlement', status: '비용입력중', latestVersion: 2, updatedAt: '', uploads: [{ id: 'upload', fileName: 'test.xlsx', periodLabel: '2026-10' }], attachments: [], courseCosts: [cost], appliedCourseCosts: [cost], costsAreSnapshot: false,
+      manualCash: { payerCount: 0, paymentCount: 0, amount: 0 }, draft: { lectureName: '검증 강의', coursePeriod: '', settlementPeriod: '', manager: '' }, analysis: null };
+    let revalidated = false;
     let saved;
     server = http.createServer(async (req, res) => {
       if (req.url === '/bundle.js') { res.setHeader('Content-Type', 'text/javascript'); res.end(bundle.outputFiles[0].text); }
@@ -38,6 +40,17 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
         state.manualCash = { payerCount: 1, paymentCount: 1, amount: Number(saved.paymentAmount.replaceAll(',', '')) };
         res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ enrollment: { id: 'manual' } }));
       } else if (req.url.startsWith('/api/course-settlements')) {
+        if (req.method === 'PUT') {
+          let body = ''; for await (const chunk of req) body += chunk;
+          state.draft = JSON.parse(body).draft;
+        } else if (req.url.endsWith('/uploads') && req.method === 'POST') {
+          let body = ''; for await (const chunk of req) body += chunk;
+          assert.ok(!body.includes('filename='), 'Existing workbooks must be reusable without uploading a file');
+          state.analysis = analysis;
+          revalidated = true;
+        } else if (req.url.endsWith('/confirm') && req.method === 'POST') {
+          state.draft = { ...state.draft, status: '정산확정', confirmedAt: new Date().toISOString() };
+        }
         res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ state }));
       } else if (req.url.startsWith('/api/')) {
         res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ students: [] }));
@@ -49,7 +62,13 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
     const errors = []; page.on('pageerror', error => { errors.push(error.message); console.error('Browser error:', error.message); });
     await page.context().addInitScript(() => { window.print = () => {}; });
     await page.goto(`http://127.0.0.1:${server.address().port}`);
+    const verify = page.getByRole('button', { name: '검증 및 저장', exact: true });
+    await verify.waitFor();
+    assert.equal(await verify.isEnabled(), true);
+    await verify.click();
     await page.getByText('누적 최종 정산금', { exact: true }).waitFor().catch(async error => { console.error(await page.locator('body').innerText()); throw error; });
+    assert.equal(revalidated, true);
+    assert.equal(await verify.isDisabled(), true);
     const cashCard = page.locator('p').filter({ hasText: /^현금결제$/ });
     assert.equal(await cashCard.count(), 0);
     const colors = await page.locator('#badges span').evaluateAll(items => items.map(item => getComputedStyle(item).backgroundColor));
@@ -69,6 +88,13 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
     assert.match(await target.textContent(), /1,100,000원.*A − B − C − C1/);
     assert.match(await page.getByRole('row').filter({ has: page.getByText('현금결제 매출', { exact: true }) }).textContent(), /200,000원/);
     assert.match(await page.getByRole('row').filter({ has: page.getByText('최종 강사 지급액', { exact: true }) }).textContent(), /605,000원/);
+    assert.match(await page.getByRole('row').filter({ has: page.getByText('최종 회사분', { exact: true }) }).textContent(), /540,000원/);
+    for (const label of ['강의기간', '정산기간', '비즈업 정산 담당자']) {
+      assert.equal(await page.getByLabel(label, { exact: true }).inputValue(), '');
+      assert.equal(await page.getByLabel(label, { exact: true }).getAttribute('required'), null);
+    }
+    await page.getByRole('button', { name: '정산 정보 저장', exact: true }).click();
+    await page.getByText('정산 정보를 저장했습니다.', { exact: true }).waitFor();
     const popupPromise = page.waitForEvent('popup');
     await page.getByRole('button', { name: /PDF|인쇄/ }).last().click();
     const popup = await popupPromise;
@@ -79,8 +105,14 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
     await page.setViewportSize({ width: 390, height: 844 });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
     await page.screenshot({ path: 'tmp/manual-cash-settlement/mobile.png', fullPage: true });
+    await page.getByLabel('강의명 *', { exact: true }).fill('');
+    await page.getByRole('button', { name: '정산 정보 저장', exact: true }).click();
+    await page.getByText('강의명을 입력해 주세요.', { exact: true }).waitFor();
+    await page.getByLabel('강의명 *', { exact: true }).fill('검증 강의');
+    await page.getByRole('button', { name: '정산 확정', exact: true }).click();
+    await page.getByRole('button', { name: '정산 확정 취소', exact: true }).waitFor();
     assert.deepEqual(errors, []);
-    console.log('PASS: payment dropdown/save, four badge colors, conditional cash card, settlement arithmetic, print formula, mobile layout');
+    console.log('PASS: cost revalidation without new files, latest cost calculation, optional fields save/confirm/PDF, required lecture name, payment methods, cash settlement, mobile layout');
   } finally {
     if (browser) await browser.close();
     if (server) await new Promise(resolve => server.close(resolve));

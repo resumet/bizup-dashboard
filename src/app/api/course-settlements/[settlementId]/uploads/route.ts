@@ -124,7 +124,6 @@ export async function POST(request: Request, { params }: Context) {
     const files = form
       .getAll("files")
       .filter((value): value is File => value instanceof File);
-    if (!files.length) throw new Error("검증할 정산 엑셀을 선택해 주세요.");
 
     const { data: course } = await admin
       .from("courses")
@@ -181,6 +180,9 @@ export async function POST(request: Request, { params }: Context) {
     const activeExisting = existing.filter(
       (upload) => upload.is_active && upload.analysis_snapshot,
     );
+    if (!files.length && !activeExisting.length) {
+      throw new Error("검증할 정산 엑셀을 선택해 주세요.");
+    }
     const replacedPeriods = new Set(incomingPeriods);
     const keptAnalyses = activeExisting.flatMap((upload) =>
       upload.analysis_snapshot &&
@@ -280,7 +282,7 @@ export async function POST(request: Request, { params }: Context) {
       settlement,
       [...keptAnalyses, ...parsed.map((item) => item.analysis)],
       user.id,
-      "정산 엑셀 추가 또는 교체",
+      files.length ? "정산 엑셀 추가 또는 교체" : "비용 변경 후 저장된 정산 엑셀 재검증",
     );
     await admin.from("audit_logs").insert({
       workspace_id: workspaceId,
