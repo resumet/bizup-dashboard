@@ -4,8 +4,29 @@ import { useEffect, useRef, useState } from "react";
 import { Copy, ExternalLink, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { LandingUtm, UtmImportResult } from "@/lib/course-landing-utms/model";
+
+function UtmUrlButton({ item }: { item: LandingUtm }) {
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState("");
+  async function copyUrl() {
+    setCopied(false); setError("");
+    try { await navigator.clipboard.writeText(item.url); setCopied(true); }
+    catch { setError("복사하지 못했습니다. 전체 URL을 선택해 직접 복사해 주세요."); }
+  }
+  return <Dialog onOpenChange={() => { setCopied(false); setError(""); }}>
+    <DialogTrigger asChild><Button type="button" size="sm" variant="outline" aria-label={`${item.referral_code || item.channel} ${item.medium} URL 보기`}>URL 보기</Button></DialogTrigger>
+    <DialogContent className="sm:max-w-xl" aria-describedby={undefined}>
+      <DialogHeader><DialogTitle>랜딩페이지 URL</DialogTitle></DialogHeader>
+      <p aria-label="전체 URL" className="max-h-[50dvh] overflow-y-auto rounded-md border bg-muted/40 p-3 break-all select-all">{item.url}</p>
+      {copied && <p role="status" className="text-sm text-emerald-700">URL을 복사했습니다.</p>}
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      <DialogFooter><Button type="button" onClick={() => void copyUrl()}><Copy />복사하기</Button></DialogFooter>
+    </DialogContent>
+  </Dialog>;
+}
 
 export function CourseLandingUtms({ courseId }: { courseId: string }) {
   const [items, setItems] = useState<LandingUtm[]>([]);
@@ -69,11 +90,11 @@ export function CourseLandingUtms({ courseId }: { courseId: string }) {
           <TableCell className="whitespace-nowrap">{item.channel}</TableCell>
           <TableCell className="whitespace-nowrap">{item.referral_code || "—"}</TableCell>
           <TableCell className="whitespace-nowrap">{item.medium}</TableCell>
-          <TableCell className="whitespace-normal"><a href={item.url} target="_blank" rel="noopener noreferrer" className="block min-w-48 max-w-sm break-all text-sm underline underline-offset-4">{item.url}</a></TableCell>
-          <TableCell className="whitespace-normal">{item.short_url ? <div className="min-w-48 max-w-64 space-y-2"><span className="block break-all text-sm">{item.short_url}</span><div className="flex gap-2">
-            <Button asChild size="sm" variant="outline"><a href={item.short_url} target="_blank" rel="noopener noreferrer" aria-label={`${item.referral_code || item.channel} ${item.medium} 단축링크 바로가기`}><ExternalLink />바로가기</a></Button>
-            <Button type="button" size="sm" variant="outline" aria-label={`${item.referral_code || item.channel} ${item.medium} 단축링크 복사하기`} onClick={() => void copy(item)}><Copy />복사하기</Button>
-          </div></div> : "—"}</TableCell>
+          <TableCell><UtmUrlButton item={item} /></TableCell>
+          <TableCell>{item.short_url ? <div className="flex items-center gap-2 whitespace-nowrap"><span className="max-w-64 truncate text-sm" title={item.short_url}>{item.short_url}</span>
+            <Button asChild size="icon-sm" variant="outline" className="shrink-0"><a href={item.short_url} target="_blank" rel="noopener noreferrer" title="단축링크 바로가기" aria-label={`${item.referral_code || item.channel} ${item.medium} 단축링크 바로가기`}><ExternalLink /></a></Button>
+            <Button type="button" size="icon-sm" variant="outline" className="shrink-0" title="단축링크 복사하기" aria-label={`${item.referral_code || item.channel} ${item.medium} 단축링크 복사하기`} onClick={() => void copy(item)}><Copy /></Button>
+          </div> : "—"}</TableCell>
         </TableRow>)}</TableBody>
       </Table>}
     </CardContent>

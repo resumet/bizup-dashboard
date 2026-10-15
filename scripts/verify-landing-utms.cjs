@@ -99,11 +99,25 @@ const workbook = rows => writeXlsxFile([headers, ...rows].map(row => row.map(val
     await upload(await workbook([edited,entry('신규추천','블로그','')]));await page.getByText('추가 1건 · 업데이트 1건 · 변경 없음 0건을 반영했습니다.',{exact:true}).waitFor();await page.getByRole('cell',{name:'신규추천',exact:true}).waitFor();assert.equal(await page.getByRole('row').count(),10);
     const changed=(await stored(C)).find(row=>row.referral_code==='두시간부업만일로와');assert.equal(changed.url,edited[4]);assert.equal(changed.short_url,edited[5]);assert.ok(ids.includes(changed.id));assert.equal((await stored(C2)).length,1);
     const link=page.getByRole('link',{name:'두시간부업만일로와 유튜브 단축링크 바로가기'});assert.equal(await link.getAttribute('href'),edited[5]);assert.equal(await link.getAttribute('target'),'_blank');
-    await page.getByRole('button',{name:'두시간부업만일로와 유튜브 단축링크 복사하기'}).click();assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),edited[5]);
+    const shortCopy=page.getByRole('button',{name:'두시간부업만일로와 유튜브 단축링크 복사하기'});
+    assert.equal(await link.textContent(),'');assert.equal(await shortCopy.textContent(),'');
+    assert.ok(Math.abs((await link.boundingBox()).y-(await shortCopy.boundingBox()).y)<1,'Short-link icons must share one line');
+    await shortCopy.click();assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),edited[5]);
+    assert.ok(!(await page.getByRole('table').textContent()).includes(edited[4]),'Full URLs must not appear in the table');
+    const urlButton=page.getByRole('button',{name:'두시간부업만일로와 유튜브 URL 보기'});
+    await urlButton.click();const dialog=page.getByRole('dialog',{name:'랜딩페이지 URL'});
+    assert.equal(await dialog.getByLabel('전체 URL').textContent(),edited[4]);
+    await dialog.getByRole('button',{name:'복사하기',exact:true}).click();await dialog.getByRole('status').filter({hasText:'URL을 복사했습니다.'}).waitFor();
+    assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),edited[4]);
+    await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});assert.equal(await urlButton.evaluate(button=>button===document.activeElement),true);
     const prior=await stored(C);await upload(await workbook([entry('정상행'),entry('실패행','유튜브','javascript:test')]));await page.getByRole('alert').filter({hasText:'3행 단축 링크'}).waitFor();assert.deepEqual(await stored(C),prior);
     await page.reload();await page.getByRole('cell',{name:'신규추천',exact:true}).waitFor();assert.equal(await page.getByRole('row').count(),10);
-    assert.ok(await page.locator('td > a').evaluateAll(links=>links.every(link=>link.scrollWidth<=link.clientWidth+1)),'Long URLs must wrap within their cells');
     await fs.mkdir('tmp/landing-utms',{recursive:true});await page.screenshot({path:'tmp/landing-utms/desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});await page.screenshot({path:'tmp/landing-utms/mobile.png',fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));assert.deepEqual(errors,[]);
+    await page.getByRole('button',{name:'실전부업클럽 유튜브 URL 보기'}).click();await dialog.waitFor();
+    assert.equal(await dialog.getByLabel('전체 URL').textContent(),original[1][4]);
+    assert.ok(await dialog.evaluate(element=>element.scrollWidth<=element.clientWidth),'Mobile URL dialog must fit its viewport');
+    await dialog.getByRole('button',{name:'복사하기',exact:true}).click();assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),original[1][4]);
+    await page.screenshot({path:'tmp/landing-utms/mobile-url-dialog.png',fullPage:true});await page.keyboard.press('Escape');
     // Read policies and import auth also reject an account disabled after login.
     await db.exec(`set request.jwt.claim.sub='${U}'; set role authenticated;`);assert.equal((await db.query('select * from course_landing_utms')).rows.length,9);await db.exec('reset role');
     await db.query("update auth.users set raw_app_meta_data=$1::jsonb where id=$2",[JSON.stringify({account_disabled:true}),U]);
