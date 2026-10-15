@@ -51,14 +51,15 @@ const workbook = rows => writeXlsxFile([headers, ...rows].map(row => row.map(val
 
     // Actual route auth runs against this service-role Postgres adapter.
     const admin = { from(table) {
-      let columns='*',conditions=[],orders=[],offset=0,limit,single=false;
-      const query = { select(value='*'){columns=value;return query;},eq(key,value){conditions.push([key,value]);return query;},order(key){orders.push(key);return query;},range(start,end){offset=start;limit=end-start+1;return query;},maybeSingle(){single=true;return query;},
+      let columns='*',conditions=[],orders=[],offset=0,limit,single=false,deleting=false;
+      const query = { select(value='*'){columns=value;return query;},delete(){deleting=true;return query;},eq(key,value){conditions.push([key,value]);return query;},order(key){orders.push(key);return query;},range(start,end){offset=start;limit=end-start+1;return query;},maybeSingle(){single=true;return query;},
         then(resolve,reject){
-          let sql=`select ${columns} from ${table}`;
+          let sql=deleting?`delete from ${table}`:`select ${columns} from ${table}`;
           if(conditions.length)sql+=` where ${conditions.map(([key],i)=>`${key}=$${i+1}`).join(' and ')}`;
           if(orders.length)sql+=` order by ${orders.join(',')}`;
           if(limit)sql+=` limit ${limit} offset ${offset}`;
-          return db.query(sql,conditions.map(([,value])=>value)).then(result=>({data:single?result.rows[0]??null:result.rows,error:null})).then(resolve,reject);
+          if(deleting)sql+=` returning ${columns}`;
+          return db.transaction(async tx=>{await tx.exec('set local role service_role');return tx.query(sql,conditions.map(([,value])=>value));}).then(result=>({data:single?result.rows[0]??null:result.rows,error:null})).catch(error=>({data:null,error})).then(resolve,reject);
         }
       }; return query;
     },async rpc(name,args){ assert.equal(name,'import_course_landing_utms');try{return {data:await rpc(args.p_course_id,args.p_actor_id,args.p_rows),error:null};}catch(error){return {data:null,error};} } };
@@ -118,11 +119,33 @@ const workbook = rows => writeXlsxFile([headers, ...rows].map(row => row.map(val
     assert.ok(await dialog.evaluate(element=>element.scrollWidth<=element.clientWidth),'Mobile URL dialog must fit its viewport');
     await dialog.getByRole('button',{name:'복사하기',exact:true}).click();assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),original[1][4]);
     await page.screenshot({path:'tmp/landing-utms/mobile-url-dialog.png',fullPage:true});await page.keyboard.press('Escape');
+    const remove=(id,extra={})=>fetch(endpoint,{method:'DELETE',headers:{'content-type':'application/json'},body:JSON.stringify({id}),...extra});
+    const candidate=(await stored(C)).find(row=>row.referral_code==='신규추천');
+    user=null;assert.equal((await remove(candidate.id)).status,401);user={id:U2};assert.equal((await remove(candidate.id)).status,403);user={id:U};
+    assert.equal((await remove(candidate.id,{headers:{'content-type':'application/json',origin:'https://evil.test'}})).status,403);
+    assert.equal((await remove('invalid')).status,400);
+    assert.equal((await remove((await stored(C2))[0].id)).status,404);assert.equal((await stored(C2)).length,1);
+    assert.equal((await remove('00000000-0000-4000-8000-000000000099')).status,404);
+    const deleteButton=page.getByRole('button',{name:'신규추천 블로그 UTM 삭제'});
+    assert.equal(await deleteButton.textContent(),'');assert.ok(await deleteButton.evaluate(button=>button.closest('td')===button.closest('tr').lastElementChild));
+    await deleteButton.click();const deleteDialog=page.getByRole('dialog',{name:'UTM 삭제',exact:true});await deleteDialog.waitFor();
+    await deleteDialog.getByRole('button',{name:'취소',exact:true}).click();assert.equal((await stored(C)).length,9);
+    await deleteButton.click();await db.exec('revoke delete on public.course_landing_utms from service_role');
+    await deleteDialog.getByRole('button',{name:'삭제',exact:true}).click();await deleteDialog.getByRole('alert').filter({hasText:'삭제하지 못했습니다'}).waitFor();assert.equal((await stored(C)).length,9);
+    await db.exec('grant delete on public.course_landing_utms to service_role');
+    await deleteDialog.getByRole('button',{name:'삭제',exact:true}).click();await deleteDialog.waitFor({state:'hidden'});
+    assert.equal((await stored(C)).length,8);assert.equal(await page.getByRole('cell',{name:'신규추천',exact:true}).count(),0);
+    await page.reload();await page.getByRole('button',{name:'두시간부업만일로와 유튜브 URL 보기'}).waitFor();assert.equal(await page.getByRole('row').count(),9);
+    assert.equal((await remove(candidate.id)).status,404);
+    // An explicit later Excel upload may register a deleted combination again.
+    assert.equal((await post(await workbook([entry('신규추천','블로그','')]))).status,200);assert.equal((await stored(C)).length,9);
     // Read policies and import auth also reject an account disabled after login.
     await db.exec(`set request.jwt.claim.sub='${U}'; set role authenticated;`);assert.equal((await db.query('select * from course_landing_utms')).rows.length,9);await db.exec('reset role');
     await db.query("update auth.users set raw_app_meta_data=$1::jsonb where id=$2",[JSON.stringify({account_disabled:true}),U]);
     assert.equal((await post(await workbook([entry('비활성')]))).status,401);
+    assert.equal((await remove(changed.id)).status,401);
     await db.exec(`set request.jwt.claim.sub='${U}'; set role authenticated;`);assert.equal((await db.query('select * from course_landing_utms')).rows.length,0);await db.exec('reset role');
-    console.log('PASS: real XLSX → API → PostgreSQL → UI; 8 sample rows, repeated import, atomic update/add, missing-row retention, course isolation, RLS/roles/disabled accounts, invalid-row rollback, URL/copy, reload and mobile layout.');
+    assert.deepEqual(errors,[]);
+    console.log('PASS: real XLSX → API → PostgreSQL → UI; imports, URL/copy and mobile layout; deletion icon, cancel, failure/retry, persistence, re-import, course isolation and auth/CSRF/disabled-account checks.');
   }catch(error){if(page)console.error((await page.locator('body').innerText()).slice(-1800));throw error;}finally{await browser?.close();if(server)await new Promise(resolve=>server.close(resolve));await db.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

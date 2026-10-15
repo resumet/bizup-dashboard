@@ -32,3 +32,10 @@ export async function importLandingUtms(admin: ReturnType<typeof createAdminClie
   if (error) throw new CourseOrderError("UTM을 저장하지 못했습니다. 새로고침 후 다시 시도해 주세요.", 500);
   return data as UtmImportResult;
 }
+
+export async function deleteLandingUtm(admin: ReturnType<typeof createAdminClient>, courseId: string, id: string) {
+  const { data, error } = await admin.from("course_landing_utms").delete()
+    .eq("course_id", courseId).eq("id", id).select("id").maybeSingle();
+  if (error) throw new CourseOrderError("UTM을 삭제하지 못했습니다. 다시 시도해 주세요.", 500);
+  if (!data) throw new CourseOrderError("삭제할 UTM을 찾을 수 없습니다. 목록을 새로고침해 주세요.", 404);
+}
