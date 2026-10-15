@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import {
+  isDefaultRosterChange,
   planAutomaticPaidRosterSync,
   planPaidRoster,
   type ReconcileOrder,
@@ -240,6 +241,7 @@ test("선택 반영은 결제항목·가격·옵션을 수정하고 개인 정�
       ),
     );
     await db.exec(await readFile("supabase/migrations/20261014132913_track_paid_roster_payment_items.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations/20261015080511_sync_marked_refund_roster.sql", "utf8"));
     await db.query("insert into auth.users values($1),($2)", [actor, outsider]);
     await db.query("insert into workspaces(id,name) values($1,'Test')", [workspace]);
     await db.query("insert into workspace_members(workspace_id,user_id) values($1,$2)", [workspace, actor]);
@@ -387,10 +389,55 @@ test("선택 반영은 결제항목·가격·옵션을 수정하고 개인 정�
       (item) => item.normalized_values.orderRecordKey === "partial-refund",
     )!;
     assert.equal(partialRefundArchived.normalized_values.refundSource, "partial_refund");
+    // A refund-only approval must persist the source status even with a nonzero amount.
+    for (const status of ["환불", "환불 완료", "전액환불", "결제완료 / 환불"]) {
+      const markedId = await insert(`marked-${status}`, "01022223333");
+      await apply(await snapshot(), [markedId]);
+      const stored = (await snapshot()).enrollments.find(row => row.normalized_values.orderRecordKey === `marked-${status}`)!;
+      await db.query("update course_orders set status=$1 where id=$2", [status, markedId]);
+      const markedSnapshot = await snapshot();
+      const changes = planPaidRoster(markedSnapshot, []).changes.filter(isDefaultRosterChange);
+      assert.equal(changes.length, 1);
+      await review(markedSnapshot, changes);
+      const archived = (await snapshot()).enrollments.find(row => row.id === stored.id)!;
+      assert.ok(archived.normalized_values.refundedAt);
+      assert.deepEqual(archived.original_values, stored.original_values);
+      assert.equal(archived.normalized_values.paymentAmount, stored.normalized_values.paymentAmount);
+      assert.equal(planPaidRoster(await snapshot(), []).changes.length, 0);
+      const count = (await db.query<{ valid_count: number }>("select valid_count from course_jobs where id=$1", [jobId])).rows[0].valid_count;
+      assert.equal(count, (await snapshot()).enrollments.filter(row => !row.normalized_values.refundedAt).length);
+      // Restore the same order without changing its amount or option.
+      await db.query("update course_orders set status='결제완료' where id=$1", [markedId]);
+      await apply(await snapshot(), [markedId]);
+      const restored = (await snapshot()).enrollments.find(row => row.normalized_values.orderRecordKey === `marked-${status}`)!;
+      assert.equal(restored.normalized_values.refundedAt, undefined);
+      await db.query("update course_orders set status='환불대기',current_amount=0 where id=$1", [markedId]);
+      const pending = await snapshot();
+      await assert.rejects(review(pending, [{ ...changes[0], targetId: restored.id }]), /취소·환불/);
+      await db.query("update course_orders set status='환불' where id=$1", [markedId]);
+      await review(await snapshot(), [{ ...changes[0], targetId: restored.id }]);
+    }
     await db.exec("set role authenticated");
     await assert.rejects(snapshot(), /permission denied/);
     await assert.rejects(apply(fresh, [extraId]), /permission denied/);
     await assert.rejects(review(afterRemoval, approved), /permission denied/);
     await db.exec("reset role");
   } finally { await db.close(); }
+});
+
+test("환불 표시는 금액과 관계없이 기본 반영하고 환불대기·요청은 유지한다", () => {
+  for (const status of ["환불", "환불 완료", "전액환불", "부분환불", "결제완료 / 환불"]) {
+    const snapshot = state([order("marked", { status })], [enrollment("marked", { memo: "보존" })]);
+    const original = structuredClone(snapshot);
+    const plan = planPaidRoster(snapshot, []);
+    assert.equal(plan.changes.length, 1);
+    assert.equal(plan.changes[0].kind, "remove");
+    assert.ok(isDefaultRosterChange(plan.changes[0]));
+    assert.deepEqual(planAutomaticPaidRosterSync(snapshot).changes, plan.changes);
+    assert.deepEqual(snapshot, original);
+  }
+  for (const status of ["환불대기", "환불요청", "결제완료"]) {
+    assert.equal(planPaidRoster(state([order("pending", { status, current_amount: 0 })], [enrollment("pending")]), []).changes.length, 0);
+  }
+  assert.equal(isDefaultRosterChange(planPaidRoster(state([], [enrollment("missing")]), []).changes[0]), false);
 });

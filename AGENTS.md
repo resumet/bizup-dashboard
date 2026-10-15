@@ -12,6 +12,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - Unless the user explicitly requests otherwise, course selection dropdowns must exclude courses with status `on_hold` (보류), `completed` (완료), or `canceled` (취소). Use the shared course-status selection policy. Preserve existing saved course associations and their display; filtering choices must not erase historical data.
 
+- Exception: the cash ledger entry form must list all course statuses, including on-hold, completed, and canceled courses, with labels `(상태)강사명-강의명-기수`.
+
 - Page and section titles must stand on their own. Do not add explanatory subtitles, eyebrow labels, or descriptive badges directly above or below a title.
 - Put necessary guidance only where users act on it, such as field help, validation, empty states, or error messages.
 - In list and table views, when an item title already links to its detail screen, do not add a separate management/action column or open button for the same navigation.

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { COURSE_STATUS_LABELS, isCourseStatus } from "@/lib/course-operations/course-status";
 
 export const MAX_AMOUNT = 1_000_000_000_000;
 export const MAX_FILE_SIZE = 4 * 1024 * 1024;
@@ -16,9 +17,16 @@ export type PartyInput = z.infer<typeof partySchema>;
 export type Party = PartyInput & { id: string; version: number };
 export type EntryInput = z.infer<typeof entrySchema>;
 export type Entry = EntryInput & { id: string; number: number; version: number };
-export type LedgerCourse = { id: string; name: string; status: string; instructor_name: string };
+export type LedgerCourse = { id: string; name: string; status: string; instructor_name: string; cohort: string | null };
 export type Attachment = { id: string; entryId: string; name: string; size: number; mimeType: string };
 export type LedgerState = { settings: Settings | null; parties: Party[]; entries: Entry[]; courses: LedgerCourse[]; attachments: Attachment[] };
+
+export function ledgerCourseLabel(course: LedgerCourse) {
+  const status = isCourseStatus(course.status) ? COURSE_STATUS_LABELS[course.status] : course.status;
+  const cohort = course.cohort?.trim();
+  const cohortLabel = cohort ? (/기$/.test(cohort) ? cohort : `${cohort}기`) : "기수 미입력";
+  return `(${status})${course.instructor_name.trim() || "강사 미입력"}-${course.name}-${cohortLabel}`;
+}
 
 export function summarizeLedger(settings: Settings | null, entries: readonly Entry[]) {
   let income = BigInt(0), expense = BigInt(0);

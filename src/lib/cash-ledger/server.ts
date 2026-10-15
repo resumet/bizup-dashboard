@@ -57,14 +57,14 @@ export async function loadState(ctx: Context): Promise<LedgerState> {
   const [settings, parties, entries, courses, attachments] = await Promise.all([
     ctx.db.from("cash_ledger_settings").select("*").eq("workspace_id", ctx.workspaceId).maybeSingle(),
     allRows<PartyRow>(ctx, "cash_ledger_parties"), allRows<EntryRow>(ctx, "cash_ledger_entries"),
-    allRows<LedgerCourse>(ctx, "courses", "id,name,status,instructor_name"), allRows<AttachmentRow>(ctx, "cash_ledger_attachments"),
+    allRows<LedgerCourse>(ctx, "courses", "id,name,status,instructor_name,cohort"), allRows<AttachmentRow>(ctx, "cash_ledger_attachments"),
   ]);
   check(settings.error);
   return {
     settings: settings.data ? { startDate: settings.data.start_date, openingBalance: Number(settings.data.opening_balance), version: settings.data.version } : null,
     parties: parties.map(p => ({ id: p.id, name: p.name, bankName: p.bank_name, accountNumber: p.account_number, accountHolder: p.account_holder, note: p.note, version: p.version })).sort((a, b) => a.name.localeCompare(b.name, "ko")),
     entries: entries.map(e => ({ id: e.id, number: Number(e.entry_number), kind: e.kind, title: e.title, partyId: e.party_id, courseId: e.course_id, amount: Number(e.amount), entryDate: e.entry_date, note: e.note, version: e.version })),
-    courses: courses.map(c => ({ id: c.id, name: c.name, status: c.status, instructor_name: c.instructor_name })),
+    courses: courses.map(c => ({ id: c.id, name: c.name, status: c.status, instructor_name: c.instructor_name, cohort: c.cohort })),
     attachments: attachments.map(a => ({ id: a.id, entryId: a.entry_id, name: a.original_name, size: a.file_size, mimeType: a.mime_type })),
   };
 }

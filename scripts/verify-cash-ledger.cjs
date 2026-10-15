@@ -55,12 +55,14 @@ function client(database, role, storage) {
       create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
       create table auth.users(id uuid primary key,email text,raw_app_meta_data jsonb default '{}',banned_until timestamptz);
       create table workspaces(id uuid primary key); create table workspace_members(workspace_id uuid,user_id uuid,role text);
-      create table courses(id uuid primary key,workspace_id uuid,name text,status text,instructor_name text);
+      create table courses(id uuid primary key,workspace_id uuid,name text,status text,instructor_name text,cohort text);
       create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
       grant usage on schema auth to authenticated, service_role; grant select on courses to authenticated,service_role;
       insert into workspaces values('${W}'); insert into auth.users(id,email) values('${U}','fixture@example.invalid'); insert into workspace_members values('${W}','${U}','user');
-      insert into courses values('${C}','${W}','진행 강의','ongoing','강사');
-      insert into courses values('00000000-0000-4000-8000-000000000022','${W}','완료 강의','completed','강사');`);
+      insert into courses values('${C}','${W}','진행 강의','ongoing','강사','1');
+      insert into courses values('00000000-0000-4000-8000-000000000022','${W}','완료 강의','completed','강사','2');
+      insert into courses values('00000000-0000-4000-8000-000000000023','${W}','취소 강의','canceled','다른강사','3기');
+      insert into courses values('00000000-0000-4000-8000-000000000024','${W}','보류 강의','on_hold','다른강사','4');`);
     await database.exec(await fs.readFile('supabase/migrations/20261008090358_shared_calendar.sql','utf8'));
     await database.exec(await fs.readFile('supabase/migrations/20261015063730_cash_ledger.sql','utf8'));
     const storage = { from() { return {
@@ -110,21 +112,29 @@ function client(database, role, storage) {
     async function fillEntry(title,kind,amount,day,note){await page.getByRole('button',{name:'내역 등록',exact:true}).click();await page.getByLabel('제목',{exact:true}).fill(title);await page.getByLabel('구분',{exact:true}).selectOption(kind);await page.getByLabel('지급대상',{exact:true}).selectOption({label:'테스트 거래처'});await page.getByLabel('지급/입금금액 (원)',{exact:true}).fill(amount);await page.getByLabel('날짜',{exact:true}).fill(day);await page.getByLabel('비고',{exact:true}).fill(note);}
     await fillEntry('첫 입금','income','200000','2026-10-11','입금 메모');
     assert.equal(await page.getByLabel('지급/입금금액 (원)',{exact:true}).inputValue(),'200,000');
-    assert.deepEqual(await page.getByLabel('관련 강의 (선택)',{exact:true}).locator('option:not([hidden])').allTextContents(),['선택 안 함','진행 강의 · 강사']);
+    assert.deepEqual(await page.getByLabel('관련 강의 (선택)',{exact:true}).locator('option:not([hidden])').allTextContents(),['선택 안 함','(진행)강사-진행 강의-1기','(완료)강사-완료 강의-2기','(취소)다른강사-취소 강의-3기','(보류)다른강사-보류 강의-4기']);
     await page.getByRole('button',{name:/파일첨부/}).click();
     await page.getByRole('dialog').last().evaluate(node=>{const data=new DataTransfer();data.items.add(new File([new Uint8Array([137,80,78,71])],'clipboard.png',{type:'image/png'}));node.dispatchEvent(new ClipboardEvent('paste',{clipboardData:data,bubbles:true,cancelable:true}));});
     await page.getByText('저장 대기',{exact:true}).waitFor();await page.getByRole('button',{name:'첨부 확인',exact:true}).click();await page.getByRole('button',{name:'내역 저장',exact:true}).click();await page.getByRole('button',{name:'첫 입금',exact:true}).waitFor();assert.equal(blobs.size,1);
-    await fillEntry('강의 지출','expense','50000','2026-10-12','영수증 확인');await page.getByLabel('관련 강의 (선택)',{exact:true}).selectOption(C);await page.getByRole('button',{name:'내역 저장',exact:true}).click();await page.getByRole('button',{name:'강의 지출',exact:true}).waitFor();
+    await fillEntry('강의 지출','expense','50000','2026-10-12','영수증 확인');await page.getByLabel('관련 강의 (선택)',{exact:true}).selectOption('00000000-0000-4000-8000-000000000022');await page.getByRole('button',{name:'내역 저장',exact:true}).click();await page.getByRole('button',{name:'강의 지출',exact:true}).waitFor();
     assert.match(await page.getByText('전체 잔액',{exact:true}).locator('..').textContent(),/1,150,000/);
     assert.match(await page.getByRole('row').nth(1).textContent(),/강의 지출/);
-    for(const term of ['첫 입금','테스트 거래처','진행 강의','50,000','영수증 확인']){await page.getByLabel('입출금 내역 검색').fill(term);assert.ok(await page.getByRole('row').count()>1);assert.match(await page.getByText('전체 잔액',{exact:true}).locator('..').textContent(),/1,150,000/);}
+    for(const term of ['첫 입금','테스트 거래처','완료 강의','50,000','영수증 확인']){await page.getByLabel('입출금 내역 검색').fill(term);assert.ok(await page.getByRole('row').count()>1);assert.match(await page.getByText('전체 잔액',{exact:true}).locator('..').textContent(),/1,150,000/);}
     await page.getByLabel('입출금 내역 검색').fill('');await page.getByRole('button',{name:'강의 지출',exact:true}).click();await page.getByLabel('지급/입금금액 (원)',{exact:true}).fill('80000');await page.getByRole('button',{name:'내역 저장',exact:true}).click();await page.getByRole('button',{name:'강의 지출',exact:true}).waitFor();assert.match(await page.getByText('전체 잔액',{exact:true}).locator('..').textContent(),/1,120,000/);
     await page.getByRole('button',{name:'첫 입금',exact:true}).click();await page.getByRole('button',{name:/파일첨부/}).click();const fileLink=page.getByRole('link',{name:'clipboard.png'});await fileLink.waitFor();assert.equal((await fetch(`${base}${await fileLink.getAttribute('href')}`)).status,200);await page.getByRole('button',{name:'첨부 확인',exact:true}).click();await page.getByRole('button',{name:'삭제',exact:true}).click();await page.getByRole('button',{name:'삭제 확정',exact:true}).click();await page.getByRole('button',{name:'내역 등록',exact:true}).waitFor();await page.waitForFunction(()=>!document.querySelector('[role="dialog"]'));assert.match(await page.getByText('전체 잔액',{exact:true}).locator('..').textContent(),/920,000/);assert.equal(blobs.size,0);
     await page.reload();await page.getByRole('button',{name:'강의 지출',exact:true}).waitFor();assert.match(await page.getByText('전체 잔액',{exact:true}).locator('..').textContent(),/920,000/);
     await fs.mkdir('tmp/cash-ledger',{recursive:true});
     await page.screenshot({path:'tmp/cash-ledger/desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});await page.screenshot({path:'tmp/cash-ledger/mobile.png',fullPage:true});
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));assert.deepEqual(errors,[]);
-    const state=(await (await fetch(`${base}/api/cash-ledger`)).json()).state;const payload={...state.entries[0],requestId:crypto.randomUUID(),title:'재시도 방지'};delete payload.id;
+    const state=(await (await fetch(`${base}/api/cash-ledger`)).json()).state;
+    assert.equal(state.entries[0].courseId,'00000000-0000-4000-8000-000000000022');
+    await page.getByRole('button',{name:'강의 지출',exact:true}).click();
+    assert.equal(await page.getByLabel('관련 강의 (선택)',{exact:true}).inputValue(),'00000000-0000-4000-8000-000000000022');
+    await page.getByLabel('관련 강의 (선택)',{exact:true}).selectOption('00000000-0000-4000-8000-000000000023');
+    await page.getByRole('button',{name:'내역 저장',exact:true}).click();
+    await page.waitForFunction(()=>!document.querySelector('[role="dialog"]'));
+    assert.equal((await (await fetch(`${base}/api/cash-ledger`)).json()).state.entries[0].courseId,'00000000-0000-4000-8000-000000000023');
+    const payload={...state.entries[0],requestId:crypto.randomUUID(),title:'재시도 방지'};delete payload.id;
     const send=()=>fetch(`${base}/api/cash-ledger/entries`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
     assert.equal((await send()).status,201);assert.equal((await send()).status,201);
     assert.equal(Number((await database.query("select count(*) as count from cash_ledger_entries where title='재시도 방지'")).rows[0].count),1);
@@ -132,6 +142,6 @@ function client(database, role, storage) {
     const paged=(await (await fetch(`${base}/api/cash-ledger`)).json()).state;
     assert.equal(paged.entries.length,1003);
     assert.equal(new Set(paged.entries.map(entry=>entry.id)).size,1003);
-    console.log('PASS: browser → actual API → PostgreSQL/RLS; opening balance, counterparty create/edit, entries create/edit/delete, course filtering, search, paste/upload/download/cleanup, persistence, responsive layout, auth/CSRF and retry deduplication.');
+    console.log('PASS: browser → actual API → PostgreSQL/RLS; opening balance, counterparty create/edit, entries create/edit/delete, all course statuses/labels/completed-create/canceled-edit, search, paste/upload/download/cleanup, persistence, responsive layout, auth/CSRF and retry deduplication.');
   }catch(error){if(page)console.error((await page.locator("body").innerText()).slice(-2500));throw error;}finally{await browser?.close();if(server)await new Promise(resolve=>server.close(resolve));await database.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

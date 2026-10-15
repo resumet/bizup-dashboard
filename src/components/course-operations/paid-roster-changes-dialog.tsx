@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { RosterPreview } from "@/lib/course-orders/reconcile-roster";
+import { isDefaultRosterChange, type RosterPreview } from "@/lib/course-orders/reconcile-roster";
 
 const money = (value: number) => `${value.toLocaleString("ko-KR")}원`;
 
@@ -13,7 +13,7 @@ export function PaidRosterChangesDialog({ preview, onApply, onClose }: {
 }) {
   const [selected, setSelected] = useState(() => new Set(
     preview.changes
-      .filter((change) => change.kind !== "remove" || change.exclusionReason === "partial_refund")
+      .filter(isDefaultRosterChange)
       .map((change) => change.id),
   ));
   const [saving, setSaving] = useState(false);
@@ -43,7 +43,7 @@ export function PaidRosterChangesDialog({ preview, onApply, onClose }: {
             return next;
           })}>신규·변경 전체 선택/해제</Button>}
         </div>
-        <p className="text-sm text-muted-foreground">신규·변경 항목은 기본 선택됩니다. 결제항목과 금액의 변경 전·후를 확인하고 반영하세요. 제외 항목을 승인하면 정보와 이력은 환불자 목록에 보관합니다.</p>
+        <p className="text-sm text-muted-foreground">신규·변경 및 환불 표시 항목은 기본 선택됩니다. 결제항목과 금액의 변경 전·후를 확인하고 반영하세요. 제외 항목을 승인하면 정보와 이력은 환불자 목록에 보관합니다.</p>
         {preview.changes.map(change => <section key={change.id} className="space-y-3 rounded-lg border p-3" aria-label={`${change.name} 변경 항목`}>
           <label className="flex cursor-pointer items-start gap-3">
             <Checkbox className="mt-1" aria-label={`${change.name} ${change.kind === "remove" ? "명단 제외 승인" : change.kind === "add" ? "신규 추가" : "변경 반영"}`} checked={selected.has(change.id)} disabled={saving} onCheckedChange={checked => setSelected(current => {

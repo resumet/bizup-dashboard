@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { isSelectableCourse } from "@/lib/course-operations/course-status";
-import { attachmentType, formatMoney, moneyInput, type Entry, type LedgerState, type Party, type Settings } from "@/lib/cash-ledger/model";
+import { attachmentType, formatMoney, ledgerCourseLabel, moneyInput, type Entry, type LedgerState, type Party, type Settings } from "@/lib/cash-ledger/model";
 
 export const fieldClass = "h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm";
 export const labelClass = "grid min-w-0 gap-2 text-sm font-medium";
@@ -76,7 +75,6 @@ export function EntryDialog({ entry, state, onClose, onSaved, onManageParties, o
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const pending = useRef(false);
   const attachments = state.attachments.filter(a => a.entryId === identity?.id);
-  const course = state.courses.find(c => c.id === draft.courseId);
   const party = state.parties.find(p => p.id === draft.partyId);
   function addFiles(incoming: File[]) {
     try { for (const file of incoming) attachmentType(file); setFiles(current => [...current, ...incoming]); setError(""); }
@@ -119,7 +117,7 @@ export function EntryDialog({ entry, state, onClose, onSaved, onManageParties, o
         {party ? <p className="break-all text-xs text-muted-foreground">{[party.bankName, party.accountNumber, party.accountHolder].filter(Boolean).join(" · ")}</p> : null}
         <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={onManageParties}>거래처 등록·수정</Button>
       </div>
-      <label className={labelClass}>관련 강의 (선택)<select aria-label="관련 강의 (선택)" className={fieldClass} value={draft.courseId} onChange={e => setDraft({ ...draft, courseId: e.target.value })}><option value="">선택 안 함</option>{course && !isSelectableCourse(course) ? <option value={course.id} hidden disabled>{course.name}</option> : null}{state.courses.filter(isSelectableCourse).map(c => <option key={c.id} value={c.id}>{c.name} · {c.instructor_name}</option>)}</select></label>
+      <label className={labelClass}>관련 강의 (선택)<select aria-label="관련 강의 (선택)" className={fieldClass} value={draft.courseId} onChange={e => setDraft({ ...draft, courseId: e.target.value })}><option value="">선택 안 함</option>{state.courses.map(c => <option key={c.id} value={c.id}>{ledgerCourseLabel(c)}</option>)}</select></label>
       <label className={`${labelClass} sm:col-span-2`}>지급/입금금액 (원)<Input inputMode="numeric" required placeholder="0" value={amount} onChange={e => setAmount(moneyInput(e.target.value))} /></label>
       <label className={`${labelClass} sm:col-span-2`}>비고<Textarea maxLength={4000} value={draft.note} onChange={e => setDraft({ ...draft, note: e.target.value })} /></label>
       <div className="sm:col-span-2"><Button type="button" variant="outline" onClick={() => setAttachOpen(true)}><Paperclip />파일첨부 ({attachments.length + files.length})</Button></div>

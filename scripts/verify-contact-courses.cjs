@@ -54,12 +54,18 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
     failRead = true; assert.equal((await get()).status, 500); failRead = false;
     const before = structuredClone(rows);
     // Exercise the real paid-students route with an isolated transaction boundary.
-    let paymentWrites = 0;
+    let paymentWrites = 0, refundMode = false;
     const paymentState = { courseName: '강의', webinarDate: '2026-10-01', jobId: id(1), version: 1,
       orders: [{ id: id(10), record_key: 'new-key', product_name: '새 강의', option_name: '심화반', member_name: '학생', phone, email: '', status: '결제완료', payment_date: '2026-10-02', payment_amount: 200000, current_amount: 200000, refund_amount: 0, payment_id: 'payment-1' }],
       enrollments: [{ id: id(11), source_row_number: 2, normalized_phone: phone, normalized_values: { customerName: '학생', productName: '이전 강의', optionName: '기본반', paymentAmount: '100000', orderRecordKey: 'old-key', paymentId: 'payment-1' }, original_values: {}, student_id: null, is_extra_participant: false, is_manually_added: false }] };
     global.__paymentAuthorize = async () => ({ user: { id: id(100) }, admin: { rpc: async (name, args) => {
       if (name === 'paid_roster_snapshot') return { data: structuredClone(paymentState), error: null };
+      if (refundMode) {
+        assert.equal(name,'apply_paid_roster_review');
+        assert.equal(args.p_changes.length,1); assert.equal(args.p_changes[0].kind,'remove');
+        assert.equal(args.p_changes[0].targetId,id(11)); paymentWrites++;
+        return {data:id(1),error:null};
+      }
       assert.equal(name, 'apply_paid_roster_changes');
       assert.deepEqual(args.p_changes, [{ kind: 'update', orderId: id(10), targetId: id(11), removeIds: [] }]);
       paymentWrites++; return { data: id(1), error: null };
@@ -80,7 +86,15 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
     const paymentResult = await (await pay({ action: 'apply', token: paymentPreview.token, selectedIds: [id(10)] })).json();
     assert.deepEqual({ added: paymentResult.addedCount, updated: paymentResult.updatedCount, removed: paymentResult.removedCount }, { added: 0, updated: 1, removed: 0 });
     assert.equal(paymentWrites, 1);
+    refundMode = true; paymentState.orders[0].status = '환불';
+    paymentState.enrollments[0].normalized_values.orderRecordKey = 'new-key';
+    const refundPreview = await (await pay({action:'preview',orderIds:[]})).json();
+    assert.equal(refundPreview.changes.length,1); assert.equal(refundPreview.changes[0].exclusionReason,'refund');
+    const refundResult = await (await pay({action:'apply',orderIds:[],token:refundPreview.token,selectedIds:[id(11)]})).json();
+    assert.equal(refundResult.removedCount,1); assert.equal(paymentWrites,2);
     const preview = { token: 'fixture', unchangedCount: 0, conflicts: [], changes: [{ id: id(1), orderId: id(1), targetId: id(2), removeIds: [], kind: 'update', name: '결제학생', phone, reason: '결제항목 또는 결제금액이 변경되었습니다.', before: { productName: '이전 강의', optionName: '기본반', paymentAmount: 100000 }, after: { productName: '새 강의', optionName: '심화반', paymentAmount: 200000 } }] };
+    preview.changes.push({...refundPreview.changes[0],name:'환불학생'});
+    preview.changes.push({...refundPreview.changes[0],id:id(12),targetId:id(12),name:'주문누락학생',exclusionReason:'missing_order'});
     const ui = await build({ stdin: { contents: `import React,{useState} from 'react';import{createRoot}from'react-dom/client';import{AddressBookDetail}from'./src/components/address-books/address-book-detail';import{PaidRosterChangesDialog}from'./src/components/course-operations/paid-roster-changes-dialog';function App(){const[open,setOpen]=useState(false);return <><AddressBookDetail mode="manager" book={${JSON.stringify(book)}} contacts={${JSON.stringify(contacts)}} totalContacts={2} currentPage={1} contactsPerPage={100} initialKeyword="" initialSort="nameAsc" templates={[]} history={[]}/><button onClick={()=>setOpen(true)}>변경 테스트</button>{open&&<PaidRosterChangesDialog preview={${JSON.stringify(preview)}} onClose={()=>setOpen(false)} onApply={async ids=>{window.applied=ids;setOpen(false)}}/>}</>};createRoot(document.getElementById('root')).render(<App/>);`, loader: 'tsx', resolveDir: process.cwd() }, bundle: true, write: false, platform: 'browser', jsx: 'automatic', define: { 'process.env': '{}' }, plugins: [{ name: 'router', setup(b) {
       b.onResolve({ filter: /^next\/(navigation|link)$/ }, args => ({ path: args.path, namespace: 'fixture' }));
       b.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({ resolveDir: process.cwd(), contents: args.path.endsWith('link') ? "import React from 'react';export default function Link(p){return React.createElement('a',p)}" : 'export const useRouter=()=>({push(){},refresh(){}})' }));
@@ -116,10 +130,12 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright'
     assert.equal(await dialog.getByRole('link').count(), 0); slow = false;
     await dialog.getByRole('button', { name: '닫기', exact: true }).click(); await page.getByRole('button', { name: '변경 테스트' }).click();
     assert.equal(await dialog.getByRole('checkbox', { name: '결제학생 변경 반영' }).getAttribute('aria-checked'), 'true');
+    assert.equal(await dialog.getByRole('checkbox',{name:'환불학생 명단 제외 승인'}).getAttribute('aria-checked'),'true');
+    assert.equal(await dialog.getByRole('checkbox',{name:'주문누락학생 명단 제외 승인'}).getAttribute('aria-checked'),'false');
     await dialog.getByText('새 강의', { exact: true }).waitFor(); await dialog.getByText('200,000원', { exact: true }).waitFor();
     assert.equal(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth), true); await dialog.screenshot({ path: path.join(cache, 'payment-change.png') });
     await dialog.getByRole('button', { name: /선택.*반영/ }).click();
-    assert.deepEqual(await page.evaluate(() => window.applied), [id(1)]);
+    assert.deepEqual(await page.evaluate(() => window.applied), [id(1), id(11)]);
     assert.deepEqual(rows, before); assert.deepEqual(errors, []);
     console.log('PASS: contact API auth/workspace/book ownership/latest roster/1000+ rows/linked learner/refunds/no writes; name click/details/link/empty/error/retry/stale request/desktop/mobile; payment item/amount preview and default-selected updates');
   } finally { await browser?.close(); await new Promise(resolve => server ? server.close(resolve) : resolve()); }
