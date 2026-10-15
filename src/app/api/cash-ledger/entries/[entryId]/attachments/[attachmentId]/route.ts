@@ -1,0 +1,4 @@
+import { assertOrigin, attachmentAction, context, failure, json } from "@/lib/cash-ledger/server";
+type Route = { params: Promise<{ entryId: string; attachmentId: string }> };
+export async function GET(_request: Request, { params }: Route) { try { const { entryId, attachmentId } = await params; const url = await attachmentAction(await context(), entryId, attachmentId); return new Response(null, { status: 307, headers: { Location: url!, "Cache-Control": "private, no-store" } }); } catch (error) { return failure(error); } }
+export async function DELETE(request: Request, { params }: Route) { try { assertOrigin(request); const { entryId, attachmentId } = await params; await attachmentAction(await context(), entryId, attachmentId, true); return json({ ok: true }); } catch (error) { return failure(error); } }

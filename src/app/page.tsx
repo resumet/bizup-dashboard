@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, BarChart3, BriefcaseBusiness, CalendarDays, LayoutDashboard, TvMinimalPlay } from "lucide-react";
+import { ArrowRight, BarChart3, BriefcaseBusiness, CalendarDays, LayoutDashboard, TvMinimalPlay, Wallet } from "lucide-react";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
 import { AdminManagementButton } from "@/components/admin/admin-management-button";
@@ -15,6 +15,7 @@ export default async function HomePage() {
     <section className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8 lg:py-12">
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         {[
+          { href: "/services/cash-ledger", name: "입출금 장부", description: "", icon: Wallet, color: "bg-teal-50 text-teal-700" },
           { href: "/work", name: "강의관리", description: "강의 운영, 수강생 명단, 알림톡·문자와 정산 등 기존 업무 도구를 사용합니다.", icon: LayoutDashboard, color: "bg-blue-50 text-blue-700" },
           { href: "/hr", name: "업무관리", description: "오늘의 업무와 진행 상황, 담당자 이관 내역을 관리합니다.", icon: BriefcaseBusiness, color: "bg-emerald-50 text-emerald-700" },
           { href: "/hr/leave", name: "근태관리", description: "휴가 신청과 부여 현황, 임직원 정보를 확인합니다.", icon: CalendarDays, color: "bg-rose-50 text-rose-700" },
