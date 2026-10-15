@@ -20,6 +20,7 @@ import {
 
 import { CourseRosterSections } from "@/components/course-operations/course-roster-sections";
 import { CourseNotesCard } from "@/components/course-operations/course-notes-card";
+import { CourseLandingUtms } from "@/components/course-operations/course-landing-utms";
 import { CourseShareDialog } from "@/components/course-operations/course-share-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -1332,6 +1333,8 @@ export function CourseOperationsEditor({
         </Card>
 
         </div>
+
+        {courseId ? <CourseLandingUtms key={courseId} courseId={courseId} /> : null}
 
         {courseId ? (
           <CourseNotesCard
