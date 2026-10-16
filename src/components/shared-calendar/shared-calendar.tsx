@@ -133,8 +133,6 @@ export function SharedCalendar({ today, currentUserId, initialEvents, initialSou
   const byDay = new Map<string, (CalendarEvent | CalendarSourceEvent)[]>();
   for (const event of [...visible, ...visibleSources]) { const list = byDay.get(event.event_date) ?? []; list.push(event); byDay.set(event.event_date, list); }
   for (const list of byDay.values()) list.sort((a, b) => a.start_minutes - b.start_minutes || a.id.localeCompare(b.id));
-  const dayEvents = byDay.get(selectedDate) ?? [];
-
   return <div className="space-y-2">
     <div data-calendar-toolbar className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-2">
@@ -177,19 +175,6 @@ export function SharedCalendar({ today, currentUserId, initialEvents, initialSou
         <div data-calendar-events className="mt-0.5 min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain">{(byDay.get(date) ?? []).map((event) => "source" in event ? <CalendarSourceLink key={event.id} event={event} compact /> : <button key={event.id} type="button" disabled={moving} draggable={!moving} aria-label={`${event.title} 수정`} title={`${event.meeting_type.name} · ${event.title} · ${formatCalendarTime(event)} · ${formatLocation(event.location_kind, event.location_text)} · 더블클릭으로 수정`} onClick={(e) => { e.stopPropagation(); setSelectedDate(date); if (e.detail === 0) setEditor({ event, date }); }} onDoubleClick={(e) => { e.stopPropagation(); setSelectedDate(date); setEditor({ event, date }); }} onDragStart={(e) => { dragging.current = event; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", event.id); }} onDragEnd={() => { dragging.current = null; setDropDate(null); }} className={cn("block w-full cursor-grab truncate rounded px-1 py-0.5 text-left text-[10px] font-medium focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing disabled:opacity-50 sm:px-2 sm:text-xs", COLORS[event.meeting_type.code ?? ""] ?? "bg-slate-100 text-slate-900")}><span className="hidden sm:inline">{event.time_tbd ? "시간 미정" : formatTime(event.start_minutes)} </span>{event.title}</button>)}</div>
       </div>)}</div>
     </div>
-    <section className="rounded-lg border bg-background p-2">
-      <h2 className="mb-1 text-base font-semibold">{selectedDate.replaceAll("-", ".")} 일정</h2>
-      {loading ? <p role="status" className="text-sm text-muted-foreground">일정을 불러오는 중…</p> : dayEvents.length ? <ul className="max-h-[clamp(72px,calc(100dvh-42rem),144px)] divide-y overflow-y-auto overscroll-contain">{dayEvents.map((event) => "source" in event ? <li key={event.id} className="space-y-1 py-2 first:pt-0 last:pb-0">
-        <CalendarSourceLink event={event} />
-        <p className="text-sm text-muted-foreground">{event.source === "webinar" ? "웨비나" : "직원 휴가"} · {event.time_label}</p>
-      </li> : <li key={event.id} className="space-y-1 py-2 first:pt-0 last:pb-0">
-        <button type="button" disabled={moving} title="더블클릭으로 수정" className="text-left font-semibold underline-offset-4 hover:underline" onClick={(e) => { if (e.detail === 0) setEditor({ event, date: selectedDate }); }} onDoubleClick={() => setEditor({ event, date: selectedDate })}>{event.title}</button>
-        <p className="text-sm text-muted-foreground">{event.meeting_type.name} · {formatCalendarTime(event)}</p>
-        <p className="text-sm text-muted-foreground">장소: {formatLocation(event.location_kind, event.location_text)}</p>
-        {event.course ? <Link className="block text-sm text-blue-700 underline underline-offset-4" href={`/services/course-operations/${event.course.id}`}>{event.course.name} · {event.course.instructor_name}</Link> : null}
-        {event.notes ? <p className="whitespace-pre-wrap break-words text-sm">{event.notes}</p> : null}
-      </li>)}</ul> : <p className="text-sm text-muted-foreground">{error ? "조회에 실패했습니다. 새로고침해 주세요." : onlyMine || filter ? "현재 표시 조건에 맞는 일정이 없습니다." : "등록된 일정이 없습니다. 날짜를 더블클릭하거나 일정 등록 버튼을 눌러 주세요."}</p>}
-    </section>
     </>}
     {bulkOpen ? <CalendarBulkForm year={Number(month.slice(0, 4))} types={types} courses={courses} isAdmin={isAdmin} onClose={() => setBulkOpen(false)} onImported={(added, meetingTypes, count, alreadyImported) => {
       mutation.current += 1; const ids = new Set(added.map((event) => event.id));
