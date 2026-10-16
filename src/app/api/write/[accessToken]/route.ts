@@ -74,31 +74,17 @@ export async function POST(request: Request, { params }: Context) {
 export async function PATCH(request: Request, { params }: Context) {
   try {
     const { accessToken } = await params;
-    const { admin, course } = await getExternalCourse(accessToken);
+    const { admin } = await getExternalCourse(accessToken);
     const body = await request.json() as Record<string, unknown>;
     const documentId = documentIdSchema.parse(body.documentId);
     const input = saveCourseDocumentSchema.parse(body);
-    const [existingResult, materialResult] = await Promise.all([
-      admin.from("course_documents").select("id,lead_gate_enabled,lead_gate_after_block_id").eq("id", documentId).eq("course_id", course.id).is("deleted_at", null).maybeSingle(),
-      admin.from("course_instagram_materials").select("title").eq("course_id", course.id).eq("document_id", documentId).maybeSingle(),
-    ]);
-    const queryError = existingResult.error ?? materialResult.error;
-    if (queryError) throw new Error(`인스타 자료 조회 실패: ${queryError.code}`);
-    const existing = existingResult.data;
-    const material = materialResult.data;
-    if (!existing || !material?.title.trim()) throw new Error("NOT_FOUND");
-    const gateIndex = input.content.findIndex((block) => block.id === existing.lead_gate_after_block_id);
-    const keepLeadGate = existing.lead_gate_enabled && gateIndex >= 0 && gateIndex < input.content.length - 1;
-    const { data, error } = await admin.from("course_documents").update({
-      title: material.title,
-      content: input.content,
-      status: "draft",
-      published_at: null,
-      lead_gate_enabled: keepLeadGate,
-      lead_gate_after_block_id: keepLeadGate ? existing.lead_gate_after_block_id : null,
-    }).eq("id", documentId).eq("course_id", course.id).is("deleted_at", null).select("id").maybeSingle();
-    if (error) throw new Error(`문서 저장 실패: ${error.code}`);
-    if (!data) throw new Error("NOT_FOUND");
+    const { error } = await admin.rpc("save_external_instagram_document", {
+      p_token: accessToken, p_document_id: documentId, p_content: input.content,
+    });
+    if (error) {
+      if (error.message.includes("NOT_FOUND")) throw new Error("NOT_FOUND");
+      throw new Error("문서를 저장하지 못했습니다. 다시 시도해 주세요.");
+    }
     return Response.json({ success: true });
   } catch (error) {
     return courseDocumentErrorResponse(error);

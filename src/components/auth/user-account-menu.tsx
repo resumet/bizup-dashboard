@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { createClient } from "@/lib/supabase/client";
 
 export function UserAccountMenu({ email }: { email: string }) {
@@ -35,6 +36,8 @@ export function UserAccountMenu({ email }: { email: string }) {
   }
 
   return (
+    <div className="flex min-w-0 items-center gap-2">
+    <NotificationBell key={email} />
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
@@ -73,5 +76,6 @@ export function UserAccountMenu({ email }: { email: string }) {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    </div>
   );
 }

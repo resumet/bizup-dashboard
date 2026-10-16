@@ -1,0 +1,29 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+const assert=require('node:assert/strict');const {mediaFixture}=require('./media-fixture.cjs');
+(async()=>{const {db,admin,C,C2,W,W2}=await mediaFixture();try{
+ const A='00000000-0000-4000-8000-000000000101',B='00000000-0000-4000-8000-000000000102',D='00000000-0000-4000-8000-000000000103';
+ await db.exec(`insert into auth.users values('${A}'),('${B}'),('${D}');insert into workspace_members(workspace_id,user_id) values('${W}','${A}'),('${W}','${B}'),('${W2}','${D}');`);
+ const count=async(user=A,workspace=W)=>{const r=await admin.rpc('media_notification_unread_count',{p_workspace_id:workspace,p_user_id:user});if(r.error)throw new Error(r.error.message);return Number(r.data);};
+ const feed=async(user=A,read=false,before=null)=>{const r=await admin.rpc('media_notification_feed',{p_workspace_id:W,p_user_id:user,p_read:read,p_before_id:before});if(r.error)throw new Error(r.error.message);return r.data;};
+ const mark=async(id,user=A)=>admin.rpc('read_media_notification',{p_workspace_id:W,p_user_id:user,p_notification_id:id});
+ const settings=(await db.query('select * from course_youtube_settings where course_id=$1',[C])).rows[0];
+ await db.query('update course_youtube_settings set public_enabled=true,brief_enabled=true where course_id=$1',[C]);
+ const payload={revision:0,brief:{topic:'외부 강의 소개'}};
+ let r=await admin.rpc('update_public_youtube_media',{p_token:settings.brief_token,p_kind:'brief',p_payload:payload});assert.equal(r.error,null);assert.equal(await count(),1);
+ r=await admin.rpc('update_public_youtube_media',{p_token:settings.brief_token,p_kind:'brief',p_payload:{...payload,revision:1}});assert.equal(r.error,null);assert.equal(await count(),1);
+ r=await admin.rpc('update_public_youtube_media',{p_token:settings.brief_token,p_kind:'brief',p_payload:payload});assert.match(r.error.message,/CONFLICT/);assert.equal(await count(),1);
+ let page=await feed();assert.ok(page.items[0].message.includes('외부 강의 소개'));assert.ok(page.items[0].href.endsWith('?tab=brief'));
+ assert.equal((await mark(page.items[0].id)).error,null);assert.equal((await mark(page.items[0].id)).error,null);assert.equal(await count(),0);assert.equal(await count(B),1);assert.equal((await feed(A,true)).items.length,1);assert.equal((await feed()).items.length,0);
+ assert.match((await admin.rpc('media_notification_feed',{p_workspace_id:W2,p_user_id:A,p_read:false,p_before_id:null})).error.message,/FORBIDDEN/);
+ const foreign=(await db.query("insert into media_notifications(workspace_id,course_id,kind,title,message,href) values($1,$2,'instagram','다른 강의','비공개','/services/instagram-management') returning id",[W2,C2])).rows[0];assert.match((await mark(String(foreign.id))).error.message,/NOT_FOUND/);
+ const doc=(await db.query("insert into course_documents(workspace_id,course_id,title) values($1,$2,'인스타 자료') returning id",[W,C])).rows[0];await db.query("insert into course_instagram_materials values($1,1,'인스타 자료',$2)",[C,doc.id]);await db.query('update course_document_settings set external_edit_enabled=true where course_id=$1',[C]);const token=(await db.query('select external_access_token from course_document_settings where course_id=$1',[C])).rows[0].external_access_token;
+ const content=[{id:'block',type:'rich_text',document:{type:'doc',content:[{type:'paragraph',content:[{type:'text',text:'인스타그램에서 작성한 실제 내용'}]}]}}];
+ const save=async(value)=>admin.rpc('save_external_instagram_document',{p_token:token,p_document_id:doc.id,p_content:value});
+ r=await save(content);assert.equal(r.error,null);assert.equal(await count(),1);page=await feed();assert.ok(page.items[0].message.includes('인스타그램에서 작성한 실제 내용'));assert.ok(page.items[0].href.endsWith(doc.id));assert.equal((await save(content)).error,null);assert.equal(await count(),1);
+ await db.exec("create function block_notification() returns trigger language plpgsql as $$begin raise exception 'test failure';end$$;create trigger block_notification before insert on media_notifications for each row execute function block_notification();");
+ assert.match((await save([{id:'block',type:'paragraph',content:'실패해야 하는 변경'}])).error.message,/test failure/);assert.deepEqual((await db.query('select content from course_documents where id=$1',[doc.id])).rows[0].content,content);await db.exec('drop trigger block_notification on media_notifications;');
+ await db.query('update course_document_settings set external_edit_enabled=false where course_id=$1',[C]);assert.match((await save([])).error.message,/NOT_FOUND/);assert.equal(await count(),1);
+ await db.exec(`insert into media_notifications(workspace_id,course_id,kind,title,message,href) select '${W}','${C}','youtube_schedule','촬영 일정','변경 내용','/services/youtube-management' from generate_series(1,35);`);page=await feed();assert.equal(page.items.length,30);assert.equal(page.hasMore,true);const second=await feed(A,false,page.nextCursor);assert.equal(second.items.length,6);assert.equal(second.hasMore,false);assert.equal(new Set([...page.items,...second.items].map(x=>x.id)).size,36);
+ for(const role of ['anon','authenticated']){await db.exec(`set role ${role}`);await assert.rejects(db.query('select * from media_notifications'),/permission denied/);await assert.rejects(db.query('select * from media_notification_reads'),/permission denied/);for(const query of ["select media_notification_unread_count(null,null)","select media_notification_feed(null,null)","select read_media_notification(null,null,null)","select save_external_instagram_document(null,null,null)"]){await assert.rejects(db.query(query),/permission denied/);}await db.exec('reset role');}
+ console.log('PASS: atomic external saves + notifications, duplicate/conflict/disabled suppression, content previews, independent per-user reads, workspace isolation, pagination and restricted RPCs.');
+}finally{await db.close();}})().catch(error=>{console.error(error);process.exitCode=1;});

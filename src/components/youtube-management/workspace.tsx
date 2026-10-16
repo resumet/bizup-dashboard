@@ -5,8 +5,8 @@ import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppearanceEditor, BriefEditor, MediaNotice, mediaRequest } from "./editors";
 import type { Appearance, MediaData } from "@/lib/youtube-management/model";
-export function YoutubeWorkspace({initial}:{initial:MediaData}){
-  const [settings,setSettings]=useState(initial.settings);const [tab,setTab]=useState<"schedule"|"brief">("schedule");const [busy,setBusy]=useState(false);const [message,setMessage]=useState("");
+export function YoutubeWorkspace({initial,initialTab="schedule"}:{initial:MediaData;initialTab?:"schedule"|"brief"}){
+  const [settings,setSettings]=useState(initial.settings);const [tab,setTab]=useState<"schedule"|"brief">(initialTab);const [busy,setBusy]=useState(false);const [message,setMessage]=useState("");
   const endpoint=`/api/youtube-management/${initial.course.id}`;
   const enabled=tab==="brief"?settings.brief_enabled:settings.public_enabled;
   const token=tab==="brief"?settings.brief_token:settings.public_token;
