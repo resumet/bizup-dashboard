@@ -28,6 +28,9 @@ test("UTM refresh uses updated links and preserves an explicit saved choice or l
 });
 test("both API schemas enforce appearance confirmation before filming confirmation and date", () => {
   const row={...emptyAppearance(),id:"00000000-0000-4000-8000-000000000001",channel_name:"채널"};
+  assert.equal(row.is_internal,false);
+  assert.equal(appearanceSchema.parse({...row,is_internal:true}).is_internal,true);
+  assert.equal("is_internal" in publicAppearanceSchema.parse({...row,request_status:"confirmed",is_internal:true}),false);
   for(const schema of [appearanceSchema,publicAppearanceSchema]) {
     assert.equal(schema.safeParse(row).success,schema===appearanceSchema);
     assert.equal(schema.safeParse({...row,filming_confirmed:true,filming_at:"2026-11-03T05:30:00.000Z"}).success,false);

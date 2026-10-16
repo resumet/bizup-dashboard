@@ -75,8 +75,8 @@ export function AppearanceEditor({initial,publicMode=false,suggestions=[],landin
   return <div className="min-w-0 space-y-3">
     <datalist id="appearance-channel-suggestions">{suggestions.map((item,index)=><option key={index} value={item.channelName}>{item.channelUrl}</option>)}</datalist>
     <div className="overflow-hidden rounded-lg border">
-      <Table className={publicMode?"min-w-[900px]":"min-w-[1080px]"}>
-        <TableHeader><TableRow><TableHead>채널이름</TableHead><TableHead>출연여부</TableHead><TableHead>촬영확정</TableHead><TableHead>촬영일정</TableHead><TableHead>UTM</TableHead><TableHead>게시된 영상</TableHead><TableHead className="text-right">저장{!publicMode&&" / 작업"}</TableHead></TableRow></TableHeader>
+      <Table className={publicMode?"min-w-[900px]":"min-w-[1160px]"}>
+        <TableHeader><TableRow><TableHead>채널이름</TableHead>{!publicMode&&<TableHead className="w-24 text-center">자체 진행</TableHead>}<TableHead>출연여부</TableHead><TableHead>촬영확정</TableHead><TableHead>촬영일정</TableHead><TableHead>UTM</TableHead><TableHead>게시된 영상</TableHead><TableHead className="text-right">저장{!publicMode&&" / 작업"}</TableHead></TableRow></TableHeader>
         <TableBody>
           {rows.map((row,index)=>{
             const formId=`appearance-${publicMode?"public":"admin"}-${index}`;
@@ -89,6 +89,7 @@ export function AppearanceEditor({initial,publicMode=false,suggestions=[],landin
                   <UrlDialog title="채널 주소" icon value={row.channel_url} disabled={busy} onChange={value=>update(index,{channel_url:value})} notify={setMessage} />
                 </div>}
               </TableCell>
+              {!publicMode&&<TableCell className="w-24 text-center"><input form={formId} type="checkbox" aria-label={`${index+1}번 자체 진행`} checked={row.is_internal} disabled={busy} onChange={event=>update(index,{is_internal:event.target.checked})} className="size-4 cursor-pointer accent-primary disabled:cursor-not-allowed" /></TableCell>}
               <TableCell className="w-40 min-w-40"><select form={formId} aria-label={`${index+1}번 출연 여부`} className={selectClass} required={publicMode} value={publicMode && !["confirmed","declined"].includes(row.request_status) ? "" : row.request_status} disabled={busy} onChange={event=>{const status=event.target.value as Appearance["request_status"];update(index,{request_status:status,...(status!=="confirmed"?{filming_confirmed:false,filming_at:null}:{})});}}>{publicMode && <option value="">출연 여부 선택</option>}{Object.entries(REQUEST_STATUSES).filter(([value])=>!publicMode||value==="confirmed"||value==="declined").map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></TableCell>
               <TableCell className="w-36 min-w-36"><select form={formId} aria-label={`${index+1}번 촬영 확정`} className={selectClass} value={row.filming_confirmed?"yes":"no"} disabled={busy||!canConfirm} onChange={event=>update(index,{filming_confirmed:event.target.value==="yes",...(event.target.value!=="yes"?{filming_at:null}:{})})}><option value="no">일정 협의 중</option><option value="yes">촬영일정확정</option></select></TableCell>
               <TableCell className="w-52 min-w-52"><Input form={formId} className="h-9" aria-label={`${index+1}번 촬영 일정`} title="한국시간" type="datetime-local" required={canDate} value={localDate(row.filming_at)} disabled={busy||!canDate} onChange={event=>update(index,{filming_at:event.target.value?new Date(`${event.target.value}:00+09:00`).toISOString():null})} /></TableCell>
@@ -111,7 +112,7 @@ export function AppearanceEditor({initial,publicMode=false,suggestions=[],landin
               </TableCell>
             </TableRow>;
           })}
-          {!rows.length&&<TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">등록된 출연 요청이 없습니다.</TableCell></TableRow>}
+          {!rows.length&&<TableRow><TableCell colSpan={publicMode?7:8} className="py-8 text-center text-muted-foreground">등록된 출연 요청이 없습니다.</TableCell></TableRow>}
         </TableBody>
       </Table>
     </div>

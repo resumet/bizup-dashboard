@@ -30,6 +30,8 @@ async function mediaFixture(){
  if(notificationMigration)await db.exec(await fs.readFile(`supabase/migrations/${notificationMigration}`,'utf8'));
  const videoMigration=(await fs.readdir('supabase/migrations')).find(name=>name.endsWith('_public_youtube_video_settings.sql'));
  if(videoMigration)await db.exec(await fs.readFile(`supabase/migrations/${videoMigration}`,'utf8'));
+ const internalChannelMigration=(await fs.readdir('supabase/migrations')).find(name=>name.endsWith('_youtube_internal_channels.sql'));
+ if(internalChannelMigration)await db.exec(await fs.readFile(`supabase/migrations/${internalChannelMigration}`,'utf8'));
  const admin={from(table){
   let columns='*',conditions=[],orders=[],limit,offset,operation='select',values,single=false;
   const q={select(value='*'){columns=value;return q;},eq(key,value){conditions.push([key,value,'=']);return q;},is(key,value){conditions.push([key,value,'is']);return q;},in(key,value){conditions.push([key,value,'in']);return q;},order(key,options){orders.push(`${key} ${options?.ascending===false?'desc':'asc'}`);return q;},limit(value){limit=value;return q;},range(start,end){offset=start;limit=end-start+1;return q;},maybeSingle(){single=true;return q;},single(){single=true;return q;},insert(value){operation='insert';values=Array.isArray(value)?value:[value];return q;},update(value){operation='update';values=value;return q;},delete(){operation='delete';return q;},

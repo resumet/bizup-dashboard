@@ -32,7 +32,7 @@ export async function POST(request:Request,{params}:Context){
     const landingUtms=await loadLandingUtms(admin,courseId);
     const values={...input.appearance,landing_utm:resolveLandingUtm(input.appearance.channel_name,input.appearance.landing_utm,landingUtms),updated_at:new Date().toISOString(),revision:input.revision+1};
     const query=input.id?admin.from("course_youtube_appearances").update(values).eq("course_id",courseId).eq("id",input.id).eq("revision",input.revision):admin.from("course_youtube_appearances").insert({...values,course_id:courseId});
-    const {data,error}=await query.select("id,revision,channel_name,channel_url,video_url,landing_utm,request_status,filming_at,filming_confirmed,note,respondent").maybeSingle();
+    const {data,error}=await query.select("id,revision,channel_name,channel_url,video_url,landing_utm,request_status,filming_at,filming_confirmed,is_internal,note,respondent").maybeSingle();
     if(error)throw new MediaError("출연 정보를 저장하지 못했습니다.",500);if(!data)throw new MediaError("다른 사람이 수정했습니다. 새로고침 후 확인해 주세요.",409);return Response.json(data,{headers:privateHeaders});
   }catch(error){return mediaError(error);}
 }
