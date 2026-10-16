@@ -2,6 +2,7 @@ import type { LandingUtm } from "@/lib/course-landing-utms/model";
 
 const normalize = (value: string) => value.normalize("NFKC").replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
 export const landingUtmUrl = (item: LandingUtm) => item.short_url || item.url;
+export const youtubeLandingUtms = (items: LandingUtm[]) => items.filter(item => item.medium.normalize("NFKC").trim() === "유튜브");
 
 function similarity(a: string, b: string) {
   let previous = Array.from({ length: b.length + 1 }, (_, i) => i);

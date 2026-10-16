@@ -1,10 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { channelLandingUtm, resolveLandingUtm } from "./utm";
+import { channelLandingUtm, resolveLandingUtm, youtubeLandingUtms } from "./utm";
 import { appearanceSchema, emptyAppearance, publicAppearanceSchema } from "./model";
 import type { LandingUtm } from "@/lib/course-landing-utms/model";
 
 const item: LandingUtm = { id: "one", channel: "제휴", referral_code: "테스트 채널", medium: "유튜브", url: "https://example.test/landing?code=one", short_url: "https://example.test/one" };
+
+test("유튜브 출연 관리에는 진행 매체가 유튜브인 UTM만 제공한다", () => {
+  assert.deepEqual(youtubeLandingUtms([
+    item,
+    {...item,id:"two",medium:"인스타그램"},
+    {...item,id:"three",medium:"YouTube"},
+    {...item,id:"four",medium:" 유튜브 "},
+  ]).map(value=>value.id),["one","four"]);
+});
 test("UTM auto-fill matches normalized referral names and prefers YouTube", () => {
   assert.equal(channelLandingUtm(" 테스트채널 ", [item, {...item,id:"two",medium:"인스타그램",short_url:"https://example.test/two"}]), item.short_url);
   assert.equal(channelLandingUtm("다른 채널", [item]), "");
