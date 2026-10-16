@@ -132,14 +132,15 @@ export async function replaceCourseChildren(
   {
     replaceOptions = true,
     replaceVideos = true,
-  }: { replaceOptions?: boolean; replaceVideos?: boolean } = {},
+    replaceAppearances = replaceVideos,
+  }: { replaceOptions?: boolean; replaceVideos?: boolean; replaceAppearances?: boolean } = {},
 ) {
   const admin = createAdminClient();
   const [oldOptions, oldAppearances, oldLiveVideos] = await Promise.all([
     replaceOptions
       ? admin.from("course_options").select("id").eq("course_id", courseId)
       : Promise.resolve({ data: [], error: null }),
-    replaceVideos
+    replaceAppearances
       ? admin
           .from("course_youtube_appearances")
           .select("id")
@@ -181,7 +182,7 @@ export async function replaceCourseChildren(
     }
   }
 
-  if (replaceVideos && input.youtubeAppearances.length) {
+  if (replaceAppearances && input.youtubeAppearances.length) {
     const { error } = await admin.from("course_youtube_appearances").insert(
       input.youtubeAppearances.map((appearance, index) => ({
         course_id: courseId,
@@ -221,7 +222,7 @@ export async function replaceCourseChildren(
     replaceOptions && oldOptionIds.length
       ? admin.from("course_options").delete().in("id", oldOptionIds)
       : Promise.resolve(),
-    replaceVideos && oldAppearanceIds.length
+    replaceAppearances && oldAppearanceIds.length
       ? admin
           .from("course_youtube_appearances")
           .delete()

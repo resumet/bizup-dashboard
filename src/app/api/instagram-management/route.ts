@@ -32,14 +32,21 @@ const requestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("delete-blocked-phone"), id: z.uuid() }),
 ]);
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const { membership, admin } = await requireCourseDocumentMember();
-    const { data: courses, error: coursesError } = await admin
+    const query = new URL(request.url).searchParams;
+    const courseId = query.get("courseId");
+    if (courseId) z.uuid().parse(courseId);
+    const includeLeads = !courseId && query.get("view") !== "list";
+    let courseQuery = admin
       .from("courses")
       .select("id,name,status,instructor_name,cohort,free_webinar_at")
       .eq("workspace_id", membership.workspace_id)
       .order("free_webinar_at", { ascending: false });
+    if (courseId) courseQuery = courseQuery.eq("id", courseId);
+    const { data: courses, error: coursesError } = await courseQuery;
+    if (courseId && !coursesError && !courses?.length) throw new Error("NOT_FOUND");
     if (coursesError) throw new Error(`강의 조회 실패: ${coursesError.code}`);
 
     const { data: existingSettings, error: settingsError } = await admin
@@ -61,10 +68,10 @@ export async function GET() {
     const materialCourseIds = courseIds.length ? courseIds : ["00000000-0000-0000-0000-000000000000"];
     const [settingsResult, documentsResult, materialsResult, leadsResult, blockedResult] = await Promise.all([
       admin.from("course_document_settings").select("course_id,external_edit_enabled,external_access_token,planning_sheet_url").eq("workspace_id", membership.workspace_id),
-      admin.from("course_documents").select("id,course_id,instructor_name,title,slug,status,lead_gate_enabled,lead_gate_after_block_id,created_at,updated_at,published_at,course_document_leads(count)").eq("workspace_id", membership.workspace_id).is("deleted_at", null).order("updated_at", { ascending: false }),
+      admin.from("course_documents").select("id,course_id,instructor_name,title,slug,status,lead_gate_enabled,lead_gate_after_block_id,created_at,updated_at,published_at,course_document_leads(count)").eq("workspace_id", membership.workspace_id).in("course_id", materialCourseIds).is("deleted_at", null).order("updated_at", { ascending: false }),
       admin.from("course_instagram_materials").select("course_id,position,title,reference_planning_number,document_id").in("course_id", materialCourseIds).order("position"),
-      admin.from("course_document_leads").select("id,document_id,course_id,instructor_name,name,phone,utm_source,utm_medium,utm_campaign,utm_content,referrer,created_at,course_documents!inner(title),courses!inner(name)").eq("workspace_id", membership.workspace_id).order("created_at", { ascending: false }).limit(10_000),
-      admin.from("course_document_blocked_phones").select("id,phone_normalized,memo,created_at").eq("workspace_id", membership.workspace_id).order("created_at", { ascending: false }),
+      includeLeads ? admin.from("course_document_leads").select("id,document_id,course_id,instructor_name,name,phone,utm_source,utm_medium,utm_campaign,utm_content,referrer,created_at,course_documents!inner(title),courses!inner(name)").eq("workspace_id", membership.workspace_id).order("created_at", { ascending: false }).limit(10_000) : Promise.resolve({ data: [], error: null }),
+      !courseId ? admin.from("course_document_blocked_phones").select("id,phone_normalized,memo,created_at").eq("workspace_id", membership.workspace_id).order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
     ]);
     const queryError = settingsResult.error ?? documentsResult.error ?? materialsResult.error ?? leadsResult.error ?? blockedResult.error;
     if (queryError) throw new Error(`인스타그램 문서 관리 조회 실패: ${queryError.code}`);

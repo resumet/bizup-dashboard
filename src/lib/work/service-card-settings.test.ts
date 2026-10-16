@@ -18,7 +18,7 @@ test("운영 워크스페이스는 간편도구를 제외하고 두 분류로 �
     "/services/course-roster", "/services/address-books", "/services/phone-sales-list", "/services/message-automation",
   ]);
   const routes = WORK_SERVICE_CARD_GROUPS.flatMap((group) => group.items.map((item) => item.route));
-  assert.equal(routes.length, 15);
+  assert.equal(routes.length, 16);
   assert.equal(new Set(routes).size, routes.length);
   const knownRoutes = new Set<string>(routes);
   for (const route of ["/services/settlement-analysis", "/services/cash-flow", "/services/purchase-analysis", "/services/ad-performance"]) {

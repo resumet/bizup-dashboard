@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Ban, Check, Circle, Copy, ExternalLink, FileSpreadsheet, Loader2, Pencil, RefreshCw, Save, Trash2, Users } from "lucide-react";
@@ -14,8 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { activeInstagramCourses, instagramCourseOptionLabel } from "@/lib/course-documents/course-options";
-import { COURSE_DOCUMENT_MATERIAL_LIMIT } from "@/lib/course-documents/materials";
+import { instagramCourseOptionLabel } from "@/lib/course-documents/course-options";
 import type { BlockedPhone, CourseDocumentCourse, CourseDocumentMaterial } from "@/lib/course-documents/types";
 
 type LoadResponse = { courses?: CourseDocumentCourse[]; blockedPhones?: BlockedPhone[]; message?: string };
@@ -41,11 +40,11 @@ function StatusBadge({ label, color }: { label: string; color: "blue" | "yellow"
   return <Badge variant="outline"><Circle aria-hidden="true" className={`${colorClass} fill-current`} />{label}</Badge>;
 }
 
-export function InstagramManagementWorkspace() {
+export function InstagramManagementWorkspace({ courseId }: { courseId?: string }) {
   const router = useRouter();
+  const endpoint = courseId ? `/api/instagram-management?courseId=${courseId}` : "/api/instagram-management?view=list";
   const [courses, setCourses] = useState<CourseDocumentCourse[]>([]);
   const [blockedPhones, setBlockedPhones] = useState<BlockedPhone[]>([]);
-  const [selectedCourseId, setSelectedCourseId] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [savingMaterials, setSavingMaterials] = useState(false);
@@ -57,20 +56,17 @@ export function InstagramManagementWorkspace() {
   const [notice, setNotice] = useState("");
   const [blockedPhone, setBlockedPhone] = useState("");
   const [blockedMemo, setBlockedMemo] = useState("");
-  const [todayKoreaDate] = useState(() => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date()));
 
   async function load() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/instagram-management", { cache: "no-store" });
+      const response = await fetch(endpoint, { cache: "no-store" });
       const body = await response.json() as LoadResponse;
       if (!response.ok || !body.courses || !body.blockedPhones) throw new Error(body.message ?? "데이터를 불러오지 못했습니다.");
-      const activeCourses = activeInstagramCourses(body.courses, todayKoreaDate);
       setCourses(body.courses);
       setSavedMaterialsByCourse(materialSnapshots(body.courses));
       setBlockedPhones(body.blockedPhones);
-      setSelectedCourseId((current) => current && activeCourses.some((course) => course.id === current) ? current : activeCourses[0]?.id ?? "");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "데이터를 불러오지 못했습니다.");
     } finally {
@@ -80,24 +76,21 @@ export function InstagramManagementWorkspace() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/instagram-management", { cache: "no-store" })
+    fetch(endpoint, { cache: "no-store" })
       .then(async (response) => ({ response, body: await response.json() as LoadResponse }))
       .then(({ response, body }) => {
         if (!active) return;
         if (!response.ok || !body.courses || !body.blockedPhones) throw new Error(body.message ?? "데이터를 불러오지 못했습니다.");
-        const activeCourses = activeInstagramCourses(body.courses, todayKoreaDate);
         setCourses(body.courses);
         setSavedMaterialsByCourse(materialSnapshots(body.courses));
         setBlockedPhones(body.blockedPhones);
-        setSelectedCourseId(activeCourses[0]?.id ?? "");
       })
       .catch((caught: unknown) => { if (active) setError(caught instanceof Error ? caught.message : "데이터를 불러오지 못했습니다."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [todayKoreaDate]);
+  }, [endpoint]);
 
-  const activeCourses = useMemo(() => activeInstagramCourses(courses, todayKoreaDate), [courses, todayKoreaDate]);
-  const selectedCourse = activeCourses.find((course) => course.id === selectedCourseId);
+  const selectedCourse = courses.find((course) => course.id === courseId);
 
   async function post(payload: Record<string, unknown>) {
     const response = await fetch("/api/instagram-management", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -211,7 +204,6 @@ export function InstagramManagementWorkspace() {
   const externalUrl = selectedCourse?.externalAccessToken ? `/write/${selectedCourse.externalAccessToken}?preview=instagram` : "";
   const assignedDocumentIds = new Set(selectedCourse?.materials.flatMap((material) => material.documentId ? [material.documentId] : []) ?? []);
   const legacyDocuments = selectedCourse?.documents.filter((document) => !assignedDocumentIds.has(document.id)) ?? [];
-  const assignedMaterialCount = selectedCourse?.materials.filter((material) => material.title).length ?? 0;
   const selectedSavedMaterials = selectedCourse ? savedMaterialsByCourse[selectedCourse.id] ?? [] : [];
   const selectedSavedByPosition = new Map(selectedSavedMaterials.map((material) => [material.position, material]));
   const materialChangeCount = selectedCourse?.materials.filter((material) => {
@@ -226,21 +218,15 @@ export function InstagramManagementWorkspace() {
       {notice ? <Alert><AlertDescription className="flex items-center gap-2"><Check className="size-4 text-emerald-600" />{notice}</AlertDescription></Alert> : null}
       {loading ? <div className="flex min-h-80 items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground"><Loader2 className="animate-spin" />불러오는 중</div> : (
         <>
-          <div className="flex flex-wrap justify-end gap-2">
+          {!courseId && <div className="flex flex-wrap justify-end gap-2">
             <Button variant="outline" asChild><Link href="/services/instagram-management/leads"><Users />리드 보기</Link></Button>
             <Button variant="outline" onClick={() => setBlockedDialogOpen(true)}><Ban />차단 전화번호</Button>
-          </div>
-            {selectedCourse ? <div className="space-y-5">
-                <Card>
-                  <CardContent className="grid min-w-0 grid-cols-1 gap-x-4 gap-y-2 py-5 xl:grid-cols-[minmax(16rem,1fr)_auto]">
-                    <div className="min-w-0 xl:col-start-1 xl:row-start-2">
-                      <label className="sr-only" htmlFor="instagram-course">강의 선택</label>
-                      <select id="instagram-course" className="h-10 w-full rounded-lg border bg-background px-3 text-sm font-medium" value={selectedCourseId} onChange={(event) => setSelectedCourseId(event.target.value)}>
-                        {activeCourses.map((course) => <option key={course.id} value={course.id}>{instagramCourseOptionLabel(course)}</option>)}
-                      </select>
-                    </div>
+          </div>}
+            {!courseId ? <div className="rounded-lg border"><Table><TableHeader><TableRow><TableHead>강의</TableHead><TableHead>강사</TableHead><TableHead>기수</TableHead><TableHead>작성 자료</TableHead><TableHead>외부 작성</TableHead></TableRow></TableHeader><TableBody>{courses.map(course => <TableRow key={course.id}><TableCell><Link className="font-medium hover:underline" href={`/services/instagram-management/${course.id}`}>{course.name}</Link></TableCell><TableCell>{course.instructorName || "—"}</TableCell><TableCell>{course.cohort || "—"}</TableCell><TableCell>{course.documents.length}</TableCell><TableCell>{course.externalEditEnabled ? "외부 작성 허용" : "비활성화"}</TableCell></TableRow>)}</TableBody></Table>{!courses.length && <p className="p-6 text-sm text-muted-foreground">등록된 강의가 없습니다.</p>}</div> : selectedCourse ? <div className="space-y-5">
+                <h1 className="text-2xl font-semibold">{instagramCourseOptionLabel(selectedCourse)}</h1>
+                <div className="space-y-3">
                     <div className="flex justify-end xl:col-start-2 xl:row-start-1">
-                      <Badge variant={selectedCourse.externalEditEnabled ? "default" : "secondary"}>{selectedCourse.externalEditEnabled ? "외부 작성 허용" : "비활성"}</Badge>
+                      <Badge variant={selectedCourse.externalEditEnabled ? "default" : "secondary"}>{selectedCourse.externalEditEnabled ? "외부 작성 허용" : "비활성화"}</Badge>
                     </div>
                     <div className="flex flex-wrap justify-end gap-2 xl:col-start-2 xl:row-start-2">
                       <Button variant="outline" disabled={busy} onClick={openPlanningSheet}><FileSpreadsheet />기획시트</Button>
@@ -252,17 +238,13 @@ export function InstagramManagementWorkspace() {
                         {savingMaterials ? "저장 중" : materialChangeCount ? `저장하기 (${materialChangeCount})` : "저장됨"}
                       </Button>
                     </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader><CardTitle>인스타 자료 <span className="text-sm font-normal text-muted-foreground">{assignedMaterialCount}/{COURSE_DOCUMENT_MATERIAL_LIMIT}</span></CardTitle></CardHeader>
-                  <CardContent><div className="rounded-lg border"><Table><TableHeader className="sticky top-0 z-10 bg-background"><TableRow className="hover:bg-background"><TableHead className="w-16 text-center">번호</TableHead><TableHead className="w-32 text-center">참고기획번호</TableHead><TableHead className="min-w-72">제목</TableHead><TableHead className="w-32">작성 상태</TableHead><TableHead className="w-28">공개 상태</TableHead><TableHead className="w-32 text-right">작업</TableHead></TableRow></TableHeader><TableBody>{selectedCourse.materials.map((material) => {
+                </div>
+                <div className="rounded-lg border"><Table><TableHeader className="sticky top-0 z-10 bg-background"><TableRow className="hover:bg-background"><TableHead className="w-16 text-center">번호</TableHead><TableHead className="w-32 text-center">참고기획번호</TableHead><TableHead className="min-w-72">제목</TableHead><TableHead className="w-32">작성 상태</TableHead><TableHead className="w-28">공개 상태</TableHead><TableHead className="w-32 text-right">작업</TableHead></TableRow></TableHeader><TableBody>{selectedCourse.materials.map((material) => {
                   const document = selectedCourse.documents.find((item) => item.id === material.documentId);
                   return <TableRow key={material.position}><TableCell className="text-center font-mono text-sm text-muted-foreground">{String(material.position).padStart(2, "0")}</TableCell><TableCell><Input className="mx-auto w-20 text-center font-mono" aria-label={`${material.position}번 참고기획번호`} value={material.referencePlanningNumber} inputMode="numeric" maxLength={2} placeholder="00" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { referencePlanningNumber: event.target.value.replace(/\D/g, "").slice(0, 2) })} /></TableCell><TableCell><Input aria-label={`${material.position}번 자료 제목`} value={material.title} maxLength={200} placeholder="강사가 작성할 글의 제목" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { title: event.target.value })} /></TableCell><TableCell>{document ? <StatusBadge label="작성됨" color="blue" /> : <StatusBadge label="미작성" color="yellow" />}</TableCell><TableCell>{document ? <StatusBadge label={document.status === "published" ? "공개" : "비공개"} color={document.status === "published" ? "blue" : "yellow"} /> : <span className="text-sm text-muted-foreground">-</span>}</TableCell><TableCell><div className="flex justify-end gap-1">{document ? <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon-sm" aria-label="문서 수정 및 리드게이트 설정" disabled={savingMaterials} onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}><Pencil /></Button></TooltipTrigger><TooltipContent>문서 수정 및 리드게이트 설정</TooltipContent></Tooltip> : null}{document?.status === "published" ? <Button variant="ghost" size="icon-sm" asChild><a aria-label={`${material.position}번 공개 글 열기`} href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink /></a></Button> : null}{document ? <Button variant="ghost" size="icon-sm" aria-label={`${material.position}번 글 삭제`} disabled={busy || savingMaterials} onClick={() => void deleteDocument(document.id)}><Trash2 /></Button> : null}</div></TableCell></TableRow>;
-                })}</TableBody></Table></div></CardContent>
-                </Card>
+                })}</TableBody></Table></div>
                 {legacyDocuments.length ? <Card><CardHeader><CardTitle>이전 방식 미연결 글 {legacyDocuments.length}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>제목</TableHead><TableHead>상태</TableHead><TableHead>수정일</TableHead><TableHead className="text-right">작업</TableHead></TableRow></TableHeader><TableBody>{legacyDocuments.map((document) => <TableRow key={document.id}><TableCell className="font-medium">{document.title}</TableCell><TableCell><Badge variant={document.status === "published" ? "default" : "secondary"}>{document.status === "published" ? "공개" : "비공개"}</Badge></TableCell><TableCell className="text-muted-foreground">{dateTime(document.updatedAt)}</TableCell><TableCell><div className="flex justify-end gap-1"><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon-sm" aria-label="문서 수정 및 리드게이트 설정" onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}><Pencil /></Button></TooltipTrigger><TooltipContent>문서 수정 및 리드게이트 설정</TooltipContent></Tooltip>{document.status === "published" ? <Button variant="ghost" size="icon-sm" asChild><a aria-label="이전 공개 글 열기" href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink /></a></Button> : null}<Button variant="ghost" size="icon-sm" aria-label="이전 글 삭제" disabled={busy} onClick={() => void deleteDocument(document.id)}><Trash2 /></Button></div></TableCell></TableRow>)}</TableBody></Table></CardContent></Card> : null}
-              </div> : <Card><CardContent className="flex min-h-80 items-center justify-center text-muted-foreground">진행 중인 강의가 없습니다.</CardContent></Card>}
+              </div> : <Card><CardContent className="flex min-h-80 items-center justify-center text-muted-foreground">강의를 찾을 수 없습니다.</CardContent></Card>}
         </>
       )}
       <Dialog open={blockedDialogOpen} onOpenChange={(open) => { if (!busy) setBlockedDialogOpen(open); }}>

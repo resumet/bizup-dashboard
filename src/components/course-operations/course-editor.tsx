@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Check,
   Copy,
@@ -78,10 +78,6 @@ import {
   validateCourseBannerFile,
 } from "@/lib/course-operations/banner";
 import { createTemporaryCourseBannerFile } from "@/lib/course-operations/temporary-banner";
-import {
-  decodeReadableUrl,
-  findYoutubeChannelUrlByName,
-} from "@/lib/course-operations/youtube-channels";
 import {
   calculateDiscountRate,
   calculateEarlyBirdDiscountAmount,
@@ -334,7 +330,6 @@ export function CourseOperationsEditor({
   rosterJobs = [],
   messageProjects = [],
   addressBooks = [],
-  youtubeChannelSuggestions = [],
   paidStudentPreview = [],
   paidRosterAnalysis,
   freeStudentPreview = [],
@@ -397,8 +392,6 @@ export function CourseOperationsEditor({
     useState(messageProjects);
   const [messageContentLoadingId, setMessageContentLoadingId] = useState("");
   const [loadedAddressBooks, setLoadedAddressBooks] = useState(addressBooks);
-  const [loadedYoutubeChannelSuggestions, setLoadedYoutubeChannelSuggestions] =
-    useState(youtubeChannelSuggestions);
   const [loadedPaidStudentPreview, setLoadedPaidStudentPreview] =
     useState(paidStudentPreview);
   const [loadedPaidRosterAnalysis, setLoadedPaidRosterAnalysis] =
@@ -484,7 +477,6 @@ export function CourseOperationsEditor({
         );
       } else {
         const videos = body as CourseVideosSectionData;
-        setLoadedYoutubeChannelSuggestions(videos.youtubeChannelSuggestions);
         setDraft((current) => ({
           ...current,
           youtubeAppearances: videos.youtubeAppearances,
@@ -588,29 +580,6 @@ export function CourseOperationsEditor({
   function retrySection(section: DeferredCourseEditorTab) {
     void loadDetailSection(section);
   }
-
-  const uniqueChannelNames = useMemo(
-    () =>
-      loadedYoutubeChannelSuggestions.filter(
-        (suggestion, index, suggestions) =>
-          suggestion.channelName &&
-          suggestions.findIndex(
-            (item) => item.channelName === suggestion.channelName,
-          ) === index,
-      ),
-    [loadedYoutubeChannelSuggestions],
-  );
-  const uniqueChannelUrls = useMemo(
-    () =>
-      loadedYoutubeChannelSuggestions.filter(
-        (suggestion, index, suggestions) =>
-          suggestion.channelUrl &&
-          suggestions.findIndex(
-            (item) => item.channelUrl === suggestion.channelUrl,
-          ) === index,
-      ),
-    [loadedYoutubeChannelSuggestions],
-  );
 
   function updateField(
     field: Exclude<
@@ -727,18 +696,6 @@ export function CourseOperationsEditor({
     }));
   }
 
-  function updateYoutubeAppearance(
-    index: number,
-    patch: Partial<CourseOperationsDraft["youtubeAppearances"][number]>,
-  ) {
-    setDraft((current) => ({
-      ...current,
-      youtubeAppearances: current.youtubeAppearances.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, ...patch } : item,
-      ),
-    }));
-  }
-
   function updateLiveVideo(
     index: number,
     patch: Partial<CourseOperationsDraft["liveVideos"][number]>,
@@ -749,27 +706,6 @@ export function CourseOperationsEditor({
         itemIndex === index ? { ...item, ...patch } : item,
       ),
     }));
-  }
-
-  function updateYoutubeChannelName(index: number, channelName: string) {
-    updateYoutubeAppearance(index, {
-      channelName,
-      channelUrl: findYoutubeChannelUrlByName(
-        loadedYoutubeChannelSuggestions,
-        channelName,
-      ),
-    });
-  }
-
-  function updateYoutubeChannelUrl(index: number, channelUrl: string) {
-    const readableUrl = decodeReadableUrl(channelUrl);
-    const selected = loadedYoutubeChannelSuggestions.find(
-      (suggestion) => suggestion.channelUrl === readableUrl,
-    );
-    updateYoutubeAppearance(index, {
-      channelUrl: readableUrl,
-      ...(selected?.channelName ? { channelName: selected.channelName } : {}),
-    });
   }
 
   async function saveCourse() {
@@ -1335,6 +1271,10 @@ export function CourseOperationsEditor({
         </div>
 
         {courseId ? <CourseLandingUtms key={courseId} courseId={courseId} instructorName={draft.instructorName} /> : null}
+        {courseId && <div className="grid gap-4 sm:grid-cols-2">
+          <Link href={`/services/instagram-management/${courseId}`} className="rounded-xl border bg-card p-6 text-lg font-semibold hover:bg-muted/50">인스타그램 관리</Link>
+          <Link href={`/services/youtube-management/${courseId}`} className="rounded-xl border bg-card p-6 text-lg font-semibold hover:bg-muted/50">유튜브 출연 관리</Link>
+        </div>}
 
         {courseId ? (
           <CourseNotesCard
@@ -1647,188 +1587,6 @@ export function CourseOperationsEditor({
             />
           ) : (
           <div className="space-y-6">
-        <Card className="min-w-0 overflow-hidden [&_[data-slot=card-description]]:hidden">
-          <CardHeader>
-            <div className="flex flex-wrap items-center gap-2">
-              <CardTitle>유튜브 출연</CardTitle>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setDraft((current) => ({
-                    ...current,
-                    youtubeAppearances: [
-                      ...current.youtubeAppearances,
-                      {
-                        channelName: "",
-                        channelUrl: "",
-                        videoUrl: "",
-                        landingUtm: "",
-                      },
-                    ],
-                  }))
-                }
-              >
-                <Plus />
-                출연 추가
-              </Button>
-            </div>
-            <CardDescription>
-              출연 예정 채널, 게시 완료된 영상 주소와 랜딩 UTM을 기록합니다.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <datalist id="youtube-channel-name-suggestions">
-              {uniqueChannelNames.map((suggestion) => (
-                <option
-                  key={`${suggestion.channelName}-${suggestion.channelUrl}`}
-                  value={suggestion.channelName}
-                  label={suggestion.channelUrl}
-                />
-              ))}
-            </datalist>
-            <datalist id="youtube-channel-url-suggestions">
-              {uniqueChannelUrls.map((suggestion) => (
-                <option
-                  key={`${suggestion.channelUrl}-${suggestion.channelName}`}
-                  value={suggestion.channelUrl}
-                  label={suggestion.channelName}
-                />
-              ))}
-            </datalist>
-            {draft.youtubeAppearances.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
-                아직 등록된 유튜브 출연 정보가 없습니다.
-              </div>
-            ) : (
-              <div className="min-w-0 overflow-hidden pb-1">
-                <div className="min-w-0 space-y-2">
-                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_72px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
-                    <span>채널명</span>
-                    <span>채널 주소</span>
-                    <span>게시된 영상 주소</span>
-                    <span>랜딩 UTM</span>
-                    <span className="sr-only">링크 열기</span>
-                    <span className="sr-only">삭제</span>
-                  </div>
-                  {draft.youtubeAppearances.map((appearance, index) => (
-                    <div
-                      key={`youtube-${index}`}
-                      className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_72px_44px] items-center gap-2 [&>*]:min-w-0"
-                    >
-                      <Input
-                        id={`channel-name-${index}`}
-                        className="h-10"
-                        aria-label={`${index + 1}번 유튜브 채널명`}
-                        placeholder="채널명"
-                        list="youtube-channel-name-suggestions"
-                        autoComplete="off"
-                        value={appearance.channelName}
-                        onChange={(event) =>
-                          updateYoutubeChannelName(index, event.target.value)
-                        }
-                      />
-                      <Input
-                        id={`channel-url-${index}`}
-                        className="h-10"
-                        aria-label={`${index + 1}번 유튜브 채널 주소`}
-                        type="url"
-                        placeholder="https://youtube.com/@channel"
-                        list="youtube-channel-url-suggestions"
-                        autoComplete="off"
-                        value={appearance.channelUrl}
-                        onChange={(event) =>
-                          updateYoutubeAppearance(index, {
-                            channelUrl: event.target.value,
-                          })
-                        }
-                        onBlur={(event) =>
-                          updateYoutubeChannelUrl(index, event.target.value)
-                        }
-                      />
-                      <Input
-                        id={`video-url-${index}`}
-                        className="h-10"
-                        aria-label={`${index + 1}번 게시 영상 주소`}
-                        type="url"
-                        placeholder="https://youtube.com/watch?v=..."
-                        value={appearance.videoUrl}
-                        onChange={(event) =>
-                          setDraft((current) => ({
-                            ...current,
-                            youtubeAppearances: current.youtubeAppearances.map(
-                              (item, itemIndex) =>
-                                itemIndex === index
-                                  ? {
-                                      ...item,
-                                      videoUrl: event.target.value,
-                                    }
-                                  : item,
-                            ),
-                          }))
-                        }
-                      />
-                      <Input
-                        id={`landing-utm-${index}`}
-                        className="h-10"
-                        aria-label={`${index + 1}번 랜딩 UTM`}
-                        placeholder="utm_source=youtube&utm_medium=..."
-                        maxLength={2000}
-                        autoComplete="off"
-                        value={appearance.landingUtm}
-                        onChange={(event) =>
-                          updateYoutubeAppearance(index, {
-                            landingUtm: event.target.value,
-                          })
-                        }
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={!appearance.videoUrl}
-                        asChild={Boolean(appearance.videoUrl)}
-                      >
-                        {appearance.videoUrl ? (
-                          <a
-                            href={appearance.videoUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            <ExternalLink />
-                            열기
-                          </a>
-                        ) : (
-                          <span>열기</span>
-                        )}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive"
-                        aria-label={`${index + 1}번 유튜브 출연 삭제`}
-                        onClick={() =>
-                          setDraft((current) => ({
-                            ...current,
-                            youtubeAppearances:
-                              current.youtubeAppearances.filter(
-                                (_, itemIndex) => itemIndex !== index,
-                              ),
-                          }))
-                        }
-                      >
-                        <Trash2 />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         <Card className="min-w-0 overflow-hidden [&_[data-slot=card-description]]:hidden">
           <CardHeader>
             <div className="flex flex-wrap items-center gap-2">

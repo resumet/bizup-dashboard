@@ -22,6 +22,7 @@ export default async function HomePage() {
           { href: "/services/ad-performance", name: "광고성과", description: "Google·Meta 광고의 날짜별 노출, 클릭, 접수 DB와 집행비를 기록합니다.", icon: BarChart3, color: "bg-violet-50 text-violet-700" },
           { href: "/services/youtube-channels", name: "유튜브 채널 관리", description: "채널별 공개 영상 성과를 비교하고 분석 이력을 확인합니다.", icon: TvMinimalPlay, color: "bg-red-50 text-red-700" },
           { href: "/services/cash-ledger", name: "입출금 장부", description: "", icon: Wallet, color: "bg-teal-50 text-teal-700" },
+          { href: "/services/youtube-management", name: "유튜브 출연 관리", description: "", icon: TvMinimalPlay, color: "bg-red-50 text-red-700" },
         ].map(({ href, name, description, icon: Icon, color }) => <Link key={href} href={href} className="group flex min-w-0 flex-col rounded-lg border bg-white p-7 shadow-sm transition hover:border-blue-400 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600">
           <span className={`inline-flex self-start rounded-lg p-3 ${color}`}><Icon className="size-7" /></span>
           <h2 className="mt-6 text-2xl font-semibold">{name}</h2>{description ? <p className="mt-3 min-h-14 leading-7 text-muted-foreground">{description}</p> : null}

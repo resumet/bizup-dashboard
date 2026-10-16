@@ -183,6 +183,7 @@ export async function PATCH(
     await replaceCourseChildren(courseId, input, {
       replaceOptions: replaceSales,
       replaceVideos,
+      replaceAppearances: false,
     });
 
     const { error } = await admin

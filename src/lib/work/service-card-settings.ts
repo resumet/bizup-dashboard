@@ -17,6 +17,7 @@ export const WORK_SERVICE_CARD_GROUPS = [
       {route:"/services/cash-flow",title:"자금 흐름"},
       {route:"/services/purchase-analysis",title:"주문결제 매출분석"},
       {route:"/services/ad-performance",title:"광고성과"},
+      {route:"/services/youtube-management",title:"유튜브 출연 관리"},
     ],
   },
   {

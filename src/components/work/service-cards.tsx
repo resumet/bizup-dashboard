@@ -4,6 +4,7 @@ import {
   BookOpenCheck,
   CalendarRange,
   Camera,
+  Video,
   ChartGantt,
   ChartNoAxesCombined,
   ContactRound,
@@ -36,6 +37,7 @@ type Service = {
 };
 
 const services: Service[] = [
+  {title:"유튜브 출연 관리",route:"/services/youtube-management",icon:Video,iconClass:"bg-red-500/12 text-red-700 dark:text-red-300"},
   {
     title: "강사 정보 받기",
     route: "/services/instructor-intakes",
