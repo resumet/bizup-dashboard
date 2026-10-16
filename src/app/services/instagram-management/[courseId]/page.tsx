@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { InstagramManagementWorkspace } from "@/components/course-documents/instagram-management-workspace";
@@ -17,7 +19,10 @@ export default async function InstagramCoursePage({ params }: { params: Promise<
     throw error;
   }
   return <main className="mx-auto max-w-[1900px] space-y-6 px-5 py-8 lg:px-8">
-    <Link href="/services/instagram-management" className="text-sm hover:underline">← 인스타그램 관리</Link>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <Link href="/services/instagram-management" className="text-sm hover:underline">← 인스타그램 관리</Link>
+      <Button asChild variant="outline"><a href={`/services/course-operations/${courseId}`} target="_blank" rel="noopener noreferrer" aria-label="강의 상세보기 (새 창)">강의 상세보기<ExternalLink /></a></Button>
+    </div>
     <InstagramManagementWorkspace courseId={courseId} />
   </main>;
 }

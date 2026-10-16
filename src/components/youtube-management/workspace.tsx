@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppearanceEditor, BriefEditor, MediaNotice, mediaRequest } from "./editors";
 import type { Appearance, MediaData } from "@/lib/youtube-management/model";
@@ -15,7 +16,10 @@ export function YoutubeWorkspace({initial}:{initial:MediaData}){
     setBusy(true);try{const result=await mediaRequest(endpoint,{action:"access",kind:tab,enabled:regenerate?enabled:!enabled,regenerate});setSettings(current=>({...current,...result}));setMessage(regenerate?"주소를 재발급했습니다.":enabled?"비공개로 전환했습니다.":"공개로 전환했습니다.");}catch(error){setMessage(error instanceof Error?error.message:"설정을 저장하지 못했습니다.");}finally{setBusy(false);}
   }
   return <main className="mx-auto max-w-6xl space-y-6 px-5 py-8">
-    <Link href="/services/youtube-management" className="text-sm hover:underline">← 유튜브 출연 관리</Link>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <Link href="/services/youtube-management" className="text-sm hover:underline">← 유튜브 출연 관리</Link>
+      <Button asChild variant="outline"><a href={`/services/course-operations/${initial.course.id}`} target="_blank" rel="noopener noreferrer" aria-label="강의 상세보기 (새 창)">강의 상세보기<ExternalLink /></a></Button>
+    </div>
     <h1 className="text-2xl font-semibold">{initial.course.instructor_name} · {initial.course.name}{initial.course.cohort?` · ${initial.course.cohort}`:""}</h1>
     <div className="flex flex-wrap gap-2" role="tablist" aria-label="유튜브 관리 항목"><Button role="tab" aria-selected={tab==="schedule"} variant={tab==="schedule"?"default":"outline"} onClick={()=>setTab("schedule")}>출연 및 촬영 일정</Button><Button role="tab" aria-selected={tab==="brief"} variant={tab==="brief"?"default":"outline"} onClick={()=>setTab("brief")}>출연 요청기획서</Button></div>
     <div className="flex flex-wrap items-center justify-end gap-2">
