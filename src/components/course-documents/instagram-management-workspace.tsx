@@ -222,7 +222,17 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
             <Button variant="outline" asChild><Link href="/services/instagram-management/leads"><Users />리드 보기</Link></Button>
             <Button variant="outline" onClick={() => setBlockedDialogOpen(true)}><Ban />차단 전화번호</Button>
           </div>}
-            {!courseId ? <div className="rounded-lg border"><Table><TableHeader><TableRow><TableHead>강의</TableHead><TableHead>강사</TableHead><TableHead>기수</TableHead><TableHead>작성 자료</TableHead><TableHead>외부 작성</TableHead></TableRow></TableHeader><TableBody>{courses.map(course => <TableRow key={course.id}><TableCell><Link className="font-medium hover:underline" href={`/services/instagram-management/${course.id}`}>{course.name}</Link></TableCell><TableCell>{course.instructorName || "—"}</TableCell><TableCell>{course.cohort || "—"}</TableCell><TableCell>{course.documents.length}</TableCell><TableCell>{course.externalEditEnabled ? "외부 작성 허용" : "비활성화"}</TableCell></TableRow>)}</TableBody></Table>{!courses.length && <p className="p-6 text-sm text-muted-foreground">등록된 강의가 없습니다.</p>}</div> : selectedCourse ? <div className="space-y-5">
+            {!courseId ? <div className="space-y-4">{[
+              { status: "ongoing", label: "진행중" }, { status: "on_hold", label: "보류" },
+              { status: "completed", label: "종료" }, { status: "canceled", label: "취소" },
+            ].map(group => {
+              const items = courses.filter(course => group.status === "ongoing" ? !["on_hold", "completed", "canceled"].includes(course.status ?? "") : course.status === group.status);
+              return <details key={group.status} open={group.status === "ongoing"} className="group rounded-lg border">
+                <summary className="cursor-pointer px-4 py-3 font-medium">{group.label} <span className="ml-2 text-sm text-muted-foreground">{items.length}</span></summary>
+                <Table><TableHeader><TableRow><TableHead>강의</TableHead><TableHead>강사</TableHead><TableHead>기수</TableHead><TableHead>작성 자료</TableHead><TableHead>외부 작성</TableHead></TableRow></TableHeader><TableBody>{items.map(course => <TableRow key={course.id}><TableCell><Link className="font-medium hover:underline" href={`/services/instagram-management/${course.id}`}>{course.name}</Link></TableCell><TableCell>{course.instructorName || "—"}</TableCell><TableCell>{course.cohort || "—"}</TableCell><TableCell>{course.documents.length}</TableCell><TableCell>{course.externalEditEnabled ? "외부 작성 허용" : "비활성화"}</TableCell></TableRow>)}</TableBody></Table>
+                {!items.length && <p className="p-5 text-sm text-muted-foreground">해당 상태의 강의가 없습니다.</p>}
+              </details>;
+            })}</div> : selectedCourse ? <div className="space-y-5">
                 <h1 className="text-2xl font-semibold">{instagramCourseOptionLabel(selectedCourse)}</h1>
                 <div className="space-y-3">
                     <div className="flex justify-end xl:col-start-2 xl:row-start-1">

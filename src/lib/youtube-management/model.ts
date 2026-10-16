@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { LandingUtm } from "@/lib/course-landing-utms/model";
 
 export const BRIEF_FIELDS = [
   { key: "basicInfo", section: "1. 기본 정보", label: "이름 및 활동명, 강사님 연락처" },
@@ -19,19 +20,19 @@ export const BRIEF_FIELDS = [
 export type Brief = Record<(typeof BRIEF_FIELDS)[number]["key"], string>;
 const briefShape = Object.fromEntries(BRIEF_FIELDS.map(field => [field.key,z.string().max(8000).default("")])) as Record<keyof Brief,z.ZodDefault<z.ZodString>>;
 export const briefSchema = z.object(briefShape);
-export const REQUEST_STATUSES = { planned: "예정", requested: "요청함", confirmed: "출연 확정", declined: "출연 불가" } as const;
+export const REQUEST_STATUSES = { planned: "요청전", requested: "요청함", confirmed: "출연 확정", declined: "출연 불가" } as const;
 const webUrl = z.string().trim().max(4000).refine(value => !value || /^https?:\/\//i.test(value) && (() => { try { const url = new URL(value); return !url.username && !url.password; } catch { return false; } })(), "http 또는 https 주소를 입력해 주세요.");
 const appearanceBase = z.object({
   channel_name: z.string().trim().min(1,"채널명을 입력해 주세요.").max(200), channel_url: webUrl, video_url: webUrl,
-  landing_utm: z.string().max(2000), request_status: z.enum(["planned","requested","confirmed","declined"]),
+  landing_utm: z.string().max(4000), request_status: z.enum(["planned","requested","confirmed","declined"]),
   filming_at: z.iso.datetime({ offset: true }).nullable(), filming_confirmed: z.boolean(), note: z.string().max(5000), respondent: z.string().max(100),
 });
-export const appearanceSchema = appearanceBase.refine(value => !value.filming_confirmed || value.filming_at, "촬영 확정 시 일정을 입력해 주세요.");
-export const publicAppearanceSchema = appearanceBase.pick({ request_status:true,filming_at:true,filming_confirmed:true,note:true,respondent:true }).extend({id:z.uuid(),revision:z.number().int().nonnegative()}).refine(value => !value.filming_confirmed || value.filming_at, "촬영 확정 시 일정을 입력해 주세요.");
+export const appearanceSchema = appearanceBase.refine(value => !value.filming_confirmed || value.request_status === "confirmed", "출연 확정 후 촬영 일정을 확정해 주세요.").refine(value => !value.filming_confirmed || value.filming_at, "촬영 확정 시 일정을 입력해 주세요.").refine(value => !value.filming_at || value.filming_confirmed, "촬영일정확정 후 일정을 입력해 주세요.");
+export const publicAppearanceSchema = appearanceBase.pick({ request_status:true,filming_at:true,filming_confirmed:true,note:true,respondent:true }).extend({id:z.uuid(),revision:z.number().int().nonnegative()}).refine(value => !value.filming_confirmed || value.request_status === "confirmed", "출연 확정 후 촬영 일정을 확정해 주세요.").refine(value => !value.filming_confirmed || value.filming_at, "촬영 확정 시 일정을 입력해 주세요.").refine(value => !value.filming_at || value.filming_confirmed, "촬영일정확정 후 일정을 입력해 주세요.");
 export type Appearance = z.infer<typeof appearanceSchema> & { id:string; revision:number };
 export type CourseMedia = { id:string; name:string; instructor_name:string; cohort:string; status:string; free_webinar_at:string | null };
 export type YoutubeSettings = { public_enabled:boolean; public_token:string; brief_enabled:boolean; brief_token:string; brief:Brief; brief_revision:number; notion_page_id:string|null; notion_url:string; notion_public_url:string; notion_synced_revision:number|null };
-export type MediaData = { course:CourseMedia; settings:YoutubeSettings; appearances:Appearance[]; suggestions:Array<{channelName:string;channelUrl:string}> };
+export type MediaData = { course:CourseMedia; settings:YoutubeSettings; appearances:Appearance[]; landingUtms:LandingUtm[]; suggestions:Array<{channelName:string;channelUrl:string}> };
 export const emptyAppearance = (): Appearance => ({id:"",revision:0,channel_name:"",channel_url:"",video_url:"",landing_utm:"",request_status:"planned",filming_at:null,filming_confirmed:false,note:"",respondent:""});
 export function briefMarkdown(course: Pick<CourseMedia,"name"|"instructor_name">, brief:Brief) {
   const lines = [`# ${course.instructor_name} · ${course.name} 출연 요청서`];

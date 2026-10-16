@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireCourseDocumentMember } from "@/lib/course-documents/server";
 import { buildYoutubeChannelSuggestions } from "@/lib/course-operations/youtube-channels";
 import { briefSchema, type MediaData } from "./model";
+import { loadLandingUtms } from "@/lib/course-landing-utms/server";
+import { resolveLandingUtm } from "./utm";
 
 export class MediaError extends Error { constructor(message:string,readonly status=400){super(message);} }
 export const privateHeaders = {"Cache-Control":"private, no-store", "X-Robots-Tag":"noindex, nofollow", "Referrer-Policy":"no-referrer"};
@@ -30,13 +32,14 @@ export async function mediaMember(courseId:string){
 }
 export async function loadMedia(courseId:string):Promise<MediaData>{
   const {admin,course}=await mediaMember(courseId);
-  const [settings,appearances,channels]=await Promise.all([
+  const [settings,appearances,channels,landingUtms]=await Promise.all([
     admin.from("course_youtube_settings").select("public_enabled,public_token,brief_enabled,brief_token,brief,brief_revision,notion_page_id,notion_url,notion_public_url,notion_synced_revision").eq("course_id",courseId).single(),
     admin.from("course_youtube_appearances").select("id,revision,channel_name,channel_url,video_url,landing_utm,request_status,filming_at,filming_confirmed,note,respondent").eq("course_id",courseId).order("sort_order").order("created_at"),
     admin.from("youtube_analyzed_channels").select("channel,position").eq("workspace_id",course.workspace_id).order("position",{ascending:false}).limit(500),
+    loadLandingUtms(admin,courseId),
   ]);
   if(settings.error || appearances.error || channels.error)throw new MediaError("유튜브 관리 데이터를 불러오지 못했습니다.",500);
-  return {course,settings:{...settings.data,brief:briefSchema.parse(settings.data.brief)},appearances:appearances.data,suggestions:buildYoutubeChannelSuggestions(channels.data??[])};
+  return {course,settings:{...settings.data,brief:briefSchema.parse(settings.data.brief)},appearances:appearances.data.map(row=>({...row,landing_utm:resolveLandingUtm(row.channel_name,row.landing_utm,landingUtms)})),landingUtms,suggestions:buildYoutubeChannelSuggestions(channels.data??[])};
 }
 export async function publicMedia(token:string,kind:"brief"|"schedule"){
   if(!/^[a-f0-9]{48}$/.test(token))throw new MediaError("공개되지 않았거나 만료된 주소입니다.",404);
@@ -49,5 +52,6 @@ export async function publicMedia(token:string,kind:"brief"|"schedule"){
   if(kind==="brief")return {course,brief:briefSchema.parse(settings.brief),revision:settings.brief_revision};
   const {data:appearances,error:appearanceError}=await admin.from("course_youtube_appearances").select("id,revision,channel_name,channel_url,video_url,landing_utm,request_status,filming_at,filming_confirmed,note,respondent").eq("course_id",course.id).order("sort_order").order("created_at");
   if(appearanceError)throw new MediaError("출연 정보를 불러오지 못했습니다.",500);
-  return {course,appearances};
+  const landingUtms=await loadLandingUtms(admin,course.id);
+  return {course,appearances:appearances.map(row=>({...row,landing_utm:resolveLandingUtm(row.channel_name,row.landing_utm,landingUtms)}))};
 }

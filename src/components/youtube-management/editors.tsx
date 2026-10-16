@@ -1,13 +1,25 @@
 "use client";
-import { useState } from "react";
-import { Copy, ExternalLink, Plus, Save, Trash2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Copy, ExternalLink, Plus, Save, Trash2, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { validWebUrl, type LandingUtm } from "@/lib/course-landing-utms/model";
+import { channelLandingUtm, landingUtmUrl } from "@/lib/youtube-management/utm";
 import { Textarea } from "@/components/ui/textarea";
 import { BRIEF_FIELDS, REQUEST_STATUSES, emptyAppearance, type Appearance, type Brief } from "@/lib/youtube-management/model";
 
 export function MediaNotice({message,onClose}:{message:string;onClose:()=>void}){
-  return message ? <div role="status" className="fixed inset-x-4 bottom-4 z-[100] mx-auto flex max-w-xl items-center gap-3 rounded-xl border bg-popover p-4 text-sm shadow-lg"><p className="min-w-0 flex-1 break-words">{message}</p><Button type="button" variant="ghost" size="icon-sm" onClick={onClose} aria-label="알림 닫기"><X /></Button></div>:null;
+  const close = useRef(onClose);
+  useEffect(() => { close.current = onClose; }, [onClose]);
+  useEffect(() => {
+    if (!message) return;
+    const timer = window.setTimeout(() => close.current(), 3000);
+    return () => window.clearTimeout(timer);
+  }, [message]);
+  return message ? createPortal(<div role="status" aria-live="polite" className="fixed bottom-5 left-1/2 z-[100] w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg bg-foreground px-4 py-2 text-sm text-background shadow-md">{message}</div>, document.body) : null;
 }
 export async function mediaRequest(url:string,payload:unknown){
   const response=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
@@ -26,34 +38,79 @@ export function BriefEditor({initial,revision,onSave}:{initial:Brief;revision:nu
   </form>;
 }
 function localDate(value:string|null){if(!value)return "";const date=new Date(value);return Number.isFinite(date.getTime())?new Date(date.getTime()+9*3600000).toISOString().slice(0,16):"";}
-export function AppearanceEditor({initial,publicMode=false,suggestions=[],onSave,onDelete,onRequest}:{initial:Appearance[];publicMode?:boolean;suggestions?:Array<{channelName:string;channelUrl:string}>;onSave:(row:Appearance)=>Promise<Appearance>;onDelete?:(row:Appearance)=>Promise<void>;onRequest?:(row:Appearance)=>Promise<void>}){
-  const [rows,setRows]=useState(initial);const [busy,setBusy]=useState(false);const [message,setMessage]=useState("");
+function UrlDialog({value,onChange,title,disabled,notify,icon=false}:{value:string;onChange:(value:string)=>void;title:string;disabled:boolean;notify:(message:string)=>void;icon?:boolean}) {
+  return <Dialog>
+    <DialogTrigger asChild><Button type="button" size={icon ? "icon-sm" : "sm"} variant="outline" disabled={disabled} aria-label={`${title} 보기`}>{icon ? <Link2 /> : "보기"}</Button></DialogTrigger>
+    <DialogContent aria-describedby={undefined}>
+      <DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
+      <Input aria-label={title} type="url" placeholder="https://" maxLength={4000} value={value} disabled={disabled} onChange={event=>onChange(event.target.value)} />
+      <p className="text-xs text-muted-foreground">변경 후 표의 저장 버튼을 눌러 주세요.</p>
+      <DialogFooter>
+        {validWebUrl(value) && <Button type="button" asChild variant="outline"><a href={value} target="_blank" rel="noopener noreferrer"><ExternalLink />열기</a></Button>}
+        <Button type="button" variant="outline" disabled={!value} onClick={()=>void navigator.clipboard.writeText(value).then(()=>notify("주소를 복사했습니다.")).catch(()=>notify("복사하지 못했습니다."))}><Copy />복사하기</Button>
+        <DialogClose asChild><Button type="button">닫기</Button></DialogClose>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>;
+}
+
+export function AppearanceEditor({initial,publicMode=false,suggestions=[],landingUtms=[],onSave,onDelete,onRequest}:{initial:Appearance[];publicMode?:boolean;suggestions?:Array<{channelName:string;channelUrl:string}>;landingUtms?:LandingUtm[];onSave:(row:Appearance)=>Promise<Appearance>;onDelete?:(row:Appearance)=>Promise<void>;onRequest?:(row:Appearance)=>Promise<void>}){
+  const [rows,setRows]=useState(initial);
+  const [busy,setBusy]=useState(false);
+  const [message,setMessage]=useState("");
   function update(index:number,patch:Partial<Appearance>){setRows(current=>current.map((row,i)=>i===index?{...row,...patch}:row));}
-  return <div className="space-y-4">
-    {!publicMode&&<div className="flex justify-end"><Button variant="outline" disabled={busy} onClick={()=>setRows(current=>[...current,emptyAppearance()])}><Plus />출연 추가</Button></div>}
+  async function save(row:Appearance,index:number) {
+    setBusy(true); setMessage("");
+    try { update(index,await onSave(row));setMessage("출연 정보를 저장했습니다."); }
+    catch(error){setMessage(error instanceof Error?error.message:"저장하지 못했습니다.");}
+    finally{setBusy(false);}
+  }
+  const selectClass="h-9 w-full rounded-md border bg-background px-2 text-sm disabled:cursor-not-allowed disabled:opacity-50";
+  return <div className="min-w-0 space-y-3">
+    {!publicMode&&<div className="flex justify-end"><Button variant="outline" size="sm" disabled={busy} onClick={()=>setRows(current=>[...current,emptyAppearance()])}><Plus />출연 추가</Button></div>}
     <datalist id="appearance-channel-suggestions">{suggestions.map((item,index)=><option key={index} value={item.channelName}>{item.channelUrl}</option>)}</datalist>
-    {!rows.length&&<p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">등록된 출연 요청이 없습니다.</p>}
-    {rows.map((row,index)=><form key={row.id||`new-${index}`} className="space-y-4 rounded-xl border p-4" onSubmit={async event=>{event.preventDefault();setBusy(true);try{const saved=await onSave(row);update(index,saved);setMessage("출연 정보를 저장했습니다.");}catch(error){setMessage(error instanceof Error?error.message:"저장하지 못했습니다.");}finally{setBusy(false);}}}>
-      {publicMode?<h2 className="text-lg font-semibold">{row.channel_name}</h2>:<div className="grid gap-3 sm:grid-cols-2">
-        <label className="space-y-2 text-sm">채널명<Input aria-label={`${index+1}번 채널명`} list="appearance-channel-suggestions" value={row.channel_name} required maxLength={200} disabled={busy} onChange={event=>{const name=event.target.value;const match=suggestions.find(item=>item.channelName===name);update(index,{channel_name:name,...(match?{channel_url:match.channelUrl}:{})});}} /></label>
-        <label className="space-y-2 text-sm">채널 주소<Input type="url" value={row.channel_url} disabled={busy} onChange={event=>update(index,{channel_url:event.target.value})} /></label>
-        <label className="space-y-2 text-sm">게시된 영상 주소<Input type="url" value={row.video_url} disabled={busy} onChange={event=>update(index,{video_url:event.target.value})} /></label>
-        <label className="space-y-2 text-sm">랜딩 UTM<Input value={row.landing_utm} maxLength={2000} disabled={busy} onChange={event=>update(index,{landing_utm:event.target.value})} /></label>
-      </div>}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <label className="space-y-2 text-sm">출연 여부<select aria-label={`${index+1}번 출연 여부`} className="h-10 w-full rounded-md border bg-background px-3" value={row.request_status} disabled={busy} onChange={event=>update(index,{request_status:event.target.value as Appearance["request_status"]})}>{Object.entries(REQUEST_STATUSES).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
-        <label className="space-y-2 text-sm">촬영 일정 (한국시간)<Input aria-label={`${index+1}번 촬영 일정`} type="datetime-local" value={localDate(row.filming_at)} disabled={busy} onChange={event=>update(index,{filming_at:event.target.value?new Date(`${event.target.value}:00+09:00`).toISOString():null,...(!event.target.value?{filming_confirmed:false}:{})})} /></label>
-        <label className="space-y-2 text-sm">촬영 확정<select aria-label={`${index+1}번 촬영 확정`} className="h-10 w-full rounded-md border bg-background px-3" value={row.filming_confirmed?"yes":"no"} disabled={busy} onChange={event=>update(index,{filming_confirmed:event.target.value==="yes"})}><option value="no">일정 협의 중</option><option value="yes">촬영 일정 확정</option></select></label>
-        <label className="space-y-2 text-sm">작성자<Input value={row.respondent} maxLength={100} disabled={busy} onChange={event=>update(index,{respondent:event.target.value})} /></label>
-      </div>
-      <label className="block space-y-2 text-sm">기타 메모<Textarea aria-label={`${index+1}번 메모`} value={row.note} maxLength={5000} disabled={busy} onChange={event=>update(index,{note:event.target.value})} /></label>
-      <div className="flex flex-wrap justify-end gap-2">
-        {row.video_url&&/^https?:\/\//i.test(row.video_url)&&<Button asChild variant="outline"><a href={row.video_url} target="_blank" rel="noopener noreferrer"><ExternalLink />영상 보기</a></Button>}
-        {!publicMode&&onRequest&&row.id&&<Button type="button" variant="outline" disabled={busy} onClick={()=>void onRequest(row).then(()=>setMessage("출연 요청문을 복사했습니다.")).catch(error=>setMessage(error.message))}><Copy />출연 요청문 복사</Button>}
-        {!publicMode&&<Button type="button" variant="ghost" disabled={busy} aria-label={`${index+1}번 출연 삭제`} onClick={async()=>{if(!window.confirm("출연 정보를 삭제하시겠습니까?"))return;setBusy(true);try{if(row.id&&onDelete)await onDelete(row);setRows(current=>current.filter((_,i)=>i!==index));setMessage("삭제했습니다.");}catch(error){setMessage(error instanceof Error?error.message:"삭제하지 못했습니다.");}finally{setBusy(false);}}}><Trash2 /></Button>}
-        <Button disabled={busy}><Save />{busy?"저장 중…":"저장"}</Button>
-      </div>
-    </form>)}
+    <div className="overflow-hidden rounded-lg border">
+      <Table className={publicMode?"min-w-[800px]":"min-w-[1080px]"}>
+        <TableHeader><TableRow><TableHead>채널이름</TableHead><TableHead>출연여부</TableHead><TableHead>촬영확정</TableHead><TableHead>촬영일정</TableHead><TableHead>UTM</TableHead>{!publicMode&&<TableHead>게시된 영상</TableHead>}<TableHead className="text-right">저장{!publicMode&&" / 작업"}</TableHead></TableRow></TableHeader>
+        <TableBody>
+          {rows.map((row,index)=>{
+            const formId=`appearance-${publicMode?"public":"admin"}-${index}`;
+            const canConfirm=row.request_status==="confirmed";
+            const canDate=canConfirm&&row.filming_confirmed;
+            return <TableRow key={row.id||`new-${index}`}>
+              <TableCell className="min-w-44 max-w-60">
+                {publicMode ? <span className="font-medium">{row.channel_name}</span> : <div className="flex items-center gap-1">
+                  <Input form={formId} className="h-9 min-w-0" aria-label={`${index+1}번 채널명`} list="appearance-channel-suggestions" value={row.channel_name} required maxLength={200} disabled={busy} onChange={event=>{const name=event.target.value;const match=suggestions.find(item=>item.channelName===name);update(index,{channel_name:name,landing_utm:channelLandingUtm(name,landingUtms),...(match?{channel_url:match.channelUrl}:{})});}} />
+                  <UrlDialog title="채널 주소" icon value={row.channel_url} disabled={busy} onChange={value=>update(index,{channel_url:value})} notify={setMessage} />
+                </div>}
+              </TableCell>
+              <TableCell className="w-28 min-w-28"><select form={formId} aria-label={`${index+1}번 출연 여부`} className={selectClass} value={row.request_status} disabled={busy} onChange={event=>{const status=event.target.value as Appearance["request_status"];update(index,{request_status:status,...(status!=="confirmed"?{filming_confirmed:false,filming_at:null}:{})});}}>{Object.entries(REQUEST_STATUSES).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></TableCell>
+              <TableCell className="w-36 min-w-36"><select form={formId} aria-label={`${index+1}번 촬영 확정`} className={selectClass} value={row.filming_confirmed?"yes":"no"} disabled={busy||!canConfirm} onChange={event=>update(index,{filming_confirmed:event.target.value==="yes",...(event.target.value!=="yes"?{filming_at:null}:{})})}><option value="no">일정 협의 중</option><option value="yes">촬영일정확정</option></select></TableCell>
+              <TableCell className="w-52 min-w-52"><Input form={formId} className="h-9" aria-label={`${index+1}번 촬영 일정`} title="한국시간" type="datetime-local" required={canDate} value={localDate(row.filming_at)} disabled={busy||!canDate} onChange={event=>update(index,{filming_at:event.target.value?new Date(`${event.target.value}:00+09:00`).toISOString():null})} /></TableCell>
+              <TableCell className="min-w-40 max-w-52">
+                <div className="flex items-center gap-1">
+                  {publicMode ? (row.landing_utm ? (validWebUrl(row.landing_utm) ? <a className="max-w-44 truncate text-sm text-primary underline" href={row.landing_utm} title={row.landing_utm} target="_blank" rel="noopener noreferrer">{row.landing_utm}</a> : <span className="max-w-44 truncate" title={row.landing_utm}>{row.landing_utm}</span>) : <span className="text-muted-foreground">—</span>) : <select form={formId} className={`${selectClass} max-w-44`} aria-label={`${index+1}번 랜딩 UTM`} value={row.landing_utm} disabled={busy} onChange={event=>update(index,{landing_utm:event.target.value})}>
+                    <option value="">{landingUtms.length?"UTM 선택":"등록된 UTM 없음"}</option>
+                    {row.landing_utm&&!landingUtms.some(item=>landingUtmUrl(item)===row.landing_utm)&&<option value={row.landing_utm}>기존 UTM</option>}
+                    {landingUtms.map(item=><option key={item.id} value={landingUtmUrl(item)}>{item.referral_code||item.channel} · {item.medium}</option>)}
+                  </select>}
+                  {row.landing_utm&&<Button type="button" variant="ghost" size="icon-sm" aria-label={`${index+1}번 UTM 복사`} onClick={()=>void navigator.clipboard.writeText(row.landing_utm).then(()=>setMessage("UTM을 복사했습니다.")).catch(()=>setMessage("복사하지 못했습니다."))}><Copy /></Button>}
+                </div>
+              </TableCell>
+              {!publicMode&&<TableCell><UrlDialog title="게시된 영상 주소" value={row.video_url} disabled={busy} onChange={value=>update(index,{video_url:value})} notify={setMessage} /></TableCell>}
+              <TableCell>
+                <form id={formId} className="flex justify-end gap-1" onSubmit={event=>{event.preventDefault();void save(row,index);}}>
+                  {!publicMode&&onRequest&&row.id&&<Button type="button" size="icon-sm" variant="ghost" aria-label="출연 요청문 복사" disabled={busy} onClick={()=>void onRequest(row).then(()=>setMessage("출연 요청문을 복사했습니다.")).catch(error=>setMessage(error.message))}><Copy /></Button>}
+                  {!publicMode&&<Button type="button" size="icon-sm" variant="ghost" disabled={busy} aria-label={`${index+1}번 출연 삭제`} onClick={async()=>{if(!window.confirm("출연 정보를 삭제하시겠습니까?"))return;setBusy(true);try{if(row.id&&onDelete)await onDelete(row);setRows(current=>current.filter((_,i)=>i!==index));setMessage("삭제했습니다.");}catch(error){setMessage(error instanceof Error?error.message:"삭제하지 못했습니다.");}finally{setBusy(false);}}}><Trash2 /></Button>}
+                  <Button type="submit" variant="outline" size="sm" disabled={busy}>{busy?"저장 중…":"저장"}</Button>
+                </form>
+              </TableCell>
+            </TableRow>;
+          })}
+          {!rows.length&&<TableRow><TableCell colSpan={publicMode?6:7} className="py-8 text-center text-muted-foreground">등록된 출연 요청이 없습니다.</TableCell></TableRow>}
+        </TableBody>
+      </Table>
+    </div>
     <MediaNotice message={message} onClose={()=>setMessage("")} />
   </div>;
 }
