@@ -1,5 +1,5 @@
 import { authorizeCourseOrders, courseOrderErrorResponse, CourseOrderError } from "@/lib/course-orders/server";
-import { deleteLandingUtm, importLandingUtms, loadLandingUtms } from "@/lib/course-landing-utms/server";
+import { deleteLandingUtm, deleteLandingUtms, importLandingUtms, loadLandingUtms } from "@/lib/course-landing-utms/server";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -32,8 +32,15 @@ export async function DELETE(request: Request, { params }: Context) {
     if (origin && origin !== new URL(request.url).origin) throw new CourseOrderError("허용되지 않은 요청입니다.", 403);
     const { courseId } = await params;
     const { admin } = await authorizeCourseOrders(courseId);
-    const input = z.object({ id: z.string().uuid() }).safeParse(await request.json());
+    const input = z.union([
+      z.object({ ids: z.array(z.string().uuid()).min(1).max(100) }).strict(),
+      z.object({ id: z.string().uuid() }).strict(),
+    ]).safeParse(await request.json().catch(() => null));
     if (!input.success) throw new CourseOrderError("삭제할 UTM을 확인해 주세요.");
+    if ("ids" in input.data) {
+      const deletedIds = await deleteLandingUtms(admin, courseId, [...new Set(input.data.ids)]);
+      return Response.json({ deletedIds }, { headers });
+    }
     await deleteLandingUtm(admin, courseId, input.data.id);
     return Response.json({ deleted: true }, { headers });
   } catch (error) { return courseOrderErrorResponse(error); }

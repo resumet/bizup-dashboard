@@ -52,10 +52,10 @@ const workbook = rows => writeXlsxFile([headers, ...rows].map(row => row.map(val
     // Actual route auth runs against this service-role Postgres adapter.
     const admin = { from(table) {
       let columns='*',conditions=[],orders=[],offset=0,limit,single=false,deleting=false;
-      const query = { select(value='*'){columns=value;return query;},delete(){deleting=true;return query;},eq(key,value){conditions.push([key,value]);return query;},order(key){orders.push(key);return query;},range(start,end){offset=start;limit=end-start+1;return query;},maybeSingle(){single=true;return query;},
+      const query = { select(value='*'){columns=value;return query;},delete(){deleting=true;return query;},eq(key,value){conditions.push([key,value]);return query;},in(key,value){conditions.push([key,value,true]);return query;},order(key){orders.push(key);return query;},range(start,end){offset=start;limit=end-start+1;return query;},maybeSingle(){single=true;return query;},
         then(resolve,reject){
           let sql=deleting?`delete from ${table}`:`select ${columns} from ${table}`;
-          if(conditions.length)sql+=` where ${conditions.map(([key],i)=>`${key}=$${i+1}`).join(' and ')}`;
+          if(conditions.length)sql+=` where ${conditions.map(([key,,multiple],i)=>multiple?`${key}=any($${i+1}::uuid[])`:`${key}=$${i+1}`).join(' and ')}`;
           if(orders.length)sql+=` order by ${orders.join(',')}`;
           if(limit)sql+=` limit ${limit} offset ${offset}`;
           if(deleting)sql+=` returning ${columns}`;
@@ -93,14 +93,15 @@ const workbook = rows => writeXlsxFile([headers, ...rows].map(row => row.map(val
     const initialBuffer=await workbook(original);
     browser=await chromium.launch({channel:'msedge',headless:true});const context=await browser.newContext({viewport:{width:1280,height:900},permissions:['clipboard-read','clipboard-write']});page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.goto(base);await page.getByText('등록된 UTM이 없습니다.',{exact:false}).waitFor();
+    const toast=page.locator('[data-utm-toast]');
     const shareButton=page.getByRole('button',{name:'공유하기',exact:true});
     await shareButton.click();const shareDialog=page.getByRole('dialog',{name:'UTM 공유하기',exact:true});
     await shareDialog.getByText('공유할 UTM이 없습니다.',{exact:false}).waitFor();assert.equal(await shareDialog.getByRole('button',{name:'복사하기',exact:true}).isDisabled(),true);await page.keyboard.press('Escape');
     const upload=async(buffer)=>{await page.getByLabel('UTM 엑셀 파일').setInputFiles({name:'utm.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer});};
-    await upload(initialBuffer);await page.getByText('추가 8건 · 업데이트 0건 · 변경 없음 0건을 반영했습니다.',{exact:true}).waitFor();await page.getByRole('cell',{name:'두시간부업만일로와',exact:true}).waitFor();assert.equal(await page.getByRole('row').count(),9);
-    const ids=(await stored(C)).map(row=>row.id);await upload(initialBuffer);await page.getByText('추가 0건 · 업데이트 0건 · 변경 없음 8건을 반영했습니다.',{exact:true}).waitFor();assert.deepEqual((await stored(C)).map(row=>row.id),ids);
+    await upload(initialBuffer);await toast.getByText('추가 8건 · 업데이트 0건 · 변경 없음 0건을 반영했습니다.',{exact:true}).waitFor();await page.getByRole('cell',{name:'두시간부업만일로와',exact:true}).waitFor();assert.equal(await page.getByRole('row').count(),9);
+    const ids=(await stored(C)).map(row=>row.id);await upload(initialBuffer);await toast.getByText('추가 0건 · 업데이트 0건 · 변경 없음 8건을 반영했습니다.',{exact:true}).waitFor();assert.deepEqual((await stored(C)).map(row=>row.id),ids);
     const edited=entry('두시간부업만일로와','유튜브','https://m.site.naver.com/updated');edited[4]='https://example.test/new?channel=influencer&media=youtube';
-    await upload(await workbook([edited,entry('신규추천','블로그','')]));await page.getByText('추가 1건 · 업데이트 1건 · 변경 없음 0건을 반영했습니다.',{exact:true}).waitFor();await page.getByRole('cell',{name:'신규추천',exact:true}).waitFor();assert.equal(await page.getByRole('row').count(),10);
+    await upload(await workbook([edited,entry('신규추천','블로그','')]));await toast.getByText('추가 1건 · 업데이트 1건 · 변경 없음 0건을 반영했습니다.',{exact:true}).waitFor();await page.getByRole('cell',{name:'신규추천',exact:true}).waitFor();assert.equal(await page.getByRole('row').count(),10);
     const changed=(await stored(C)).find(row=>row.referral_code==='두시간부업만일로와');assert.equal(changed.url,edited[4]);assert.equal(changed.short_url,edited[5]);assert.ok(ids.includes(changed.id));assert.equal((await stored(C2)).length,1);
     const link=page.getByRole('link',{name:'두시간부업만일로와 유튜브 단축링크 바로가기'});assert.equal(await link.getAttribute('href'),edited[5]);assert.equal(await link.getAttribute('target'),'_blank');
     const shortCopy=page.getByRole('button',{name:'두시간부업만일로와 유튜브 단축링크 복사하기'});
@@ -111,9 +112,10 @@ const workbook = rows => writeXlsxFile([headers, ...rows].map(row => row.map(val
     const urlButton=page.getByRole('button',{name:'두시간부업만일로와 유튜브 URL 보기'});
     await urlButton.click();const dialog=page.getByRole('dialog',{name:'랜딩페이지 URL'});
     assert.equal(await dialog.getByLabel('전체 URL').textContent(),edited[4]);
-    await dialog.getByRole('button',{name:'복사하기',exact:true}).click();await dialog.getByRole('status').filter({hasText:'URL을 복사했습니다.'}).waitFor();
+    await dialog.getByRole('button',{name:'복사하기',exact:true}).click();await toast.filter({hasText:'URL을 복사했습니다.'}).waitFor();
     assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),edited[4]);
-    await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});assert.equal(await urlButton.evaluate(button=>button===document.activeElement),true);
+    await toast.getByRole('button',{name:'알림 닫기'}).click();await toast.waitFor({state:'hidden'});assert.equal(await dialog.isVisible(),true);
+    await dialog.getByRole('button',{name:'닫기',exact:true}).click();await dialog.waitFor({state:'hidden'});assert.equal(await urlButton.evaluate(button=>button===document.activeElement),true);
     await shareButton.click();await shareDialog.waitFor();
     const shareText=await shareDialog.getByLabel('UTM 공유 내용').textContent();
     assert.equal(shareText.split('\n')[0],'[김선아강사님 UTM]');assert.equal(shareText.split('\n').length,10);
@@ -121,22 +123,26 @@ const workbook = rows => writeXlsxFile([headers, ...rows].map(row => row.map(val
     assert.ok(shareText.includes('인스타 https://m.site.naver.com/organic'));assert.ok(shareText.includes('오가닉 무료강의 안내방 https://m.site.naver.com/organic'));
     assert.ok(shareText.includes('유튜브 '+edited[5]));assert.ok(shareText.includes('블로그 '+entry('신규추천','블로그','')[4]));
     await page.evaluate(()=>{window.originalWriteText=navigator.clipboard.writeText.bind(navigator.clipboard);navigator.clipboard.writeText=async()=>{throw new Error('denied');};});
-    await shareDialog.getByRole('button',{name:'복사하기',exact:true}).click();await shareDialog.getByRole('alert').filter({hasText:'직접 선택해 복사'}).waitFor();
+    await shareDialog.getByRole('button',{name:'복사하기',exact:true}).click();await toast.filter({hasText:'직접 선택해 복사'}).waitFor();
     await page.evaluate(()=>{navigator.clipboard.writeText=window.originalWriteText;});
-    await shareDialog.getByRole('button',{name:'복사하기',exact:true}).click();await shareDialog.getByRole('status').waitFor();assert.equal((await page.evaluate(()=>navigator.clipboard.readText())).replace(/\r\n/g,'\n'),shareText);
-    await page.keyboard.press('Escape');assert.equal(await shareButton.evaluate(button=>button===document.activeElement),true);
-    const prior=await stored(C);await upload(await workbook([entry('정상행'),entry('실패행','유튜브','javascript:test')]));await page.getByRole('alert').filter({hasText:'3행 단축 링크'}).waitFor();assert.deepEqual(await stored(C),prior);
+    await shareDialog.getByRole('button',{name:'복사하기',exact:true}).click();await toast.filter({hasText:'공유 내용을 복사했습니다.'}).waitFor();assert.equal((await page.evaluate(()=>navigator.clipboard.readText())).replace(/\r\n/g,'\n'),shareText);
+    await shareDialog.getByRole('button',{name:'닫기',exact:true}).click();assert.equal(await shareButton.evaluate(button=>button===document.activeElement),true);
+    const prior=await stored(C);await upload(await workbook([entry('정상행'),entry('실패행','유튜브','javascript:test')]));await toast.filter({hasText:'3행 단축 링크'}).waitFor();assert.deepEqual(await stored(C),prior);
     await page.reload();await page.getByRole('cell',{name:'신규추천',exact:true}).waitFor();assert.equal(await page.getByRole('row').count(),10);
     await fs.mkdir('tmp/landing-utms',{recursive:true});await page.screenshot({path:'tmp/landing-utms/desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});await page.screenshot({path:'tmp/landing-utms/mobile.png',fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));assert.deepEqual(errors,[]);
     await page.getByRole('button',{name:'실전부업클럽 유튜브 URL 보기'}).click();await dialog.waitFor();
     assert.equal(await dialog.getByLabel('전체 URL').textContent(),original[1][4]);
     assert.ok(await dialog.evaluate(element=>element.scrollWidth<=element.clientWidth),'Mobile URL dialog must fit its viewport');
     await dialog.getByRole('button',{name:'복사하기',exact:true}).click();assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),original[1][4]);
-    await page.screenshot({path:'tmp/landing-utms/mobile-url-dialog.png',fullPage:true});await page.keyboard.press('Escape');
+    await page.screenshot({path:'tmp/landing-utms/mobile-url-dialog.png',fullPage:true});await dialog.getByRole('button',{name:'닫기',exact:true}).click();
     await shareButton.click();await shareDialog.waitFor();assert.equal(await shareDialog.getByRole('status').count(),0);
     assert.ok(await shareDialog.evaluate(element=>element.scrollWidth<=element.clientWidth),'Mobile share dialog must fit');
     await shareDialog.getByRole('button',{name:'복사하기',exact:true}).click();assert.equal((await page.evaluate(()=>navigator.clipboard.readText())).replace(/\r\n/g,'\n'),shareText);
-    await page.screenshot({path:'tmp/landing-utms/mobile-share-dialog.png',fullPage:true});await page.keyboard.press('Escape');
+    await page.screenshot({path:'tmp/landing-utms/mobile-share-dialog.png',fullPage:true});await shareDialog.getByRole('button',{name:'닫기',exact:true}).click();
+    assert.equal(await page.getByText('첫 번째 시트의',{exact:false}).count(),0);
+    await shortCopy.click();await toast.filter({hasText:'단축링크를 복사했습니다.'}).waitFor();
+    assert.ok((await toast.boundingBox()).y > 600,'Toast must appear near the bottom');
+    await toast.getByRole('button',{name:'알림 닫기'}).click();await toast.waitFor({state:'hidden'});
     const remove=(id,extra={})=>fetch(endpoint,{method:'DELETE',headers:{'content-type':'application/json'},body:JSON.stringify({id}),...extra});
     const candidate=(await stored(C)).find(row=>row.referral_code==='신규추천');
     user=null;assert.equal((await remove(candidate.id)).status,401);user={id:U2};assert.equal((await remove(candidate.id)).status,403);user={id:U};
@@ -149,7 +155,7 @@ const workbook = rows => writeXlsxFile([headers, ...rows].map(row => row.map(val
     await deleteButton.click();const deleteDialog=page.getByRole('dialog',{name:'UTM 삭제',exact:true});await deleteDialog.waitFor();
     await deleteDialog.getByRole('button',{name:'취소',exact:true}).click();assert.equal((await stored(C)).length,9);
     await deleteButton.click();await db.exec('revoke delete on public.course_landing_utms from service_role');
-    await deleteDialog.getByRole('button',{name:'삭제',exact:true}).click();await deleteDialog.getByRole('alert').filter({hasText:'삭제하지 못했습니다'}).waitFor();assert.equal((await stored(C)).length,9);
+    await deleteDialog.getByRole('button',{name:'삭제',exact:true}).click();await toast.filter({hasText:'삭제하지 못했습니다'}).waitFor();assert.equal((await stored(C)).length,9);
     await db.exec('grant delete on public.course_landing_utms to service_role');
     await deleteDialog.getByRole('button',{name:'삭제',exact:true}).click();await deleteDialog.waitFor({state:'hidden'});
     assert.equal((await stored(C)).length,8);assert.equal(await page.getByRole('cell',{name:'신규추천',exact:true}).count(),0);
@@ -158,6 +164,38 @@ const workbook = rows => writeXlsxFile([headers, ...rows].map(row => row.map(val
     assert.equal((await remove(candidate.id)).status,404);
     // An explicit later Excel upload may register a deleted combination again.
     assert.equal((await post(await workbook([entry('신규추천','블로그','')]))).status,200);assert.equal((await stored(C)).length,9);
+    // Bulk API validation and course isolation; unrelated records remain untouched.
+    const bulk=ids=>fetch(endpoint,{method:'DELETE',headers:{'content-type':'application/json'},body:JSON.stringify({ids})});
+    assert.equal((await bulk([])).status,400);assert.equal((await bulk(['invalid'])).status,400);assert.equal((await bulk(Array(101).fill(changed.id))).status,400);
+    const foreign=(await stored(C2))[0];assert.deepEqual((await (await bulk([foreign.id])).json()).deletedIds,[]);assert.equal((await stored(C2)).length,1);
+    user=null;assert.equal((await bulk([changed.id])).status,401);user={id:U2};assert.equal((await bulk([changed.id])).status,403);user={id:U};
+    await page.reload();await page.getByRole('checkbox',{name:'UTM 전체 선택',exact:true}).waitFor();
+    const all=page.getByRole('checkbox',{name:'UTM 전체 선택',exact:true});const batchButton=page.getByRole('button',{name:/일괄 삭제/});
+    assert.equal(await batchButton.isDisabled(),true);
+    await all.check();assert.equal(await batchButton.textContent(),'일괄 삭제 (9)');await all.uncheck();assert.equal(await batchButton.isDisabled(),true);
+    await page.getByRole('checkbox',{name:'신규추천 블로그 UTM 선택',exact:true}).check();await page.getByRole('checkbox',{name:'실전부업클럽 유튜브 UTM 선택',exact:true}).check();
+    assert.equal(await all.getAttribute('aria-checked'),'mixed');await batchButton.click();await deleteDialog.getByText('선택한 UTM 2건을 삭제하시겠습니까?',{exact:true}).waitFor();
+    await deleteDialog.getByRole('button',{name:'취소',exact:true}).click();assert.equal((await stored(C)).length,9);assert.equal(await batchButton.textContent(),'일괄 삭제 (2)');
+    await batchButton.click();await db.exec('revoke delete on public.course_landing_utms from service_role');
+    await deleteDialog.getByRole('button',{name:'삭제',exact:true}).click();await toast.filter({hasText:'삭제하지 못했습니다'}).waitFor();assert.equal((await stored(C)).length,9);
+    await db.exec('grant delete on public.course_landing_utms to service_role');await deleteDialog.getByRole('button',{name:'삭제',exact:true}).click();await deleteDialog.waitFor({state:'hidden'});
+    await toast.filter({hasText:'UTM 2건을 삭제했습니다.'}).waitFor();assert.equal((await stored(C)).length,7);assert.equal(await batchButton.isDisabled(),true);
+    await page.reload();await all.waitFor();assert.equal(await page.getByRole('row').count(),8);assert.equal(await page.getByRole('cell',{name:'신규추천',exact:true}).count(),0);
+    await post(await workbook([entry('신규추천','블로그',''),original[1]]));
+    // Large selections are split into bounded requests; a later failure preserves only the remainder.
+    assert.equal((await post(await workbook(Array.from({length:105},(_,index)=>entry(`대량${index}`))))).status,200);
+    await page.reload();await all.waitFor();await all.check();await page.getByRole('button',{name:'일괄 삭제 (114)',exact:true}).click();
+    let deleteRequests=0;
+    await page.route('**/api/course-operations/*/landing-utms',async route=>{
+      if(route.request().method()==='DELETE' && ++deleteRequests===2)return route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({message:'일시적인 삭제 오류입니다.'})});
+      return route.continue();
+    });
+    await deleteDialog.getByRole('button',{name:'삭제',exact:true}).click();await toast.filter({hasText:'100건 삭제 완료.'}).waitFor();
+    assert.equal((await stored(C)).length,14);await deleteDialog.getByText('선택한 UTM 14건을 삭제하시겠습니까?',{exact:true}).waitFor();
+    await deleteDialog.getByRole('button',{name:'삭제',exact:true}).click();await deleteDialog.waitFor({state:'hidden'});assert.equal((await stored(C)).length,0);
+    await page.unroute('**/api/course-operations/*/landing-utms');
+    await page.getByText('등록된 UTM이 없습니다.',{exact:false}).waitFor();assert.equal(await batchButton.isDisabled(),true);
+    await post(await workbook([...original,entry('신규추천','블로그','')]));
     // Read policies and import auth also reject an account disabled after login.
     await db.exec(`set request.jwt.claim.sub='${U}'; set role authenticated;`);assert.equal((await db.query('select * from course_landing_utms')).rows.length,9);await db.exec('reset role');
     await db.query("update auth.users set raw_app_meta_data=$1::jsonb where id=$2",[JSON.stringify({account_disabled:true}),U]);
@@ -165,6 +203,6 @@ const workbook = rows => writeXlsxFile([headers, ...rows].map(row => row.map(val
     assert.equal((await remove(changed.id)).status,401);
     await db.exec(`set request.jwt.claim.sub='${U}'; set role authenticated;`);assert.equal((await db.query('select * from course_landing_utms')).rows.length,0);await db.exec('reset role');
     assert.deepEqual(errors,[]);
-    console.log('PASS: real XLSX → API → PostgreSQL → UI; imports, URL/copy, sharing format/clipboard/failure/empty-state and mobile layout; deletion icon, cancel, failure/retry, persistence, re-import, course isolation and auth/CSRF/disabled-account checks.');
+    console.log('PASS: real XLSX → API → PostgreSQL → UI; imports, URL/copy, sharing format/clipboard/failure/empty-state, bottom toasts, close buttons and mobile layout; bulk selection/deletion/cancel/retry; deletion icon, cancel, failure/retry, persistence, re-import, course isolation and auth/CSRF/disabled-account checks.');
   }catch(error){if(page)console.error((await page.locator('body').innerText()).slice(-1800));throw error;}finally{await browser?.close();if(server)await new Promise(resolve=>server.close(resolve));await db.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
