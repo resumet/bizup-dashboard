@@ -1,12 +1,12 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppearanceEditor, BriefEditor, MediaNotice, mediaRequest } from "./editors";
 import type { Appearance, MediaData } from "@/lib/youtube-management/model";
 export function YoutubeWorkspace({initial,initialTab="schedule"}:{initial:MediaData;initialTab?:"schedule"|"brief"}){
-  const [settings,setSettings]=useState(initial.settings);const [tab,setTab]=useState<"schedule"|"brief">(initialTab);const [busy,setBusy]=useState(false);const [message,setMessage]=useState("");
+  const [settings,setSettings]=useState(initial.settings);const [tab,setTab]=useState<"schedule"|"brief">(initialTab);const [busy,setBusy]=useState(false);const [message,setMessage]=useState("");const [appearanceAddRequest,setAppearanceAddRequest]=useState(0);
   const endpoint=`/api/youtube-management/${initial.course.id}`;
   const enabled=tab==="brief"?settings.brief_enabled:settings.public_enabled;
   const token=tab==="brief"?settings.brief_token:settings.public_token;
@@ -24,13 +24,16 @@ export function YoutubeWorkspace({initial,initialTab="schedule"}:{initial:MediaD
     <div className="flex flex-wrap gap-2" role="tablist" aria-label="유튜브 관리 항목"><Button role="tab" aria-selected={tab==="schedule"} variant={tab==="schedule"?"default":"outline"} onClick={()=>setTab("schedule")}>출연 및 촬영 일정</Button><Button role="tab" aria-selected={tab==="brief"} variant={tab==="brief"?"default":"outline"} onClick={()=>setTab("brief")}>출연 요청기획서</Button></div>
     <div className="flex flex-wrap items-center justify-end gap-2">
       <span className="mr-auto text-sm">{enabled?"공개 · 외부 작성 허용":"비공개 · 외부 작성 비활성화"}</span>
+      {tab==="schedule"&&<Button disabled={busy} onClick={()=>setAppearanceAddRequest(current=>current+1)}><Plus />출연 추가</Button>}
       <Button variant="outline" disabled={busy} onClick={()=>void access()}>{enabled?"비공개로 전환":"공개하기"}</Button>
-      <Button variant="outline" disabled={busy} onClick={()=>void navigator.clipboard.writeText(new URL(publicPath,window.location.origin).toString()).then(()=>setMessage("주소를 복사했습니다.")).catch(()=>setMessage("주소를 복사하지 못했습니다."))}>주소 복사</Button>
-      <Button variant="outline" disabled={busy} onClick={()=>void access(true)}>재발급</Button>
-      {enabled&&<Button asChild variant="outline"><a href={publicPath} target="_blank" rel="noopener noreferrer">공개페이지 보기</a></Button>}
+      {enabled&&<>
+        <Button variant="outline" disabled={busy} onClick={()=>void navigator.clipboard.writeText(new URL(publicPath,window.location.origin).toString()).then(()=>setMessage("주소를 복사했습니다.")).catch(()=>setMessage("주소를 복사하지 못했습니다."))}>주소 복사</Button>
+        <Button variant="outline" disabled={busy} onClick={()=>void access(true)}>재발급</Button>
+        <Button asChild variant="outline"><a href={publicPath} target="_blank" rel="noopener noreferrer">공개페이지 보기</a></Button>
+      </>}
     </div>
     <div hidden={tab!=="schedule"}>
-      <AppearanceEditor initial={initial.appearances} suggestions={initial.suggestions} landingUtms={initial.landingUtms} onSave={async(row)=>mediaRequest(endpoint,{action:"appearance",id:row.id||undefined,revision:row.revision,appearance:row}) as Promise<Appearance>} onDelete={async(row)=>{await mediaRequest(endpoint,{action:"delete",id:row.id,revision:row.revision});}} onRequest={async(row)=>{if(!settings.public_enabled)throw new Error("출연 및 촬영 일정을 먼저 공개해 주세요.");const url=new URL(`/public/youtube/schedule/${settings.public_token}`,window.location.origin);await navigator.clipboard.writeText(`[${initial.course.instructor_name} · ${initial.course.name} 출연 요청]\n${row.channel_name} 담당자님, 출연 가능 여부와 촬영 일정을 아래 페이지에서 확인해 주세요.\n${url}`);}} />
+      <AppearanceEditor initial={initial.appearances} suggestions={initial.suggestions} landingUtms={initial.landingUtms} addRequest={appearanceAddRequest} onSave={async(row)=>mediaRequest(endpoint,{action:"appearance",id:row.id||undefined,revision:row.revision,appearance:row}) as Promise<Appearance>} onDelete={async(row)=>{await mediaRequest(endpoint,{action:"delete",id:row.id,revision:row.revision});}} />
     </div>
     <div hidden={tab!=="brief"} className="space-y-5">
       <div className="flex flex-wrap items-center justify-end gap-2">

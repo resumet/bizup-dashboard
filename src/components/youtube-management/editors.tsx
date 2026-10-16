@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Copy, ExternalLink, Plus, Save, Trash2, Link2 } from "lucide-react";
+import { Copy, ExternalLink, Save, Trash2, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -54,10 +54,16 @@ function UrlDialog({value,onChange,title,disabled,notify,icon=false}:{value:stri
   </Dialog>;
 }
 
-export function AppearanceEditor({initial,publicMode=false,suggestions=[],landingUtms=[],onSave,onDelete,onRequest}:{initial:Appearance[];publicMode?:boolean;suggestions?:Array<{channelName:string;channelUrl:string}>;landingUtms?:LandingUtm[];onSave:(row:Appearance)=>Promise<Appearance>;onDelete?:(row:Appearance)=>Promise<void>;onRequest?:(row:Appearance)=>Promise<void>}){
+export function AppearanceEditor({initial,publicMode=false,suggestions=[],landingUtms=[],addRequest=0,onSave,onDelete}:{initial:Appearance[];publicMode?:boolean;suggestions?:Array<{channelName:string;channelUrl:string}>;landingUtms?:LandingUtm[];addRequest?:number;onSave:(row:Appearance)=>Promise<Appearance>;onDelete?:(row:Appearance)=>Promise<void>}){
   const [rows,setRows]=useState(initial);
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState("");
+  const lastAddRequest=useRef(addRequest);
+  useEffect(()=>{
+    if(publicMode||addRequest===lastAddRequest.current)return;
+    lastAddRequest.current=addRequest;
+    setRows(current=>[...current,emptyAppearance()]);
+  },[addRequest,publicMode]);
   function update(index:number,patch:Partial<Appearance>){setRows(current=>current.map((row,i)=>i===index?{...row,...patch}:row));}
   async function save(row:Appearance,index:number) {
     setBusy(true); setMessage("");
@@ -67,7 +73,6 @@ export function AppearanceEditor({initial,publicMode=false,suggestions=[],landin
   }
   const selectClass="h-9 w-full rounded-md border bg-background px-2 text-sm disabled:cursor-not-allowed disabled:opacity-50";
   return <div className="min-w-0 space-y-3">
-    {!publicMode&&<div className="flex justify-end"><Button variant="outline" size="sm" disabled={busy} onClick={()=>setRows(current=>[...current,emptyAppearance()])}><Plus />출연 추가</Button></div>}
     <datalist id="appearance-channel-suggestions">{suggestions.map((item,index)=><option key={index} value={item.channelName}>{item.channelUrl}</option>)}</datalist>
     <div className="overflow-hidden rounded-lg border">
       <Table className={publicMode?"min-w-[900px]":"min-w-[1080px]"}>
@@ -100,7 +105,6 @@ export function AppearanceEditor({initial,publicMode=false,suggestions=[],landin
               <TableCell><UrlDialog title="게시된 영상 주소" value={row.video_url} disabled={busy} onChange={value=>update(index,{video_url:value})} notify={setMessage} /></TableCell>
               <TableCell>
                 <form id={formId} className="flex justify-end gap-1" onSubmit={event=>{event.preventDefault();void save(row,index);}}>
-                  {!publicMode&&onRequest&&row.id&&<Button type="button" size="icon-sm" variant="ghost" aria-label="출연 요청문 복사" disabled={busy} onClick={()=>void onRequest(row).then(()=>setMessage("출연 요청문을 복사했습니다.")).catch(error=>setMessage(error.message))}><Copy /></Button>}
                   {!publicMode&&<Button type="button" size="icon-sm" variant="ghost" disabled={busy} aria-label={`${index+1}번 출연 삭제`} onClick={async()=>{if(!window.confirm("출연 정보를 삭제하시겠습니까?"))return;setBusy(true);try{if(row.id&&onDelete)await onDelete(row);setRows(current=>current.filter((_,i)=>i!==index));setMessage("삭제했습니다.");}catch(error){setMessage(error instanceof Error?error.message:"삭제하지 못했습니다.");}finally{setBusy(false);}}}><Trash2 /></Button>}
                   <Button type="submit" variant="outline" size="sm" disabled={busy}>{busy?"저장 중…":"저장"}</Button>
                 </form>
