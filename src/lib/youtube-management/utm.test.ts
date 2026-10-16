@@ -20,10 +20,26 @@ test("UTM refresh uses updated links and preserves an explicit saved choice or l
 test("both API schemas enforce appearance confirmation before filming confirmation and date", () => {
   const row={...emptyAppearance(),id:"00000000-0000-4000-8000-000000000001",channel_name:"채널"};
   for(const schema of [appearanceSchema,publicAppearanceSchema]) {
-    assert.equal(schema.safeParse(row).success,true);
+    assert.equal(schema.safeParse(row).success,schema===appearanceSchema);
     assert.equal(schema.safeParse({...row,filming_confirmed:true,filming_at:"2026-11-03T05:30:00.000Z"}).success,false);
     assert.equal(schema.safeParse({...row,request_status:"confirmed",filming_confirmed:true}).success,false);
     assert.equal(schema.safeParse({...row,request_status:"confirmed",filming_at:"2026-11-03T05:30:00.000Z"}).success,false);
     assert.equal(schema.safeParse({...row,request_status:"confirmed",filming_confirmed:true,filming_at:"2026-11-03T05:30:00.000Z"}).success,true);
   }
+});
+
+test("UTM matches channel names with taglines and cautious near-matches", () => {
+  const story={...item,referral_code:"초월스토리"};
+  assert.equal(channelLandingUtm("초월스토리 - 돈버는 사장님들",[story,{...item,id:"two",referral_code:"돈버는사람들",short_url:"https://example.test/two"}]),story.short_url);
+  assert.equal(channelLandingUtm("초월스토리TV",[story]),story.short_url);
+  assert.equal(channelLandingUtm("초월스토리 | 다른채널",[story,{...story,id:"two",referral_code:"다른채널"}]),"");
+  assert.equal(channelLandingUtm("실전부업클럽TV",[{...item,referral_code:"실전부업클럽티비"}]),"");
+  assert.equal(channelLandingUtm("머니인사이트채널",[{...item,referral_code:"머니인사이트체널"}]),item.short_url);
+});
+test("public saves only accept decided status and safe optional video URLs",()=>{
+  const row={...emptyAppearance(),id:"00000000-0000-4000-8000-000000000001",request_status:"confirmed"};
+  for(const status of ["planned","requested"]) assert.equal(publicAppearanceSchema.safeParse({...row,request_status:status}).success,false);
+  assert.equal(publicAppearanceSchema.safeParse({...row,request_status:"declined"}).success,true);
+  assert.equal(publicAppearanceSchema.safeParse({...row,video_url:"https://youtu.be/example"}).success,true);
+  assert.equal(publicAppearanceSchema.safeParse({...row,video_url:"javascript:alert(1)"}).success,false);
 });

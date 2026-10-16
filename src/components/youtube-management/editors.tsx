@@ -40,7 +40,7 @@ export function BriefEditor({initial,revision,onSave}:{initial:Brief;revision:nu
 function localDate(value:string|null){if(!value)return "";const date=new Date(value);return Number.isFinite(date.getTime())?new Date(date.getTime()+9*3600000).toISOString().slice(0,16):"";}
 function UrlDialog({value,onChange,title,disabled,notify,icon=false}:{value:string;onChange:(value:string)=>void;title:string;disabled:boolean;notify:(message:string)=>void;icon?:boolean}) {
   return <Dialog>
-    <DialogTrigger asChild><Button type="button" size={icon ? "icon-sm" : "sm"} variant="outline" disabled={disabled} aria-label={`${title} 보기`}>{icon ? <Link2 /> : "보기"}</Button></DialogTrigger>
+    <DialogTrigger asChild><Button type="button" size={icon ? "icon-sm" : "sm"} variant="outline" disabled={disabled} aria-label={`${title} ${icon ? "보기" : "설정"}`}>{icon ? <Link2 /> : "설정"}</Button></DialogTrigger>
     <DialogContent aria-describedby={undefined}>
       <DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
       <Input aria-label={title} type="url" placeholder="https://" maxLength={4000} value={value} disabled={disabled} onChange={event=>onChange(event.target.value)} />
@@ -70,21 +70,21 @@ export function AppearanceEditor({initial,publicMode=false,suggestions=[],landin
     {!publicMode&&<div className="flex justify-end"><Button variant="outline" size="sm" disabled={busy} onClick={()=>setRows(current=>[...current,emptyAppearance()])}><Plus />출연 추가</Button></div>}
     <datalist id="appearance-channel-suggestions">{suggestions.map((item,index)=><option key={index} value={item.channelName}>{item.channelUrl}</option>)}</datalist>
     <div className="overflow-hidden rounded-lg border">
-      <Table className={publicMode?"min-w-[800px]":"min-w-[1080px]"}>
-        <TableHeader><TableRow><TableHead>채널이름</TableHead><TableHead>출연여부</TableHead><TableHead>촬영확정</TableHead><TableHead>촬영일정</TableHead><TableHead>UTM</TableHead>{!publicMode&&<TableHead>게시된 영상</TableHead>}<TableHead className="text-right">저장{!publicMode&&" / 작업"}</TableHead></TableRow></TableHeader>
+      <Table className={publicMode?"min-w-[900px]":"min-w-[1080px]"}>
+        <TableHeader><TableRow><TableHead>채널이름</TableHead><TableHead>출연여부</TableHead><TableHead>촬영확정</TableHead><TableHead>촬영일정</TableHead><TableHead>UTM</TableHead><TableHead>게시된 영상</TableHead><TableHead className="text-right">저장{!publicMode&&" / 작업"}</TableHead></TableRow></TableHeader>
         <TableBody>
           {rows.map((row,index)=>{
             const formId=`appearance-${publicMode?"public":"admin"}-${index}`;
             const canConfirm=row.request_status==="confirmed";
             const canDate=canConfirm&&row.filming_confirmed;
-            return <TableRow key={row.id||`new-${index}`}>
+            return <TableRow key={row.id||`new-${index}`} className={row.request_status === "declined" ? "bg-muted text-muted-foreground hover:bg-muted [&_input]:text-muted-foreground [&_select]:text-muted-foreground" : undefined}>
               <TableCell className="min-w-44 max-w-60">
-                {publicMode ? <span className="font-medium">{row.channel_name}</span> : <div className="flex items-center gap-1">
+                {publicMode ? <span className="block max-w-52 truncate font-medium" title={row.channel_name}>{row.channel_name}</span> : <div className="flex items-center gap-1">
                   <Input form={formId} className="h-9 min-w-0" aria-label={`${index+1}번 채널명`} list="appearance-channel-suggestions" value={row.channel_name} required maxLength={200} disabled={busy} onChange={event=>{const name=event.target.value;const match=suggestions.find(item=>item.channelName===name);update(index,{channel_name:name,landing_utm:channelLandingUtm(name,landingUtms),...(match?{channel_url:match.channelUrl}:{})});}} />
                   <UrlDialog title="채널 주소" icon value={row.channel_url} disabled={busy} onChange={value=>update(index,{channel_url:value})} notify={setMessage} />
                 </div>}
               </TableCell>
-              <TableCell className="w-28 min-w-28"><select form={formId} aria-label={`${index+1}번 출연 여부`} className={selectClass} value={row.request_status} disabled={busy} onChange={event=>{const status=event.target.value as Appearance["request_status"];update(index,{request_status:status,...(status!=="confirmed"?{filming_confirmed:false,filming_at:null}:{})});}}>{Object.entries(REQUEST_STATUSES).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></TableCell>
+              <TableCell className="w-28 min-w-28"><select form={formId} aria-label={`${index+1}번 출연 여부`} className={selectClass} required={publicMode} value={publicMode && !["confirmed","declined"].includes(row.request_status) ? "" : row.request_status} disabled={busy} onChange={event=>{const status=event.target.value as Appearance["request_status"];update(index,{request_status:status,...(status!=="confirmed"?{filming_confirmed:false,filming_at:null}:{})});}}>{publicMode && <option value="" disabled hidden>출연 여부 선택</option>}{Object.entries(REQUEST_STATUSES).filter(([value])=>!publicMode||value==="confirmed"||value==="declined").map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></TableCell>
               <TableCell className="w-36 min-w-36"><select form={formId} aria-label={`${index+1}번 촬영 확정`} className={selectClass} value={row.filming_confirmed?"yes":"no"} disabled={busy||!canConfirm} onChange={event=>update(index,{filming_confirmed:event.target.value==="yes",...(event.target.value!=="yes"?{filming_at:null}:{})})}><option value="no">일정 협의 중</option><option value="yes">촬영일정확정</option></select></TableCell>
               <TableCell className="w-52 min-w-52"><Input form={formId} className="h-9" aria-label={`${index+1}번 촬영 일정`} title="한국시간" type="datetime-local" required={canDate} value={localDate(row.filming_at)} disabled={busy||!canDate} onChange={event=>update(index,{filming_at:event.target.value?new Date(`${event.target.value}:00+09:00`).toISOString():null})} /></TableCell>
               <TableCell className="min-w-40 max-w-52">
@@ -97,7 +97,7 @@ export function AppearanceEditor({initial,publicMode=false,suggestions=[],landin
                   {row.landing_utm&&<Button type="button" variant="ghost" size="icon-sm" aria-label={`${index+1}번 UTM 복사`} onClick={()=>void navigator.clipboard.writeText(row.landing_utm).then(()=>setMessage("UTM을 복사했습니다.")).catch(()=>setMessage("복사하지 못했습니다."))}><Copy /></Button>}
                 </div>
               </TableCell>
-              {!publicMode&&<TableCell><UrlDialog title="게시된 영상 주소" value={row.video_url} disabled={busy} onChange={value=>update(index,{video_url:value})} notify={setMessage} /></TableCell>}
+              <TableCell><UrlDialog title="게시된 영상 주소" value={row.video_url} disabled={busy} onChange={value=>update(index,{video_url:value})} notify={setMessage} /></TableCell>
               <TableCell>
                 <form id={formId} className="flex justify-end gap-1" onSubmit={event=>{event.preventDefault();void save(row,index);}}>
                   {!publicMode&&onRequest&&row.id&&<Button type="button" size="icon-sm" variant="ghost" aria-label="출연 요청문 복사" disabled={busy} onClick={()=>void onRequest(row).then(()=>setMessage("출연 요청문을 복사했습니다.")).catch(error=>setMessage(error.message))}><Copy /></Button>}
@@ -107,7 +107,7 @@ export function AppearanceEditor({initial,publicMode=false,suggestions=[],landin
               </TableCell>
             </TableRow>;
           })}
-          {!rows.length&&<TableRow><TableCell colSpan={publicMode?6:7} className="py-8 text-center text-muted-foreground">등록된 출연 요청이 없습니다.</TableCell></TableRow>}
+          {!rows.length&&<TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">등록된 출연 요청이 없습니다.</TableCell></TableRow>}
         </TableBody>
       </Table>
     </div>

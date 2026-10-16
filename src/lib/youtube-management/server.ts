@@ -47,7 +47,7 @@ export async function publicMedia(token:string,kind:"brief"|"schedule"){
   const {data:settings,error}=await admin.from("course_youtube_settings").select("course_id,workspace_id,brief,brief_revision").eq(kind==="brief"?"brief_token":"public_token",token).eq(kind==="brief"?"brief_enabled":"public_enabled",true).maybeSingle();
   if(error)throw new MediaError("데이터를 불러오지 못했습니다.",500);
   if(!settings)throw new MediaError("공개되지 않았거나 만료된 주소입니다.",404);
-  const {data:course,error:courseError}=await admin.from("courses").select("id,name,instructor_name,cohort").eq("id",settings.course_id).eq("workspace_id",settings.workspace_id).single();
+  const {data:course,error:courseError}=await admin.from("courses").select("id,name,instructor_name,cohort,free_webinar_at").eq("id",settings.course_id).eq("workspace_id",settings.workspace_id).single();
   if(courseError)throw new MediaError("강의를 찾을 수 없습니다.",404);
   if(kind==="brief")return {course,brief:briefSchema.parse(settings.brief),revision:settings.brief_revision};
   const {data:appearances,error:appearanceError}=await admin.from("course_youtube_appearances").select("id,revision,channel_name,channel_url,video_url,landing_utm,request_status,filming_at,filming_confirmed,note,respondent").eq("course_id",course.id).order("sort_order").order("created_at");

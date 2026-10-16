@@ -28,5 +28,13 @@ const {mediaFixture}=require('./media-fixture.cjs');
  assert.equal((await db.query('select * from course_live_videos where course_id=$1',[C])).rows.length,1);
  // Auto-generated settings must not make an otherwise empty course undeletable.
  const empty='00000000-0000-4000-8000-000000000099';await db.query("insert into courses(id,workspace_id,name) values($1,$2,'삭제검증')",[empty,W]);await db.query('delete from courses where id=$1',[empty]);assert.equal((await db.query('select * from course_youtube_settings where course_id=$1',[empty])).rows.length,0);
+ // Video updates share the same revision check and notification transaction. Missing video fields preserve old values.
+ const events=async()=>Number((await db.query('select count(*)::int n from media_notifications')).rows[0].n);
+ const beforeVideo=await events();const videoArgs={p_token:'a'.repeat(48),p_kind:'schedule'};
+ response=await admin.rpc('update_public_youtube_media',{...videoArgs,p_payload:{...payload,revision:1,video_url:'https://example.test/published'}});assert.equal(response.error,null);assert.equal(response.data.video_url,'https://example.test/published');assert.equal(await events(),beforeVideo+1);
+ assert.ok((await db.query('select message from media_notifications order by id desc limit 1')).rows[0].message.includes('게시된 영상: https://example.test/published'));
+ response=await admin.rpc('update_public_youtube_media',{...videoArgs,p_payload:{...payload,revision:2}});assert.equal(response.data.video_url,'https://example.test/published');assert.equal(await events(),beforeVideo+1);
+ response=await admin.rpc('update_public_youtube_media',{...videoArgs,p_payload:{...payload,revision:3,request_status:'planned'}});assert.match(response.error.message,/INVALID_STATUS/);assert.equal(await events(),beforeVideo+1);
+ response=await admin.rpc('update_public_youtube_media',{...videoArgs,p_payload:{...payload,revision:3,video_url:''}});assert.equal(response.data.video_url,'');assert.equal(await events(),beforeVideo+2);
  console.log('PASS: migration/backfill/course provisioning; protected tokens; disabled/regenerated links; course isolation, concurrency; old video preservation; empty course deletion.');
 }finally{await db.close();}})().catch(error=>{console.error(error);process.exitCode=1;});

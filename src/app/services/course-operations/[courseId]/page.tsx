@@ -189,9 +189,12 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
                 <Link href="/services/instructor-intakes">강사정보 받기</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/services/instagram-management">
+                <Link href={`/services/instagram-management/${courseId}`}>
                   인스타그램 관리
                 </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/services/youtube-management/${courseId}`}>유튜브 출연 관리</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link
