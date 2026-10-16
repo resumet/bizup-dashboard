@@ -675,8 +675,9 @@ try {
       console.log(`CALENDAR_SCREENSHOT ${screenshot}`);
     }
     assert.ok(layout.pageWidth <= layout.width, "compact calendar must not create horizontal page overflow");
-    assert.ok(layout.cellHeight >= 55 && layout.cellHeight <= 113, "calendar rows must stay at the responsive, readable compact height");
+    assert.ok(layout.cellHeight >= 55, "calendar rows must remain readable while filling the available viewport height");
     assert.ok(layout.gridBottom <= layout.height, "all calendar weeks must fit within the viewport");
+    assert.ok(layout.height - layout.gridBottom <= 10, "calendar must fill the viewport down to the page padding");
     assert.ok(layout.eventsCount >= 2, "dense day must preserve every event instead of cutting off the data");
     assert.equal(layout.eventsOverflow, "auto");
     if (viewport.width >= 640) {
@@ -689,7 +690,7 @@ try {
       }
     }
   }
-  passed("requested copy is removed, display options sit left of actions, viewport-sized calendar fits low-height desktops and mobile, and dense days retain scrollable events");
+  passed("requested copy is removed, display options sit left of actions, calendar fills desktop and mobile viewports, and dense days retain scrollable events");
   assert.deepEqual(browserErrors, []);
   passed("all calendar and bulk browser flows finish without uncaught client errors");
   console.log(`Shared calendar browser/API/SQL checks: ${checks} passed.`);

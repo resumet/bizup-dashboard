@@ -133,8 +133,8 @@ export function SharedCalendar({ today, currentUserId, initialEvents, initialSou
   const byDay = new Map<string, (CalendarEvent | CalendarSourceEvent)[]>();
   for (const event of [...visible, ...visibleSources]) { const list = byDay.get(event.event_date) ?? []; list.push(event); byDay.set(event.event_date, list); }
   for (const list of byDay.values()) list.sort((a, b) => a.start_minutes - b.start_minutes || a.id.localeCompare(b.id));
-  return <div className="space-y-2">
-    <div data-calendar-toolbar className="flex flex-wrap items-center justify-between gap-2">
+  return <div className="flex min-h-0 flex-1 flex-col gap-2">
+    <div data-calendar-toolbar className="flex shrink-0 flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-2">
         <Button variant="outline" size="icon-sm" aria-label="이전 달" onClick={() => moveMonth(-1)}><ChevronLeft /></Button>
         <h2 className="min-w-32 text-center text-lg font-semibold">{Number(month.slice(0, 4))}년 {Number(month.slice(5))}월</h2>
@@ -163,14 +163,14 @@ export function SharedCalendar({ today, currentUserId, initialEvents, initialSou
         </div>
       </div>
     </div>
-    {error || moveError || searchError ? <p role="alert" className="rounded-md border border-destructive/30 p-3 text-sm text-destructive">{error || moveError || searchError}</p> : null}
-    {sourcesWarning ? <p role="alert" className="rounded-md border border-amber-300 p-3 text-sm text-amber-900">{sourcesWarning}</p> : null}
-    {notice ? <p role="status" className="text-sm text-emerald-700">{notice}</p> : null}
-    {moving ? <p role="status" className="text-sm text-muted-foreground">일정 날짜를 변경하는 중…</p> : null}
+    {error || moveError || searchError ? <p role="alert" className="shrink-0 rounded-md border border-destructive/30 p-3 text-sm text-destructive">{error || moveError || searchError}</p> : null}
+    {sourcesWarning ? <p role="alert" className="shrink-0 rounded-md border border-amber-300 p-3 text-sm text-amber-900">{sourcesWarning}</p> : null}
+    {notice ? <p role="status" className="shrink-0 text-sm text-emerald-700">{notice}</p> : null}
+    {moving ? <p role="status" className="shrink-0 text-sm text-muted-foreground">일정 날짜를 변경하는 중…</p> : null}
     {searchResults !== null ? <CalendarSearchResults results={searchResults} pending={searchPending} onSelect={selectSearchResult} /> : <>
-    <div data-calendar-grid className="overflow-hidden rounded-lg border bg-background" aria-busy={loading}>
-      <div className="grid grid-cols-7 bg-muted/40">{["일", "월", "화", "수", "목", "금", "토"].map((day, index) => <div key={day} className={cn("border-b py-1 text-center text-sm font-medium", index === 0 && "text-red-600", index === 6 && "text-blue-600")}>{day}</div>)}</div>
-      <div className="grid grid-cols-7">{days.map((date) => <div key={date} data-calendar-date={date} onDoubleClick={() => addOnDate(date)} onDragOver={(e) => { if (dragging.current && !movePending.current) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropDate(date); } }} onDragLeave={(e) => { if (!(e.relatedTarget instanceof Node) || !e.currentTarget.contains(e.relatedTarget)) setDropDate((current) => current === date ? null : current); }} onDrop={(e) => { e.preventDefault(); void dropOnDate(date); }} className={cn("flex h-[clamp(58px,calc((100dvh-500px)/6),96px)] min-w-0 flex-col border-b border-r p-1 last:border-r-0 sm:h-[clamp(58px,calc((100dvh-430px)/6),112px)]", date.slice(0, 7) !== month && "bg-muted/30", selectedDate === date && "bg-blue-50/60", dropDate === date && "bg-blue-100 ring-2 ring-inset ring-blue-500")}>
+    <div data-calendar-grid className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-background" aria-busy={loading}>
+      <div className="grid shrink-0 grid-cols-7 bg-muted/40">{["일", "월", "화", "수", "목", "금", "토"].map((day, index) => <div key={day} className={cn("border-b py-1 text-center text-sm font-medium", index === 0 && "text-red-600", index === 6 && "text-blue-600")}>{day}</div>)}</div>
+      <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6">{days.map((date) => <div key={date} data-calendar-date={date} onDoubleClick={() => addOnDate(date)} onDragOver={(e) => { if (dragging.current && !movePending.current) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropDate(date); } }} onDragLeave={(e) => { if (!(e.relatedTarget instanceof Node) || !e.currentTarget.contains(e.relatedTarget)) setDropDate((current) => current === date ? null : current); }} onDrop={(e) => { e.preventDefault(); void dropOnDate(date); }} className={cn("flex min-h-0 min-w-0 flex-col border-b border-r p-1 last:border-r-0", date.slice(0, 7) !== month && "bg-muted/30", selectedDate === date && "bg-blue-50/60", dropDate === date && "bg-blue-100 ring-2 ring-inset ring-blue-500")}>
         <button type="button" aria-label={`${date} 일정 보기`} aria-pressed={selectedDate === date} onClick={(e) => { setSelectedDate(date); if (e.detail === 0) addOnDate(date); }} className={cn("grid size-[24px] shrink-0 place-items-center rounded-full text-sm focus-visible:outline-2 focus-visible:outline-ring", date === today && "bg-primary text-primary-foreground", date.slice(0, 7) !== month && "opacity-50")}>{Number(date.slice(8))}</button>
         <div data-calendar-events className="mt-0.5 min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain">{(byDay.get(date) ?? []).map((event) => "source" in event ? <CalendarSourceLink key={event.id} event={event} compact /> : <button key={event.id} type="button" disabled={moving} draggable={!moving} aria-label={`${event.title} 수정`} title={`${event.meeting_type.name} · ${event.title} · ${formatCalendarTime(event)} · ${formatLocation(event.location_kind, event.location_text)} · 더블클릭으로 수정`} onClick={(e) => { e.stopPropagation(); setSelectedDate(date); if (e.detail === 0) setEditor({ event, date }); }} onDoubleClick={(e) => { e.stopPropagation(); setSelectedDate(date); setEditor({ event, date }); }} onDragStart={(e) => { dragging.current = event; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", event.id); }} onDragEnd={() => { dragging.current = null; setDropDate(null); }} className={cn("block w-full cursor-grab truncate rounded px-1 py-0.5 text-left text-[10px] font-medium focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing disabled:opacity-50 sm:px-2 sm:text-xs", COLORS[event.meeting_type.code ?? ""] ?? "bg-slate-100 text-slate-900")}><span className="hidden sm:inline">{event.time_tbd ? "시간 미정" : formatTime(event.start_minutes)} </span>{event.title}</button>)}</div>
       </div>)}</div>
@@ -192,7 +192,7 @@ export function SharedCalendar({ today, currentUserId, initialEvents, initialSou
 }
 
 function CalendarSearchResults({ results, pending, onSelect }: { results: CalendarSearchResult[]; pending: boolean; onSelect: (result: CalendarSearchResult) => void }) {
-  return <section data-calendar-search-results className="rounded-lg border bg-background p-3">
+  return <section data-calendar-search-results className="min-h-0 flex-1 overflow-y-auto rounded-lg border bg-background p-3">
     <h2 className="mb-2 text-base font-semibold">검색 결과</h2>
     {pending ? <p role="status" className="text-sm text-muted-foreground">검색 중…</p> : results.length ? <ul className="divide-y">{results.map((result) => <li key={result.id}>
       <button type="button" className="w-full px-1 py-3 text-left hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring" onClick={() => onSelect(result)}>
