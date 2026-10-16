@@ -7,6 +7,7 @@ import { buildYoutubeChannelSuggestions } from "@/lib/course-operations/youtube-
 import { briefSchema, type MediaData } from "./model";
 import { loadLandingUtms } from "@/lib/course-landing-utms/server";
 import { resolveLandingUtm, youtubeLandingUtms } from "./utm";
+import { parseYoutubeShortPathCode } from "./short-link";
 
 export class MediaError extends Error { constructor(message:string,readonly status=400){super(message);} }
 export const privateHeaders = {"Cache-Control":"private, no-store", "X-Robots-Tag":"noindex, nofollow", "Referrer-Policy":"no-referrer"};
@@ -34,7 +35,7 @@ export async function mediaMember(courseId:string){
 export async function loadMedia(courseId:string):Promise<MediaData>{
   const {admin,course}=await mediaMember(courseId);
   const [settings,appearances,channels,landingUtms]=await Promise.all([
-    admin.from("course_youtube_settings").select("public_enabled,public_token,brief_enabled,brief_token,brief,brief_revision,notion_page_id,notion_url,notion_public_url,notion_synced_revision").eq("course_id",courseId).single(),
+    admin.from("course_youtube_settings").select("public_enabled,public_token,public_short_code,brief_enabled,brief_token,brief_short_code,brief,brief_revision,notion_page_id,notion_url,notion_public_url,notion_synced_revision").eq("course_id",courseId).single(),
     admin.from("course_youtube_appearances").select("id,revision,channel_name,channel_url,video_url,landing_utm,request_status,filming_at,filming_confirmed,note,respondent").eq("course_id",courseId).order("sort_order").order("created_at"),
     admin.from("youtube_analyzed_channels").select("channel,position").eq("workspace_id",course.workspace_id).order("position",{ascending:false}).limit(500),
     loadLandingUtms(admin,courseId),
@@ -52,6 +53,19 @@ export const getPublicYoutubeShare = cache(async (token:string,kind:"brief"|"sch
   const {data:course,error:courseError}=await admin.from("courses").select("id,name,instructor_name,cohort,free_webinar_at,banner_image_path,updated_at").eq("id",settings.course_id).eq("workspace_id",settings.workspace_id).single();
   if(courseError || !course)throw new MediaError("강의를 찾을 수 없습니다.",404);
   return {admin,settings,course};
+});
+export const resolvePublicYoutubeShortShare = cache(async (code:string) => {
+  const parsed=parseYoutubeShortPathCode(code);
+  if(!parsed)throw new MediaError("공개되지 않았거나 만료된 주소입니다.",404);
+  const admin=createAdminClient();
+  const shortColumn=parsed.kind==="brief"?"brief_short_code":"public_short_code";
+  const enabledColumn=parsed.kind==="brief"?"brief_enabled":"public_enabled";
+  const {data,error}=await admin.from("course_youtube_settings").select("public_token,brief_token").eq(shortColumn,parsed.shortCode).eq(enabledColumn,true).maybeSingle();
+  if(error)throw new MediaError("데이터를 불러오지 못했습니다.",500);
+  if(!data)throw new MediaError("공개되지 않았거나 만료된 주소입니다.",404);
+  const token=parsed.kind==="brief"?data.brief_token:data.public_token;
+  if(typeof token!=="string")throw new MediaError("공개되지 않았거나 만료된 주소입니다.",404);
+  return {kind:parsed.kind,token};
 });
 export async function publicMedia(token:string,kind:"brief"|"schedule"){
   const {admin,settings,course}=await getPublicYoutubeShare(token,kind);

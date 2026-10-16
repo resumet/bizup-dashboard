@@ -5,7 +5,7 @@ const { build } = require('esbuild');
 (async () => {
   const scheduleToken = 'a'.repeat(48), briefToken = 'b'.repeat(48), courseId = '00000000-0000-4000-8000-000000000001';
   const course = { id: courseId, workspace_id: 'workspace', name: '수익화 강의', instructor_name: '홍길동', cohort: '1', free_webinar_at: null, banner_image_path: 'workspace/banner.png', updated_at: '2026-10-16T00:00:00Z' };
-  const setting = { course_id: courseId, workspace_id: 'workspace', public_token: scheduleToken, public_enabled: true, brief_token: briefToken, brief_enabled: true, brief: {}, brief_revision: 0 };
+  const setting = { course_id: courseId, workspace_id: 'workspace', public_token: scheduleToken, public_short_code: 'Schedule_Code_01', public_enabled: true, brief_token: briefToken, brief_short_code: 'Brief_Code_00001', brief_enabled: true, brief: {}, brief_revision: 0 };
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9kAAAAASUVORK5CYII=', 'base64');
   let downloads = 0;
   const admin = {
@@ -34,7 +34,7 @@ const { build } = require('esbuild');
     '@/components/youtube-management/public-workspace': 'exports.PublicYoutubeWorkspace=()=>null;',
   };
   const bundle = await build({
-    stdin: { resolveDir: process.cwd(), loader: 'ts', contents: `export * as page from './src/app/public/youtube/[kind]/[token]/page';export * as imageRoute from './src/app/public/youtube/[kind]/[token]/share-image/route';export { publicMedia } from './src/lib/youtube-management/server';` },
+    stdin: { resolveDir: process.cwd(), loader: 'ts', contents: `export * as page from './src/app/public/youtube/[kind]/[token]/page';export * as imageRoute from './src/app/public/youtube/[kind]/[token]/share-image/route';export * as shortPage from './src/app/y/[code]/page';export * as shortImageRoute from './src/app/y/[code]/share-image/route';export { publicMedia } from './src/lib/youtube-management/server';` },
     bundle: true,
     write: false,
     platform: 'node',
@@ -45,7 +45,7 @@ const { build } = require('esbuild');
   });
   const loaded = { exports: {} };
   new Function('require', 'module', 'exports', 'fixture', bundle.outputFiles[0].text)(require, loaded, loaded.exports, { admin });
-  const { page, imageRoute, publicMedia } = loaded.exports;
+  const { page, imageRoute, shortPage, shortImageRoute, publicMedia } = loaded.exports;
   const args = (kind, token) => ({ params: Promise.resolve({ kind, token }) });
 
   for (const [kind, token] of [['schedule', scheduleToken], ['brief', briefToken]]) {
@@ -61,6 +61,14 @@ const { build } = require('esbuild');
     assert.equal(image.status, 200);
     assert.equal(image.headers.get('content-type'), 'image/png');
     assert.deepEqual(Buffer.from(await image.arrayBuffer()), png);
+    const code = `${kind === 'brief' ? 'b' : 's'}-${kind === 'brief' ? setting.brief_short_code : setting.public_short_code}`;
+    const shortMetadata = await shortPage.generateMetadata({ params: Promise.resolve({ code }) });
+    assert.deepEqual(shortMetadata.title, metadata.title);
+    assert.equal(shortMetadata.openGraph.url, `https://bizup-dashboard.vercel.app/y/${code}`);
+    assert.ok(shortMetadata.openGraph.images[0].url.includes(`/y/${code}/share-image`));
+    const shortImage = await shortImageRoute.GET(new Request('http://fixture'), { params: Promise.resolve({ code }) });
+    assert.equal(shortImage.status, 200);
+    assert.deepEqual(Buffer.from(await shortImage.arrayBuffer()), png);
   }
 
   const publicBrief = await publicMedia(briefToken, 'brief');
@@ -72,8 +80,11 @@ const { build } = require('esbuild');
   assert.deepEqual(disabledMetadata.title, { absolute: '유튜브 출연 관리' });
   assert.deepEqual(disabledMetadata.openGraph.images, []);
   assert.equal((await imageRoute.GET(new Request('http://fixture'), args('schedule', scheduleToken))).status, 404);
+  const disabledShortArgs = { params: Promise.resolve({ code: `s-${setting.public_short_code}` }) };
+  assert.deepEqual((await shortPage.generateMetadata(disabledShortArgs)).title, { absolute: '유튜브 출연 관리' });
+  assert.equal((await shortImageRoute.GET(new Request('http://fixture'), disabledShortArgs)).status, 404);
   assert.equal((await imageRoute.GET(new Request('http://fixture'), args('schedule', 'invalid'))).status, 404);
-  assert.equal(downloads, 2, 'Disabled and invalid shares must not read private storage.');
+  assert.equal(downloads, 4, 'Disabled and invalid shares must not read private storage.');
 
   course.banner_image_path = null;
   assert.equal((await page.generateMetadata(args('brief', briefToken))).twitter.card, 'summary');

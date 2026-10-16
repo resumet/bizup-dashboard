@@ -23,6 +23,8 @@ async function mediaFixture(){
  grant usage on schema extensions to service_role;grant all on all tables in schema public to service_role;`);
  const name=(await fs.readdir('supabase/migrations')).find(name=>name.endsWith('_course_media_management.sql'));
  await db.exec(await fs.readFile(`supabase/migrations/${name}`,'utf8'));
+ const shortLinkMigration=(await fs.readdir('supabase/migrations')).find(name=>name.endsWith('_youtube_short_links.sql'));
+ if(shortLinkMigration)await db.exec(await fs.readFile(`supabase/migrations/${shortLinkMigration}`,'utf8'));
  await db.exec(`insert into courses(id,workspace_id,name,instructor_name,cohort,status,free_webinar_at) values('${C2}','${W2}','다른 강의','다른 강사','2기','completed',now());`);
  const notificationMigration=(await fs.readdir('supabase/migrations')).find(name=>name.endsWith('_external_media_notifications.sql'));
  if(notificationMigration)await db.exec(await fs.readFile(`supabase/migrations/${notificationMigration}`,'utf8'));

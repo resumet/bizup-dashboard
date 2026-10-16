@@ -18,7 +18,7 @@ export async function POST(request:Request,{params}:Context){
     const {courseId}=await params;const {admin}=await mediaMember(courseId);const input=schema.parse(await readMediaInput(request));
     if(input.action==="access"){
       const prefix=input.kind==="brief"?"brief":"public";
-      const {data,error}=await admin.from("course_youtube_settings").update({[`${prefix}_enabled`]:input.enabled,...(input.regenerate?{[`${prefix}_token`]:randomBytes(24).toString("hex")}:{}),updated_at:new Date().toISOString()}).eq("course_id",courseId).select(`${prefix}_enabled,${prefix}_token`).single();
+      const {data,error}=await admin.from("course_youtube_settings").update({[`${prefix}_enabled`]:input.enabled,...(input.regenerate?{[`${prefix}_token`]:randomBytes(24).toString("hex"),[`${prefix}_short_code`]:randomBytes(12).toString("base64url")} : {}),updated_at:new Date().toISOString()}).eq("course_id",courseId).select(`${prefix}_enabled,${prefix}_token,${prefix}_short_code`).single();
       if(error)throw new MediaError("공개 설정을 저장하지 못했습니다.",500);return Response.json(data,{headers:privateHeaders});
     }
     if(input.action==="brief"){

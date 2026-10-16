@@ -4,7 +4,7 @@ const {build}=require('esbuild');
 const {mediaFixture}=require('./media-fixture.cjs');
 (async()=>{const {db,admin,C,C2,W}=await mediaFixture();try{
  const settings=(await db.query('select * from course_youtube_settings order by course_id')).rows;
- assert.equal(settings.length,2);assert.equal(settings[0].public_enabled,false);assert.equal(settings[0].brief_enabled,false);assert.notEqual(settings[0].public_token,settings[0].brief_token);
+ assert.equal(settings.length,2);assert.equal(settings[0].public_enabled,false);assert.equal(settings[0].brief_enabled,false);assert.notEqual(settings[0].public_token,settings[0].brief_token);for(const row of settings){assert.match(row.public_short_code,/^[A-Za-z0-9_-]{16}$/);assert.match(row.brief_short_code,/^[A-Za-z0-9_-]{16}$/);}assert.equal(new Set(settings.flatMap(row=>[row.public_short_code,row.brief_short_code])).size,4);
  assert.equal((await db.query('select * from course_document_settings')).rows.length,2);
  for(const role of ['anon','authenticated']){await db.exec(`set role ${role}`);await assert.rejects(db.query('select * from course_youtube_settings'),/permission denied/);await assert.rejects(db.query('select * from workspace_notion_media_connections'),/permission denied/);await assert.rejects(db.query("select update_public_youtube_media('x','brief','{}')"),/permission denied/);await db.exec('reset role');}
  const token=settings[0].public_token,briefToken=settings[0].brief_token;

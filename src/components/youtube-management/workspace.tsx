@@ -5,12 +5,14 @@ import { ExternalLink, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppearanceEditor, BriefEditor, MediaNotice, mediaRequest } from "./editors";
 import type { Appearance, MediaData } from "@/lib/youtube-management/model";
+import { youtubeShortPath } from "@/lib/youtube-management/short-link";
 export function YoutubeWorkspace({initial,initialTab="schedule"}:{initial:MediaData;initialTab?:"schedule"|"brief"}){
   const [settings,setSettings]=useState(initial.settings);const [tab,setTab]=useState<"schedule"|"brief">(initialTab);const [busy,setBusy]=useState(false);const [message,setMessage]=useState("");const [appearanceAddRequest,setAppearanceAddRequest]=useState(0);
   const endpoint=`/api/youtube-management/${initial.course.id}`;
   const enabled=tab==="brief"?settings.brief_enabled:settings.public_enabled;
   const token=tab==="brief"?settings.brief_token:settings.public_token;
-  const publicPath=`/public/youtube/${tab}/${token}`;
+  const shortCode=tab==="brief"?settings.brief_short_code:settings.public_short_code;
+  const publicPath=youtubeShortPath(tab,shortCode)??`/public/youtube/${tab}/${token}`;
   async function access(regenerate=false){
     if(regenerate&&!window.confirm("주소를 재발급하면 기존 주소를 사용할 수 없습니다. 재발급하시겠습니까?"))return;
     setBusy(true);try{const result=await mediaRequest(endpoint,{action:"access",kind:tab,enabled:regenerate?enabled:!enabled,regenerate});setSettings(current=>({...current,...result}));setMessage(regenerate?"주소를 재발급했습니다.":enabled?"비공개로 전환했습니다.":"공개로 전환했습니다.");}catch(error){setMessage(error instanceof Error?error.message:"설정을 저장하지 못했습니다.");}finally{setBusy(false);}
