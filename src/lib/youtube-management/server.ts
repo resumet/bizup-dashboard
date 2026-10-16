@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { ZodError } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireCourseDocumentMember } from "@/lib/course-documents/server";
@@ -42,17 +43,22 @@ export async function loadMedia(courseId:string):Promise<MediaData>{
   const youtubeUtms=youtubeLandingUtms(landingUtms);
   return {course,settings:{...settings.data,brief:briefSchema.parse(settings.data.brief)},appearances:appearances.data.map(row=>({...row,landing_utm:resolveLandingUtm(row.channel_name,row.landing_utm,youtubeUtms)})),landingUtms:youtubeUtms,suggestions:buildYoutubeChannelSuggestions(channels.data??[])};
 }
-export async function publicMedia(token:string,kind:"brief"|"schedule"){
+export const getPublicYoutubeShare = cache(async (token:string,kind:"brief"|"schedule") => {
   if(!/^[a-f0-9]{48}$/.test(token))throw new MediaError("공개되지 않았거나 만료된 주소입니다.",404);
   const admin=createAdminClient();
   const {data:settings,error}=await admin.from("course_youtube_settings").select("course_id,workspace_id,brief,brief_revision").eq(kind==="brief"?"brief_token":"public_token",token).eq(kind==="brief"?"brief_enabled":"public_enabled",true).maybeSingle();
   if(error)throw new MediaError("데이터를 불러오지 못했습니다.",500);
   if(!settings)throw new MediaError("공개되지 않았거나 만료된 주소입니다.",404);
-  const {data:course,error:courseError}=await admin.from("courses").select("id,name,instructor_name,cohort,free_webinar_at").eq("id",settings.course_id).eq("workspace_id",settings.workspace_id).single();
-  if(courseError)throw new MediaError("강의를 찾을 수 없습니다.",404);
-  if(kind==="brief")return {course,brief:briefSchema.parse(settings.brief),revision:settings.brief_revision};
+  const {data:course,error:courseError}=await admin.from("courses").select("id,name,instructor_name,cohort,free_webinar_at,banner_image_path,updated_at").eq("id",settings.course_id).eq("workspace_id",settings.workspace_id).single();
+  if(courseError || !course)throw new MediaError("강의를 찾을 수 없습니다.",404);
+  return {admin,settings,course};
+});
+export async function publicMedia(token:string,kind:"brief"|"schedule"){
+  const {admin,settings,course}=await getPublicYoutubeShare(token,kind);
+  const publicCourse={id:course.id,name:course.name,instructor_name:course.instructor_name,cohort:course.cohort,free_webinar_at:course.free_webinar_at};
+  if(kind==="brief")return {course:publicCourse,brief:briefSchema.parse(settings.brief),revision:settings.brief_revision};
   const {data:appearances,error:appearanceError}=await admin.from("course_youtube_appearances").select("id,revision,channel_name,channel_url,video_url,landing_utm,request_status,filming_at,filming_confirmed,note,respondent").eq("course_id",course.id).order("sort_order").order("created_at");
   if(appearanceError)throw new MediaError("출연 정보를 불러오지 못했습니다.",500);
   const landingUtms=youtubeLandingUtms(await loadLandingUtms(admin,course.id));
-  return {course,appearances:appearances.map(row=>({...row,landing_utm:resolveLandingUtm(row.channel_name,row.landing_utm,landingUtms)}))};
+  return {course:publicCourse,appearances:appearances.map(row=>({...row,landing_utm:resolveLandingUtm(row.channel_name,row.landing_utm,landingUtms)}))};
 }

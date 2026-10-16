@@ -10,7 +10,7 @@ async function mediaFixture(){
  create schema extensions;create function extensions.gen_random_bytes(n integer) returns bytea language sql as $$select decode(substr(replace(gen_random_uuid()::text,'-','')||replace(gen_random_uuid()::text,'-',''),1,n*2),'hex')$$;
  create table workspaces(id uuid primary key);insert into workspaces values('${W}'),('${W2}');
  create table workspace_members(workspace_id uuid references workspaces(id),user_id uuid references auth.users(id),role text default 'user',primary key(workspace_id,user_id));
- create table courses(id uuid primary key,workspace_id uuid references workspaces(id),name text,instructor_name text,cohort text,status text,free_webinar_at timestamptz,created_at timestamptz default now());
+ create table courses(id uuid primary key,workspace_id uuid references workspaces(id),name text,instructor_name text,cohort text,status text,free_webinar_at timestamptz,banner_image_path text,updated_at timestamptz default now(),created_at timestamptz default now());
  create table course_document_settings(course_id uuid primary key references courses(id) on delete restrict,workspace_id uuid references workspaces(id),external_edit_enabled boolean default false,external_access_token text default encode(extensions.gen_random_bytes(24),'hex'));
  create table course_documents(id uuid primary key default gen_random_uuid(),workspace_id uuid,course_id uuid references courses(id),instructor_name text default '',title text,content jsonb default '[]',status text default 'draft',published_at timestamptz,lead_gate_enabled boolean default false,lead_gate_after_block_id text,deleted_at timestamptz);
  create table course_instagram_materials(course_id uuid,position integer,title text,document_id uuid,primary key(course_id,position));
@@ -19,11 +19,11 @@ async function mediaFixture(){
  create table youtube_analyzed_channels(workspace_id uuid,channel jsonb,position integer);
  create table course_options(id uuid primary key default gen_random_uuid(),course_id uuid,name text,list_price integer,sale_price integer,group_chat_link text,entry_code text,sort_order integer);
  create table course_live_videos(id uuid primary key default gen_random_uuid(),course_id uuid,name text,video_url text,note text,sort_order integer);
- insert into courses values('${C}','${W}','검증 강의','김선아','1기','active',now(),now());
+ insert into courses(id,workspace_id,name,instructor_name,cohort,status,free_webinar_at,banner_image_path) values('${C}','${W}','검증 강의','김선아','1기','active',now(),'${W}/course.png');
  grant usage on schema extensions to service_role;grant all on all tables in schema public to service_role;`);
  const name=(await fs.readdir('supabase/migrations')).find(name=>name.endsWith('_course_media_management.sql'));
  await db.exec(await fs.readFile(`supabase/migrations/${name}`,'utf8'));
- await db.exec(`insert into courses values('${C2}','${W2}','다른 강의','다른 강사','2기','completed',now(),now());`);
+ await db.exec(`insert into courses(id,workspace_id,name,instructor_name,cohort,status,free_webinar_at) values('${C2}','${W2}','다른 강의','다른 강사','2기','completed',now());`);
  const notificationMigration=(await fs.readdir('supabase/migrations')).find(name=>name.endsWith('_external_media_notifications.sql'));
  if(notificationMigration)await db.exec(await fs.readFile(`supabase/migrations/${notificationMigration}`,'utf8'));
  const videoMigration=(await fs.readdir('supabase/migrations')).find(name=>name.endsWith('_public_youtube_video_settings.sql'));
