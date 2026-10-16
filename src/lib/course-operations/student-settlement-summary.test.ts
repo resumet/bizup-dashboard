@@ -31,8 +31,8 @@ test("웨비나 최신순으로 주문, 결제, 유료수강생, 비용을 집�
       { course_id: "newer", current_amount: 20_000.25, status: " 결제완료 " },
     ],
     paidStudents: [
-      { course_id: "newer", paid_student_count: 3 },
-      { course_id: "newer", paid_student_count: 2 },
+      { course_id: "newer", paid_student_count: 3, manual_cash_amount: 50_000.1 },
+      { course_id: "newer", paid_student_count: 2, manual_cash_amount: 10_000.2 },
     ],
     costs: [
       { course_id: "newer", gross_amount: 30_000, status: "PAID" },
@@ -52,13 +52,13 @@ test("웨비나 최신순으로 주문, 결제, 유료수강생, 비용을 집�
     },
     {
       orderCount: 3,
-      paymentAmount: 120_000.25,
+      paymentAmount: 180_000.55,
       paidStudentCount: 5,
       totalCost: 40_000,
     },
   );
   assert.deepEqual(totalStudentSettlementCourses(result), {
-    order_count: 3, payment_amount: 120_000.25, paid_student_count: 5, total_cost: 40_000,
+    order_count: 3, payment_amount: 180_000.55, paid_student_count: 5, total_cost: 40_000,
   });
 });
 

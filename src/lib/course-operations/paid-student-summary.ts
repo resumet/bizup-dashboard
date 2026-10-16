@@ -2,12 +2,16 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { paidRosterStudents } from "@/lib/course-orders/paid-student-share";
+import { summarizeOrderStudents } from "@/lib/course-orders/student-roster";
+import { summarizeManualCash } from "@/lib/course-settlements/manual-cash";
 import { loadJobEnrollmentRows } from "@/lib/jobs/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type CoursePaidStudentSummary = {
   course_id: string;
   paid_student_count: number;
+  manual_cash_amount: number;
 };
 
 export async function loadCoursePaidStudentSummariesFromClient(
@@ -32,7 +36,10 @@ export async function loadCoursePaidStudentSummariesFromClient(
             loadJobEnrollmentRows(client, job.id, job.latest_version).then(
               (rows) => ({
                 course_id: job.course_id as string,
-                paid_student_count: rows.length,
+                paid_student_count: summarizeOrderStudents(
+                  paidRosterStudents(rows),
+                ).people,
+                manual_cash_amount: summarizeManualCash(rows).amount,
               }),
             ),
           ]

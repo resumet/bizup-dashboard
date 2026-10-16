@@ -23,6 +23,7 @@ export type StudentSettlementCostSource = {
 export type StudentSettlementPaidStudentSource = {
   course_id: string;
   paid_student_count: number;
+  manual_cash_amount: number;
 };
 
 export type StudentSettlementCourseSummary = StudentSettlementCourseSource & {
@@ -69,13 +70,15 @@ export function buildStudentSettlementCourseSummaries({
     ordersByCourse.set(order.course_id, summary);
   }
 
-  const paidStudentsByCourse = new Map<string, number>();
+  const paidStudentsByCourse = new Map<string, { count: number; cashCents: number }>();
   for (const summary of paidStudents) {
-    paidStudentsByCourse.set(
-      summary.course_id,
-      (paidStudentsByCourse.get(summary.course_id) ?? 0) +
-        summary.paid_student_count,
-    );
+    const current = paidStudentsByCourse.get(summary.course_id) ?? {
+      count: 0,
+      cashCents: 0,
+    };
+    current.count += summary.paid_student_count;
+    current.cashCents += Math.round(summary.manual_cash_amount * 100);
+    paidStudentsByCourse.set(summary.course_id, current);
   }
 
   const costsByCourse = new Map<string, number>();
@@ -91,11 +94,15 @@ export function buildStudentSettlementCourseSummaries({
   return courses
     .map((course) => {
       const orderSummary = ordersByCourse.get(course.id);
+      const paidStudentSummary = paidStudentsByCourse.get(course.id);
       return {
         ...course,
         order_count: orderSummary?.count ?? 0,
-        payment_amount: (orderSummary?.paymentCents ?? 0) / 100,
-        paid_student_count: paidStudentsByCourse.get(course.id) ?? 0,
+        payment_amount:
+          ((orderSummary?.paymentCents ?? 0) +
+            (paidStudentSummary?.cashCents ?? 0)) /
+          100,
+        paid_student_count: paidStudentSummary?.count ?? 0,
         total_cost: costsByCourse.get(course.id) ?? 0,
       };
     })
