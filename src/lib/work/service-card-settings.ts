@@ -8,7 +8,7 @@ export const WORK_SERVICE_CARD_GROUPS = [
     items:[
       {route:"/services/course-operations",title:"강의 운영 자동화"},
       {route:"/services/instructor-intakes",title:"강사 정보 받기"},
-      {route:"/services/instagram-management",title:"인스타그램 관리"},
+      {route:"/services/content-management",title:"콘텐츠 관리"},
       {route:"/services/course-operations/students-settlements",title:"수강생관리 및 정산"},
       {route:"/services/course-wbs",title:"강의 WBS"},
       {route:"/services/course-schedule-planner",title:"강의 일정 플래너"},
@@ -17,7 +17,6 @@ export const WORK_SERVICE_CARD_GROUPS = [
       {route:"/services/cash-flow",title:"자금 흐름"},
       {route:"/services/purchase-analysis",title:"주문결제 매출분석"},
       {route:"/services/ad-performance",title:"광고성과"},
-      {route:"/services/youtube-management",title:"유튜브 출연 관리"},
     ],
   },
   {
@@ -32,13 +31,15 @@ export const WORK_SERVICE_CARD_GROUPS = [
 ] as const;
 
 const routes=WORK_SERVICE_CARD_GROUPS.flatMap(group=>group.items.map(item=>item.route));
-const acceptedRoutes=[...routes,...WORK_QUICK_TOOL_LINKS.map(item=>item.href)];
+const acceptedRoutes=["/services/instagram-management","/services/youtube-management",...routes,...WORK_QUICK_TOOL_LINKS.map(item=>item.href)];
 const routeSchema=z.enum(acceptedRoutes as [string,...string[]]);
 const currentRouteSet=new Set<string>(routes);
 export const workServiceCardSettingsSchema=z.object({
-  hiddenRoutes:z.array(routeSchema).max(acceptedRoutes.length).transform(value=>
-    [...new Set(value)].filter(route=>currentRouteSet.has(route)),
-  ),
+  hiddenRoutes:z.array(routeSchema).max(acceptedRoutes.length).transform(value=>{
+    const hidden=new Set(value);
+    if(hidden.has("/services/instagram-management")&&hidden.has("/services/youtube-management")) hidden.add("/services/content-management");
+    return [...hidden].filter(route=>currentRouteSet.has(route));
+  }),
 });
 export type WorkServiceCardSettings=z.infer<typeof workServiceCardSettingsSchema>;
 export const DEFAULT_WORK_SERVICE_CARD_SETTINGS:WorkServiceCardSettings={hiddenRoutes:[]};

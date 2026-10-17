@@ -12,6 +12,12 @@ npm run dev
 
 Supabase 없이도 현재 대시보드와 가져오기 진입 UI를 확인할 수 있습니다. 실제 인증과 데이터 저장을 연결하려면 `.env.local`에 Supabase 값을 입력하고 [DB 마이그레이션 안내](docs/database-migrations.md)에 따라 연결할 프로젝트와 적용할 변경을 확인하세요.
 
+## 콘텐츠 관리와 PDF 가져오기
+
+`/services/content-management`의 인스타그램·유튜브 탭에서 관리합니다. 강의별 공개 작성 페이지의 **PDF 업로드**에서 PDF를 변환하고, 목차·검색·원본 대조로 확인한 내용을 본문에 추가한 뒤 저장합니다. 이전 관리 주소는 해당 탭으로 연결됩니다.
+
+PDF 변환에는 새 DB 마이그레이션이 필요합니다. Vercel에서는 Workflow가 격리된 Sandbox에서 Python 파서를 자동 실행하며 별도 워커 서버가 필요하지 않습니다. 원본과 파생 파일은 비공개 저장하며 업로드는 Storage에 직접 전송합니다. 별도 워커 운영, 테스트와 오류 복구 절차는 [PDF 워커 안내](pdf-worker/README.md)를 참고하세요.
+
 ## Supabase 초기 설정
 
 1. [DB 마이그레이션 안내](docs/database-migrations.md)에 따라 대상 Supabase 프로젝트를 연결합니다.

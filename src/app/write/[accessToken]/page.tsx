@@ -46,7 +46,7 @@ export default async function ExternalWriterPage({ params }: Props) {
       </header>
       <div className="mx-auto max-w-5xl px-5 py-10">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight">인스타 글</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">인스타그램 자동DM용 컨텐츠 목록</h1>
           {planningSheetUrl ? (
             <Button variant="outline" asChild>
               <a href={planningSheetUrl} target="_blank" rel="noopener noreferrer">

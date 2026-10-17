@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
     }));
   },
   outputFileTracingIncludes: {
+    "/.well-known/workflow/v1/step": ["./pdf-worker/convert.py", "./pdf-worker/requirements.txt"],
     "/api/tools/youtube-download": ["./youtube-worker/app.py", "./youtube-worker/requirements-sandbox.txt"],
     "/api/tools/youtube-download/info": ["./youtube-worker/app.py", "./youtube-worker/requirements-sandbox.txt"],
   },

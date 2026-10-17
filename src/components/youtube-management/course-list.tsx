@@ -15,13 +15,13 @@ function formatWebinarDate(value:string|null){
   if(Number.isNaN(date.getTime()))return "—";
   return new Intl.DateTimeFormat("ko-KR",{dateStyle:"medium",timeZone:"Asia/Seoul"}).format(date);
 }
-export function YoutubeCourseList({courses}:{courses:Array<CourseMedia&{appearanceCount:number}>}){
+export function YoutubeCourseList({courses,embedded=false}:{courses:Array<CourseMedia&{appearanceCount:number}>;embedded?:boolean}){
   const [search,setSearch]=useState("");const [open,setOpen]=useState(false);const [connection,setConnection]=useState<Connection|null>(null);const [token,setToken]=useState("");const [busy,setBusy]=useState(false);const [message,setMessage]=useState("");
   async function openConnection(){setBusy(true);try{const response=await fetch("/api/youtube-management/notion-connection",{cache:"no-store"});const body=await response.json();if(!response.ok)throw new Error(body.message);setConnection(body);setOpen(true);}catch(error){setMessage(error instanceof Error?error.message:"연결을 불러오지 못했습니다.");}finally{setBusy(false);}}
   const visible=courses.filter(course=>`${course.name} ${course.instructor_name} ${course.cohort}`.toLowerCase().includes(search.toLowerCase()));
   const grouped=groupYoutubeCourses(visible);
-  return <main className="mx-auto max-w-6xl space-y-6 px-5 py-8">
-    <Link href="/work" className="text-sm hover:underline">← 운영 워크스페이스</Link>
+  return <div className={embedded ? "space-y-6" : "mx-auto max-w-6xl space-y-6 px-5 py-8"}>
+    {!embedded ? <Link href="/work" className="text-sm hover:underline">← 운영 워크스페이스</Link> : null}
     <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-semibold">유튜브 출연 관리</h1><Button variant="outline" disabled={busy} onClick={()=>void openConnection()}>노션 연결</Button></div>
     <Input aria-label="강의 검색" placeholder="강의명, 강사명, 기수 검색" value={search} onChange={event=>setSearch(event.target.value)} />
     <div className="space-y-4">{YOUTUBE_COURSE_GROUPS.map(group=>{
@@ -44,5 +44,5 @@ export function YoutubeCourseList({courses}:{courses:Array<CourseMedia&{appearan
       </form>}
     </DialogContent></Dialog>
     <MediaNotice message={message} onClose={()=>setMessage("")} />
-  </main>;
+  </div>;
 }

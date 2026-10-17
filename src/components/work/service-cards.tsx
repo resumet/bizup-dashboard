@@ -4,7 +4,6 @@ import {
   BookOpenCheck,
   CalendarRange,
   Camera,
-  Video,
   ChartGantt,
   ChartNoAxesCombined,
   ContactRound,
@@ -37,7 +36,6 @@ type Service = {
 };
 
 const services: Service[] = [
-  {title:"유튜브 출연 관리",route:"/services/youtube-management",icon:Video,iconClass:"bg-red-500/12 text-red-700 dark:text-red-300"},
   {
     title: "강사 정보 받기",
     route: "/services/instructor-intakes",
@@ -72,10 +70,8 @@ const services: Service[] = [
       "bg-emerald-500/12 text-emerald-700 ring-emerald-500/15 dark:text-emerald-300",
   },
   {
-    title: "인스타그램 관리",
-    description:
-      "강사 문서 작성부터 공개, 리드게이트와 신청자 Excel 다운로드까지 관리합니다.",
-    route: "/services/instagram-management",
+    title: "콘텐츠 관리",
+    route: "/services/content-management",
     icon: Camera,
     iconClass:
       "bg-pink-500/12 text-pink-700 ring-pink-500/15 dark:text-pink-300",

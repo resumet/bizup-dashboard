@@ -89,6 +89,7 @@ import type {
   RichTextNode,
 } from "@/lib/course-documents/types";
 import { cn } from "@/lib/utils";
+import { PdfImportDialog } from "./pdf-import-dialog";
 
 type Props = {
   mode: "admin" | "external";
@@ -128,6 +129,12 @@ const BlockIdentity = Extension.create({
     return [{
       types: TOP_LEVEL_BLOCKS,
       attributes: {
+        sourceJobId: { default: null, rendered: false },
+        sourcePage: { default: null, rendered: false },
+        sourceBbox: { default: null, rendered: false },
+        sourceConfidence: { default: null, rendered: false },
+        extractionMethod: { default: null, rendered: false },
+        userEdited: { default: false, rendered: false },
         blockId: {
           default: null,
           parseHTML: (element) => element.getAttribute("data-block-id"),
@@ -138,14 +145,25 @@ const BlockIdentity = Extension.create({
   },
   addProseMirrorPlugins() {
     return [new Plugin({
-      appendTransaction: (_transactions, _oldState, newState) => {
+      appendTransaction: (_transactions, oldState, newState) => {
         const seen = new Set<string>();
+        const previousBlocks = new Map<string, typeof newState.doc>();
+        oldState.doc.forEach((node) => {
+          if (typeof node.attrs.blockId === "string") previousBlocks.set(node.attrs.blockId, node);
+        });
         const transaction = newState.tr;
         let changed = false;
         newState.doc.forEach((node, offset) => {
           const candidate = node.attrs.blockId;
           if (typeof candidate === "string" && UUID_PATTERN.test(candidate) && !seen.has(candidate)) {
             seen.add(candidate);
+            if (node.attrs.sourceJobId && !node.attrs.userEdited) {
+              const previous = previousBlocks.get(candidate);
+              if (previous && !previous.eq(node)) {
+                transaction.setNodeMarkup(offset, undefined, { ...node.attrs, userEdited: true }, node.marks);
+                changed = true;
+              }
+            }
             return;
           }
           const blockId = crypto.randomUUID();
@@ -577,14 +595,21 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
               {dirty ? "저장 안 됨" : "저장됨"}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {document && !preview ? <PdfImportDialog documentId={document.id} accessToken={mode === "external" ? accessToken : undefined} onInsert={(nodes) => {
+              if (!editor) throw new Error("편집기를 준비하고 있습니다. 잠시 후 다시 시도해 주세요.");
+              if (editorBlocks(editor).length + nodes.length > 500) throw new Error("본문에는 최대 500개 문단을 저장할 수 있습니다. PDF를 나누어 주세요.");
+              editor.chain().focus().insertContentAt(editor.state.doc.content.size, nodes as JSONContent[]).run();
+              setNotice("PDF 내용을 본문 끝에 추가했습니다. 검토한 뒤 저장해 주세요.");
+            }} /> : null}
             <Button type="button" size="sm" variant="ghost" onClick={() => setPreview((value) => !value)}><Eye />{preview ? "편집" : "미리보기"}</Button>
             <Button type="button" size="sm" onClick={() => void save()} disabled={saving || uploading || (!dirty && Boolean(document))}>{saving ? <Loader2 className="animate-spin" /> : <Save />}{saving ? "저장 중" : "저장"}</Button>
           </div>
         </div>
 
         {!preview ? (
-          <div className="flex items-center gap-1 overflow-x-auto border-t px-2 py-1.5">
+          <>
+          <div className="flex flex-wrap items-center gap-1 border-t px-2 py-1.5">
             <Select
               value={currentBlockStyle}
               onValueChange={(value) => {
@@ -640,6 +665,8 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
             <ToolbarButton label="형광펜" active={Boolean(editor?.isActive("highlight"))} onClick={() => editor?.chain().focus().toggleHighlight().run()}><Highlighter /></ToolbarButton>
             <ToolbarButton label="링크" active={Boolean(editor?.isActive("link"))} onClick={openLinkDialog}><Link2 /></ToolbarButton>
             <span className="mx-1 h-5 w-px shrink-0 bg-border" />
+          </div>
+          <div className="flex flex-wrap items-center gap-1 border-t px-2 py-1.5">
             <ToolbarButton label="왼쪽 정렬" active={Boolean(editor && !editor.isActive({ textAlign: "center" }) && !editor.isActive({ textAlign: "right" }) && !editor.isActive({ textAlign: "justify" }))} onClick={() => editor?.chain().focus().setTextAlign("left").run()}><AlignLeft /></ToolbarButton>
             <ToolbarButton label="가운데 정렬" active={Boolean(editor?.isActive({ textAlign: "center" }))} onClick={() => editor?.chain().focus().setTextAlign("center").run()}><AlignCenter /></ToolbarButton>
             <ToolbarButton label="오른쪽 정렬" active={Boolean(editor?.isActive({ textAlign: "right" }))} onClick={() => editor?.chain().focus().setTextAlign("right").run()}><AlignRight /></ToolbarButton>
@@ -716,6 +743,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
             <ToolbarButton label="실행 취소" disabled={!editor?.can().undo()} onClick={() => editor?.chain().focus().undo().run()}><Undo2 /></ToolbarButton>
             <ToolbarButton label="다시 실행" disabled={!editor?.can().redo()} onClick={() => editor?.chain().focus().redo().run()}><Redo2 /></ToolbarButton>
           </div>
+          </>
         ) : null}
       </header>
 
@@ -723,7 +751,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
       {notice ? <Alert><AlertDescription>{notice}</AlertDescription></Alert> : null}
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_15rem]">
-        <section className="min-h-[46rem] rounded-xl border bg-background shadow-sm">
+        <section className="min-h-[46rem] min-w-0 overflow-hidden rounded-xl border bg-background shadow-sm">
           {preview ? (
             <div className="mx-auto w-full max-w-3xl px-6 py-12 sm:px-12">
               <h1 className="mb-10 text-4xl font-bold tracking-tight text-balance sm:text-5xl">{title || "제목 없음"}</h1>
