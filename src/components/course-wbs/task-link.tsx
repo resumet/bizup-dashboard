@@ -8,7 +8,7 @@ export function WbsTaskLink({ item, courseId, templateItems }: {
 }) {
   const link = taskLink(item, templateItems);
   if (!link) return null;
-  return <Link href={taskLinkHref(link, courseId)} target={link.type === "external" ? "_blank" : undefined} rel={link.type === "external" ? "noopener noreferrer" : undefined} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+  return <Link href={taskLinkHref(link, courseId)} target="_blank" rel="noopener noreferrer" prefetch={false} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
     {link.label}<ExternalLink className="size-3" aria-hidden="true" />
   </Link>;
 }

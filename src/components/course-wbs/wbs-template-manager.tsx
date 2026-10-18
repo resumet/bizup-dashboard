@@ -12,6 +12,7 @@ import { WBS_START_OFFSETS, WBS_DUE_OFFSETS, datesForStartOffset, dueDateForOffs
 import { reusableItems } from "@/lib/course-wbs/template-items";
 import { parseWbsTemplateBody } from "@/lib/course-wbs/validation";
 import { WBS_INTERNAL_PAGES } from "@/lib/course-wbs/task-links";
+import { savedCourseLinkOptions, type WbsCourseLinkOption } from "@/lib/course-wbs/course-links";
 import type { CourseWbsBootstrap, WbsItem, WbsTemplate } from "@/lib/course-wbs/types";
 
 const selectClass = "h-9 w-full rounded-lg border border-input bg-background px-2 text-sm disabled:opacity-60";
@@ -22,6 +23,7 @@ export function WbsTemplateManager({ canManage }: { canManage: boolean }) {
   const [name, setName] = useState("");
   const [referenceDate, setReferenceDate] = useState("2000-06-15");
   const [people, setPeople] = useState<string[]>([]);
+  const [courseLinkOptions, setCourseLinkOptions] = useState<WbsCourseLinkOption[]>(() => savedCourseLinkOptions([]));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -36,6 +38,7 @@ export function WbsTemplateManager({ canManage }: { canManage: boolean }) {
     setTemplate(body.template); setName(body.template.name);
     setReferenceDate(date); setItems(applyTemplateToCourse(body.template.items, date));
     setPeople([...new Set([...body.people, ...body.employeeNames])]); setDirty(false); setConflict(false);
+    setCourseLinkOptions(body.courseLinkOptions ?? savedCourseLinkOptions([]));
   }
 
   useEffect(() => {
@@ -140,9 +143,9 @@ export function WbsTemplateManager({ canManage }: { canManage: boolean }) {
                 <option value="none">연결 없음</option><option value="internal">내부 페이지</option><option value="external">외부 페이지</option>
               </select></div>
               {item.link ? <>
-                {item.link.type === "internal" ? <div><label htmlFor={`link-page-${item.id}`} className="mb-2 block text-sm">내부 화면 선택</label><select id={`link-page-${item.id}`} className={selectClass} disabled={disabled} value={WBS_INTERNAL_PAGES.some((page) => page.url === item.link?.url) ? item.link.url : "custom"} onChange={(event) => { const page = WBS_INTERNAL_PAGES.find((entry) => entry.url === event.target.value); edit(item.id, { link: { ...item.link!, url: page?.url ?? "", label: page?.label ?? item.link!.label } }); }}><option value="custom">직접 입력</option>{WBS_INTERNAL_PAGES.map((page) => <option key={page.url} value={page.url}>{page.label}</option>)}</select></div> : null}
+                {item.link.type === "internal" ? <div><label htmlFor={`link-page-${item.id}`} className="mb-2 block text-sm">내부 화면 선택</label><select id={`link-page-${item.id}`} className={selectClass} disabled={disabled} value={[...WBS_INTERNAL_PAGES, ...courseLinkOptions].some((page) => page.url === item.link?.url) ? item.link.url : "custom"} onChange={(event) => { const page = [...WBS_INTERNAL_PAGES, ...courseLinkOptions].find((entry) => entry.url === event.target.value); edit(item.id, { link: { ...item.link!, url: page?.url ?? "", label: page?.label ?? item.link!.label } }); }}><option value="custom">직접 입력</option><optgroup label="내부 페이지">{WBS_INTERNAL_PAGES.map((page) => <option key={page.url} value={page.url}>{page.label}</option>)}</optgroup><optgroup label="강의에 저장된 링크">{courseLinkOptions.map((page) => <option key={page.url} value={page.url}>{page.label}</option>)}</optgroup></select></div> : null}
                 <div><label htmlFor={`link-label-${item.id}`} className="mb-2 block text-sm">연결 이름</label><Input id={`link-label-${item.id}`} value={item.link.label} maxLength={120} disabled={disabled} onChange={(event) => edit(item.id, { link: { ...item.link!, label: event.target.value } })} /></div>
-                <div className="md:col-span-2"><label htmlFor={`link-url-${item.id}`} className="mb-2 block text-sm">연결 주소</label><Input id={`link-url-${item.id}`} value={item.link.url} maxLength={2000} disabled={disabled} placeholder={item.link.type === "internal" ? "/services/content-management" : "https://example.com"} onChange={(event) => edit(item.id, { link: { ...item.link!, url: event.target.value } })} /><p className="mt-1 text-xs text-muted-foreground">{item.link.type === "internal" ? "내부 경로를 입력하세요. {courseId}는 해당 WBS의 강의 ID로 자동 연결됩니다." : "http:// 또는 https:// 주소를 입력하세요. 새 창에서 열립니다."}</p></div>
+                <div className="md:col-span-2"><label htmlFor={`link-url-${item.id}`} className="mb-2 block text-sm">연결 주소</label><Input id={`link-url-${item.id}`} value={item.link.url} maxLength={2000} disabled={disabled} placeholder={item.link.type === "internal" ? "/services/content-management" : "https://example.com"} onChange={(event) => edit(item.id, { link: { ...item.link!, url: event.target.value } })} /><p className="mt-1 text-xs text-muted-foreground">{item.link.type === "internal" ? "강의 링크는 해당 강의에 저장된 최신 주소로 연결됩니다. 직접 입력 시 {courseId}는 강의 ID로 바뀝니다. 새 탭에서 열립니다." : "http:// 또는 https:// 주소를 입력하세요. 새 탭에서 열립니다."}</p></div>
               </> : null}
             </div>
           </section>;

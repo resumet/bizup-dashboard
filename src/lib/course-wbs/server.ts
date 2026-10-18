@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_WBS_TEMPLATE } from "./default-template";
+import { courseLinkLabel, resolveSavedCourseLink, savedCourseLinkOptions, WBS_COURSE_LINK_COLUMNS } from "./course-links";
 import { buildWbsDashboard, type WbsDashboardEntry } from "./dashboard";
 import { peopleInItems, selectablePeople, hasNewInactiveAssignment } from "./people";
 import { loadWorkspacePeople } from "@/lib/work-tasks/server";
@@ -277,7 +278,7 @@ export async function loadCourseWbsBootstrap(
   const [coursesResult, activeTemplateRow, savedPeople, employeeNames, wbsOverview, inactivePeople] = await Promise.all([
     admin
       .from("courses")
-      .select("id,name,cohort,instructor_name,free_webinar_at,status")
+      .select("id,name,cohort,instructor_name,free_webinar_at,status,custom_links")
       .eq("workspace_id", workspaceId)
       .order("free_webinar_at", { ascending: false }),
     loadActiveTemplateRow(workspaceId),
@@ -309,11 +310,24 @@ export async function loadCourseWbsBootstrap(
     })),
     dashboard: buildWbsDashboard(wbsOverview.entries, courses),
     template,
+    courseLinkOptions: savedCourseLinkOptions((coursesResult.data ?? []).map((row) => row.custom_links)),
     people: selectablePeople([...savedPeople, ...peopleInItems(template.items)], inactivePeople)
       .sort((a, b) => a.localeCompare(b, "ko")),
     employeeNames: selectablePeople(employeeNames, inactivePeople),
     inactivePeople,
   };
+}
+
+export async function loadWbsCourseSavedLink(workspaceId: string, courseId: string, key: string) {
+  parseWbsCourseId(courseId);
+  const label = courseLinkLabel(key);
+  if (!label || key.length > 500) throw new WbsInputError("강의 링크 항목을 확인해 주세요.");
+  const { data, error } = await createAdminClient().from("courses")
+    .select(WBS_COURSE_LINK_COLUMNS).eq("workspace_id", workspaceId).eq("id", courseId)
+    .returns<Record<string, unknown>[]>().maybeSingle();
+  if (error) throw databaseError("강의 링크 조회", error.code);
+  if (!data) return null;
+  return { label, url: resolveSavedCourseLink(data, key) };
 }
 
 export async function loadCourseWbs(

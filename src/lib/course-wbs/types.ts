@@ -81,4 +81,5 @@ export type CourseWbsBootstrap = {
   people: string[];
   employeeNames: string[];
   inactivePeople?: string[];
+  courseLinkOptions?: { label: string; url: string }[];
 };
