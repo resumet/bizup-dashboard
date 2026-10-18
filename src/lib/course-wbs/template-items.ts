@@ -14,5 +14,6 @@ export function reusableItems(items: WbsItem[]): WbsItem[] {
       description: item.description ?? "",
       completed: false,
       position,
+      ...(item.link ? { link: { ...item.link } } : {}),
     }));
 }

@@ -305,7 +305,7 @@ export async function loadCourseWbsBootstrap(
     schedules: wbsOverview.entries.map((entry) => ({
       courseId: entry.courseId,
       items: syncWebinarItem(entry.items, webinarDateFromTimestamp(coursesById.get(entry.courseId)?.webinarAt ?? null))
-        .map(({ id, title, owner, startDate, dueDate, completed }) => ({ id, title, owner, startDate, dueDate, completed })),
+        .map(({ id, title, owner, startDate, dueDate, completed, link }) => ({ id, title, owner, startDate, dueDate, completed, ...(link ? { link } : {}) })),
     })),
     dashboard: buildWbsDashboard(wbsOverview.entries, courses),
     template,

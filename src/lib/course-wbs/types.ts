@@ -10,7 +10,10 @@ export type WbsItem = {
   description: string;
   completed: boolean;
   position: number;
+  link?: WbsTaskLink;
 };
+
+export type WbsTaskLink = { type: "internal" | "external"; url: string; label: string };
 
 export type CourseWbs = {
   courseId: string;
@@ -43,7 +46,7 @@ export type WbsSummary = {
   updatedAt: string;
 };
 
-export type WbsScheduleItem = Pick<WbsItem, "id" | "title" | "owner" | "startDate" | "dueDate" | "completed">;
+export type WbsScheduleItem = Pick<WbsItem, "id" | "title" | "owner" | "startDate" | "dueDate" | "completed" | "link">;
 
 export type WbsScheduleEntry = {
   courseId: string;

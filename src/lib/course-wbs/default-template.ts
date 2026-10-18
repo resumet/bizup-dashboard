@@ -17,6 +17,7 @@ const NOTION_TASKS = [
   {
     title: "유튜브 신청서 강사님 전달",
     description: "유튜브 신청서를 수급하고 신청자 데이터를 강사에게 전달한다.",
+    link: { type: "internal", url: "/services/youtube-management/{courseId}", label: "유튜브 출연 관리" },
   },
   {
     title: "외부 유튜브 출연 신청",

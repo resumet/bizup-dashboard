@@ -1,6 +1,6 @@
 "use client";
 
-import { isSelectableCourse } from "@/lib/course-operations/course-status";
+import { COURSE_STATUS_LABELS, isSelectableCourse } from "@/lib/course-operations/course-status";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
@@ -9,6 +9,9 @@ import {
 } from "lucide-react";
 
 import { WbsGantt } from "@/components/course-wbs/wbs-gantt";
+import { WbsAttention } from "./wbs-attention";
+import { WbsTaskLink } from "./task-link";
+import { wbsProgress } from "@/lib/course-wbs/attention";
 import { WbsStartSchedule } from "@/components/course-wbs/wbs-start-schedule";
 import { BackLink } from "@/components/layout/back-link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -24,7 +27,6 @@ import { reorderWbsItems } from "@/lib/course-wbs/reorder";
 import { selectablePeople } from "@/lib/course-wbs/people";
 import { datesForStartOffset, dueDateForOffset, dueDateForStartDate, WBS_DUE_OFFSETS, WBS_START_OFFSETS } from "@/lib/course-wbs/schedule-options";
 import { sortWbsItemsByStartDate } from "@/lib/course-wbs/start-date-sort";
-import { reusableItems } from "@/lib/course-wbs/template-items";
 import type { WbsItemSelection } from "@/lib/course-wbs/item-schedules";
 import type { CourseWbs, CourseWbsBootstrap, WbsCourse, WbsDashboard, WbsDashboardTask, WbsItem, WbsScheduleEntry, WbsSummary, WbsTemplate } from "@/lib/course-wbs/types";
 import { applyTemplateToCourse, syncWebinarItem, webinarDateFromTimestamp, webinarDayLabel, WEBINAR_ITEM_ID } from "@/lib/course-wbs/webinar-date";
@@ -65,17 +67,6 @@ function courseCohort(course: WbsCourse) {
   return cohort ? `${cohort}${cohort.endsWith("기") ? "" : "기"}` : "기수 미입력";
 }
 
-function savedWbsNamecard(course: WbsCourse) {
-  const webinarDate = course.webinarAt ? toKoreaDate(course.webinarAt) : "";
-  const webinarTime = course.webinarAt ? toKoreaTime(course.webinarAt) : "";
-  return [
-    course.instructorName.trim() || "강사 미입력",
-    courseCohort(course),
-    webinarDate || "날짜 미입력",
-    webinarTime || "시간 미입력",
-  ].join(" · ");
-}
-
 function courseWbsHeading(course: WbsCourse | undefined) {
   if (!course) return "강의 정보 확인 중";
   const webinarDate = course.webinarAt ? toKoreaDate(course.webinarAt) : "";
@@ -87,10 +78,6 @@ function courseWbsHeading(course: WbsCourse | undefined) {
     webinarDate || "무료 웨비나 날짜 미입력",
     webinarTime || "시간 미입력",
   ].join(" • ");
-}
-
-function savedWbsProgress(summary: WbsSummary) {
-  return summary.itemCount ? Math.round(summary.completedCount / summary.itemCount * 100) : 0;
 }
 
 function daysBetween(from: string, to: string) {
@@ -207,7 +194,7 @@ function validateItems(items: WbsItem[]) {
   return "";
 }
 
-export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initialCourseId: string; canSaveTemplate: boolean }) {
+export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: string }) {
   const [courses, setCourses] = useState<WbsCourse[]>([]);
   const [wbsSummaries, setWbsSummaries] = useState<WbsSummary[]>([]);
   const [schedules, setSchedules] = useState<WbsScheduleEntry[]>([]);
@@ -217,7 +204,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [dashboard, setDashboard] = useState<WbsDashboard>(EMPTY_DASHBOARD);
-  const [overviewTab, setOverviewTab] = useState<"manage" | "analysis">("manage");
+  const [overviewTab, setOverviewTab] = useState<"manage" | "analysis" | "summary">("manage");
   const [newCourseId, setNewCourseId] = useState("");
   const [people, setPeople] = useState<string[]>([]);
   const [employeeNames, setEmployeeNames] = useState<string[]>([]);
@@ -238,7 +225,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [conflictTarget, setConflictTarget] = useState<"wbs" | "template" | null>(null);
+  const [conflictTarget, setConflictTarget] = useState<"wbs" | null>(null);
   const [today, setToday] = useState(() => toKoreaDate(new Date().toISOString()));
   const loadSequence = useRef(0);
   const addedItemId = useRef<string | null>(null);
@@ -320,13 +307,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
 
   const course = courses.find((entry) => entry.id === courseId);
   const webinarDate = webinarDateFromTimestamp(course?.webinarAt ?? null);
-  const completed = items.filter((item) => item.completed).length;
-  const notCompleted = items.length - completed;
-  const progress = items.length ? Math.round(completed / items.length * 100) : 0;
-  const overdueItems = items.filter((item) => {
-    const scheduled = item.dueDate || item.startDate;
-    return !item.completed && Boolean(scheduled) && scheduled <= today;
-  });
+  const itemProgress = wbsProgress(items, today);
   const sortedItems = useMemo(() => sortWbsItemsByStartDate(items), [items]);
   const ownerPeople = useMemo(() => selectablePeople([...employeeNames, ...people], inactivePeople)
     .sort((a, b) => a.localeCompare(b, "ko")), [employeeNames, people, inactivePeople]);
@@ -507,23 +488,6 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
     } finally { setDeleting(false); }
   }
 
-  async function refreshTemplate() {
-    setSaving(true);
-    try {
-      const response = await fetch("/api/course-wbs", { cache: "no-store" });
-      const body = await responseJson<CourseWbsBootstrap>(response);
-      setTemplate(body.template);
-      setPeople(body.people);
-      setEmployeeNames(body.employeeNames);
-      setInactivePeople(body.inactivePeople ?? []);
-      setConflictTarget(null);
-      setError("");
-      setNotice("최신 템플릿을 불러왔습니다. 현재 강의의 편집 내용은 유지했습니다.");
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "템플릿을 다시 불러오지 못했습니다.");
-    } finally { setSaving(false); }
-  }
-
   function reloadCurrentWbs() {
     if (dirty && !window.confirm("현재 편집 내용을 버리고 서버의 최신 WBS를 불러올까요?")) return;
     void loadCourse(courseId);
@@ -586,28 +550,6 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
     } finally { setSaving(false); }
   }
 
-  async function saveTemplate() {
-    if (!canSaveTemplate || !template || saving || loadingWbs || !courseReady) return;
-    if (!items.length) { setError("템플릿으로 저장할 항목을 먼저 추가해 주세요."); return; }
-    const validationError = validateItems(items);
-    if (validationError) { setError(validationError); return; }
-    setSaving(true);
-    clearFeedback();
-    try {
-      const response = await fetch(`/api/course-wbs/templates/${encodeURIComponent(template.id)}`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: template.name, items: reusableItems(items), expectedUpdatedAt: template.updatedAt }),
-      });
-      const body = await responseJson<{ template: WbsTemplate }>(response);
-      setTemplate(body.template);
-      setPeople((current) => withSavedPeople(current, body.template.items));
-      setNotice("템플릿을 업데이트했습니다. 이미 저장된 다른 강의 WBS는 그대로 유지됩니다.");
-    } catch (caught) {
-      setConflictTarget(caught instanceof ApiError && caught.status === 409 ? "template" : null);
-      setError(caught instanceof Error ? caught.message : "템플릿 저장에 실패했습니다.");
-    } finally { setSaving(false); }
-  }
-
   return <>
     <header className="border-b bg-background" aria-label="강의 WBS 상단">
       <div className="mx-auto flex min-h-18 max-w-[1900px] items-center gap-3 px-5 py-3 lg:px-8">
@@ -623,7 +565,6 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
     {error ? <Alert variant="destructive" className="mb-5" role="alert"><AlertDescription>
       {error}{conflictTarget ? " 현재 편집한 내용은 화면에 남아 있습니다." : ""}
       {conflictTarget === "wbs" ? <div className="mt-3"><Button size="sm" variant="outline" onClick={reloadCurrentWbs}>최신 WBS 불러오기</Button></div> : null}
-      {conflictTarget === "template" ? <div className="mt-3"><Button size="sm" variant="outline" onClick={() => void refreshTemplate()} disabled={saving}>템플릿 새로고침</Button></div> : null}
     </AlertDescription></Alert> : null}
     {notice ? <Alert className="mb-5" role="status"><AlertDescription>{notice}</AlertDescription></Alert> : null}
 
@@ -636,14 +577,16 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
         <p className="mt-2 text-sm text-muted-foreground">강의를 만든 뒤 WBS를 연결할 수 있습니다.</p>
         <Button className="mt-5" asChild><Link href="/services/course-operations/new"><Plus /> 강의 만들기</Link></Button>
       </div>
-    ) : !courseId ? <Tabs value={overviewTab} onValueChange={(value) => setOverviewTab(value as "manage" | "analysis")}>
+    ) : !courseId ? <Tabs value={overviewTab} onValueChange={(value) => setOverviewTab(value as "manage" | "analysis" | "summary")}>
       <div className="flex flex-wrap items-center justify-between gap-3">
       <TabsList aria-label="강의 WBS 화면">
         <TabsTrigger value="manage"><ClipboardList /> WBS 관리</TabsTrigger>
+        <TabsTrigger value="summary">업무 요약</TabsTrigger>
         <TabsTrigger value="analysis"><CalendarDays /> 업무 현황</TabsTrigger>
       </TabsList>
-      <Button onClick={() => { setNewCourseId(""); setCreateDialogOpen(true); }} disabled={deleting}><Plus /> WBS 만들기</Button>
+      <div className="flex flex-wrap gap-2"><Button variant="outline" asChild><Link href="/services/course-wbs/templates">템플릿 관리</Link></Button><Button onClick={() => { setNewCourseId(""); setCreateDialogOpen(true); }} disabled={deleting}><Plus /> WBS 만들기</Button></div>
       </div>
+      <TabsContent value="summary" className="mt-6"><WbsAttention courses={courses} entries={schedules} today={today} templateItems={template?.items ?? []} onSelect={(id, item) => { selectCourse(id); setView("list"); if (item) addedItemId.current = item.id; }} /></TabsContent>
       <TabsContent value="analysis" className="mt-6">
       <section className="mb-8" aria-label="WBS 대시보드">
         <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
@@ -679,34 +622,30 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
 
       <TabsContent value="manage" className="mt-6">
       <section aria-label="저장된 강의 WBS">
-        {savedWbsCards.length ? <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {savedWbsCards.length ? <div className="overflow-x-auto rounded-xl border bg-background"><table className="w-full min-w-[1000px] text-sm" aria-label="강의 WBS 목록">
+          <thead className="bg-muted/50 text-left"><tr>{["강의", "강사", "기수", "웨비나 날짜", "상태", "업무", "진행", "완료", "진행률", "미진행", ""].map((label, index) => <th key={index} className="whitespace-nowrap px-4 py-3" title={label === "진행" ? "완료되지 않은 전체 업무 수" : label === "미진행" ? "기한이 지났지만 완료되지 않은 업무 수" : undefined}>{label}</th>)}</tr></thead><tbody>
           {savedWbsCards.map(({ summary, course: linkedCourse }) => {
-            const cardProgress = savedWbsProgress(summary);
-            return <div key={summary.courseId} className="relative rounded-xl border bg-background shadow-sm">
-              <button type="button" onClick={() => selectCourse(summary.courseId)} disabled={deleting} aria-label={`${courseLabel(linkedCourse)} WBS 열기`} className="group block h-full w-full rounded-xl p-4 text-left transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <div className="pr-8">
-              <Badge variant="outline" className="h-auto min-h-5 max-w-full justify-start overflow-visible whitespace-normal break-keep py-1 text-left leading-4">{savedWbsNamecard(linkedCourse)}</Badge>
-              </div>
-              <h4 className="mt-4 text-base font-semibold group-hover:text-primary">{linkedCourse.name}</h4>
-              <div className="mt-4 border-t pt-3">
-                <div className="flex items-center justify-between gap-2 text-sm"><span className="text-muted-foreground">업무 {summary.itemCount}개 · 완료 {summary.completedCount}개</span><span className="font-semibold tabular-nums">{cardProgress}%</span></div>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${cardProgress}%` }} /></div>
-              </div>
-              </button>
+            const counts = wbsProgress(schedules.find((entry) => entry.courseId === summary.courseId)?.items ?? [], today);
+            return <tr key={summary.courseId} className="border-t">
+              <td className="px-4 py-3"><button type="button" onClick={() => selectCourse(summary.courseId)} disabled={deleting} className="text-left font-medium text-primary hover:underline">{linkedCourse.name}</button></td>
+              <td className="px-4 py-3">{linkedCourse.instructorName || "—"}</td><td className="px-4 py-3">{linkedCourse.cohort || "—"}</td>
+              <td className="whitespace-nowrap px-4 py-3">{linkedCourse.webinarAt ? toKoreaDate(linkedCourse.webinarAt) : "—"}</td><td className="px-4 py-3">{COURSE_STATUS_LABELS[linkedCourse.status]}</td>
+              <td className="px-4 py-3 tabular-nums">{counts.total}</td><td className="px-4 py-3 tabular-nums">{counts.remaining}</td><td className="px-4 py-3 tabular-nums">{counts.completed}</td><td className="px-4 py-3 tabular-nums">{counts.progress}%</td><td className={`px-4 py-3 tabular-nums ${counts.overdue ? "font-semibold text-destructive" : ""}`}>{counts.overdue}</td>
+              <td className="px-2 py-3">
               <DropdownMenu>
-                <DropdownMenuTrigger asChild><Button size="icon-sm" variant="ghost" aria-label={`${courseLabel(linkedCourse)} WBS 메뉴`} disabled={deleting} className="absolute right-2 top-3"><MoreHorizontal /></Button></DropdownMenuTrigger>
+                <DropdownMenuTrigger asChild><Button size="icon-sm" variant="ghost" aria-label={`${courseLabel(linkedCourse)} WBS 메뉴`} disabled={deleting}><MoreHorizontal /></Button></DropdownMenuTrigger>
                 <DropdownMenuContent align="end"><DropdownMenuItem variant="destructive" onSelect={() => { setDeleteError(""); setDeleteTarget(linkedCourse); }}><Trash2 /> WBS 삭제</DropdownMenuItem></DropdownMenuContent>
-              </DropdownMenu>
-            </div>;
+              </DropdownMenu></td>
+            </tr>;
           })}
-        </div> : <div className="rounded-xl border border-dashed bg-background px-6 py-14 text-center text-sm text-muted-foreground">저장된 WBS가 없습니다. 상단의 WBS 만들기 버튼으로 강의를 연결하세요.</div>}
+        </tbody></table></div> : <div className="rounded-xl border border-dashed bg-background px-6 py-14 text-center text-sm text-muted-foreground">저장된 WBS가 없습니다. 상단의 WBS 만들기 버튼으로 강의를 연결하세요.</div>}
       </section>
 
       <WbsStartSchedule courses={courses} entries={scheduleEntries} options={scheduleOptions} selected={selectedScheduleItem} onSelect={setSelectedScheduleItem} today={today} onSelectCourse={selectCourse} />
       </TabsContent>
     </Tabs> : <>
       <div className="mb-4 flex flex-wrap items-center justify-end gap-2" role="group" aria-label="WBS 작업">
-        {canSaveTemplate ? <Button size="sm" variant="outline" onClick={() => void saveTemplate()} disabled={!template || !courseReady || !items.length || loadingWbs || saving}><Save /> 템플릿으로 저장</Button> : null}
+        <Button size="sm" variant="outline" onClick={() => { selectCourse(""); setOverviewTab("manage"); }}>WBS 목록</Button>
         <Button size="sm" variant="outline" onClick={applyTemplate} disabled={!template || !courseReady || loadingWbs || saving}><ClipboardList /> 템플릿 불러오기</Button>
         <div className="flex shrink-0 items-center gap-2">
           {course ? <Button variant="outline" size="sm" asChild><Link href={`/services/course-operations/${course.id}`}>강의 상세 <ExternalLink /></Link></Button> : null}
@@ -717,11 +656,13 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
       </div>
 
       <section className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="업무 현황">
-        <div className="rounded-xl border bg-background p-4 shadow-sm"><p className="text-xs text-muted-foreground">업무 전체현황</p><p className="mt-2 text-2xl font-semibold tabular-nums">{courseReady ? `${items.length}개` : "—"}</p><p className="mt-1 text-xs text-muted-foreground">등록된 전체 항목</p></div>
-        <div className="rounded-xl border bg-background p-4 shadow-sm"><p className="text-xs text-muted-foreground">진행현황</p><p className="mt-2 text-2xl font-semibold tabular-nums text-emerald-700">{courseReady ? `${completed}개` : "—"}</p><p className="mt-1 text-xs text-muted-foreground">완료한 업무</p></div>
-        <div className="rounded-xl border bg-background p-4 shadow-sm"><p className="text-xs text-muted-foreground">미진행현황</p><p className="mt-2 text-2xl font-semibold tabular-nums">{courseReady ? `${notCompleted}개` : "—"}</p><p className="mt-1 text-xs text-muted-foreground">완료하지 않은 업무</p></div>
-        <div className="rounded-xl border bg-background p-4 shadow-sm"><p className="text-xs text-muted-foreground">진행률</p><p className="mt-2 text-2xl font-semibold tabular-nums">{courseReady ? `${progress}%` : "—"}</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${progress}%` }} /></div></div>
-        <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm dark:border-amber-900 dark:bg-amber-950/20"><p className="text-xs text-muted-foreground">오늘까지 미진행 업무</p><p className="mt-2 text-2xl font-semibold tabular-nums text-amber-800 dark:text-amber-300">{courseReady ? `${overdueItems.length}개` : "—"}</p><p className="mt-1 truncate text-xs text-muted-foreground" title={overdueItems.map((item) => item.title).join(", ")}>{overdueItems.length ? overdueItems.slice(0, 2).map((item) => item.title).join(" · ") : "오늘까지 마감된 미완료 업무 없음"}</p></div>
+        {[
+          { label: "업무", value: `${itemProgress.total}개`, help: "등록된 전체 업무" },
+          { label: "진행", value: `${itemProgress.remaining}개`, help: "완료되지 않은 전체 업무" },
+          { label: "완료", value: `${itemProgress.completed}개`, help: "완료한 업무" },
+          { label: "진행률", value: `${itemProgress.progress}%`, help: "전체 업무 대비 완료 비율" },
+          { label: "미진행", value: `${itemProgress.overdue}개`, help: "기한이 지났지만 완료되지 않은 업무" },
+        ].map((stat) => <div key={stat.label} className="rounded-xl border bg-background p-4 shadow-sm" title={stat.help}><p className="text-xs text-muted-foreground">{stat.label}</p><p className={`mt-2 text-2xl font-semibold tabular-nums ${stat.label === "미진행" && itemProgress.overdue ? "text-destructive" : ""}`}>{courseReady ? stat.value : "—"}</p></div>)}
       </section>
 
       <section className="min-w-0" aria-label="강의 WBS 항목">
@@ -750,7 +691,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
                 <tbody>
                   {sortedItems.map((item, index) => <tr key={item.id} className={`border-t ${isPastItem(item, today) ? "bg-muted/60" : item.id === WEBINAR_ITEM_ID ? "bg-primary/5" : ""}`}>
                     <td className="px-4 py-3 text-center"><input type="checkbox" className="size-4 accent-primary" checked={item.completed} onChange={(event) => editItem(item.id, { completed: event.target.checked })} aria-label={`${item.title || `${index + 1}번째 항목`} 완료`} disabled={saving} /></td>
-                    <td className={`px-4 py-3 font-medium ${item.completed ? "text-muted-foreground line-through" : ""}`}><button type="button" onClick={() => setSelectedScheduleItem(item)} aria-pressed={selectedScheduleItem?.id === item.id} className="text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{item.title || "—"}</button></td>
+                    <td className={`px-4 py-3 font-medium ${item.completed ? "text-muted-foreground line-through" : ""}`}><button type="button" onClick={() => setSelectedScheduleItem(item)} aria-pressed={selectedScheduleItem?.id === item.id} className="text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{item.title || "—"}</button><div className="mt-1"><WbsTaskLink item={item} courseId={courseId} templateItems={template?.items} /></div></td>
                     <td className="px-4 py-3">{item.owner || "—"}</td>
                     <td className="px-4 py-3">{item.stakeholders || "—"}</td>
                     <td className="whitespace-nowrap px-4 py-3 tabular-nums">{item.startDate ? <time dateTime={item.startDate}>{item.startDate}</time> : "—"}</td>
@@ -787,6 +728,7 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
                           }} value={item.title} onFocus={() => setSelectedScheduleItem(item)} onChange={(event) => editItem(item.id, { title: event.target.value })} placeholder="업무 제목" aria-label={`${index + 1}번째 업무 제목`} className={item.completed ? "line-through" : ""} disabled={saving || item.id === WEBINAR_ITEM_ID} />
                           {item.id === WEBINAR_ITEM_ID ? <p className="mt-1 text-xs text-muted-foreground">날짜는 강의 상세의 무료웨비나 일정과 연결됩니다.</p> : null}
                           <Textarea value={item.description ?? ""} onChange={(event) => editItem(item.id, { description: event.target.value })} placeholder="업무 설명 또는 세부 체크 내용" aria-label={`${index + 1}번째 업무 설명`} rows={2} className="mt-2 min-h-14 resize-y text-xs" disabled={saving} />
+                          <div className="mt-2"><WbsTaskLink item={item} courseId={courseId} templateItems={template?.items} /></div>
                         </div>
                       </div>
                     </td>

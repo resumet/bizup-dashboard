@@ -93,14 +93,16 @@ test("WBS 마이그레이션은 강의와 워크스페이스 연결 및 템플�
        where workspace_id = $1 and id = 'notion-webinar' and updated_at = $2::timestamptz returning id`,
       [workspaceA, firstTemplateRevision, JSON.stringify([{
         id: "task-2", title: "Updated", description: "첫 단계 확인\n담당자에게 결과 공유",
+        link: { type: "internal", url: "/services/youtube-management/{courseId}", label: "유튜브 출연 관리" },
       }])],
     );
     assert.equal(upgradedTemplate.rows.length, 1);
-    const storedDescriptions = await db.query<{ items: { description: string }[] }>(
+    const storedDescriptions = await db.query<{ items: { description: string; link: { type: string; url: string; label: string } }[] }>(
       "select items from public.course_wbs_templates where workspace_id = $1 and id = 'notion-webinar'",
       [workspaceA],
     );
     assert.equal(storedDescriptions.rows[0].items[0].description, "첫 단계 확인\n담당자에게 결과 공유");
+    assert.deepEqual(storedDescriptions.rows[0].items[0].link, { type: "internal", url: "/services/youtube-management/{courseId}", label: "유튜브 출연 관리" });
     const staleTemplate = await db.query(
       "update public.course_wbs_templates set name = 'Stale' where workspace_id = $1 and id = 'notion-webinar' and updated_at = $2::timestamptz returning id",
       [workspaceA, firstTemplateRevision],

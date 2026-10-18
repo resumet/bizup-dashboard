@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 
 import { CourseWbsWorkspace } from "@/components/course-wbs/course-wbs-workspace";
-import { isSuperAdminEmail } from "@/lib/admin/access";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -16,7 +15,7 @@ export default async function CourseWbsPage({
 
   return (
     <main className="min-h-screen bg-muted/20">
-      <CourseWbsWorkspace initialCourseId={courseId ?? ""} canSaveTemplate={isSuperAdminEmail(user.email)} />
+      <CourseWbsWorkspace initialCourseId={courseId ?? ""} />
     </main>
   );
 }

@@ -1,4 +1,5 @@
 import type { WbsItem } from "./types";
+import { validTaskLink } from "./task-links";
 
 export class WbsInputError extends Error {}
 
@@ -66,6 +67,13 @@ export function parseWbsItems(value: unknown): WbsItem[] {
     if (!Number.isInteger(position) || (position as number) < 0 || (position as number) > 100000) {
       throw new WbsInputError("항목 순서를 확인해 주세요.");
     }
+    let link: WbsItem["link"];
+    if (item.link !== undefined && item.link !== null) {
+      const raw = record(item.link);
+      if (raw.type !== "internal" && raw.type !== "external") throw new WbsInputError("연결 유형을 확인해 주세요.");
+      link = { type: raw.type, url: requiredText(raw.url, "연결 주소", 2000), label: requiredText(raw.label, "연결 이름", 120) };
+      if (!validTaskLink(link)) throw new WbsInputError("내부 경로 또는 http(s) 외부 주소를 입력해 주세요.");
+    }
     return {
       id,
       title: requiredText(item.title, "항목 제목", 200),
@@ -76,6 +84,7 @@ export function parseWbsItems(value: unknown): WbsItem[] {
       description: optionalText(item.description, "설명", 2000),
       completed: item.completed === true,
       position: position as number,
+      ...(link ? { link } : {}),
     };
   }).sort((a, b) => a.position - b.position);
 }
