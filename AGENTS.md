@@ -10,6 +10,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## UI copy rules
 
+- Unless the user explicitly requests another order, every course list and course selection dropdown must use the shared `sortByNearestWebinar` policy: upcoming webinars first from the nearest date, followed by past webinars from the most recent date, with missing/invalid dates last. Use the Asia/Seoul calendar date. Apply this within status groups and preserve the order while filtering/searching; do not replace it with creation/update time or descending webinar date.
+
 - Unless the user explicitly requests otherwise, course selection dropdowns must exclude courses with status `on_hold` (보류), `completed` (완료), or `canceled` (취소). Use the shared course-status selection policy. Preserve existing saved course associations and their display; filtering choices must not erase historical data.
 
 - Exception: the cash ledger entry form must list all course statuses, including on-hold, completed, and canceled courses, with labels `(상태)강사명-강의명-기수`.

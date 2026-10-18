@@ -1,3 +1,4 @@
+import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 import "server-only";
 
 import { revalidateTag, unstable_cache } from "next/cache";
@@ -38,8 +39,8 @@ const loadCachedCourseSummaries = unstable_cache(
   },
 );
 
-export function getCachedCourseSummaries(workspaceId: string) {
-  return loadCachedCourseSummaries(workspaceId);
+export async function getCachedCourseSummaries(workspaceId: string) {
+  return sortByNearestWebinar(await loadCachedCourseSummaries(workspaceId));
 }
 
 export function invalidateCourseOperationsList() {

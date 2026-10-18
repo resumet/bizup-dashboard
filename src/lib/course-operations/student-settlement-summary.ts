@@ -1,3 +1,4 @@
+import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 export type StudentSettlementCourseSource = {
   id: string;
   name: string;
@@ -91,7 +92,7 @@ export function buildStudentSettlementCourseSummaries({
     );
   }
 
-  return courses
+  return sortByNearestWebinar(courses)
     .map((course) => {
       const orderSummary = ordersByCourse.get(course.id);
       const paidStudentSummary = paidStudentsByCourse.get(course.id);
@@ -105,10 +106,5 @@ export function buildStudentSettlementCourseSummaries({
         paid_student_count: paidStudentSummary?.count ?? 0,
         total_cost: costsByCourse.get(course.id) ?? 0,
       };
-    })
-    .sort(
-      (left, right) =>
-        right.free_webinar_at.localeCompare(left.free_webinar_at) ||
-        left.name.localeCompare(right.name, "ko-KR"),
-    );
+    });
 }

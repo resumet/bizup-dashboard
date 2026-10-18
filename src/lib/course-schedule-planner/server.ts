@@ -1,3 +1,4 @@
+import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -110,7 +111,7 @@ export async function loadCourseSchedulePlanner(
   if (coursesResult.error) {
     throw new Error(`확정 강의 일정 조회 실패: ${coursesResult.error.code}`);
   }
-  const confirmedCourses: ConfirmedCourseSchedule[] = (coursesResult.data ?? [])
+  const confirmedCourses: ConfirmedCourseSchedule[] = sortByNearestWebinar(coursesResult.data ?? [], today)
     .map((course) => ({
       id: course.id,
       name: course.name,

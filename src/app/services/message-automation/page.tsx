@@ -1,3 +1,4 @@
+import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 import Link from "next/link";
 import { BackLink } from "@/components/layout/back-link";
 import { redirect } from "next/navigation";
@@ -47,7 +48,7 @@ export default async function MessageAutomationPage({ searchParams }: Props) {
       supabase
         .from("courses")
         .select(
-          "id,name,status,instructor_name,free_address_book_id,landing_page_link,custom_links,free_kakao_room_1_link,free_kakao_room_2_link,paid_kakao_room_link,communication_room_link,payment_link,inquiry_link,curriculum_link,free_gift_link,course_viewing_link",
+          "id,name,status,free_webinar_at,instructor_name,free_address_book_id,landing_page_link,custom_links,free_kakao_room_1_link,free_kakao_room_2_link,paid_kakao_room_link,communication_room_link,payment_link,inquiry_link,curriculum_link,free_gift_link,course_viewing_link",
         )
         .order("updated_at", { ascending: false }),
       contactPromise,
@@ -78,7 +79,7 @@ export default async function MessageAutomationPage({ searchParams }: Props) {
           books={booksResult.data ?? []}
           rosters={rostersResult.data ?? []}
           templates={templatesResult.data ?? []}
-          courses={coursesResult.data ?? []}
+          courses={sortByNearestWebinar(coursesResult.data ?? [])}
           initialBookId={query.bookId ?? ""}
           initialTemplateId={query.templateId ?? ""}
           initialSelectionKey={query.selectionKey ?? ""}

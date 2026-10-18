@@ -5,6 +5,7 @@ import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { paidExclusionRostersQuery } from "@/lib/address-books/paid-rosters";
 import { rosterIncludesContact, type ContactCourse } from "@/lib/address-books/contact-courses";
 import { loadJobEnrollmentRows } from "@/lib/jobs/server";
+import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 
 export const runtime = "nodejs";
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
@@ -29,7 +30,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ boo
       .eq("id", contactId).eq("address_book_id", bookId).maybeSingle();
     if (contactError) throw contactError;
     if (!contact) return json({ message: "연락처를 찾을 수 없습니다." }, 404);
-    const courses = new Map<string, ContactCourse>();
+    const courses = new Map<string, ContactCourse & { freeWebinarAt: string }>();
     for (let start = 0; ; start += 1000) {
       const { data, error } = await paidExclusionRostersQuery(admin, book.workspace_id).order("id").range(start, start + 999);
       if (error) throw error;
@@ -42,11 +43,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ boo
         }));
         for (const course of matches) if (course) courses.set(course.id, {
           id: course.id, name: course.name, cohort: course.cohort, instructorName: course.instructor_name,
+          freeWebinarAt: course.free_webinar_at,
         });
       }
       if (rosters.length < 1000) break;
     }
-    return json({ courses: [...courses.values()].sort((a, b) => a.name.localeCompare(b.name, "ko-KR") || (a.cohort ?? "").localeCompare(b.cohort ?? "", "ko-KR", { numeric: true })) });
+    return json({ courses: sortByNearestWebinar([...courses.values()]) });
   } catch {
     return json({ message: "수강 강의를 불러오지 못했습니다. 다시 시도해 주세요." }, 500);
   }

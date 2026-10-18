@@ -17,7 +17,7 @@ export type PartyInput = z.infer<typeof partySchema>;
 export type Party = PartyInput & { id: string; version: number };
 export type EntryInput = z.infer<typeof entrySchema>;
 export type Entry = EntryInput & { id: string; number: number; version: number };
-export type LedgerCourse = { id: string; name: string; status: string; instructor_name: string; cohort: string | null };
+export type LedgerCourse = { free_webinar_at?: string | null; id: string; name: string; status: string; instructor_name: string; cohort: string | null };
 export type Attachment = { id: string; entryId: string; name: string; size: number; mimeType: string };
 export type LedgerState = { settings: Settings | null; parties: Party[]; entries: Entry[]; courses: LedgerCourse[]; attachments: Attachment[] };
 

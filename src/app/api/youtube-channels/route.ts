@@ -1,3 +1,4 @@
+import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 import { DEFAULT_SELECTABLE_COURSE_STATUS } from "@/lib/course-operations/course-status";
 import { NextResponse } from "next/server";
 import { start } from "workflow/api";
@@ -185,7 +186,7 @@ export async function GET(request: Request) {
       batch:batch.data,
       requests:requests.data,
       emailSettings:emailSettingsResult.data ?? DEFAULT_YOUTUBE_EMAIL_SETTINGS,
-      emailCourses:coursesResult.data ?? [],
+      emailCourses:sortByNearestWebinar(coursesResult.data ?? []),
     });
   } catch(error) { return failure(error); }
 }

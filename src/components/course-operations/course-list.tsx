@@ -73,7 +73,6 @@ import {
   type CourseStatus,
 } from "@/lib/course-operations/course-status";
 import {
-  sortByFarthestWebinar,
   sortByNearestWebinar,
 } from "@/lib/course-operations/webinar-proximity";
 
@@ -253,10 +252,6 @@ export function CourseOperationsList({
     () => partitionCoursesByStatus(courses),
     [courses],
   );
-  const cardOngoingCourses = useMemo(() => sortByFarthestWebinar(ongoingCourses), [ongoingCourses]);
-  const cardOnHoldCourses = useMemo(() => sortByFarthestWebinar(onHoldCourses), [onHoldCourses]);
-  const cardCompletedCourses = useMemo(() => sortByFarthestWebinar(completedCourses), [completedCourses]);
-  const cardCanceledCourses = useMemo(() => sortByFarthestWebinar(canceledCourses), [canceledCourses]);
   const listOngoingCourses = useMemo(
     () => sortByNearestWebinar(ongoingCourses, todayKoreaDate),
     [ongoingCourses, todayKoreaDate],
@@ -391,10 +386,10 @@ export function CourseOperationsList({
 
       {viewMode === "cards" ? (
         <div className="space-y-10">
-          <section aria-label="진행 강의"><CourseSectionHeading title="진행" count={cardOngoingCourses.length} /><CourseCards courses={cardOngoingCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} /></section>
-          <CourseStatusSection title="보류" count={cardOnHoldCourses.length} open={openStatuses.on_hold} onToggle={() => toggleStatusSection("on_hold")}><CourseCards courses={cardOnHoldCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} subdued /></CourseStatusSection>
-          <CourseStatusSection title="완료" count={cardCompletedCourses.length} open={openStatuses.completed} onToggle={() => toggleStatusSection("completed")}><CourseCards courses={cardCompletedCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} subdued /></CourseStatusSection>
-          <CourseStatusSection title="취소" count={cardCanceledCourses.length} open={openStatuses.canceled} onToggle={() => toggleStatusSection("canceled")}><CourseCards courses={cardCanceledCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} subdued /></CourseStatusSection>
+          <section aria-label="진행 강의"><CourseSectionHeading title="진행" count={listOngoingCourses.length} /><CourseCards courses={listOngoingCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} /></section>
+          <CourseStatusSection title="보류" count={listOnHoldCourses.length} open={openStatuses.on_hold} onToggle={() => toggleStatusSection("on_hold")}><CourseCards courses={listOnHoldCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} subdued /></CourseStatusSection>
+          <CourseStatusSection title="완료" count={listCompletedCourses.length} open={openStatuses.completed} onToggle={() => toggleStatusSection("completed")}><CourseCards courses={listCompletedCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} subdued /></CourseStatusSection>
+          <CourseStatusSection title="취소" count={listCanceledCourses.length} open={openStatuses.canceled} onToggle={() => toggleStatusSection("canceled")}><CourseCards courses={listCanceledCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} subdued /></CourseStatusSection>
         </div>
       ) : viewMode === "list" ? (
         <div className="space-y-10">

@@ -6,6 +6,8 @@ import { InstagramManagementWorkspace } from "@/components/course-documents/inst
 import { MediaManagementTabs } from "@/components/course-documents/media-management-tabs";
 import { YoutubeCourseList } from "@/components/youtube-management/course-list";
 import { requireCourseDocumentMember } from "@/lib/course-documents/server";
+import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
+import { countYoutubeAppearances } from "@/lib/youtube-management/course-list";
 
 export default async function ContentManagementPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { admin, membership } = await requireCourseDocumentMember().catch((error) => {
@@ -14,7 +16,7 @@ export default async function ContentManagementPage({ searchParams }: { searchPa
   });
   const { tab } = await searchParams;
   const { data, error } = await admin.from("courses")
-    .select("id,name,instructor_name,cohort,status,free_webinar_at,course_youtube_appearances(count)")
+    .select("id,name,instructor_name,cohort,status,free_webinar_at,course_youtube_appearances(request_status)")
     .eq("workspace_id", membership.workspace_id).order("created_at", { ascending: false });
   if (error) throw new Error("강의 목록을 불러오지 못했습니다.");
   return <main className="min-h-screen">
@@ -24,7 +26,7 @@ export default async function ContentManagementPage({ searchParams }: { searchPa
     </div></header>
     <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
       <MediaManagementTabs initialTab={tab} instagram={<InstagramManagementWorkspace />} youtube={
-        <YoutubeCourseList embedded courses={(data ?? []).map((course) => ({ ...course, appearanceCount: course.course_youtube_appearances?.[0]?.count ?? 0 }))} />
+        <YoutubeCourseList embedded courses={sortByNearestWebinar(data ?? []).map((course) => ({ ...course, ...countYoutubeAppearances(course.course_youtube_appearances ?? []) }))} />
       } />
     </div>
   </main>;

@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
+import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 
 import { courseDocumentErrorResponse, requireCourseDocumentMember, toDocumentSummary } from "@/lib/course-documents/server";
 import {
@@ -135,7 +136,7 @@ export async function GET(request: Request) {
       memo: row.memo,
       createdAt: row.created_at,
     }));
-    return Response.json({ courses: courseItems, leads, blockedPhones }, { headers: { "Cache-Control": "private, no-store" } });
+    return Response.json({ courses: sortByNearestWebinar(courseItems), leads, blockedPhones }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return courseDocumentErrorResponse(error);
   }

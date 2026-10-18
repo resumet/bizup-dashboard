@@ -1,6 +1,6 @@
 import { isSelectableCourse } from "@/lib/course-operations/course-status";
 import { COURSE_COMPLETION_AFTER_DAYS } from "@/lib/course-operations/course-list-status";
-import { getWebinarDayDifference } from "@/lib/course-operations/webinar-proximity";
+import { getWebinarDayDifference, sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 
 import type { CourseDocumentCourse } from "./types";
 
@@ -8,10 +8,10 @@ export function activeInstagramCourses(
   courses: readonly CourseDocumentCourse[],
   todayKoreaDate: string,
 ) {
-  return courses.filter(isSelectableCourse).filter((course) => {
+  return sortByNearestWebinar(courses.filter(isSelectableCourse).filter((course) => {
     const days = getWebinarDayDifference(course.freeWebinarAt, todayKoreaDate);
     return days === null || days > -COURSE_COMPLETION_AFTER_DAYS;
-  });
+  }), todayKoreaDate);
 }
 
 export function instagramCourseOptionLabel(course: CourseDocumentCourse) {

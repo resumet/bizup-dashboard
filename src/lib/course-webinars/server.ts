@@ -1,3 +1,4 @@
+import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
@@ -43,6 +44,6 @@ export async function listWebinarCourses(client: Awaited<ReturnType<typeof webin
       const metric = row.course_webinar_metrics as unknown as WebinarRecord | WebinarRecord[] | null;
       items.push({ id: row.id, name: row.name, instructor_name: row.instructor_name, free_webinar_at: row.free_webinar_at, metrics: Array.isArray(metric) ? metric[0] ?? null : metric });
     }
-    if (!data || data.length < 500) return items;
+    if (!data || data.length < 500) return sortByNearestWebinar(items);
   }
 }

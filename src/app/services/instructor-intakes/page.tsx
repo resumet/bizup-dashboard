@@ -11,7 +11,7 @@ import {
   type IntakeRow,
 } from "@/lib/instructor-intake/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getWebinarDayDifference } from "@/lib/course-operations/webinar-proximity";
+import { getWebinarDayDifference, sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 import { toKoreaDate } from "@/lib/course-operations/schedule";
 
 export default async function InstructorIntakesPage() {
@@ -32,7 +32,7 @@ export default async function InstructorIntakesPage() {
     ]);
   const rows = error ? [] : (data as IntakeRow[]).map(normalizeIntake);
   const todayKoreaDate = toKoreaDate(new Date().toISOString());
-  const activeCourses = (courses ?? []).filter((course) => {
+  const activeCourses = sortByNearestWebinar(courses ?? [], todayKoreaDate).filter((course) => {
     const days = getWebinarDayDifference(
       course.free_webinar_at,
       todayKoreaDate,

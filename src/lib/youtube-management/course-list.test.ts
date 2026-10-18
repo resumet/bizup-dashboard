@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { groupYoutubeCourses, YOUTUBE_COURSE_GROUPS } from "./course-list";
+import { countYoutubeAppearances, groupYoutubeCourses, YOUTUBE_COURSE_GROUPS } from "./course-list";
 
 test("유튜브 관리 강의를 진행중·완료·취소·보류 순서로 나누고 진행중만 기본으로 연다", () => {
   assert.deepEqual(YOUTUBE_COURSE_GROUPS, [
@@ -22,4 +22,13 @@ test("유튜브 관리 강의를 진행중·완료·취소·보류 순서로 나
   assert.deepEqual(grouped.completed.map(({ id }) => id), ["completed"]);
   assert.deepEqual(grouped.canceled.map(({ id }) => id), ["canceled"]);
   assert.deepEqual(grouped.on_hold.map(({ id }) => id), ["on-hold"]);
+});
+
+test("출연 확정 채널 수에는 확정 상태만 집계하며 빈 목록은 0개로 표시한다", () => {
+  assert.deepEqual(countYoutubeAppearances([
+    { request_status: "confirmed" }, { request_status: "planned" },
+    { request_status: "requested" }, { request_status: "declined" },
+    { request_status: "confirmed" },
+  ]), { appearanceCount: 5, confirmedAppearanceCount: 2 });
+  assert.deepEqual(countYoutubeAppearances([]), { appearanceCount: 0, confirmedAppearanceCount: 0 });
 });

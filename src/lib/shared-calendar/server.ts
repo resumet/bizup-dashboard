@@ -1,3 +1,4 @@
+import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 import "server-only";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { hasAdminAccess } from "@/lib/admin/access";
@@ -85,10 +86,10 @@ export async function loadCalendarEvents(supabase: SupabaseClient, workspaceId: 
 export async function loadCalendarCourses(supabase: SupabaseClient, workspaceId: string): Promise<CalendarCourse[]> {
   const rows: CalendarCourse[] = [];
   for (let offset = 0; ; offset += 500) {
-    const { data, error } = await supabase.from("courses").select("id,name,status,instructor_name,cohort").eq("workspace_id", workspaceId).order("name").order("id").range(offset, offset + 499);
+    const { data, error } = await supabase.from("courses").select("id,name,status,instructor_name,cohort,free_webinar_at").eq("workspace_id", workspaceId).order("name").order("id").range(offset, offset + 499);
     checkDatabase(error);
     rows.push(...(data ?? []));
-    if (!data || data.length < 500) return rows;
+    if (!data || data.length < 500) return sortByNearestWebinar(rows);
   }
 }
 
@@ -107,7 +108,7 @@ export async function loadCalendarSearchResults(supabase: SupabaseClient, worksp
           .order("free_webinar_at").order("id").range(offset, offset + 499);
         checkDatabase(error);
         rows.push(...(data ?? []) as CalendarWebinar[]);
-        if (!data || data.length < 500) return rows;
+        if (!data || data.length < 500) return sortByNearestWebinar(rows);
       }
     })(),
   ]);

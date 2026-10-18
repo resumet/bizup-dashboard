@@ -1,3 +1,4 @@
+import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -38,6 +39,7 @@ type CourseRow = {
   name: string;
   instructor_name: string;
   starts_at: string;
+  free_webinar_at?: string;
 };
 
 type DashboardRow = {
@@ -92,13 +94,13 @@ function isMissingMigration(error: { code?: string } | null | undefined) {
 export async function loadAdPerformanceIndex(workspaceId: string): Promise<AdPerformanceIndexData> {
   const admin = createAdminClient();
   const [coursesResult, dashboardsResult] = await Promise.all([
-    admin.from("courses").select("id,name,status,instructor_name,starts_at").eq("workspace_id", workspaceId).order("starts_at", { ascending: false }),
+    admin.from("courses").select("id,name,status,instructor_name,starts_at,free_webinar_at").eq("workspace_id", workspaceId).order("starts_at", { ascending: false }),
     admin.from("ad_performance_dashboard_summaries").select("id,course_id,start_date,total_budget,updated_at,metric_count,spend,ad_leads,paid_landing_leads,organic_landing_leads,admin_cumulative_leads").eq("workspace_id", workspaceId).order("updated_at", { ascending: false }),
   ]);
   if (coursesResult.error) throw new Error(`강의 목록 조회 실패: ${coursesResult.error.code}`);
   if (isMissingMigration(dashboardsResult.error)) {
     return {
-      courses: ((coursesResult.data ?? []) as CourseRow[]).map(toCourse),
+      courses: sortByNearestWebinar((coursesResult.data ?? []) as CourseRow[]).map(toCourse),
       dashboards: [],
       loadError: "강의별 광고성과 DB 마이그레이션(202609230005)을 먼저 적용해 주세요.",
     };
@@ -106,7 +108,7 @@ export async function loadAdPerformanceIndex(workspaceId: string): Promise<AdPer
   if (dashboardsResult.error) throw new Error(`광고성과 목록 조회 실패: ${dashboardsResult.error.code}`);
 
   const rows = (dashboardsResult.data ?? []) as DashboardRow[];
-  const courses = ((coursesResult.data ?? []) as CourseRow[]).map(toCourse);
+  const courses = sortByNearestWebinar((coursesResult.data ?? []) as CourseRow[]).map(toCourse);
   const courseMap = new Map(courses.map((course) => [course.id, course]));
   const dashboards = rows.map<AdPerformanceDashboardSummary>((row) => {
     const course = row.course_id ? courseMap.get(row.course_id) ?? null : null;
@@ -144,7 +146,7 @@ export async function loadAdPerformanceDashboard(
   const dashboard = dashboardResult.data as DashboardRow;
   const exclusiveEndDate = currentSeoulDate();
   const [coursesResult, linkedDashboardsResult, metricsResult, channelsResult, organicValuesResult, sheetState] = await Promise.all([
-    admin.from("courses").select("id,name,status,instructor_name,starts_at").eq("workspace_id", workspaceId).order("starts_at", { ascending: false }),
+    admin.from("courses").select("id,name,status,instructor_name,starts_at,free_webinar_at").eq("workspace_id", workspaceId).order("starts_at", { ascending: false }),
     admin.from("ad_performance_dashboards").select("course_id").eq("workspace_id", workspaceId).neq("id", dashboardId),
     admin.from("ad_performance_dashboard_metrics").select(metricColumns).eq("dashboard_id", dashboardId).order("metric_date", { ascending: true }),
     admin.from("ad_performance_organic_channels").select("id,name,sort_order").eq("dashboard_id", dashboardId).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
@@ -167,7 +169,7 @@ export async function loadAdPerformanceDashboard(
       typeof item.course_id === "string" ? [item.course_id] : [],
     ),
   );
-  const courses = ((coursesResult.data ?? []) as CourseRow[])
+  const courses = sortByNearestWebinar((coursesResult.data ?? []) as CourseRow[])
     .map(toCourse)
     .filter((item) => item.id === dashboard.course_id || !linkedCourseIds.has(item.id));
   const course = dashboard.course_id

@@ -7,6 +7,13 @@ export const YOUTUBE_COURSE_GROUPS = [
 
 type YoutubeCourseGroupKey = (typeof YOUTUBE_COURSE_GROUPS)[number]["key"];
 
+export function countYoutubeAppearances(appearances: readonly { request_status: string }[]) {
+  return {
+    appearanceCount: appearances.length,
+    confirmedAppearanceCount: appearances.filter((appearance) => appearance.request_status === "confirmed").length,
+  };
+}
+
 export function groupYoutubeCourses<T extends { status?: string | null }>(courses: readonly T[]) {
   const grouped: Record<YoutubeCourseGroupKey, T[]> = {
     ongoing: [],

@@ -1,3 +1,4 @@
+import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 import "server-only";
 
 import { calculateCostSettlement, normalizeName, type SettlementAnalysis, type SettlementCost } from "@/lib/course-settlements/engine";
@@ -6,7 +7,7 @@ import { loadManualCashSummary } from "@/lib/course-settlements/manual-cash-serv
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { CashFlowCoursePlan, CashFlowDashboardData } from "./types";
 
-type CourseRow = { id: string; name: string; instructor_name: string; starts_at: string };
+type CourseRow = { id: string; name: string; instructor_name: string; starts_at: string; free_webinar_at?: string };
 type SettlementRow = { course_id: string; analysis_snapshot: unknown; statement_draft: unknown };
 
 function koreaCurrentMonth() {
@@ -50,11 +51,11 @@ export async function loadCashFlowDashboard(workspaceId: string): Promise<CashFl
   const currentMonth = koreaCurrentMonth();
   const { data: courses, error: courseError } = await admin
     .from("courses")
-    .select("id,name,instructor_name,starts_at")
+    .select("id,name,instructor_name,starts_at,free_webinar_at")
     .eq("workspace_id", workspaceId)
     .order("starts_at");
   if (courseError) throw new Error(`강의 조회 실패: ${courseError.code}`);
-  const courseRows = (courses ?? []) as CourseRow[];
+  const courseRows = sortByNearestWebinar((courses ?? []) as CourseRow[]);
   const courseIds = courseRows.map((course) => course.id);
 
   const [settingsResult, planResult, settlementResult, costResult] = await Promise.all([

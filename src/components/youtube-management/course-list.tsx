@@ -8,14 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { groupYoutubeCourses, YOUTUBE_COURSE_GROUPS } from "@/lib/youtube-management/course-list";
 import { MediaNotice, mediaRequest } from "./editors";
 import type { CourseMedia } from "@/lib/youtube-management/model";
+import { formatWebinarDate } from "@/lib/course-operations/webinar-proximity";
 type Connection={configured:boolean;canManage:boolean;parentId:string;parentKind:"data_source"|"page";titleProperty:string};
-function formatWebinarDate(value:string|null){
-  if(!value)return "—";
-  const date=new Date(value);
-  if(Number.isNaN(date.getTime()))return "—";
-  return new Intl.DateTimeFormat("ko-KR",{dateStyle:"medium",timeZone:"Asia/Seoul"}).format(date);
-}
-export function YoutubeCourseList({courses,embedded=false}:{courses:Array<CourseMedia&{appearanceCount:number}>;embedded?:boolean}){
+export function YoutubeCourseList({courses,embedded=false}:{courses:Array<CourseMedia&{appearanceCount:number;confirmedAppearanceCount:number}>;embedded?:boolean}){
   const [search,setSearch]=useState("");const [open,setOpen]=useState(false);const [connection,setConnection]=useState<Connection|null>(null);const [token,setToken]=useState("");const [busy,setBusy]=useState(false);const [message,setMessage]=useState("");
   async function openConnection(){setBusy(true);try{const response=await fetch("/api/youtube-management/notion-connection",{cache:"no-store"});const body=await response.json();if(!response.ok)throw new Error(body.message);setConnection(body);setOpen(true);}catch(error){setMessage(error instanceof Error?error.message:"연결을 불러오지 못했습니다.");}finally{setBusy(false);}}
   const visible=courses.filter(course=>`${course.name} ${course.instructor_name} ${course.cohort}`.toLowerCase().includes(search.toLowerCase()));
@@ -28,7 +23,7 @@ export function YoutubeCourseList({courses,embedded=false}:{courses:Array<Course
       const items=grouped[group.key];
       return <details key={group.key} open={group.defaultOpen} className="group rounded-lg border">
         <summary className="cursor-pointer px-4 py-3 font-medium">{group.label}<span className="ml-2 text-sm text-muted-foreground">{items.length}</span></summary>
-        {items.length?<Table className="min-w-[720px]"><TableHeader><TableRow><TableHead>강의</TableHead><TableHead>강사</TableHead><TableHead>기수</TableHead><TableHead>웨비나 날짜</TableHead><TableHead className="text-right">출연 채널</TableHead></TableRow></TableHeader><TableBody>{items.map(course=><TableRow key={course.id}><TableCell><Link className="font-medium hover:underline" href={`/services/youtube-management/${course.id}`}>{course.name}</Link></TableCell><TableCell>{course.instructor_name||"—"}</TableCell><TableCell>{course.cohort||"—"}</TableCell><TableCell><time dateTime={course.free_webinar_at||undefined}>{formatWebinarDate(course.free_webinar_at)}</time></TableCell><TableCell className="text-right">{course.appearanceCount}개</TableCell></TableRow>)}</TableBody></Table>:<p className="p-5 text-sm text-muted-foreground">해당 상태의 강의가 없습니다.</p>}
+        {items.length?<Table className="min-w-[720px]"><TableHeader><TableRow><TableHead>강의</TableHead><TableHead>강사</TableHead><TableHead>기수</TableHead><TableHead>웨비나 날짜</TableHead><TableHead className="text-right">출연 채널</TableHead><TableHead className="text-right">출연 확정</TableHead></TableRow></TableHeader><TableBody>{items.map(course=><TableRow key={course.id}><TableCell><Link className="font-medium hover:underline" href={`/services/youtube-management/${course.id}`}>{course.name}</Link></TableCell><TableCell>{course.instructor_name||"—"}</TableCell><TableCell>{course.cohort||"—"}</TableCell><TableCell><time dateTime={course.free_webinar_at||undefined}>{formatWebinarDate(course.free_webinar_at)}</time></TableCell><TableCell className="text-right">{course.appearanceCount}개</TableCell><TableCell className="text-right">{course.confirmedAppearanceCount}개</TableCell></TableRow>)}</TableBody></Table>:<p className="p-5 text-sm text-muted-foreground">해당 상태의 강의가 없습니다.</p>}
       </details>;
     })}</div>
     <Dialog open={open} onOpenChange={value=>{if(!busy){setOpen(value);if(!value)setToken("");}}}><DialogContent aria-describedby={undefined}><DialogHeader><DialogTitle>노션 연결</DialogTitle></DialogHeader>

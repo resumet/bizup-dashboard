@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   formatWebinarCountdown,
   sortByNearestWebinar,
+  formatWebinarDate,
 } from "./webinar-proximity";
 
 test("무료 웨비나까지 남은 날짜와 지난 날짜를 표시한다", () => {
@@ -19,6 +20,27 @@ test("무료 웨비나까지 남은 날짜와 지난 날짜를 표시한다", ()
     formatWebinarCountdown("2026-09-04T19:30:00+09:00", "2026-09-07"),
     "(D+3일)",
   );
+});
+
+test("강의 날짜 필드가 달라도 한국 날짜 기준으로 정렬하고 결측·잘못된 날짜는 마지막에 둔다", () => {
+  const courses = [
+    { id: "missing", freeWebinarAt: null },
+    { id: "past", freeWebinarAt: "2026-10-17T23:59:00+09:00" },
+    { id: "future", freeWebinarAt: "2026-10-19T19:30:00+09:00" },
+    { id: "today", freeWebinarAt: "2026-10-17T16:00:00Z" },
+    { id: "same-day", freeWebinarAt: "2026-10-18T19:30:00+09:00" },
+    { id: "invalid", freeWebinarAt: "invalid" },
+  ];
+  const original = courses.map((course) => course.id);
+  assert.deepEqual(sortByNearestWebinar(courses, "2026-10-18").map((course) => course.id), ["today", "same-day", "future", "past", "missing", "invalid"]);
+  assert.deepEqual(courses.map((course) => course.id), original);
+  assert.deepEqual(sortByNearestWebinar(courses.map(({ id, freeWebinarAt }) => ({ id, webinarAt: freeWebinarAt })), "2026-10-18").map((course) => course.id), ["today", "same-day", "future", "past", "missing", "invalid"]);
+});
+
+test("웨비나 날짜는 한국 날짜로 표시하고 결측·잘못된 값은 대시로 표시한다", () => {
+  assert.equal(formatWebinarDate("2026-10-17T16:00:00Z"), "2026. 10. 18.");
+  assert.equal(formatWebinarDate(null), "—");
+  assert.equal(formatWebinarDate("invalid"), "—");
 });
 
 test("예정된 무료 웨비나를 가까운 순서로 두고 지난 일정은 뒤로 보낸다", () => {

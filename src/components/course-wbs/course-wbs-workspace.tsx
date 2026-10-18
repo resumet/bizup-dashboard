@@ -332,11 +332,11 @@ export function CourseWbsWorkspace({ initialCourseId, canSaveTemplate }: { initi
     .sort((a, b) => a.localeCompare(b, "ko")), [employeeNames, people, inactivePeople]);
   const stakeholderPeople = useMemo(() => selectablePeople(people, inactivePeople), [people, inactivePeople]);
   const savedWbsCards = useMemo(() => {
-    const coursesById = new Map(courses.map((entry) => [entry.id, entry]));
-    return wbsSummaries
-      .map((summary) => ({ summary, course: coursesById.get(summary.courseId) }))
-      .filter((entry): entry is { summary: WbsSummary; course: WbsCourse } => Boolean(entry.course))
-      .sort((a, b) => b.summary.updatedAt.localeCompare(a.summary.updatedAt));
+    const summariesByCourse = new Map(wbsSummaries.map((summary) => [summary.courseId, summary]));
+    return courses.flatMap((course) => {
+      const summary = summariesByCourse.get(course.id);
+      return summary ? [{ course, summary }] : [];
+    });
   }, [courses, wbsSummaries]);
   const coursesWithoutWbs = useMemo(() => {
     const savedIds = new Set(wbsSummaries.map((summary) => summary.courseId));

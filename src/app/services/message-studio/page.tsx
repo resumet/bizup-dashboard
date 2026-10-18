@@ -1,3 +1,4 @@
+import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 import { BackLink } from "@/components/layout/back-link";
 import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -22,7 +23,7 @@ export default async function MessageStudioPage() {
     supabase
       .from("courses")
       .select(
-        "id,name,status,instructor_name,payment_link,inquiry_link,curriculum_link,free_gift_link",
+        "id,name,status,free_webinar_at,instructor_name,payment_link,inquiry_link,curriculum_link,free_gift_link",
       )
       .order("updated_at", { ascending: false }),
   ]);
@@ -41,7 +42,7 @@ export default async function MessageStudioPage() {
       <div className="mx-auto max-w-[1900px] px-5 py-10 lg:px-8">
         <MessageStudioProjectManager
           projects={(projectsResult.data ?? []) as never[]}
-          courses={(coursesResult.data ?? []) as never[]}
+          courses={sortByNearestWebinar(coursesResult.data ?? []) as never[]}
           loadError={
             projectsResult.error?.message || coursesResult.error?.message
           }

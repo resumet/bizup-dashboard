@@ -1,3 +1,4 @@
+import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 import "server-only";
 
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
@@ -288,7 +289,7 @@ export async function loadCourseWbsBootstrap(
   if (coursesResult.error) {
     throw databaseError("강의 목록 조회", coursesResult.error.code);
   }
-  const courses: WbsCourse[] = (coursesResult.data ?? []).map((row) => ({
+  const courses: WbsCourse[] = sortByNearestWebinar(coursesResult.data ?? []).map((row) => ({
     id: row.id,
     name: row.name,
     cohort: row.cohort ?? "",

@@ -27,7 +27,7 @@ test("무료 웨비나 D+3부터 인스타그램 강의 선택 목록에서 제�
     course({ id: "future", freeWebinarAt: "2026-10-02T19:30:00+09:00" }),
   ];
 
-  assert.deepEqual(activeInstagramCourses(courses, "2026-10-01").map(({ id }) => id), ["d-plus-2", "future"]);
+  assert.deepEqual(activeInstagramCourses(courses, "2026-10-01").map(({ id }) => id), ["future", "d-plus-2"]);
 });
 
 test("강의 선택 항목에 기수·강의명·강사명·웨비나 날짜를 표시한다", () => {

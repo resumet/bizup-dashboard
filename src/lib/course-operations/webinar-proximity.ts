@@ -33,13 +33,13 @@ export function formatWebinarCountdown(
 }
 
 export function sortByNearestWebinar<
-  T extends { free_webinar_at: string },
->(courses: readonly T[], todayKoreaDate: string) {
+  T extends { free_webinar_at?: string | null; freeWebinarAt?: string | null; webinarAt?: string | null },
+>(courses: readonly T[], todayKoreaDate = toKoreaDate(new Date().toISOString())) {
   return courses
     .map((course, index) => ({
       course,
       index,
-      days: getWebinarDayDifference(course.free_webinar_at, todayKoreaDate),
+      days: getWebinarDayDifference(course.free_webinar_at ?? course.freeWebinarAt ?? course.webinarAt ?? "", todayKoreaDate),
     }))
     .sort((left, right) => {
       if (left.days === null) return right.days === null ? left.index - right.index : 1;
@@ -53,6 +53,11 @@ export function sortByNearestWebinar<
       return distanceOrder || left.index - right.index;
     })
     .map(({ course }) => course);
+}
+
+export function formatWebinarDate(value: string | null | undefined) {
+  if (!value || Number.isNaN(Date.parse(value))) return "—";
+  return new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeZone: "Asia/Seoul" }).format(new Date(value));
 }
 
 export function sortByFarthestWebinar<T extends { free_webinar_at: string }>(
