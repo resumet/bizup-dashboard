@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { attachmentType, entrySchema, idSchema, partySchema, settingsSchema, versionSchema, type LedgerState, type LedgerCourse } from "./model";
+import { normalizePartyName } from "./receipt";
 
 const BUCKET = "cash-ledger-evidence";
 export class LedgerError extends Error { constructor(message: string, public status = 400) { super(message); } }
@@ -85,6 +86,16 @@ export async function saveParty(ctx: Context, input: unknown, id?: string) {
     : await ctx.db.from("cash_ledger_parties").insert({ ...patch, workspace_id: ctx.workspaceId }).select("id").single();
   check(result.error); if (!result.data) throw new LedgerError("거래처가 변경되었습니다. 새로고침 후 다시 시도해 주세요.", 409);
   return result.data.id as string;
+}
+export async function resolveReceiptParty(ctx: Context, input: unknown) {
+  const name = partySchema.shape.name.parse((input as { name?: unknown } | null)?.name);
+  const parties = await allRows<PartyRow>(ctx, "cash_ledger_parties");
+  const matches = parties.filter(party => normalizePartyName(party.name) === normalizePartyName(name));
+  if (matches.length > 1) throw new LedgerError("같은 이름의 거래처가 여러 개 있습니다. 지급대상 목록에서 직접 선택해 주세요.", 409);
+  const existing = matches[0];
+  if (existing) return { id: existing.id, name: existing.name, bankName: existing.bank_name, accountNumber: existing.account_number, accountHolder: existing.account_holder, note: existing.note, version: existing.version };
+  const value = { name, bankName: "", accountNumber: "", accountHolder: "", note: "" };
+  return { ...value, id: await saveParty(ctx, value), version: 1 };
 }
 export async function saveEntry(ctx: Context, input: unknown, id?: string) {
   const value = entrySchema.parse(input);

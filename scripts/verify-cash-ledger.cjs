@@ -6,6 +6,7 @@ const { build } = require('esbuild');
 const { PGlite } = require('@electric-sql/pglite');
 const postcss = require('postcss');
 const tailwind = require('@tailwindcss/postcss');
+const sharp = require('sharp');
 const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || 'playwright');
 const W = '00000000-0000-4000-8000-000000000001', U = '00000000-0000-4000-8000-000000000011';
 const C = '00000000-0000-4000-8000-000000000021';
@@ -63,6 +64,7 @@ function client(database, role, storage) {
       insert into courses values('00000000-0000-4000-8000-000000000022','${W}','완료 강의','completed','강사','2');
       insert into courses values('00000000-0000-4000-8000-000000000023','${W}','취소 강의','canceled','다른강사','3기');
       insert into courses values('00000000-0000-4000-8000-000000000024','${W}','보류 강의','on_hold','다른강사','4');`);
+    await database.exec('alter table courses add column free_webinar_at timestamptz');
     await database.exec(await fs.readFile('supabase/migrations/20261008090358_shared_calendar.sql','utf8'));
     await database.exec(await fs.readFile('supabase/migrations/20261015063730_cash_ledger.sql','utf8'));
     const storage = { from() { return {
@@ -70,15 +72,20 @@ function client(database, role, storage) {
       async remove(paths) { paths.forEach(path => blobs.delete(path)); return { error: null }; },
       async createSignedUrl(path) { return { data: { signedUrl: `${base}/files/${encodeURIComponent(path)}` }, error: null }; },
     }; } };
-    const fixture = { user: { id: U }, db: client(database,'authenticated',storage), admin: client(database,'service_role',storage) };
+    const approval = { status:'approved',transactionCount:1,amount:200000,currency:'KRW',merchantName:'주식회사 앤스페이스',year:null,month:10,day:19 };
+    const fixture = { user: { id: U }, db: client(database,'authenticated',storage), admin: client(database,'service_role',storage), approval, analysisCalls:0, analysisDelay:0 };
+    process.env.OPENAI_API_KEY = 'isolated-test-key';
+    process.env.OPENAI_VISION_MODEL = 'isolated-test-model';
     const mocks = {
       'server-only': '',
       '@/lib/supabase/server': 'exports.createClient=async()=>fixture.db;',
       '@/lib/supabase/admin': 'exports.createAdminClient=()=>fixture.admin;',
       '@/lib/supabase/auth': 'exports.getAuthenticatedUser=async()=>fixture.user;',
       '@/lib/course-operations/server': `exports.requireCourseOperationsMembership=async()=>({workspace_id:'${W}'});`,
+      '@ai-sdk/openai': 'exports.openai=model=>model;',
+      'ai': `exports.Output={object:config=>config};exports.APICallError={isInstance:()=>false};exports.generateText=async options=>{fixture.analysisCalls++;fixture.analysisOptions=options;if(fixture.analysisDelay)await new Promise(resolve=>setTimeout(resolve,fixture.analysisDelay));return {output:options.output.schema.parse(fixture.approval)};};`,
     };
-    const routeNames = ['', '/settings', '/parties', '/parties/[partyId]', '/entries', '/entries/[entryId]', '/entries/[entryId]/attachments', '/entries/[entryId]/attachments/[attachmentId]'];
+    const routeNames = ['', '/settings', '/parties', '/parties/[partyId]', '/entries', '/entries/[entryId]', '/entries/[entryId]/attachments', '/entries/[entryId]/attachments/[attachmentId]', '/analyze-receipt', '/parties/resolve'];
     const backend = await build({ stdin: { resolveDir: process.cwd(), contents: routeNames.map((path,index)=>`export * as route${index} from './src/app/api/cash-ledger${path}/route';`).join('\n'), loader:'ts' },bundle:true,write:false,platform:'node',format:'cjs',packages:'external',plugins:[{name:'fixtures',setup(plugin){plugin.onResolve({filter:/.*/},args=>Object.hasOwn(mocks,args.path)?{path:args.path,namespace:'fixture'}:undefined);plugin.onLoad({filter:/.*/,namespace:'fixture'},args=>({contents:mocks[args.path],loader:'js'}));}}] });
     const loaded = { exports: {} }; new Function('require','module','exports','fixture',backend.outputFiles[0].text)(require,loaded,loaded.exports,fixture);
     const frontend = await build({stdin:{resolveDir:process.cwd(),loader:'tsx',contents:`import React from 'react'; import {createRoot} from 'react-dom/client'; import {LedgerWorkspace} from './src/components/cash-ledger/ledger-workspace'; createRoot(document.getElementById('root')).render(<main className="p-5"><LedgerWorkspace/></main>);`},bundle:true,write:false,platform:'browser',jsx:'automatic',define:{'process.env.NODE_ENV':'"production"','process.env':'{}'}});
@@ -142,6 +149,79 @@ function client(database, role, storage) {
     const paged=(await (await fetch(`${base}/api/cash-ledger`)).json()).state;
     assert.equal(paged.entries.length,1003);
     assert.equal(new Set(paged.entries.map(entry=>entry.id)).size,1003);
-    console.log('PASS: browser → actual API → PostgreSQL/RLS; opening balance, counterparty create/edit, entries create/edit/delete, all course statuses/labels/completed-create/canceled-edit, search, paste/upload/download/cleanup, persistence, responsive layout, auth/CSRF and retry deduplication.');
+
+    // Exercise the real image decoder, route, validation and UI; only the AI response is mocked.
+    const receiptImage=await sharp({create:{width:277,height:255,channels:3,background:'#bed0de'}}).png().toBuffer();
+    const analyze=async(file=new File([receiptImage],'approval.png',{type:'image/png'}),headers={})=>{const form=new FormData();form.set('file',file);return fetch(`${base}/api/cash-ledger/analyze-receipt`,{method:'POST',headers,body:form});};
+    fixture.user=null;assert.equal((await analyze()).status,401);fixture.user={id:U};
+    assert.equal((await analyze(undefined,{origin:'https://evil.test'})).status,403);
+    assert.equal((await analyze(new File(['not an image'],'fake.png',{type:'image/png'}))).status,400);
+    assert.equal(fixture.analysisCalls,0);
+    assert.equal((await analyze(new File([new Uint8Array(4194305)],'large.png',{type:'image/png'}))).status,400);
+    const analyzed=await analyze();assert.equal(analyzed.status,200);
+    const year=new Intl.DateTimeFormat('en',{timeZone:'Asia/Seoul',year:'numeric'}).format(new Date());
+    assert.deepEqual((await analyzed.json()).analysis,{kind:'expense',amount:200000,partyName:'주식회사 앤스페이스',entryDate:`${year}-10-19`,yearInferred:true});
+    assert.equal(fixture.analysisOptions.providerOptions.openai.store,false);
+    assert.equal(fixture.analysisOptions.messages[0].content[1].mediaType,'image/png');
+    for(const invalid of [{status:'canceled'},{transactionCount:2},{amount:null},{month:2,day:30},{merchantName:null},{currency:'USD'}]){
+      fixture.approval={...approval,...invalid};assert.equal((await analyze()).status,422);
+    }
+    fixture.approval=approval;
+    const partyCount=async()=>Number((await database.query("select count(*) as count from cash_ledger_parties where name='주식회사 앤스페이스'")).rows[0].count);
+    const pasteReceipt=()=>page.getByRole('group',{name:'카드 승인 이미지 붙여넣기',exact:true}).evaluate((node,bytes)=>{const data=new DataTransfer();data.items.add(new File([Uint8Array.from(bytes)],'approval.png',{type:'image/png'}));node.dispatchEvent(new ClipboardEvent('paste',{clipboardData:data,bubbles:true,cancelable:true}));},[...receiptImage]);
+    await page.getByRole('button',{name:'내역 등록',exact:true}).click();await pasteReceipt();
+    await page.getByText(/승인 내역을 입력했습니다/).waitFor();
+    assert.equal(await page.getByLabel('구분',{exact:true}).inputValue(),'expense');
+    assert.equal(await page.getByLabel('날짜',{exact:true}).inputValue(),`${year}-10-19`);
+    assert.equal(await page.getByLabel('지급/입금금액 (원)',{exact:true}).inputValue(),'200,000');
+    assert.equal(await page.getByLabel('제목',{exact:true}).inputValue(),'');
+    assert.equal(await page.getByLabel('새 지급대상 이름',{exact:false}).inputValue(),'주식회사 앤스페이스');
+    assert.equal(await partyCount(),0);
+    await page.getByRole('button',{name:'내역 저장',exact:true}).click();assert.equal(await partyCount(),0);
+    assert.equal(await page.getByLabel('제목',{exact:true}).evaluate(node=>node.validity.valueMissing),true);
+    await page.getByLabel('제목',{exact:true}).fill('   ');await page.getByRole('button',{name:'내역 저장',exact:true}).click();
+    await page.getByRole('alert').filter({hasText:'제목을 입력'}).waitFor();assert.equal(await partyCount(),0);
+    await page.getByLabel('제목',{exact:true}).fill('');
+    await page.getByRole('group',{name:'카드 승인 이미지 붙여넣기',exact:true}).scrollIntoViewIfNeeded();
+    await page.screenshot({path:'tmp/cash-ledger/receipt-mobile.png',fullPage:true});
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+    await page.setViewportSize({width:1600,height:1100});
+    await page.screenshot({path:'tmp/cash-ledger/receipt-desktop.png',fullPage:true});
+    await page.getByRole('button',{name:'취소',exact:true}).click();assert.equal(await partyCount(),0);
+
+    await page.getByRole('button',{name:'내역 등록',exact:true}).click();await pasteReceipt();await page.getByText(/승인 내역을 입력했습니다/).waitFor();
+    await page.getByLabel('제목',{exact:true}).fill('카드 승인 자동 입력');
+    await page.getByRole('button',{name:'내역 저장',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('[role="dialog"]'));
+    assert.equal(await partyCount(),1);
+    const persisted=(await (await fetch(`${base}/api/cash-ledger`)).json()).state;
+    const approvedEntry=persisted.entries.find(entry=>entry.title==='카드 승인 자동 입력');
+    assert.equal(approvedEntry.amount,200000);assert.equal(approvedEntry.kind,'expense');assert.equal(approvedEntry.entryDate,`${year}-10-19`);
+    assert.equal(persisted.parties.find(party=>party.id===approvedEntry.partyId).name,'주식회사 앤스페이스');
+    const resolve=()=>fetch(`${base}/api/cash-ledger/parties/resolve`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:' 주식회사앤스페이스 '})});
+    assert.equal((await (await resolve()).json()).party.id,approvedEntry.partyId);
+    assert.equal((await (await resolve()).json()).party.id,approvedEntry.partyId);assert.equal(await partyCount(),1);
+    await page.reload();await page.getByRole('button',{name:'내역 등록',exact:true}).click();await pasteReceipt();await page.getByText(/승인 내역을 입력했습니다/).waitFor();
+    assert.equal(await page.getByLabel('지급대상',{exact:true}).inputValue(),approvedEntry.partyId);
+    assert.equal(await page.getByLabel('새 지급대상 이름',{exact:false}).count(),0);
+    await page.getByLabel('제목',{exact:true}).fill('직접 작성한 제목');
+    fixture.approval={...approval,status:'canceled'};await page.getByRole('button',{name:'이미지 다시 분석',exact:true}).click();await page.getByRole('alert').filter({hasText:'승인 취소'}).waitFor();
+    assert.equal(await page.getByLabel('지급/입금금액 (원)',{exact:true}).inputValue(),'200,000');
+    assert.equal(await page.getByLabel('제목',{exact:true}).inputValue(),'직접 작성한 제목');
+    fixture.approval=approval;fixture.analysisDelay=800;
+    await page.getByRole('button',{name:'이미지 다시 분석',exact:true}).click();
+    assert.equal(await page.getByRole('button',{name:'내역 저장',exact:true}).isDisabled(),true);
+    await page.getByRole('button',{name:'분석 취소',exact:true}).click();
+    await page.getByLabel('지급/입금금액 (원)',{exact:true}).fill('12345');
+    await new Promise(resolve=>setTimeout(resolve,1000));
+    assert.equal(await page.getByLabel('지급/입금금액 (원)',{exact:true}).inputValue(),'12,345');
+    fixture.analysisDelay=0;
+    await page.getByRole('button',{name:'이미지 다시 분석',exact:true}).click();await page.getByText(/승인 내역을 입력했습니다/).waitFor();
+    assert.equal(await page.getByLabel('제목',{exact:true}).inputValue(),'직접 작성한 제목');
+    const callsBeforeInvalidFile=fixture.analysisCalls;
+    await page.getByLabel('카드 승인 이미지 선택',{exact:true}).setInputFiles({name:'receipt.pdf',mimeType:'application/pdf',buffer:Buffer.from('pdf')});
+    await page.getByRole('alert').filter({hasText:'이미지를 선택'}).waitFor();assert.equal(fixture.analysisCalls,callsBeforeInvalidFile);
+    await page.getByRole('button',{name:'취소',exact:true}).click();assert.equal(await partyCount(),1);
+    assert.deepEqual(errors,[]);
+    console.log('PASS: browser → actual API → PostgreSQL/RLS; ledger regression plus receipt paste/preview/autofill, required manual title, deferred party creation, reuse/retry, canceled/invalid receipts, analysis cancellation, responsive layout and auth/CSRF. AI output is mocked; no live AI call.');
   }catch(error){if(page)console.error((await page.locator("body").innerText()).slice(-2500));throw error;}finally{await browser?.close();if(server)await new Promise(resolve=>server.close(resolve));await database.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

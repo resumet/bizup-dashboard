@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { attachmentType, formatMoney, ledgerCourseLabel, moneyInput, type Entry, type LedgerState, type Party, type Settings } from "@/lib/cash-ledger/model";
+import { attachmentType, entrySchema, formatMoney, ledgerCourseLabel, moneyInput, type Entry, type LedgerState, type Party, type Settings } from "@/lib/cash-ledger/model";
+import { normalizePartyName, type ReceiptAnalysis } from "@/lib/cash-ledger/receipt";
+import { ReceiptPaste } from "./receipt-paste";
 
 export const fieldClass = "h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm";
 export const labelClass = "grid min-w-0 gap-2 text-sm font-medium";
@@ -39,6 +41,7 @@ export function OpeningDialog({ settings, onClose, onSaved }: { settings: Settin
 }
 
 const emptyParty = { name: "", bankName: "", accountNumber: "", accountHolder: "", note: "" };
+const NEW_RECEIPT_PARTY = "new-receipt-party";
 export function PartiesDialog({ parties, onClose, onSaved }: { parties: Party[]; onClose: () => void; onSaved: () => Promise<void> }) {
   const [editing, setEditing] = useState<Party | null>(null);
   const [draft, setDraft] = useState(emptyParty);
@@ -71,20 +74,41 @@ export function EntryDialog({ entry, state, onClose, onSaved, onManageParties, o
   const [draft, setDraft] = useState({ kind: entry?.kind ?? "expense", title: entry?.title ?? "", partyId: entry?.partyId ?? "", courseId: entry?.courseId ?? "", entryDate: entry?.entryDate ?? (today() < state.settings!.startDate ? state.settings!.startDate : today()), note: entry?.note ?? "" });
   const [amount, setAmount] = useState(entry ? formatMoney(entry.amount) : "");
   const [files, setFiles] = useState<File[]>([]);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [newPartyName, setNewPartyName] = useState("");
+  const [resolvedParty, setResolvedParty] = useState<Party | null>(null);
   const [attachOpen, setAttachOpen] = useState(openAttachments), [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const pending = useRef(false);
+  const locked = busy || analyzing;
   const attachments = state.attachments.filter(a => a.entryId === identity?.id);
-  const party = state.parties.find(p => p.id === draft.partyId);
+  const parties = resolvedParty && !state.parties.some(p => p.id === resolvedParty.id) ? [...state.parties, resolvedParty] : state.parties;
+  const party = parties.find(p => p.id === draft.partyId);
+  function applyReceipt(analysis: ReceiptAnalysis) {
+    const matches = parties.filter(p => normalizePartyName(p.name) === normalizePartyName(analysis.partyName));
+    setNewPartyName(matches.length ? "" : analysis.partyName);
+    setDraft(current => ({ ...current, kind: analysis.kind, entryDate: analysis.entryDate, partyId: matches.length === 1 ? matches[0].id : matches.length ? "" : NEW_RECEIPT_PARTY }));
+    setAmount(formatMoney(analysis.amount));
+    setError(matches.length > 1 ? "같은 이름의 거래처가 여러 개 있습니다. 지급대상을 직접 선택해 주세요." : "");
+  }
   function addFiles(incoming: File[]) {
     try { for (const file of incoming) attachmentType(file); setFiles(current => [...current, ...incoming]); setError(""); }
     catch (failure) { setError((failure as Error).message); }
   }
   async function save(event: FormEvent) {
-    event.preventDefault(); if (pending.current) return; pending.current = true; setBusy(true); setError("");
+    event.preventDefault(); if (pending.current || analyzing) return; pending.current = true; setBusy(true); setError("");
     let saved = false;
     try {
-      const response = await ledgerRequest(`/entries${identity ? `/${identity.id}` : ""}`, identity ? "PATCH" : "POST", { ...draft, requestId, courseId: draft.courseId || null, amount: Number(amount.replaceAll(",", "")), version: identity?.version });
+      let partyId = draft.partyId;
+      if (partyId === NEW_RECEIPT_PARTY) {
+        const validated = entrySchema.omit({ partyId: true }).safeParse({ ...draft, courseId: draft.courseId || null, amount: Number(amount.replaceAll(",", "")) });
+        if (!validated.success) throw new Error(validated.error.issues[0]?.message ?? "입력값을 확인해 주세요.");
+        if (draft.entryDate < state.settings!.startDate) throw new Error("기록 시작일 이전의 내역은 저장할 수 없습니다.");
+        const result = await ledgerRequest("/parties/resolve", "POST", { name: newPartyName });
+        const created = result.party as Party;
+        partyId = created.id; setResolvedParty(created); setNewPartyName(""); setDraft(current => ({ ...current, partyId: created.id }));
+      }
+      const response = await ledgerRequest(`/entries${identity ? `/${identity.id}` : ""}`, identity ? "PATCH" : "POST", { ...draft, partyId, requestId, courseId: draft.courseId || null, amount: Number(amount.replaceAll(",", "")), version: identity?.version });
       const updated = response.entry as { id: string; version: number }; setIdentity(updated); saved = true;
       for (const file of files) {
         const body = new FormData(); body.set("file", file);
@@ -107,13 +131,16 @@ export function EntryDialog({ entry, state, onClose, onSaved, onManageParties, o
     try { await ledgerRequest(`/entries/${identity.id}/attachments/${id}`, "DELETE"); await onSaved(); }
     catch (failure) { setError((failure as Error).message); } finally { pending.current = false; setBusy(false); }
   }
-  return <><Dialog open onOpenChange={open => { if (!open && !busy) onClose(); }}><DialogContent aria-describedby={undefined} className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl" showCloseButton={!busy}>
+  return <><Dialog open onOpenChange={open => { if (!open && !locked) onClose(); }}><DialogContent aria-describedby={undefined} className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl" showCloseButton={!locked}>
     <DialogHeader><DialogTitle>{identity ? "입출금 내역 수정" : "입출금 내역 등록"}</DialogTitle></DialogHeader>
-    <form onSubmit={save} className="space-y-4"><fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2">
+    <form onSubmit={save} className="space-y-4">
+      {!identity ? <ReceiptPaste disabled={busy} onAnalysis={applyReceipt} onBusyChange={setAnalyzing} /> : null}
+      <fieldset disabled={locked} className="grid gap-4 sm:grid-cols-2">
       <label className={labelClass}>구분<select aria-label="구분" className={fieldClass} value={draft.kind} onChange={e => setDraft({ ...draft, kind: e.target.value as "expense" | "income" })}><option value="expense">지출 (−)</option><option value="income">입금 (+)</option></select></label>
-      <label className={labelClass}>날짜<Input type="date" required min={state.settings!.startDate} max="2100-12-31" value={draft.entryDate} onChange={e => setDraft({ ...draft, entryDate: e.target.value })} /></label>
+      <label className={labelClass}>날짜<Input type="date" required min={state.settings!.startDate} max="2100-12-31" value={draft.entryDate} onChange={e => setDraft({ ...draft, entryDate: e.target.value })} />{draft.entryDate && draft.entryDate < state.settings!.startDate ? <span className="text-xs font-normal text-destructive">기록 시작일({state.settings!.startDate}) 이전입니다. 날짜 또는 시작 잔고의 기록 시작일을 확인해 주세요.</span> : null}</label>
       <label className={`${labelClass} sm:col-span-2`}>제목<Input required maxLength={200} value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} /></label>
-      <div className="min-w-0 space-y-2"><label className={labelClass}>지급대상<select aria-label="지급대상" required className={fieldClass} value={draft.partyId} onChange={e => setDraft({ ...draft, partyId: e.target.value })}><option value="">거래처 선택</option>{state.parties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+      <div className="min-w-0 space-y-2"><label className={labelClass}>지급대상<select aria-label="지급대상" required className={fieldClass} value={draft.partyId} onChange={e => setDraft({ ...draft, partyId: e.target.value })}><option value="">거래처 선택</option>{parties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}{newPartyName || draft.partyId === NEW_RECEIPT_PARTY ? <option value={NEW_RECEIPT_PARTY}>{newPartyName || "이름 미입력"} (새 거래처)</option> : null}</select></label>
+        {draft.partyId === NEW_RECEIPT_PARTY ? <label className={labelClass}>새 지급대상 이름<Input required maxLength={120} value={newPartyName} onChange={e => setNewPartyName(e.target.value)} /><span className="text-xs font-normal text-muted-foreground">내역을 저장하면 거래처로 함께 등록됩니다.</span></label> : null}
         {party ? <p className="break-all text-xs text-muted-foreground">{[party.bankName, party.accountNumber, party.accountHolder].filter(Boolean).join(" · ")}</p> : null}
         <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={onManageParties}>거래처 등록·수정</Button>
       </div>
@@ -123,7 +150,7 @@ export function EntryDialog({ entry, state, onClose, onSaved, onManageParties, o
       <div className="sm:col-span-2"><Button type="button" variant="outline" onClick={() => setAttachOpen(true)}><Paperclip />파일첨부 ({attachments.length + files.length})</Button></div>
     </fieldset><ErrorMessage message={error} />
       {confirmDelete ? <div role="alert" className="space-y-3 rounded-md border border-destructive/30 p-3"><p className="text-sm">이 내역과 첨부파일을 삭제하고 잔액을 다시 계산합니다.</p><div className="flex gap-2"><Button type="button" variant="destructive" disabled={busy} onClick={() => void remove()}>삭제 확정</Button><Button type="button" variant="outline" disabled={busy} onClick={() => setConfirmDelete(false)}>돌아가기</Button></div></div> : null}
-      <DialogFooter className="sm:justify-between"><div>{identity ? <Button type="button" variant="ghost" disabled={busy} onClick={() => setConfirmDelete(true)}><Trash2 />삭제</Button> : null}</div><div className="flex gap-2"><Button type="button" variant="outline" disabled={busy} onClick={onClose}>취소</Button><Button disabled={busy}>{busy ? "저장 중…" : "내역 저장"}</Button></div></DialogFooter>
+      <DialogFooter className="sm:justify-between"><div>{identity ? <Button type="button" variant="ghost" disabled={locked} onClick={() => setConfirmDelete(true)}><Trash2 />삭제</Button> : null}</div><div className="flex gap-2"><Button type="button" variant="outline" disabled={locked} onClick={onClose}>취소</Button><Button disabled={locked}>{busy ? "저장 중…" : "내역 저장"}</Button></div></DialogFooter>
     </form>
   </DialogContent></Dialog>
   <Dialog open={attachOpen} onOpenChange={open => { if (!busy) setAttachOpen(open); }}><DialogContent aria-describedby={undefined} className="max-h-[85dvh] overflow-y-auto sm:max-w-xl" onPaste={event => { if (busy) return; const pasted = Array.from(event.clipboardData.files); if (pasted.length) { event.preventDefault(); addFiles(pasted); } }}>
