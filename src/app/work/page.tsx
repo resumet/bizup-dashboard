@@ -77,15 +77,10 @@ export default async function DashboardPage() {
         </div>
       </header>
       <div className="mx-auto max-w-[1900px] px-5 py-12 lg:px-8 lg:py-16">
-        <section>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            오늘 어떤 업무를 시작할까요?
-          </h1>
-          <InstructorCourseSearch
-            courses={courseSearch.items}
-            loadError={courseSearch.loadError}
-          />
-        </section>
+        <InstructorCourseSearch
+          courses={courseSearch.items}
+          loadError={courseSearch.loadError}
+        />
         <WorkServiceCards hiddenRoutes={cardSettings.hiddenRoutes} />
       </div>
     </main>

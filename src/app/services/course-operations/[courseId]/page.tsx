@@ -186,7 +186,11 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-48">
               <DropdownMenuItem asChild>
-                <Link href="/services/instructor-intakes">강사정보 받기</Link>
+                <Link
+                  href={`/services/instructor-intakes?courseId=${encodeURIComponent(courseId)}`}
+                >
+                  강사 정보 받기
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href={`/services/content-management/${courseId}`}>콘텐츠 관리</Link>

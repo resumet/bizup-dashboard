@@ -45,7 +45,7 @@ export function InstructorCourseSearch({
 
   return (
     <section
-      className="mt-7 rounded-2xl border bg-card p-4 shadow-sm sm:p-6"
+      className="rounded-2xl border bg-card p-4 shadow-sm sm:p-6"
       aria-label="강사별 강의 찾기"
     >
       <label className="mb-2 block text-sm font-semibold" htmlFor={inputId}>
@@ -84,11 +84,7 @@ export function InstructorCourseSearch({
         <p className="mt-3 text-sm text-muted-foreground">
           검색할 수 있는 강의가 없습니다.
         </p>
-      ) : !hasQuery ? (
-        <p className="mt-3 text-sm text-muted-foreground">
-          강사명을 입력하면 연결된 강의와 업무 화면을 찾을 수 있습니다.
-        </p>
-      ) : results.length ? (
+      ) : hasQuery && results.length ? (
         <div className="mt-5 space-y-3" aria-live="polite">
           <p className="text-sm font-medium text-muted-foreground">
             {results.length}개의 강의를 찾았습니다.
@@ -135,11 +131,11 @@ export function InstructorCourseSearch({
             ))}
           </div>
         </div>
-      ) : (
+      ) : hasQuery ? (
         <p className="mt-3 text-sm text-muted-foreground" aria-live="polite">
           ‘{query.trim()}’ 강사의 강의를 찾지 못했습니다.
         </p>
-      )}
+      ) : null}
     </section>
   );
 }

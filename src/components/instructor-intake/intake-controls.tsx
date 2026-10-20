@@ -31,6 +31,7 @@ export function RefreshIntakes() {
 
 export function CreateIntake({
   courses,
+  initialCourseId,
 }: {
   courses: Array<{
     id: string;
@@ -38,11 +39,12 @@ export function CreateIntake({
     instructor_name: string;
     cohort: string;
   }>;
+  initialCourseId?: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(Boolean(initialCourseId));
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -91,6 +93,7 @@ export function CreateIntake({
               name="courseId"
               required
               disabled={busy}
+              defaultValue={initialCourseId ?? ""}
               className="h-10 w-full rounded-md border bg-background px-3 text-sm"
             >
               <option value="">강의를 선택해 주세요</option>

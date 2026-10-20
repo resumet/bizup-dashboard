@@ -14,7 +14,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getWebinarDayDifference, sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 import { toKoreaDate } from "@/lib/course-operations/schedule";
 
-export default async function InstructorIntakesPage() {
+type Props = {
+  searchParams: Promise<{ courseId?: string }>;
+};
+
+export default async function InstructorIntakesPage({ searchParams }: Props) {
+  const { courseId: requestedCourseId } = await searchParams;
   const { workspaceId } = await intakePageMember();
   const [{ data, error }, { data: courses, error: coursesError }] =
     await Promise.all([
@@ -39,6 +44,12 @@ export default async function InstructorIntakesPage() {
     );
     return days === null || days > -3;
   });
+  const initialCourseId = activeCourses.some(
+    (course) => course.id === requestedCourseId,
+  )
+    ? requestedCourseId
+    : undefined;
+
   return (
     <main className="mx-auto max-w-6xl space-y-7 px-5 py-8">
       <Link
@@ -51,7 +62,11 @@ export default async function InstructorIntakesPage() {
         <h1 className="text-2xl font-semibold">강사 정보 받기</h1>
         <div className="flex items-center gap-2">
           <RefreshIntakes />
-          <CreateIntake courses={activeCourses} />
+          <CreateIntake
+            key={initialCourseId ?? "new-intake"}
+            courses={activeCourses}
+            initialCourseId={initialCourseId}
+          />
         </div>
       </div>
       {coursesError ? (
