@@ -43,8 +43,7 @@ class ConverterTests(unittest.TestCase):
                 image = output / f"p{page_number}-0.png"
                 self.assertEqual(image.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
                 pixmap = pymupdf.Pixmap(str(image))
-                self.assertLessEqual(max(pixmap.width, pixmap.height), 1600)
-                self.assertGreater(pixmap.width, 0)
+                self.assertEqual(pixmap.width, 1600)
                 self.assertGreater(pixmap.height, 0)
 
     def test_bad_pdf_encryption_and_page_limit(self):

@@ -143,7 +143,7 @@ export function PdfImportDialog({ documentId, accessToken, onInsert }: Props) {
             onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); if (!busy) { setFile(event.dataTransfer.files[0] ?? null); setDuplicate(null); } }}>
             <Label htmlFor="pdf-file">PDF 파일</Label>
             <Input id="pdf-file" type="file" accept="application/pdf,.pdf" disabled={busy} onChange={(event) => { setFile(event.target.files?.[0] ?? null); setDuplicate(null); }} />
-            <p className="text-xs text-muted-foreground">각 페이지를 이미지 한 장으로 만들어 순서대로 업로드합니다. 최대 50MB·100페이지, 암호를 해제한 PDF를 사용해 주세요.</p>
+            <p className="text-xs text-muted-foreground">각 페이지를 가로폭 1,600px 이미지 한 장으로 만들어 순서대로 업로드합니다. 최대 50MB·100페이지, 암호를 해제한 PDF를 사용해 주세요.</p>
             {file ? <p className="break-all text-sm">{file.name}</p> : null}
             <div className="flex flex-wrap items-center gap-4">
               <Button type="submit" disabled={!file || busy}>{busy ? <Loader2 className="animate-spin" /> : <FileUp />}{uploadStage || "페이지 이미지 만들기"}</Button>

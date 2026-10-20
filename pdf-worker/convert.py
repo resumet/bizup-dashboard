@@ -8,8 +8,7 @@ import pymupdf
 
 
 MAX_ASSET_BYTES = 80 * 1024 * 1024
-MAX_PAGE_EDGE = 1600
-MAX_RENDER_SCALE = 2.0
+PAGE_IMAGE_WIDTH = 1600
 
 
 def convert(source, destination, _options, max_pages=100, progress=None):
@@ -38,11 +37,10 @@ def convert(source, destination, _options, max_pages=100, progress=None):
         for page_index, page in enumerate(doc):
             page_no = page_index + 1
             rect = page.rect
-            longest_edge = max(rect.width, rect.height)
-            if longest_edge <= 0:
+            if rect.width <= 0 or rect.height <= 0:
                 raise ValueError(f"{page_no}페이지의 크기가 올바르지 않습니다.")
 
-            scale = min(MAX_RENDER_SCALE, MAX_PAGE_EDGE / longest_edge)
+            scale = PAGE_IMAGE_WIDTH / rect.width
             pixmap = page.get_pixmap(matrix=pymupdf.Matrix(scale, scale), alpha=False)
             data = pixmap.tobytes("png")
             asset_bytes += len(data)
