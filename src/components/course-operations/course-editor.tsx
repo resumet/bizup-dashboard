@@ -875,7 +875,7 @@ export function CourseOperationsEditor({
         onValueChange={changeTab}
         className="gap-6"
       >
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1">
+        <TabsList>
           <TabsTrigger value="information" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             정보
           </TabsTrigger>

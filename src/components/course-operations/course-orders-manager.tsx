@@ -282,7 +282,7 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
             setOrderView(value === "awaitingDeposit" ? "awaitingDeposit" : "all");
             changeFilters(EMPTY_ORDER_FILTERS);
           }}>
-            <TabsList aria-label="주문 내역 보기" className="w-full sm:w-fit">
+            <TabsList aria-label="주문 내역 보기">
               <TabsTrigger value="all" className="px-4">전체 주문 ({data.orders.length.toLocaleString("ko-KR")})</TabsTrigger>
               <TabsTrigger value="awaitingDeposit" className="px-4">입금대기 ({awaitingDeposit.length.toLocaleString("ko-KR")})</TabsTrigger>
             </TabsList>

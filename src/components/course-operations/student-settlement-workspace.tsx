@@ -58,7 +58,7 @@ export function StudentSettlementWorkspace({
       className="gap-6"
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <TabsList className="grid h-auto w-full min-w-0 flex-1 grid-cols-2 gap-1 md:grid-cols-4">
+        <TabsList>
           <TabsTrigger value="orders" className="h-10">
             주문내역
           </TabsTrigger>
