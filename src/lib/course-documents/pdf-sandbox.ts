@@ -35,6 +35,9 @@ export async function convertPdfInSandbox(id: string, origin: string) {
     const bytes = Buffer.from(await source.data.arrayBuffer());
     if (bytes.subarray(0, 5).toString() !== "%PDF-" || createHash("sha256").update(bytes).digest("hex") !== job.sha256) throw new Error("PDF 형식 또는 파일 무결성이 올바르지 않습니다. 다시 업로드해 주세요.");
     const options = pdfOptionsSchema.parse(job.options);
+    await update({ stage: "원본 PDF 삭제", progress: 10 });
+    const removedSource = await admin.storage.from(PDF_BUCKET).remove([job.source_path]);
+    if (removedSource.error) throw new Error("변환에 사용된 원본 PDF를 삭제하지 못했습니다.");
     await update({ stage: "실행 환경 준비", progress: 12 });
     sandbox = await Sandbox.create({ image: "vercel/sandbox/universal", persistent: false, resources: { vcpus: 1 }, timeout: 9 * 60_000, signal: AbortSignal.timeout(30_000) });
     const [converter, requirements] = await Promise.all([

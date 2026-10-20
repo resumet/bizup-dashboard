@@ -51,7 +51,6 @@ const { build } = require("esbuild");
       assert.equal(bucket, "course-document-pdfs");
       return {
         async createSignedUploadUrl(path) { return { data: { signedUrl: "https://storage.test/upload/" + path }, error: null }; },
-        async createSignedUrl(path, seconds) { assert.equal(seconds, 600); return { data: { signedUrl: "https://storage.test/source/" + path }, error: null }; },
         async download() { return { data: new Blob(["png"], { type: "image/png" }), error: null }; },
         async list() { return { data: fixture.files.map(name => ({ name })), error: null }; },
         async remove(paths) { fixture.removed.push(...paths); return { error: null }; },
@@ -85,7 +84,7 @@ const { build } = require("esbuild");
   new Function("require", "module", "exports", "fixture", bundle.outputFiles[0].text)(require, loaded, loaded.exports, fixture);
   const { api, assets } = loaded.exports;
   const request = (method, body, accessToken = token) => new Request("https://app.test/api/course-document-pdfs", { method, headers: { "Content-Type": "application/json", ...(accessToken ? { "x-course-access-token": accessToken } : {}) }, body: JSON.stringify(body) });
-  const get = (id = documentId, accessToken = token) => api.GET(new Request("https://app.test/api/course-document-pdfs?documentId=" + id, { headers: accessToken ? { "x-course-access-token": accessToken } : {} }));
+  const get = (id = documentId, accessToken = token, selectedId = "") => api.GET(new Request("https://app.test/api/course-document-pdfs?documentId=" + id + (selectedId ? `&selectedId=${selectedId}` : ""), { headers: accessToken ? { "x-course-access-token": accessToken } : {} }));
   assert.equal((await get(documentId, "")).status, 401);
   assert.equal((await get(otherId)).status, 404);
   fixture.enabled = false;
@@ -100,18 +99,18 @@ const { build } = require("esbuild");
   assert.equal(created.status, 201);
   const { id: jobId, uploadUrl } = await created.json();
   assert(uploadUrl.includes(workspaceId));
-  assert.equal((await api.POST(request("POST", payload))).status, 409);
+  assert.equal((await api.POST(request("POST", payload))).status, 201);
+  assert.deepEqual(await (await get()).json(), { imports: [] });
+  const current = await (await get(documentId, token, jobId)).json();
+  assert.equal(current.imports.length, 1);
+  assert.equal(current.imports[0].id, jobId);
   await api.PATCH(request("PATCH", { documentId, id: jobId, action: "queue" }));
   const job = tables.course_document_pdf_imports[0];
   assert.equal(job.status, "queued");
   await api.PATCH(request("PATCH", { documentId, id: jobId, action: "queue" }));
   assert.equal(job.attempts, 0);
-  assert.equal((await api.PATCH(request("PATCH", { documentId: otherId, id: jobId, action: "source" }))).status, 404);
-  const url = await (await api.PATCH(request("PATCH", { documentId, id: jobId, action: "source" }))).json();
-  assert(url.url.includes("source.pdf"));
-  job.status = "failed";
-  job.retries = 3;
-  assert.equal((await api.PATCH(request("PATCH", { documentId, id: jobId, action: "retry" }))).status, 429);
+  assert.equal((await api.PATCH(request("PATCH", { documentId, id: jobId, action: "source" }))).status, 400);
+  job.status = "completed";
   const assetUrl = `https://app.test/api/course-document-pdfs/assets/${jobId}/p1-0.png`;
   const assetArgs = { params: Promise.resolve({ jobId, asset: "p1-0.png" }) };
   const asset = () => assets.GET(new Request(assetUrl), assetArgs);
@@ -132,9 +131,9 @@ const { build } = require("esbuild");
   assert.equal((await asset()).status, 200);
   assert.equal((await api.DELETE(request("DELETE", { documentId, id: jobId }))).status, 409);
   doc.content = [];
-  fixture.files = ["source.pdf", "ir.json", "p1-0.png"];
+  fixture.files = ["ir.json", "p1-0.png"];
   assert.equal((await api.DELETE(request("DELETE", { documentId, id: jobId }))).status, 200);
-  assert.equal(fixture.removed.length, 3);
-  assert.equal(tables.course_document_pdf_imports.length, 0);
-  console.log("PDF routes: authorization, cross-course denial, signed upload/source, duplicate detection, idempotent queue, retry cap, private/gated assets, complete deletion passed.");
+  assert.equal(fixture.removed.length, 2);
+  assert.equal(tables.course_document_pdf_imports.length, 1);
+  console.log("PDF routes: authorization, cross-course denial, signed upload, current-only polling, repeat uploads, idempotent queue, private/gated assets, and generated asset deletion passed.");
 })().catch(error => { console.error(error); process.exitCode = 1; });

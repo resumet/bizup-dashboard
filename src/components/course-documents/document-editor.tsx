@@ -758,7 +758,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
               <DocumentRenderer blocks={blocks} />
             </div>
           ) : (
-            <div className="mx-auto w-full max-w-4xl px-6 py-10 sm:px-12 lg:px-16 lg:py-14">
+            <div className="mx-auto w-full max-w-none px-6 py-10 sm:px-12 lg:px-16 lg:py-14">
               {fixedTitle ? (
                 <h1 className="py-2 text-4xl font-bold tracking-tight text-balance sm:text-5xl">{title}</h1>
               ) : (

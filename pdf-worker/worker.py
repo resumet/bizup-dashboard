@@ -61,6 +61,8 @@ class Worker:
                 if hashlib.sha256(data).hexdigest() != job["sha256"]:
                     raise ValueError("업로드된 PDF가 원본과 다릅니다. 다시 업로드해 주세요.")
                 source.write_bytes(data)
+                self.update(job, stage="원본 PDF 삭제", progress=10)
+                self.request(f"/storage/v1/object/{BUCKET}", "DELETE", {"prefixes": [job["source_path"]]})
                 out = temp / "result"
                 out.mkdir()
                 # Parser receives no Supabase/API credentials. Docker supplies memory/CPU/PID limits.

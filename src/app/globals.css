@@ -360,11 +360,12 @@
   }
 
   .course-rich-text-editor img {
+    display: block;
     margin-block: 1.75rem;
-    max-height: 34rem;
+    height: auto;
+    max-width: 100%;
     width: 100%;
     border-radius: 0.85rem;
-    object-fit: contain;
   }
 
   .course-rich-text-editor pre {
