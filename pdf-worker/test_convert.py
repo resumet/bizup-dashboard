@@ -1,11 +1,12 @@
+import contextlib
 import json
 import tempfile
 import unittest
-import contextlib
 from pathlib import Path
 
 import pymupdf
 from jsonschema import validate
+
 from convert import convert
 
 
@@ -13,46 +14,38 @@ def fixture(path):
     doc = pymupdf.open()
     page = doc.new_page()
     page.insert_text((60, 70), "PDF Import Guide", fontsize=24)
-    page.insert_text((60, 120), "Original paragraph with a hyperlink.", fontsize=12)
-    page.insert_text((60, 150), "Second line of original content.", fontsize=12)
-    page.insert_link({"kind": pymupdf.LINK_URI, "from": pymupdf.Rect(60, 105, 270, 125), "uri": "https://example.com/reference"})
-    for x in (60, 180, 300):
-        page.draw_line((x, 200), (x, 290))
-    for y in (200, 230, 260, 290):
-        page.draw_line((60, y), (300, y))
-    for row, values in enumerate((("Item", "Value"), ("Alpha", "10"), ("Beta", "20"))):
-        for col, text in enumerate(values):
-            page.insert_text((65 + col * 120, 218 + row * 30), text, fontsize=11)
-    pix = pymupdf.Pixmap(pymupdf.csRGB, (0, 0, 40, 40), False)
-    pix.clear_with(130)
-    page.insert_image(pymupdf.Rect(60, 320, 160, 420), pixmap=pix)
+    page.insert_text((60, 120), "This text must remain inside the page image.", fontsize=12)
     page2 = doc.new_page()
-    page2.insert_text((60, 70), "Second section", fontsize=22)
-    page2.insert_text((60, 120), "Korean: 한글 문서 변환", fontname="korea", fontsize=12)
-    doc.set_toc([[1, "First chapter", 1], [1, "Second chapter", 2]])
+    page2.insert_text((60, 70), "Second page", fontsize=22)
+    page2.draw_rect(pymupdf.Rect(60, 110, 300, 260), color=(0, 0, 0), fill=(0.9, 0.9, 0.9))
     doc.save(path)
     doc.close()
 
 
 class ConverterTests(unittest.TestCase):
-    def test_structure_and_provenance(self):
+    def test_each_page_becomes_one_uploaded_image_block(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             fixture(root / "test.pdf")
-            result = convert(root / "test.pdf", root / "out", {"mode": "structure", "images": True})
+            output = root / "out"
+            result = convert(root / "test.pdf", output, {"output": "page_images"})
+
             validate(result, json.loads(Path(__file__).with_name("ir.schema.json").read_text()))
-            types = [block["node"]["type"] for block in result["blocks"]]
-            self.assertIn("heading", types)
-            self.assertIn("table", types)
-            self.assertIn("image", types)
+            self.assertEqual(result["version"], 2)
             self.assertEqual(result["pageCount"], 2)
-            self.assertEqual(result["outline"][1]["page"], 2)
-            self.assertTrue(all(len(block["source"]["bbox"]) == 4 for block in result["blocks"]))
-            text = json.dumps(result, ensure_ascii=False)
-            self.assertIn("한글", text)
-            self.assertIn("https://example.com/reference", text)
-            self.assertIn("Alpha", text)
-            self.assertEqual(len({b["id"] for b in result["blocks"]}), len(result["blocks"]))
+            self.assertEqual(len(result["blocks"]), 2)
+            self.assertEqual([block["source"]["page"] for block in result["blocks"]], [1, 2])
+            self.assertTrue(all(block["node"]["type"] == "image" for block in result["blocks"]))
+            self.assertTrue(all(block["source"]["method"] == "render" for block in result["blocks"]))
+            self.assertNotIn("This text must remain", json.dumps(result))
+
+            for page_number in (1, 2):
+                image = output / f"p{page_number}-0.png"
+                self.assertEqual(image.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
+                pixmap = pymupdf.Pixmap(str(image))
+                self.assertLessEqual(max(pixmap.width, pixmap.height), 1600)
+                self.assertGreater(pixmap.width, 0)
+                self.assertGreater(pixmap.height, 0)
 
     def test_bad_pdf_encryption_and_page_limit(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -68,16 +61,18 @@ class ConverterTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 convert(root / "locked.pdf", root / "out", {})
 
-    def test_scan_fallback_keeps_page_and_marks_review(self):
+    def test_blank_page_is_rendered_without_ocr_or_text_fallback(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             with pymupdf.open() as doc:
                 doc.new_page()
-                doc.save(root / "scan.pdf")
-            result = convert(root / "scan.pdf", root / "out", {"ocr": False, "images": False})
+                doc.save(root / "blank.pdf")
+            result = convert(root / "blank.pdf", root / "out", {"ocr": True, "images": False})
             self.assertEqual(result["pageCount"], 1)
-            self.assertTrue(result["blocks"][0]["issues"])
+            self.assertEqual(len(result["blocks"]), 1)
             self.assertEqual(result["blocks"][0]["node"]["type"], "image")
+            self.assertEqual(result["blocks"][0]["source"]["method"], "render")
+            self.assertEqual(result["blocks"][0]["issues"], [])
 
 
 if __name__ == "__main__":
@@ -87,7 +82,7 @@ if __name__ == "__main__":
             root = Path(directory)
             fixture(root / "test.pdf")
             with contextlib.redirect_stdout(sys.stderr):
-                result = convert(root / "test.pdf", root / "out", {"images": False})
+                result = convert(root / "test.pdf", root / "out", {"output": "page_images"})
             print(json.dumps(result))
     else:
         unittest.main()

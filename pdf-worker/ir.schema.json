@@ -3,7 +3,7 @@
   "title": "CourseDocumentPdfIR", "type": "object", "additionalProperties": false,
   "required": ["version", "title", "pageCount", "blocks", "outline"],
   "properties": {
-    "version": {"const": 1}, "title": {"type": "string", "maxLength": 200},
+    "version": {"const": 2}, "title": {"type": "string", "maxLength": 200},
     "pageCount": {"type": "integer", "minimum": 1, "maximum": 100},
     "outline": {"type": "array", "items": {"type": "object", "required": ["title", "level", "page", "blockId"], "properties": {"title": {"type": "string"}, "level": {"type": "integer", "minimum": 1, "maximum": 3}, "page": {"type": "integer", "minimum": 1}, "blockId": {"type": "string", "format": "uuid"}}}},
     "blocks": {"type": "array", "minItems": 1, "maxItems": 500, "items": {
@@ -15,13 +15,15 @@
         "source": {"type": "object", "required": ["page", "bbox", "confidence", "method"], "properties": {
           "page": {"type": "integer", "minimum": 1, "maximum": 100},
           "bbox": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}},
-          "confidence": {"type": "number", "minimum": 0, "maximum": 1}, "method": {"enum": ["text", "ocr"]}
+          "confidence": {"type": "number", "minimum": 0, "maximum": 1}, "method": {"const": "render"}
         }}
       }
     }}
   },
-  "$defs": {"node": {"type": "object", "required": ["type"], "properties": {
-    "type": {"enum": ["paragraph", "heading", "text", "hardBreak", "bulletList", "orderedList", "listItem", "table", "tableRow", "tableHeader", "tableCell", "image"]},
-    "attrs": {"type": "object"}, "marks": {"type": "array", "maxItems": 20}, "text": {"type": "string", "maxLength": 200000}, "content": {"type": "array", "maxItems": 500, "items": {"$ref": "#/$defs/node"}}
+  "$defs": {"node": {"type": "object", "required": ["type", "attrs"], "additionalProperties": false, "properties": {
+    "type": {"const": "image"},
+    "attrs": {"type": "object", "required": ["src", "alt"], "additionalProperties": false, "properties": {
+      "src": {"type": "string", "pattern": "^p[1-9][0-9]*-0\\.png$"}, "alt": {"type": "string", "maxLength": 300}
+    }}
   }}}
 }

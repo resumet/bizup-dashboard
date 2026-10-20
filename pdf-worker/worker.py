@@ -74,9 +74,9 @@ class Worker:
                         page_progress = out / "progress.json"
                         try:
                             state = json.loads(page_progress.read_text())
-                            self.update(job, stage="변환", progress=15 + int(65 * state["page"] / state["total"]))
+                            self.update(job, stage="페이지 이미지 생성", progress=15 + int(65 * state["page"] / state["total"]))
                         except (OSError, json.JSONDecodeError):
-                            self.update(job, stage="분석", progress=15)
+                            self.update(job, stage="페이지 이미지 준비", progress=15)
                         time.sleep(2)
                 finally:
                     if process.poll() is None:
@@ -84,7 +84,7 @@ class Worker:
                         process.wait()
                 if process.returncode != 0:
                     error_path = out / "error.json"
-                    message = json.loads(error_path.read_text(encoding="utf-8"))["message"] if error_path.exists() else "PDF 분석에 실패했습니다. 파일을 확인해 주세요."
+                    message = json.loads(error_path.read_text(encoding="utf-8"))["message"] if error_path.exists() else "PDF 이미지 생성에 실패했습니다. 파일을 확인해 주세요."
                     raise ValueError(message)
                 raw = out / "result.json"
                 if raw.stat().st_size > 8 * 1024 * 1024:

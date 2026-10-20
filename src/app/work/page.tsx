@@ -1,11 +1,9 @@
 import { redirect } from "next/navigation";
-import { Bell } from "lucide-react";
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { InstructorCourseSearch } from "@/components/work/instructor-course-search";
 import { WorkServiceCards } from "@/components/work/service-cards";
 import { WorkServiceCardSettingsButton } from "@/components/work/service-card-settings-button";
-import { Button } from "@/components/ui/button";
 import {
   COURSE_STATUS_LABELS,
   isCourseStatus,
@@ -65,9 +63,6 @@ export default async function DashboardPage() {
         <div className="mx-auto flex h-18 max-w-[1900px] items-center gap-6 px-5 lg:px-8">
           <BrandHomeLink />
           <div className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" size="icon" aria-label="알림">
-              <Bell />
-            </Button>
             {isSuperAdminEmail(email) ? (
               <WorkServiceCardSettingsButton
                 hiddenRoutes={cardSettings.hiddenRoutes}

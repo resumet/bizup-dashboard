@@ -11,7 +11,7 @@ import { richTextDocumentToBlocks } from "./rich-text";
 
 const DIRECTORY = "/tmp/bizup-pdf";
 const PYTHON = `${DIRECTORY}/venv/bin/python`;
-const provenanceSchema = z.object({ page: z.number().int().min(1).max(100), bbox: z.array(z.number()).length(4), confidence: z.number().min(0).max(1), method: z.enum(["text", "ocr"]) });
+const provenanceSchema = z.object({ page: z.number().int().min(1).max(100), bbox: z.array(z.number()).length(4), confidence: z.number().min(0).max(1), method: z.literal("render") });
 
 export async function convertPdfInSandbox(id: string, origin: string) {
   const admin = createAdminClient();
@@ -50,17 +50,11 @@ export async function convertPdfInSandbox(id: string, origin: string) {
     if (venv.exitCode !== 0) throw new Error("PDF 변환 환경을 준비하지 못했습니다.");
     const install = await sandbox.runCommand({ cmd: PYTHON, args: ["-m", "pip", "install", "--disable-pip-version-check", "--no-cache-dir", "-r", `${DIRECTORY}/requirements.txt`], timeoutMs: 120_000 });
     if (install.exitCode !== 0) throw new Error("PDF 변환 도구를 설치하지 못했습니다. 다시 시도해 주세요.");
-    if (options.ocr) {
-      const apt = await sandbox.runCommand({ cmd: "apt-get", args: ["update", "-qq"], sudo: true, timeoutMs: 45_000 });
-      if (apt.exitCode !== 0) throw new Error("OCR 환경을 준비하지 못했습니다. OCR 옵션을 끄거나 다시 시도해 주세요.");
-      const ocr = await sandbox.runCommand({ cmd: "apt-get", args: ["install", "-y", "--no-install-recommends", "tesseract-ocr", "tesseract-ocr-kor", "tesseract-ocr-eng"], sudo: true, timeoutMs: 90_000 });
-      if (ocr.exitCode !== 0) throw new Error("OCR 언어 데이터를 설치하지 못했습니다.");
-    }
     // PDF parsing has no service credentials and cannot make network requests.
     await sandbox.update({ networkPolicy: "deny-all" });
     const mkdir = await sandbox.runCommand({ cmd: "mkdir", args: ["-p", `${DIRECTORY}/result`] });
     if (mkdir.exitCode !== 0) throw new Error("PDF 결과 저장 공간을 준비하지 못했습니다.");
-    await update({ stage: "분석", progress: 15 });
+    await update({ stage: "페이지 이미지 준비", progress: 15 });
     const command = await sandbox.runCommand({ cmd: PYTHON, args: [`${DIRECTORY}/convert.py`, `${DIRECTORY}/source.pdf`, `${DIRECTORY}/result`, JSON.stringify(options), String(Math.min(Number(process.env.PDF_MAX_PAGES) || 100, 100))], detached: true, timeoutMs: 300_000 });
     let done = false;
     let exitCode: number | undefined;
@@ -75,29 +69,29 @@ export async function convertPdfInSandbox(id: string, origin: string) {
       if (progress) {
         try { const state = JSON.parse(progress.toString()); percent = Math.max(15, Math.min(80, 15 + Math.floor(65 * state.page / state.total))); } catch { /* File may be in the middle of a write. */ }
       }
-      await update({ stage: "변환", progress: percent });
+      await update({ stage: "페이지 이미지 생성", progress: percent });
     }
     await completed;
     if (commandError) throw new Error("PDF 변환 실행이 중단되었습니다. 다시 시도해 주세요.");
     if (exitCode !== 0) {
       const failure = await sandbox.readFileToBuffer({ path: `${DIRECTORY}/result/error.json` });
-      throw new Error(failure ? String(JSON.parse(failure.toString()).message).slice(0, 500) : "PDF 분석에 실패했습니다. 파일을 확인해 주세요.");
+      throw new Error(failure ? String(JSON.parse(failure.toString()).message).slice(0, 500) : "PDF 이미지 생성에 실패했습니다. 파일을 확인해 주세요.");
     }
     const raw = await sandbox.readFileToBuffer({ path: `${DIRECTORY}/result/result.json` });
     if (!raw || raw.length > 8 * 1024 * 1024) throw new Error("PDF 변환 결과가 너무 큽니다. 파일을 나누어 주세요.");
     const result = JSON.parse(raw.toString()) as PdfResult;
-    z.literal(1).parse(result.version);
+    z.literal(2).parse(result.version);
     z.number().int().min(1).max(100).parse(result.pageCount);
     const assets = new Set<string>();
     for (const block of result.blocks) {
       provenanceSchema.parse(block.source);
       z.array(z.string().max(500)).max(30).parse(block.issues);
-      if (block.node.type === "image") {
-        const asset = z.string().regex(/^p\d+-\d+\.png$/u).parse(block.node.attrs?.src);
-        assets.add(asset);
-        block.node.attrs = { ...block.node.attrs, src: `${new URL(origin).origin}/api/course-document-pdfs/assets/${id}/${asset}` };
-      }
+      if (block.node.type !== "image") throw new Error("PDF 페이지 이미지 결과가 올바르지 않습니다.");
+      const asset = z.string().regex(/^p\d+-0\.png$/u).parse(block.node.attrs?.src);
+      assets.add(asset);
+      block.node.attrs = { ...block.node.attrs, src: `${new URL(origin).origin}/api/course-document-pdfs/assets/${id}/${asset}` };
     }
+    if (result.blocks.length !== result.pageCount || assets.size !== result.pageCount) throw new Error("PDF 페이지 이미지 수가 올바르지 않습니다.");
     // Use the same schema as the editor before writing any converted content.
     courseDocumentContentSchema.parse(richTextDocumentToBlocks({ content: pdfNodes(result, id) }));
     await update({ stage: "저장", progress: 85 });
@@ -118,7 +112,7 @@ export async function convertPdfInSandbox(id: string, origin: string) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "PDF 변환에 실패했습니다.";
     if (message !== "LEASE_LOST") {
-      await update({ status: "failed", stage: "실패", error_message: /PDF|OCR|업로드/u.test(message) ? message.slice(0, 500) : "PDF 변환에 실패했습니다. 잠시 후 다시 시도해 주세요." });
+      await update({ status: "failed", stage: "실패", error_message: /PDF|업로드|페이지 이미지/u.test(message) ? message.slice(0, 500) : "PDF 페이지 이미지 생성에 실패했습니다. 잠시 후 다시 시도해 주세요." });
     }
     console.error("[pdf-conversion] failed", { id, type: error instanceof Error ? error.name : "Error" });
   } finally {

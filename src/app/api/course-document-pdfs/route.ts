@@ -8,7 +8,7 @@ import { start } from "workflow/api";
 import { pdfConversionWorkflow } from "@/workflows/pdf-conversion";
 
 export const runtime = "nodejs";
-const columns = "id,file_name,status,stage,progress,error_message,result,created_at";
+const columns = "id,file_name,status,stage,progress,error_message,result,options,created_at";
 const summaryColumns = "id,file_name,status,stage,progress,error_message,created_at";
 
 export async function GET(request: Request) {
@@ -46,7 +46,9 @@ export async function POST(request: Request) {
     if (!input.allowDuplicate) {
       const duplicate = await admin.from("course_document_pdf_imports").select(columns).eq("document_id", document.id).eq("sha256", input.sha256).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (duplicate.error) throw new Error(`중복 PDF 확인 실패: ${duplicate.error.code}`);
-      if (duplicate.data) return Response.json({ duplicate: duplicate.data }, { status: 409 });
+      if (duplicate.data?.result?.version === 2 || duplicate.data?.options?.output === "page_images") {
+        return Response.json({ duplicate: duplicate.data }, { status: 409 });
+      }
     }
     const { count, error: countError } = await admin.from("course_document_pdf_imports").select("id", { count: "exact", head: true })
       .eq("course_id", document.course_id).gte("created_at", new Date(Date.now() - 3600_000).toISOString());
