@@ -146,7 +146,11 @@ export function InstructorCourseSearch({
                             className="h-auto min-h-11 justify-start whitespace-normal px-3 py-2.5 text-left"
                             asChild
                           >
-                            <Link href={destination.href}>
+                            <Link
+                              href={destination.href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
                               <Icon className="size-4 text-muted-foreground" />
                               <span>{destination.label}</span>
                               <ArrowRight className="ml-auto size-4 text-muted-foreground" />
