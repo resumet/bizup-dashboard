@@ -1,16 +1,48 @@
 import { redirect } from "next/navigation";
-import { Bell, Search } from "lucide-react";
+import { Bell } from "lucide-react";
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
+import { InstructorCourseSearch } from "@/components/work/instructor-course-search";
 import { WorkServiceCards } from "@/components/work/service-cards";
 import { WorkServiceCardSettingsButton } from "@/components/work/service-card-settings-button";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  COURSE_STATUS_LABELS,
+  isCourseStatus,
+} from "@/lib/course-operations/course-status";
+import { getCachedCourseSummaries } from "@/lib/course-operations/list-cache";
+import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
+import { formatWebinarDate } from "@/lib/course-operations/webinar-proximity";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import { isSuperAdminEmail } from "@/lib/admin/access";
 import { DEFAULT_WORK_SERVICE_CARD_SETTINGS } from "@/lib/work/service-card-settings";
 import { loadWorkServiceCardSettings } from "@/lib/work/service-card-settings-storage";
+import type { InstructorCourseSearchItem } from "@/lib/work/instructor-course-search";
+
+async function loadInstructorCourseSearchItems(userId: string) {
+  try {
+    const membership = await requireCourseOperationsMembership(userId);
+    const courses = await getCachedCourseSummaries(membership.workspace_id);
+    const items: InstructorCourseSearchItem[] = courses.map((course) => ({
+      id: course.id,
+      statusLabel: isCourseStatus(course.status)
+        ? COURSE_STATUS_LABELS[course.status]
+        : course.status,
+      name: course.name,
+      instructorName: course.instructor_name,
+      cohort: course.cohort,
+      webinarDate: formatWebinarDate(course.free_webinar_at),
+    }));
+
+    return { items, loadError: "" };
+  } catch {
+    return {
+      items: [] as InstructorCourseSearchItem[],
+      loadError: "강의 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    };
+  }
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -19,7 +51,12 @@ export default async function DashboardPage() {
   if (!currentUser) redirect("/login");
 
   const email = currentUser.email ?? "이메일 정보 없음";
-  const cardSettings=await loadWorkServiceCardSettings().catch(()=>DEFAULT_WORK_SERVICE_CARD_SETTINGS);
+  const [cardSettings, courseSearch] = await Promise.all([
+    loadWorkServiceCardSettings().catch(
+      () => DEFAULT_WORK_SERVICE_CARD_SETTINGS,
+    ),
+    loadInstructorCourseSearchItems(currentUser.id),
+  ]);
 
   return (
     <main className="min-h-screen">
@@ -30,26 +67,24 @@ export default async function DashboardPage() {
             <Button variant="ghost" size="icon" aria-label="알림">
               <Bell />
             </Button>
-            {isSuperAdminEmail(email) ? <WorkServiceCardSettingsButton hiddenRoutes={cardSettings.hiddenRoutes} /> : null}
+            {isSuperAdminEmail(email) ? (
+              <WorkServiceCardSettingsButton
+                hiddenRoutes={cardSettings.hiddenRoutes}
+              />
+            ) : null}
             <UserAccountMenu email={email} />
           </div>
         </div>
       </header>
       <div className="mx-auto max-w-[1900px] px-5 py-12 lg:px-8 lg:py-16">
-        <section className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              오늘 어떤 업무를 시작할까요?
-            </h1>
-          </div>
-          <div className="relative w-full md:w-72">
-            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="bg-background pl-9"
-              placeholder="서비스 검색"
-              aria-label="서비스 검색"
-            />
-          </div>
+        <section>
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+            오늘 어떤 업무를 시작할까요?
+          </h1>
+          <InstructorCourseSearch
+            courses={courseSearch.items}
+            loadError={courseSearch.loadError}
+          />
         </section>
         <WorkServiceCards hiddenRoutes={cardSettings.hiddenRoutes} />
       </div>
