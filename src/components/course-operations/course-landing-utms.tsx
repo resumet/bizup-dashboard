@@ -10,16 +10,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { LandingUtm, UtmImportResult } from "@/lib/course-landing-utms/model";
+import { formatLandingUtmShareContent } from "@/lib/course-landing-utms/share";
 
 type Notify = (message: string, error?: boolean) => void;
 
 function UtmShareButton({ items, instructorName, disabled, notify }: { items: LandingUtm[]; instructorName: string; disabled: boolean; notify: Notify }) {
-  const name = instructorName.trim().replace(/\s*강사님?$/u, "");
-  const content = [name ? `[${name}강사님 UTM]` : "[강의 UTM]", ...items.map(item => {
-    const medium = item.medium === "인스타그램" ? "인스타" : item.medium;
-    const label = item.channel === "오가닉" && item.medium === "무료강의 안내방" ? `오가닉 ${medium}` : medium;
-    return `${label} ${item.short_url || item.url}`;
-  })].join("\n");
+  const content = formatLandingUtmShareContent(items, instructorName);
   async function copy() {
     try { await navigator.clipboard.writeText(content); notify("공유 내용을 복사했습니다."); }
     catch { notify("복사하지 못했습니다. 공유 내용을 직접 선택해 복사해 주세요.", true); }
