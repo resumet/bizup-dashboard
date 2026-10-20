@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   ArrowRight,
   BookOpenCheck,
-  CalendarRange,
   Camera,
   ChartGantt,
   ChartNoAxesCombined,
@@ -75,15 +74,6 @@ const services: Service[] = [
     icon: Camera,
     iconClass:
       "bg-pink-500/12 text-pink-700 ring-pink-500/15 dark:text-pink-300",
-  },
-  {
-    title: "강의 일정 플래너",
-    description:
-      "예비 강의 카드를 달력에 배치해 확정된 웨비나와 전체 강의 일정을 한눈에 확인합니다.",
-    route: "/services/course-schedule-planner",
-    icon: CalendarRange,
-    iconClass:
-      "bg-amber-500/15 text-amber-700 ring-amber-500/20 dark:text-amber-300",
   },
   {
     title: "라이브 웨비나 대시보드",

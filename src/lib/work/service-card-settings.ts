@@ -11,7 +11,6 @@ export const WORK_SERVICE_CARD_GROUPS = [
       {route:"/services/content-management",title:"콘텐츠 관리"},
       {route:"/services/course-operations/students-settlements",title:"수강생관리 및 정산"},
       {route:"/services/course-wbs",title:"강의 WBS"},
-      {route:"/services/course-schedule-planner",title:"강의 일정 플래너"},
       {route:"/services/course-webinars",title:"라이브 웨비나 대시보드"},
       {route:"/services/settlement-analysis",title:"강의별 정산"},
       {route:"/services/cash-flow",title:"자금 흐름"},
@@ -31,7 +30,7 @@ export const WORK_SERVICE_CARD_GROUPS = [
 ] as const;
 
 const routes=WORK_SERVICE_CARD_GROUPS.flatMap(group=>group.items.map(item=>item.route));
-const acceptedRoutes=["/services/instagram-management","/services/youtube-management",...routes,...WORK_QUICK_TOOL_LINKS.map(item=>item.href)];
+const acceptedRoutes=["/services/instagram-management","/services/youtube-management","/services/course-schedule-planner",...routes,...WORK_QUICK_TOOL_LINKS.map(item=>item.href)];
 const routeSchema=z.enum(acceptedRoutes as [string,...string[]]);
 const currentRouteSet=new Set<string>(routes);
 export const workServiceCardSettingsSchema=z.object({

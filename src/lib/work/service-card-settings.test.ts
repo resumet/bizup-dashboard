@@ -18,7 +18,7 @@ test("운영 워크스페이스는 간편도구를 제외하고 두 분류로 �
     "/services/course-roster", "/services/address-books", "/services/phone-sales-list", "/services/message-automation",
   ]);
   const routes = WORK_SERVICE_CARD_GROUPS.flatMap((group) => group.items.map((item) => item.route));
-  assert.equal(routes.length, 15);
+  assert.equal(routes.length, 14);
   assert.equal(new Set(routes).size, routes.length);
   const knownRoutes = new Set<string>(routes);
   for (const route of ["/services/settlement-analysis", "/services/cash-flow", "/services/purchase-analysis", "/services/ad-performance"]) {
@@ -35,6 +35,15 @@ test("기존 간편도구 숨김 설정은 오류 없이 운영 카드 설정에
       hiddenRoutes: [legacyQuickToolRoute, currentRoute],
     }),
     { hiddenRoutes: [currentRoute] },
+  );
+});
+
+test("메인으로 이동한 강의 일정 플래너의 기존 숨김 설정을 제거한다", () => {
+  assert.deepEqual(
+    workServiceCardSettingsSchema.parse({
+      hiddenRoutes: ["/services/course-schedule-planner"],
+    }),
+    { hiddenRoutes: [] },
   );
 });
 
