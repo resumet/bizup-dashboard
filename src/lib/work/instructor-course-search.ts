@@ -1,5 +1,6 @@
 export type InstructorCourseSearchItem = {
   id: string;
+  status: string;
   statusLabel: string;
   name: string;
   instructorName: string;
@@ -26,6 +27,22 @@ export function filterCoursesByInstructor(
   return courses.filter((course) =>
     normalizeSearchValue(course.instructorName).includes(normalizedQuery),
   );
+}
+
+export function getOngoingInstructorNames(
+  courses: readonly InstructorCourseSearchItem[],
+) {
+  const names = new Map<string, string>();
+
+  for (const course of courses) {
+    if (course.status !== "ongoing") continue;
+    const name = course.instructorName.trim();
+    if (!name) continue;
+    const key = normalizeSearchValue(name);
+    if (!names.has(key)) names.set(key, name);
+  }
+
+  return [...names.values()];
 }
 
 export function getCourseDestinations(courseId: string): CourseDestination[] {

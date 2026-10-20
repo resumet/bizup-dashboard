@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import {
   filterCoursesByInstructor,
   getCourseDestinations,
+  getOngoingInstructorNames,
   type InstructorCourseSearchItem,
 } from "@/lib/work/instructor-course-search";
 
@@ -26,6 +27,15 @@ type InstructorCourseSearchProps = {
 };
 
 const destinationIcons = [BookOpenText, Video, UsersRound, ClipboardList];
+
+const instructorColorClasses = [
+  "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-300 dark:hover:bg-sky-950",
+  "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950/50 dark:text-violet-300 dark:hover:bg-violet-950",
+  "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-300 dark:hover:bg-emerald-950",
+  "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300 dark:hover:bg-amber-950",
+  "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-300 dark:hover:bg-rose-950",
+  "border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-300 dark:hover:bg-cyan-950",
+] as const;
 
 function formatCohort(cohort: string) {
   const value = cohort.trim();
@@ -41,6 +51,7 @@ export function InstructorCourseSearch({
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const results = filterCoursesByInstructor(courses, deferredQuery);
+  const ongoingInstructorNames = getOngoingInstructorNames(courses);
   const hasQuery = query.trim().length > 0;
 
   return (
@@ -73,6 +84,24 @@ export function InstructorCourseSearch({
             </Button>
           ) : null}
         </div>
+
+        {ongoingInstructorNames.length ? (
+          <div
+            className="mt-3 flex flex-wrap items-center gap-1.5"
+            aria-label="현재 진행 중인 강사"
+          >
+            {ongoingInstructorNames.map((name, index) => (
+              <button
+                key={name}
+                type="button"
+                className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${instructorColorClasses[index % instructorColorClasses.length]}`}
+                onClick={() => setQuery(name)}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         {loadError ? (
           <p className="mt-3 text-sm text-destructive" role="alert">

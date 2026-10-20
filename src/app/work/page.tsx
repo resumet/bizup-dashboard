@@ -26,6 +26,7 @@ async function loadInstructorCourseSearchItems(userId: string) {
     const courses = await getCachedCourseSummaries(membership.workspace_id);
     const items: InstructorCourseSearchItem[] = courses.map((course) => ({
       id: course.id,
+      status: course.status,
       statusLabel: isCourseStatus(course.status)
         ? COURSE_STATUS_LABELS[course.status]
         : course.status,
