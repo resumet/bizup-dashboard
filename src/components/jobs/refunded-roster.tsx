@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { refundDate } from "@/lib/jobs/refund";
+import { refundAmount, refundDate, refundFraction } from "@/lib/jobs/refund";
 import type { RosterRow } from "@/lib/jobs/types";
 
 export function RefundedRoster({ rows }: { rows: (RosterRow & { sourceJobName?: string })[] }) {
@@ -17,11 +17,17 @@ export function RefundedRoster({ rows }: { rows: (RosterRow & { sourceJobName?: 
     <summary className="cursor-pointer font-semibold">환불자 명단 · {rows.length.toLocaleString("ko-KR")}명 (조회 전용)</summary>
     <p className="my-3 text-sm text-muted-foreground">환불자는 명단 비교·중복 검사·발송 대상에서 제외됩니다.</p>
     <Input aria-label="환불자 검색" placeholder="이름·전화번호·이메일·명단명 검색" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} />
-    <Table><TableHeader><TableRow>{["이름", "전화번호", "이메일", "명단", "옵션", "환불 표시일", "비고"].map((label) => <TableHead key={label}>{label}</TableHead>)}</TableRow></TableHeader>
+    <Table><TableHeader><TableRow>{["이름", "전화번호", "이메일", "명단", "옵션", "환불금액", "환불 표시일", "비고"].map((label) => <TableHead key={label}>{label}</TableHead>)}</TableRow></TableHeader>
       <TableBody>{filtered.slice((current - 1) * 50, current * 50).map((row) => <TableRow key={row.id}>
-        <TableCell>{row.values.customerName || "-"}</TableCell><TableCell>{row.normalizedPhone}</TableCell><TableCell>{row.values.email || "-"}</TableCell><TableCell>{row.sourceJobName || row.values.courseName || "-"}</TableCell><TableCell>{row.values.optionName || "-"}</TableCell><TableCell>{refundDate(row.values) ? new Date(refundDate(row.values)!).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" }) : "-"}</TableCell><TableCell>{row.memo || "-"}</TableCell>
+        <TableCell>{row.values.customerName || "-"}</TableCell><TableCell>{row.normalizedPhone}</TableCell><TableCell>{row.values.email || "-"}</TableCell><TableCell>{row.sourceJobName || row.values.courseName || "-"}</TableCell><TableCell>{row.values.optionName || "-"}</TableCell><TableCell>{refundAmountLabel(row.values)}</TableCell><TableCell>{refundDate(row.values) ? new Date(refundDate(row.values)!).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" }) : "-"}</TableCell><TableCell>{row.memo || "-"}</TableCell>
       </TableRow>)}</TableBody></Table>
     {!filtered.length ? <p className="py-4 text-sm text-muted-foreground">조회할 환불자가 없습니다.</p> : null}
     {pages > 1 ? <div className="mt-3 flex items-center gap-3"><Button variant="outline" disabled={current === 1} onClick={() => setPage(current - 1)}>이전</Button><span>{current} / {pages}</span><Button variant="outline" disabled={current === pages} onClick={() => setPage(current + 1)}>다음</Button></div> : null}
   </details>;
+}
+
+function refundAmountLabel(values: RosterRow["values"]) {
+  const amount = refundAmount(values);
+  const fraction = refundFraction(values);
+  return amount === null ? "-" : `${amount.toLocaleString("ko-KR")}원${fraction ? ` (${fraction})` : ""}`;
 }

@@ -1,28 +1,28 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { refundApplicantSignature, refundApplicationAmount, refundApplicationDate, refundApplicationFilename, refundApplicationRows, refundApplicationSchema } from "./refund-application";
+import { refundApplicantSignature, refundApplicationAmount, refundApplicationDate, refundApplicationFilename, refundApplicationRecord, refundApplicationRows, refundApplicationSchema } from "./refund-application";
 import { createRefundApplicationPdf } from "./refund-application-pdf";
 
 const input = {
   name: "홍길동", phone: "010-1234-5678", email: "student@example.com", courseName: "온라인 강의",
-  paymentAmount: "1,250,000", refundRate: "33.33", date: "2026-10-13",
+  paymentAmount: "1,250,000", refundFraction: "1/3", date: "2026-10-13",
   reason: "B", reasonDetail: "",
 };
 
-test("refund application validates required fields and preserves zero rates and payments", () => {
+test("refund application validates required fields and preserves zero payments", () => {
   assert.equal(refundApplicationSchema.parse(input).paymentAmount, "1250000");
   for (const key of Object.keys(input).filter((key) => key !== "reasonDetail")) {
     assert.equal(refundApplicationSchema.safeParse({ ...input, [key]: "" }).success, false, key);
   }
-  for (const refundRate of ["-1", "101", "1e2", "NaN", "0.001"]) {
-    assert.equal(refundApplicationSchema.safeParse({ ...input, refundRate }).success, false, refundRate);
+  for (const refundFraction of ["", "1/2", "33.33", "100", "2 / 3"]) {
+    assert.equal(refundApplicationSchema.safeParse({ ...input, refundFraction }).success, false, refundFraction);
   }
   for (const paymentAmount of ["-1", "12.50", "abc", "99999999999999"]) {
     assert.equal(refundApplicationSchema.safeParse({ ...input, paymentAmount }).success, false, paymentAmount);
   }
-  assert.equal(refundApplicationSchema.safeParse({ ...input, refundRate: "0", paymentAmount: "0" }).success, true);
-  assert.equal(refundApplicationSchema.safeParse({ ...input, refundRate: "100" }).success, true);
+  assert.equal(refundApplicationSchema.safeParse({ ...input, refundFraction: "1/3", paymentAmount: "0" }).success, true);
+  assert.equal(refundApplicationSchema.safeParse({ ...input, refundFraction: "2/3" }).success, true);
   assert.equal(refundApplicationSchema.safeParse({ ...input, date: "2026-02-30" }).success, false);
   assert.equal(refundApplicationSchema.safeParse({ ...input, email: "invalid" }).success, false);
   assert.equal(refundApplicationSchema.safeParse({ ...input, phone: "not a phone" }).success, false);
@@ -45,19 +45,29 @@ test("signature spaces each name character and appends the seal mark", () => {
 test("document fields use Korean formatting and filename excludes path separators", () => {
   assert.deepEqual(refundApplicationRows(input), [
     ["이름", "홍길동"], ["전화번호", "010-1234-5678"], ["이메일 주소", "student@example.com"],
-    ["강의명", "온라인 강의"], ["결제금액", "1,250,000원"], ["환불율", "33.33%"], ["날짜", "2026년 10월 13일"],
+    ["강의명", "온라인 강의"], ["결제금액", "1,250,000원"], ["환불 비율", "1/3"], ["날짜", "2026년 10월 13일"],
   ]);
   assert.equal(refundApplicationFilename({ ...input, name: "홍/길\\동" }), "환불신청서_홍_길_동_2026-10-13.pdf");
   assert.equal(refundApplicationDate(new Date("2026-10-12T15:01:00Z")), "2026-10-13");
 });
 
 test("refund amount matches the sample and discards fractional won exactly", () => {
-  assert.equal(refundApplicationAmount({ paymentAmount: "3,290,000", refundRate: "50" }), 1645000);
-  assert.equal(refundApplicationAmount({ paymentAmount: "10000", refundRate: "33.33" }), 3333);
-  assert.equal(refundApplicationAmount({ paymentAmount: "1", refundRate: "99.99" }), 0);
-  assert.equal(refundApplicationAmount({ paymentAmount: "1250000", refundRate: "0" }), 0);
-  assert.equal(refundApplicationAmount({ paymentAmount: "9999999999999", refundRate: "100" }), 9999999999999);
-  assert.equal(refundApplicationAmount({ paymentAmount: "9999999999999", refundRate: "99.99" }), 9998999999999);
+  assert.equal(refundApplicationAmount({ paymentAmount: "3,290,000", refundFraction: "1/3" }), 1096666);
+  assert.equal(refundApplicationAmount({ paymentAmount: "3,290,000", refundFraction: "2/3" }), 2193333);
+  assert.equal(refundApplicationAmount({ paymentAmount: "10000", refundFraction: "1/3" }), 3333);
+  assert.equal(refundApplicationAmount({ paymentAmount: "1", refundFraction: "2/3" }), 0);
+  assert.equal(refundApplicationAmount({ paymentAmount: "9999999999999", refundFraction: "2/3" }), 6666666666666);
+});
+
+test("refund record stores the PDF calculation inputs and computed amount", () => {
+  assert.deepEqual(refundApplicationRecord({ ...input, refundFraction: "2/3" }), {
+    refundPaymentAmount: "1250000",
+    refundFraction: "2/3",
+    refundAmount: "833333",
+    refundApplicationDate: "2026-10-13",
+    refundReason: "B",
+    refundReasonDetail: "",
+  });
 });
 
 async function assets() {

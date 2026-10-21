@@ -1,4 +1,5 @@
 import { refundDate } from "@/lib/jobs/refund";
+import { refundApplicationRecord, refundApplicationSchema } from "@/lib/jobs/refund-application";
 import { parseEnrollmentMemo } from "@/lib/jobs/enrollment-memo";
 import { parseLinkedStudent, type LinkedStudentValues } from "@/lib/jobs/linked-student";
 import {
@@ -36,6 +37,7 @@ type RequestBody = Partial<Record<ManualDetailField, unknown>> & {
   isExtraParticipant?: boolean;
   memo?: unknown;
   refund?: boolean;
+  refundApplication?: unknown;
 };
 
 function hasOwn(body: RequestBody, field: keyof RequestBody) {
@@ -130,13 +132,18 @@ export async function PATCH(request: Request, { params }: Context) {
     return Response.json({ message: "환불자는 조회만 가능합니다." }, { status: 409 });
   }
   if (hasRefund) {
-    const values = { ...enrollment.normalized_values, refundedAt: new Date().toISOString(), refundedBy: user.id };
+    const refundApplication = refundApplicationSchema.safeParse(body.refundApplication);
+    if (!refundApplication.success) {
+      return Response.json({ message: "환불 신청서의 결제금액, 환불 비율, 신청 정보를 확인해 주세요." }, { status: 400 });
+    }
+    const refundRecord = refundApplicationRecord(refundApplication.data);
+    const values = { ...enrollment.normalized_values, ...refundRecord, refundedAt: new Date().toISOString(), refundedBy: user.id };
     const { data: updated, error } = await admin.from("job_enrollments").update({ normalized_values: values })
       .eq("id", enrollmentId).eq("job_id", jobId).eq("version", job.latest_version)
       .eq("normalized_values", JSON.stringify(enrollment.normalized_values))
       .is("normalized_values->>refundedAt", null).select("id").maybeSingle();
     if (error || !updated) return Response.json({ message: "환불 상태를 저장하지 못했습니다. 명단을 새로고침해 주세요." }, { status: 409 });
-    await admin.from("audit_logs").insert({ workspace_id: job.workspace_id, actor_id: user.id, event_type: "course_job.enrollment_refunded", entity_type: "course_job", entity_id: jobId, metadata: { enrollment_id: enrollmentId, version: job.latest_version } });
+    await admin.from("audit_logs").insert({ workspace_id: job.workspace_id, actor_id: user.id, event_type: "course_job.enrollment_refunded", entity_type: "course_job", entity_id: jobId, metadata: { enrollment_id: enrollmentId, version: job.latest_version, ...refundRecord } });
     return Response.json({ enrollment: { normalizedPhone: enrollment.normalized_phone, values } });
   }
   const normalizedValues =

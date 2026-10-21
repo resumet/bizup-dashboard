@@ -117,8 +117,8 @@ export function ManualEnrollmentName({
     }
   }
 
-  async function markRefunded() {
-    const response = await fetch(`/api/jobs/${jobId}/enrollments/${enrollmentId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ refund: true }) });
+  async function markRefunded(refundApplication: RefundApplicationInput) {
+    const response = await fetch(`/api/jobs/${jobId}/enrollments/${enrollmentId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ refund: true, refundApplication }) });
     const data = await response.json();
     if (!response.ok || !data.enrollment) throw new Error(data.message ?? "환불 상태를 저장하지 못했습니다.");
     onSaved(data.enrollment);
@@ -132,7 +132,7 @@ export function ManualEnrollmentName({
       email: form.email,
       courseName: values.courseName,
       paymentAmount: form.paymentAmount,
-      refundRate: "",
+      refundFraction: "",
       date: refundApplicationDate(),
       reason: "",
       reasonDetail: "",

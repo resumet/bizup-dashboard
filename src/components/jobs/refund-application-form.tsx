@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatPaymentAmount } from "@/lib/jobs/payment-fields";
-import { REFUND_APPLICATION_REASONS, refundApplicantSignature, refundApplicationAmount, refundApplicationSchema, type RefundApplicationInput } from "@/lib/jobs/refund-application";
+import { REFUND_APPLICATION_FRACTIONS, REFUND_APPLICATION_REASONS, refundApplicantSignature, refundApplicationAmount, refundApplicationSchema, type RefundApplicationInput } from "@/lib/jobs/refund-application";
 
 const fields = [
   { key: "name", label: "이름", type: "text", maxLength: 120 },
@@ -17,14 +17,13 @@ const fields = [
   { key: "email", label: "이메일 주소", type: "email", maxLength: 254 },
   { key: "courseName", label: "강의명", type: "text", maxLength: 200 },
   { key: "paymentAmount", label: "결제금액", type: "text", maxLength: 17 },
-  { key: "refundRate", label: "환불율", type: "number", maxLength: undefined },
   { key: "date", label: "날짜", type: "date", maxLength: undefined },
 ] as const;
 
 export function RefundApplicationForm({ initialValues, onBack, onMarkRefunded, onBusyChange }: {
   initialValues: RefundApplicationInput;
   onBack: (values: RefundApplicationInput) => void;
-  onMarkRefunded: () => Promise<void>;
+  onMarkRefunded: (values: RefundApplicationInput) => Promise<void>;
   onBusyChange: (busy: boolean) => void;
 }) {
   const prefix = useId();
@@ -42,7 +41,7 @@ export function RefundApplicationForm({ initialValues, onBack, onMarkRefunded, o
     setError("");
     setStatus("");
     const parsed = refundApplicationSchema.safeParse(form);
-    if (action !== "refund" && !parsed.success) {
+    if (!parsed.success) {
       const errors: typeof fieldErrors = {};
       for (const issue of parsed.error.issues) {
         const field = issue.path[0] as keyof RefundApplicationInput;
@@ -69,7 +68,7 @@ export function RefundApplicationForm({ initialValues, onBack, onMarkRefunded, o
     onBusyChange(true);
     try {
       if (action === "refund") {
-        await onMarkRefunded();
+        await onMarkRefunded(parsed.data);
       } else if (parsed.success) {
         const pdf = await import("@/lib/jobs/refund-application-pdf");
         if (action === "print" && popup) {
@@ -102,15 +101,14 @@ export function RefundApplicationForm({ initialValues, onBack, onMarkRefunded, o
       <fieldset disabled={busy !== null} className="grid gap-4 sm:grid-cols-2">
         {fields.map(({ key, label, type, maxLength }) => (
           <div className={key === "courseName" ? "space-y-2 sm:col-span-2" : "space-y-2"} key={key}>
-            <Label htmlFor={`${prefix}-${key}`}>{label}{key === "paymentAmount" ? " (원)" : key === "refundRate" ? " (%)" : ""}</Label>
+            <Label htmlFor={`${prefix}-${key}`}>{label}{key === "paymentAmount" ? " (원)" : ""}</Label>
             <Input id={`${prefix}-${key}`} name={key} type={type} required maxLength={maxLength}
-              inputMode={key === "paymentAmount" ? "numeric" : key === "refundRate" ? "decimal" : undefined}
-              min={key === "refundRate" ? 0 : key === "date" ? "1900-01-01" : undefined}
-              max={key === "refundRate" ? 100 : key === "date" ? "9999-12-31" : undefined}
-              step={key === "refundRate" ? "0.01" : undefined}
+              inputMode={key === "paymentAmount" ? "numeric" : undefined}
+              min={key === "date" ? "1900-01-01" : undefined}
+              max={key === "date" ? "9999-12-31" : undefined}
               value={form[key]}
               aria-invalid={Boolean(fieldErrors[key])}
-              aria-describedby={fieldErrors[key] ? `${prefix}-${key}-error` : key === "refundRate" ? `${prefix}-refund-amount` : undefined}
+              aria-describedby={fieldErrors[key] ? `${prefix}-${key}-error` : undefined}
               onChange={(event) => {
                 setForm((current) => ({ ...current, [key]: event.target.value }));
                 setFieldErrors((current) => ({ ...current, [key]: undefined }));
@@ -119,9 +117,23 @@ export function RefundApplicationForm({ initialValues, onBack, onMarkRefunded, o
               onBlur={key === "paymentAmount" ? () => setForm((current) => ({ ...current, paymentAmount: formatPaymentAmount(current.paymentAmount) })) : undefined}
             />
             {fieldErrors[key] ? <p id={`${prefix}-${key}-error`} className="text-sm text-destructive">{fieldErrors[key]}</p> : null}
-            {key === "refundRate" ? <p id={`${prefix}-refund-amount`} className="text-sm text-muted-foreground">{refundAmount === null ? "결제금액과 환불율을 입력하면 환불금액을 계산합니다." : `환불금액 ${refundAmount.toLocaleString("ko-KR")}원 (원 미만 버림)`}</p> : null}
           </div>
         ))}
+        <div className="space-y-2">
+          <Label htmlFor={`${prefix}-refundFraction`}>환불 비율</Label>
+          <Select value={form.refundFraction} disabled={busy !== null} required onValueChange={(refundFraction) => {
+            setForm((current) => ({ ...current, refundFraction }));
+            setFieldErrors((current) => ({ ...current, refundFraction: undefined }));
+            setStatus("");
+          }}>
+            <SelectTrigger id={`${prefix}-refundFraction`} aria-invalid={Boolean(fieldErrors.refundFraction)} aria-describedby={fieldErrors.refundFraction ? `${prefix}-refundFraction-error` : `${prefix}-refund-amount`}>
+              <SelectValue placeholder="환불 비율을 선택해 주세요" />
+            </SelectTrigger>
+            <SelectContent>{REFUND_APPLICATION_FRACTIONS.map(({ value, label }) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
+          </Select>
+          {fieldErrors.refundFraction ? <p id={`${prefix}-refundFraction-error`} className="text-sm text-destructive">{fieldErrors.refundFraction}</p> : null}
+          <p id={`${prefix}-refund-amount`} className="text-sm text-muted-foreground">{refundAmount === null ? "결제금액과 환불 비율을 선택하면 환불금액을 계산합니다." : `환불금액 ${refundAmount.toLocaleString("ko-KR")}원 (원 미만 버림)`}</p>
+        </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor={`${prefix}-reason`}>환불 신청 사유</Label>
           <Select value={form.reason} disabled={busy !== null} required onValueChange={(reason) => {
@@ -150,7 +162,7 @@ export function RefundApplicationForm({ initialValues, onBack, onMarkRefunded, o
       </fieldset>
       {form.name.trim() ? <p className="text-sm text-muted-foreground">신청자 서명: <span className="whitespace-pre-wrap">{refundApplicantSignature(form.name)}</span></p> : null}
       <p role="status" className="text-sm text-muted-foreground">{status}</p>
-      <p className="text-sm text-muted-foreground">입력한 값은 PDF에만 반영되며, 명단을 옮기려면 ‘환불자로 변경’을 눌러 주세요. PDF가 필요하면 변경 전에 저장해 주세요. 실제 결제 취소는 별도로 진행해야 합니다.</p>
+      <p className="text-sm text-muted-foreground">선택한 환불 비율과 계산된 환불금액은 ‘환불자로 변경’을 누를 때 함께 저장됩니다. PDF가 필요하면 변경 전에 저장해 주세요. 실제 결제 취소는 별도로 진행해야 합니다.</p>
       <DialogFooter className="sm:flex-wrap">
         <Button type="button" variant="ghost" disabled={busy !== null} onClick={() => onBack(form)}>뒤로</Button>
         <Button type="button" variant="destructive" disabled={busy !== null} onClick={() => void perform("refund")}>{busy === "refund" ? <Loader2 className="animate-spin" /> : null}환불자로 변경</Button>

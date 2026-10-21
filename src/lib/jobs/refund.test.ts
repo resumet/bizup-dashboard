@@ -6,7 +6,7 @@ import { compareRosters, findRosterDuplicates } from "@/lib/roster-comparison/co
 import { loadComparisonStudents } from "@/lib/roster-comparison/server";
 import { compareRosterRecords, buildUpdatedRosterRecords } from "@/lib/import/roster-diff";
 import type { StoredRosterRecord } from "@/lib/import/roster";
-import { refundDate } from "./refund";
+import { refundAmount, refundDate, refundFraction } from "./refund";
 
 const values = { customerName: "환불회원", phone: "01012345678", email: "refund@example.com", courseName: "강의", optionName: "", referrer: "", source: "", adMedia: "" };
 const refundedAt = "2026-09-14T03:00:00.000Z";
@@ -64,4 +64,13 @@ test("명단 재업로드 시 보존한 환불 기록에도 새 버전의 고유
 
   assert.deepEqual(updated.map((record) => record.sourceRowNumber), [2, 3]);
   assert.equal(refundDate(updated[1].normalizedValues), refundedAt);
+});
+
+test("새 환불 기록은 금액과 비율을 읽고 기존 환불 기록은 빈 값으로 둔다", () => {
+  assert.equal(refundAmount({ refundAmount: "833333" }), 833333);
+  assert.equal(refundFraction({ refundFraction: "2/3" }), "2/3");
+  assert.equal(refundAmount({ refundedAt }), null);
+  assert.equal(refundFraction({ refundedAt }), null);
+  assert.equal(refundAmount({ refundAmount: "not-a-number" }), null);
+  assert.equal(refundFraction({ refundFraction: "1/2" }), null);
 });

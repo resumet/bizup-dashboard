@@ -12,13 +12,17 @@ export const REFUND_APPLICATION_REASONS = [
   { value: "D", label: "기타 사유" },
 ] as const;
 
+export const REFUND_APPLICATION_FRACTIONS = [
+  { value: "1/3", label: "1/3" },
+  { value: "2/3", label: "2/3" },
+] as const;
+
+export type RefundApplicationFraction = (typeof REFUND_APPLICATION_FRACTIONS)[number]["value"];
+
 const refundAmountSchema = z.object({
   paymentAmount: z.string().trim().transform((value) => value.replace(/,/gu, ""))
     .refine((value) => /^\d{1,13}$/u.test(value), "결제금액은 0 이상의 원 단위 정수로 입력해 주세요."),
-  refundRate: z.string().trim().refine(
-    (value) => /^\d{1,3}(\.\d{1,2})?$/u.test(value) && Number(value) <= 100,
-    "환불율은 0~100 사이의 숫자로, 소수점 둘째 자리까지 입력해 주세요.",
-  ),
+  refundFraction: z.string().pipe(z.enum(["1/3", "2/3"], { error: "환불 비율을 선택해 주세요." })),
 });
 
 export const refundApplicationSchema = z.object({
@@ -41,12 +45,23 @@ export const refundApplicationSchema = z.object({
 
 export type RefundApplicationInput = z.input<typeof refundApplicationSchema>;
 
-export function refundApplicationAmount(input: Pick<RefundApplicationInput, "paymentAmount" | "refundRate">) {
+export function refundApplicationAmount(input: Pick<RefundApplicationInput, "paymentAmount" | "refundFraction">) {
   const values = refundAmountSchema.parse(input);
-  const [whole, fraction = ""] = values.refundRate.split(".");
-  const basisPoints = BigInt(whole) * BigInt(100) + BigInt(fraction.padEnd(2, "0"));
+  const numerator = values.refundFraction === "1/3" ? BigInt(1) : BigInt(2);
   // Integer arithmetic avoids floating-point errors; discard fractions of a won.
-  return Number(BigInt(values.paymentAmount) * basisPoints / BigInt(10_000));
+  return Number(BigInt(values.paymentAmount) * numerator / BigInt(3));
+}
+
+export function refundApplicationRecord(input: RefundApplicationInput) {
+  const values = refundApplicationSchema.parse(input);
+  return {
+    refundPaymentAmount: values.paymentAmount,
+    refundFraction: values.refundFraction,
+    refundAmount: String(refundApplicationAmount(values)),
+    refundApplicationDate: values.date,
+    refundReason: values.reason,
+    refundReasonDetail: values.reasonDetail,
+  };
 }
 
 export function refundApplicationDate(now = new Date()) {
@@ -71,7 +86,7 @@ export function refundApplicationRows(input: RefundApplicationInput): [string, s
     ["이메일 주소", values.email],
     ["강의명", values.courseName],
     ["결제금액", `${Number(values.paymentAmount).toLocaleString("ko-KR")}원`],
-    ["환불율", `${Number(values.refundRate)}%`],
+    ["환불 비율", values.refundFraction],
     ["날짜", `${year}년 ${month}월 ${day}일`],
   ];
 }

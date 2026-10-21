@@ -10,7 +10,7 @@ export type RosterRow = {
   isExtraParticipant: boolean;
   isManuallyAdded: boolean;
   memo: string;
-  values: Record<StandardField, string> & LinkedStudentValues & Partial<Record<"paymentMethod" | "paymentId" | "paymentAmount" | "rs" | "orderRecordKey", string>>;
+  values: Record<StandardField, string> & LinkedStudentValues & Partial<Record<"paymentMethod" | "paymentId" | "paymentAmount" | "rs" | "orderRecordKey" | "refundPaymentAmount" | "refundFraction" | "refundAmount" | "refundApplicationDate" | "refundReason" | "refundReasonDetail", string>>;
 };
 
 export type RosterFilters = {
