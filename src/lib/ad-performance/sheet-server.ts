@@ -231,6 +231,79 @@ async function responseBuffer(response: Response, maximumBytes: number) {
   return buffer;
 }
 
+const GOOGLE_WORKBOOK_UNAVAILABLE_MESSAGE =
+  "Google Sheets를 읽을 수 없습니다. 링크가 있는 모든 사용자가 볼 수 있도록 공개했는지 확인해 주세요.";
+
+function googleSheetRequest(url: string) {
+  return fetch(url, {
+    cache: "no-store",
+    redirect: "follow",
+    signal: AbortSignal.timeout(20_000),
+  });
+}
+
+function decodeHtmlText(value: string) {
+  return value
+    .replace(/&#x([0-9a-f]+);/giu, (_match, code: string) =>
+      String.fromCodePoint(Number.parseInt(code, 16)))
+    .replace(/&#(\d+);/gu, (_match, code: string) =>
+      String.fromCodePoint(Number.parseInt(code, 10)))
+    .replace(/&quot;/gu, '"')
+    .replace(/&#39;|&apos;/gu, "'")
+    .replace(/&lt;/gu, "<")
+    .replace(/&gt;/gu, ">")
+    .replace(/&amp;/gu, "&");
+}
+
+export function parsePublicGoogleSheetNames(html: string) {
+  const names = Array.from(
+    html.matchAll(
+      /<div class="goog-inline-block docs-sheet-tab-caption">([^<]*)<\/div>/gu,
+    ),
+    (match) => decodeHtmlText(match[1] ?? "").trim(),
+  ).filter(Boolean);
+  return [...new Set(names)];
+}
+
+async function loadPublicGoogleWorkbookFallback(
+  spreadsheetId: string,
+  dashboardStartDate: string,
+) {
+  const editUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit?usp=sharing`;
+  const editResponse = await googleSheetRequest(editUrl);
+  if (!editResponse.ok) throw new Error(GOOGLE_WORKBOOK_UNAVAILABLE_MESSAGE);
+  const html = (await responseBuffer(
+    editResponse,
+    AD_PERFORMANCE_MAX_WORKBOOK_BYTES,
+  )).toString("utf8");
+  const sheetNames = parsePublicGoogleSheetNames(html);
+  if (!sheetNames.length) throw new Error(GOOGLE_WORKBOOK_UNAVAILABLE_MESSAGE);
+
+  let totalBytes = Buffer.byteLength(html);
+  const sheets: GoogleWorkbookSheet[] = [];
+  for (const sheetName of sheetNames) {
+    const query = new URLSearchParams({ tqx: "out:csv", sheet: sheetName });
+    const response = await googleSheetRequest(
+      `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?${query}`,
+    );
+    if (!response.ok) throw new Error(GOOGLE_WORKBOOK_UNAVAILABLE_MESSAGE);
+    const remainingBytes = AD_PERFORMANCE_MAX_WORKBOOK_BYTES - totalBytes;
+    if (remainingBytes <= 0) throw new Error("원본 파일 용량이 너무 큽니다.");
+    const buffer = await responseBuffer(response, remainingBytes);
+    totalBytes += buffer.byteLength;
+    const rows = parseCsv(buffer.toString("utf8"), {
+      bom: true,
+      relax_column_count: true,
+      skip_empty_lines: false,
+    }) as string[][];
+    sheets.push({
+      name: sheetName,
+      rows: filterAdPerformanceSourceRowsBeforeDate(rows, dashboardStartDate),
+    });
+  }
+  return sheets;
+}
+
 export async function loadGoogleWorkbook(
   spreadsheetUrl: string,
   dashboardStartDate: string,
@@ -239,29 +312,45 @@ export async function loadGoogleWorkbook(
   const exportUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=xlsx`;
   let response: Response;
   try {
-    response = await fetch(exportUrl, {
-      cache: "no-store",
-      redirect: "follow",
-      signal: AbortSignal.timeout(20_000),
-    });
+    response = await googleSheetRequest(exportUrl);
   } catch {
     throw new Error("Google Sheets에 연결하지 못했습니다.");
   }
-  if (!response.ok) {
-    throw new Error(
-      "Google Sheets를 읽을 수 없습니다. 링크가 있는 모든 사용자가 볼 수 있도록 공개했는지 확인해 주세요.",
-    );
+  let sheets: GoogleWorkbookSheet[] | null = null;
+  if (response.ok) {
+    try {
+      const workbook = await readXlsxFile(
+        await responseBuffer(response, AD_PERFORMANCE_MAX_WORKBOOK_BYTES),
+      );
+      sheets = workbook.map((sheet) => ({
+        name: sheet.sheet.trim(),
+        rows: filterAdPerformanceSourceRowsBeforeDate(
+          sheet.data,
+          dashboardStartDate,
+        ),
+      }));
+    } catch (error) {
+      if (error instanceof Error && error.message === "원본 파일 용량이 너무 큽니다.") {
+        throw error;
+      }
+    }
   }
-  const workbook = await readXlsxFile(
-    await responseBuffer(response, AD_PERFORMANCE_MAX_WORKBOOK_BYTES),
-  );
-  const sheets = workbook.map((sheet) => ({
-    name: sheet.sheet.trim(),
-    rows: filterAdPerformanceSourceRowsBeforeDate(
-      sheet.data,
-      dashboardStartDate,
-    ),
-  }));
+  if (!sheets) {
+    try {
+      sheets = await loadPublicGoogleWorkbookFallback(
+        spreadsheetId,
+        dashboardStartDate,
+      );
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        [GOOGLE_WORKBOOK_UNAVAILABLE_MESSAGE, "원본 파일 용량이 너무 큽니다."].includes(error.message)
+      ) {
+        throw error;
+      }
+      throw new Error("Google Sheets에 연결하지 못했습니다.");
+    }
+  }
   if (!sheets.length || !sheets[0]?.name) {
     throw new Error("선택할 수 있는 시트가 없습니다.");
   }
