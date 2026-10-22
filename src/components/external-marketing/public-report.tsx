@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Download, ExternalLink, FileDown } from "lucide-react";
 
+import { AdPerformanceOutcomeCard } from "@/components/ad-performance/ad-performance-outcome-card";
 import { AdPerformanceSummaryCards } from "@/components/ad-performance/ad-performance-summary-cards";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -74,6 +75,7 @@ export function PublicExternalMarketingReport({ project, dashboard }: {
         </Card>
 
         <AdPerformanceSummaryCards metrics={dashboard.metrics} totalBudget={dashboard.totalBudget} organicChannels={dashboard.organicChannels} />
+        <AdPerformanceOutcomeCard metrics={dashboard.metrics} />
         <section className="mt-8">
           <h2 className="mb-4 text-xl font-semibold tracking-tight">광고집행 결과</h2>
           <PublicExternalMarketingReportTable metrics={dashboard.metrics} />
