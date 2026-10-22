@@ -18,6 +18,30 @@ test("광고 접수와 오가닉 DB를 합치고 연결된 라이브 웨비나 �
   assert.match(text, /최대 17명/u);
   assert.match(text, /결제는 5건/u);
   assert.match(text, /1,500,000원/u);
+  assert.match(text, /광고비 대비 15배/u);
+});
+
+test("요청한 미닝 예시에서 단계별 전환율과 광고비 대비 매출 배수를 계산한다", () => {
+  const text = adPerformanceOutcomeSummary([
+    { ...metric, googleSpend: 850572, metaSpend: 29123909, googleLandingLeads: 2000, metaLandingLeads: 347, organicLeads: {} },
+  ], { ad_spend: 1, group_chat_count: 2040, live_peak_count: 486, payment_count: 44, revenue: 118260000 });
+  assert.equal(text, "광고비 29,974,481원을 집행했습니다. DB는 총 2,347건 접수되었고, 톡방에는 2,040명 (DB 대비 86.9%)이 입장했습니다. 라이브에는 최대 486명 (DB 대비 20.7%, 톡방 대비 23.8%)이 참여했고, 결제는 44건 (DB 대비 1.9%, 톡방 대비 2.2%, 라이브 대비 9.1%) 이루어졌으며, 총 118,260,000원 (광고비 대비 3.95배)의 매출을 기록했습니다.");
+});
+
+test("분모가 0이거나 미입력이면 계산 불가를 표시하고 실제 0건은 0%로 표시한다", () => {
+  const zeroBase = adPerformanceOutcomeSummary([
+    { ...metric, googleSpend: 0, metaSpend: 0, googleLandingLeads: 0, metaLandingLeads: 0, organicLeads: {} },
+  ], { ad_spend: 0, group_chat_count: 0, live_peak_count: 0, payment_count: 0, revenue: 0 });
+  assert.match(zeroBase, /DB 대비 계산 불가/u);
+  assert.match(zeroBase, /톡방 대비 계산 불가/u);
+  assert.match(zeroBase, /라이브 대비 계산 불가/u);
+  assert.match(zeroBase, /광고비 대비 계산 불가/u);
+  assert.doesNotMatch(zeroBase, /NaN|Infinity/u);
+  const zeroPayment = adPerformanceOutcomeSummary([metric], { ad_spend: 0, group_chat_count: 20, live_peak_count: 10, payment_count: 0, revenue: 0 });
+  assert.match(zeroPayment, /결제는 0건 \(DB 대비 0%, 톡방 대비 0%, 라이브 대비 0%\)/u);
+  const missingBase = adPerformanceOutcomeSummary([], { ad_spend: 100000, group_chat_count: null, live_peak_count: null, payment_count: 1, revenue: 200000 });
+  assert.match(missingBase, /DB 대비 계산 불가, 톡방 대비 계산 불가, 라이브 대비 계산 불가/u);
+  assert.match(missingBase, /광고비 대비 2배/u);
 });
 
 test("미입력 웨비나 실적은 0으로 꾸미지 않고 톡방은 최신 입력을 사용한다", () => {
