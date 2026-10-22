@@ -10,11 +10,41 @@ export const externalMarketingMilestones = [
 
 export const externalMarketingToday = () => toKoreaDate(new Date().toISOString());
 
+function validWebinarDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(value)) return null;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value
+    ? null
+    : date;
+}
+
+const webinarMonthDayFormatter = new Intl.DateTimeFormat("ko-KR", {
+  month: "long",
+  day: "numeric",
+  timeZone: "Asia/Seoul",
+});
+
+const webinarFullDateFormatter = new Intl.DateTimeFormat("ko-KR", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+  timeZone: "Asia/Seoul",
+});
+
+export function formatExternalMarketingWebinarDate(value: string, includeYear = true) {
+  const date = validWebinarDate(value);
+  if (!date) return "날짜 미입력";
+  return (includeYear ? webinarFullDateFormatter : webinarMonthDayFormatter).format(date);
+}
+
+export function formatExternalMarketingProjectTitle(title: string, webinarDate: string) {
+  return `(${formatExternalMarketingWebinarDate(webinarDate, false)}) ${title}`;
+}
+
 export function externalMarketingWbs(webinarDate: string, today: string) {
-  const webinar = /^\d{4}-\d{2}-\d{2}$/u.test(webinarDate) ? new Date(`${webinarDate}T00:00:00Z`) : null;
-  const valid = webinar && !Number.isNaN(webinar.getTime()) && webinar.toISOString().slice(0, 10) === webinarDate;
+  const webinar = validWebinarDate(webinarDate);
   return externalMarketingMilestones.map((milestone) => {
-    const date = valid ? new Date(webinar) : null;
+    const date = webinar ? new Date(webinar) : null;
     date?.setUTCDate(date.getUTCDate() - milestone.daysBefore);
     const dueDate = date?.toISOString().slice(0, 10) ?? "";
     return { ...milestone, dueDate, daysLeft: dueDate ? getWebinarDayDifference(dueDate, today) : null };

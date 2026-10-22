@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { externalMarketingWbs, formatWbsCountdown, sortExternalMarketingProjects } from "./wbs";
+import {
+  externalMarketingWbs,
+  formatExternalMarketingProjectTitle,
+  formatExternalMarketingWebinarDate,
+  formatWbsCountdown,
+  sortExternalMarketingProjects,
+} from "./wbs";
 import { externalMarketingInfoSchema } from "./model";
 
 test("웨비나 기준 21·28·35·37일 전과 서울 날짜 기준 남은 일수를 계산한다", () => {
@@ -17,4 +23,10 @@ test("웨비나 임박순·최근 종료순·미입력순을 지키고 실제 �
   const info = { courseName: "강의", instructorName: "강사", cohort: "1기", landingPages: [], creativeDriveUrl: "" };
   assert.equal(externalMarketingInfoSchema.parse(info).webinarDate, "");
   assert.equal(externalMarketingInfoSchema.safeParse({ ...info, webinarDate: "2026-02-30" }).success, false);
+});
+
+test("목록의 웨비나 날짜와 제목을 한국 달력 형식으로 표시한다", () => {
+  assert.equal(formatExternalMarketingWebinarDate("2026-11-23"), "2026년 11월 23일");
+  assert.equal(formatExternalMarketingProjectTitle("마케팅 강의", "2026-11-23"), "(11월 23일) 마케팅 강의");
+  assert.equal(formatExternalMarketingProjectTitle("미정 강의", ""), "(날짜 미입력) 미정 강의");
 });
