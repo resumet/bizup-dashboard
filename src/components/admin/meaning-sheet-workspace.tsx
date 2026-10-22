@@ -111,11 +111,13 @@ export function MeaningSheetWorkspace({
   dashboardStartDate,
   sheetState,
   toolbarContainer,
+  allowTrackingImport = true,
 }: {
   dashboardId: string;
   dashboardStartDate: string;
   sheetState: AdPerformanceSheetState | null;
   toolbarContainer: HTMLElement | null;
+  allowTrackingImport?: boolean;
 }) {
   const router = useRouter();
   const [page, setPage] = useState(1);
@@ -511,7 +513,7 @@ export function MeaningSheetWorkspace({
       >
         <Link2 />원본시트연결
       </Button>
-      <Button
+      {allowTrackingImport ? <Button
         type="button"
         variant="outline"
         disabled={!sheetState || busyAction !== null}
@@ -522,7 +524,7 @@ export function MeaningSheetWorkspace({
         }}
       >
         <Upload />유입엑셀추가
-      </Button>
+      </Button> : null}
       <Button
         type="button"
         variant="outline"
@@ -1045,7 +1047,7 @@ export function MeaningSheetWorkspace({
         </DialogContent>
       </Dialog>
 
-      <Dialog
+      {allowTrackingImport ? <Dialog
         open={trackingDialogOpen}
         onOpenChange={(open) => {
           if (busyAction) return;
@@ -1129,7 +1131,7 @@ export function MeaningSheetWorkspace({
             </DialogFooter>
           </form>
         </DialogContent>
-      </Dialog>
+      </Dialog> : null}
 
       <Dialog
         open={selectedDate !== null}

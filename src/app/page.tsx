@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, BarChart3, BriefcaseBusiness, CalendarDays, CalendarRange, LayoutDashboard, TvMinimalPlay, Wallet } from "lucide-react";
+import { ArrowRight, BarChart3, BriefcaseBusiness, CalendarDays, CalendarRange, LayoutDashboard, Megaphone, TvMinimalPlay, Wallet } from "lucide-react";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
 import { AdminManagementButton } from "@/components/admin/admin-management-button";
@@ -12,7 +12,8 @@ export default async function HomePage() {
   if (!user) redirect("/login");
   return <main className="min-h-screen">
     <header className="border-b bg-background"><div className="mx-auto flex min-h-16 max-w-[1900px] items-center justify-between px-5 py-4 lg:px-8"><BrandHomeLink /><div className="flex items-center gap-2"><AdminManagementButton email={user.email ?? ""} /><UserAccountMenu email={user.email ?? ""} /></div></div></header>
-    <section className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8 lg:py-12">
+    <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8 lg:py-12">
+      <section aria-label="주요 서비스">
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         {[
           { href: "/work", name: "강의관리", description: "강의 운영, 수강생 명단, 알림톡·문자와 정산 등 기존 업무 도구를 사용합니다.", icon: LayoutDashboard, color: "bg-blue-50 text-blue-700" },
@@ -29,6 +30,18 @@ export default async function HomePage() {
           <span className="mt-auto flex items-center gap-2 pt-8 text-sm font-medium">{name} 시작하기 <ArrowRight className="size-4 shrink-0 transition group-hover:translate-x-1" /></span>
         </Link>)}
       </div>
-    </section>
+      </section>
+      <section className="mt-12 border-t pt-8" aria-labelledby="external-services-title">
+        <h2 id="external-services-title" className="text-2xl font-semibold tracking-tight">외부서비스</h2>
+        <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+          <Link href="/services/external-marketing" className="group flex min-w-0 flex-col rounded-lg border bg-white p-7 shadow-sm transition hover:border-blue-400 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600">
+            <span className="inline-flex self-start rounded-lg bg-cyan-50 p-3 text-cyan-700"><Megaphone className="size-7" /></span>
+            <h3 className="mt-6 text-2xl font-semibold">외부마케팅대행</h3>
+            <p className="mt-3 min-h-14 leading-7 text-muted-foreground">외부 강의의 광고성과를 수집하고 공개용 결과 보고서를 관리합니다.</p>
+            <span className="mt-auto flex items-center gap-2 pt-8 text-sm font-medium">외부마케팅대행 시작하기 <ArrowRight className="size-4 shrink-0 transition group-hover:translate-x-1" /></span>
+          </Link>
+        </div>
+      </section>
+    </div>
   </main>;
 }
