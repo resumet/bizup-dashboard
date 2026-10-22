@@ -13,9 +13,9 @@ type MetricColumn = {
   key: string;
   label: string;
   value: string;
-  detail: string;
+  detail?: string;
   valueLabel: string;
-  detailLabel: string;
+  detailLabel?: string;
 };
 
 function MetricCard({ title, columns, footer }: {
@@ -32,7 +32,7 @@ function MetricCard({ title, columns, footer }: {
           {columns.map((column) => <div key={column.key} className="min-w-0 space-y-3">
             <dt className="truncate text-sm font-medium" title={column.label}>{column.label}</dt>
             <dd className="break-words text-sm font-semibold tabular-nums" aria-label={column.valueLabel}>{column.value}</dd>
-            <dd className="break-words text-xs tabular-nums text-muted-foreground" aria-label={column.detailLabel} title={column.detailLabel}>{column.detail}</dd>
+            {column.detail === undefined ? null : <dd className="break-words text-xs tabular-nums text-muted-foreground" aria-label={column.detailLabel} title={column.detailLabel}>{column.detail}</dd>}
           </div>)}
         </dl>
       </div>
@@ -64,10 +64,10 @@ export function AdPerformanceSummaryCards({ metrics, totalBudget, organicChannel
     ...summarizeOrganicChannels(metrics, organicChannels),
     { id: "__total__", name: "전체", count: summary.organicLandingLeads },
   ].map((item) => ({ key: item.id, label: item.name, value: `${number.format(item.count)}건`,
-    detail: formatWon(unitCost(summary.spend, item.count)), valueLabel: `${item.name} 오가닉DB`, detailLabel: `${item.name} 오가닉DB단가 (총 광고비 ÷ 해당 접수 DB 수)` }));
+    valueLabel: `${item.name} 오가닉DB` }));
 
   return <section aria-label="성과 요약" className={`${className} grid items-stretch gap-3 md:grid-cols-2 xl:grid-cols-[3fr_3fr_4fr_1.4fr]`}>
-    <MetricCard title="집행비용" columns={spendColumns} footer={<p>잔여 예산 <span className={`ml-1 font-medium tabular-nums ${summary.remainingBudget < 0 ? "text-destructive" : "text-foreground"}`}>{formatWon(summary.remainingBudget)}</span></p>} />
+    <MetricCard title="집행비용" columns={spendColumns} />
     <MetricCard title="광고접수DB" columns={adColumns} footer={<p>랜딩접수DB단가 <span className="ml-1 font-medium tabular-nums text-foreground">{formatWon(summary.paidLandingLeadCost)}</span></p>} />
     <MetricCard title="오가닉DB" columns={organicColumns} />
     <MetricCard title="톡방입장인원" columns={[{ key: "chat", label: "단톡방", value: `${number.format(summary.latestChatRoomMembers)}명`,

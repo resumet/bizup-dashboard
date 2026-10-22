@@ -22,6 +22,7 @@ export default async function AdPerformancePage() {
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon-sm" asChild><BackLink href="/work"><ArrowLeft />뒤로가기</BackLink></Button>
           <h1 className="text-3xl font-semibold tracking-tight">광고성과 서비스</h1>
+          <Button variant="outline" className="ml-auto" asChild><Link href="/services/ad-performance/bulk">일괄 보기</Link></Button>
         </div>
 
         <div className="mt-8 grid max-w-6xl gap-5 md:grid-cols-2">

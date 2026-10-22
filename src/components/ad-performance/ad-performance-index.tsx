@@ -20,7 +20,6 @@ function DashboardCard({ dashboard, busy, onDelete }: {
   busy: boolean;
   onDelete: () => void;
 }) {
-  const remaining = dashboard.totalBudget - dashboard.spend;
   const courseName = dashboard.course?.name ?? "강의 미설정";
   return (
     <Card className="group overflow-hidden transition hover:border-primary/40 hover:shadow-md">
@@ -37,7 +36,6 @@ function DashboardCard({ dashboard, busy, onDelete }: {
       <CardContent className="grid grid-cols-2 gap-x-4 gap-y-5 pt-5">
         <div><p className="text-xs text-muted-foreground">총예산</p><p className="mt-1 font-semibold tabular-nums">{won.format(dashboard.totalBudget)}</p></div>
         <div><p className="text-xs text-muted-foreground">누적 집행비</p><p className="mt-1 font-semibold tabular-nums">{won.format(dashboard.spend)}</p></div>
-        <div><p className="text-xs text-muted-foreground">남은 예산</p><p className={`mt-1 font-semibold tabular-nums ${remaining < 0 ? "text-destructive" : ""}`}>{won.format(remaining)}</p></div>
         <div><p className="text-xs text-muted-foreground">기록 일수</p><p className="mt-1 font-semibold tabular-nums">{number.format(dashboard.metricCount)}일</p></div>
         <div><p className="text-xs text-muted-foreground">랜딩접수 DB(광고)</p><p className="mt-1 font-semibold tabular-nums">{number.format(dashboard.paidLandingLeads)}건</p></div>
         <div><p className="text-xs text-muted-foreground">랜딩접수 DB(오가닉)</p><p className="mt-1 font-semibold tabular-nums">{number.format(dashboard.organicLandingLeads)}건</p></div>
@@ -98,7 +96,8 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
       </div>
       {error ? <Alert variant="destructive" className="mt-6"><AlertTriangle /><AlertTitle>확인이 필요합니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
 
-      <div className="mt-6 flex justify-end">
+      <div className="mt-6 flex flex-wrap justify-end gap-2">
+        <Button variant="outline" asChild><Link href="/services/ad-performance/bulk">일괄 보기</Link></Button>
         <Button className="min-h-10" disabled={creating || Boolean(initialData.loadError)} onClick={() => void createDashboard()}>{creating ? <Loader2 className="animate-spin" /> : <Plus />}대시보드 만들기</Button>
       </div>
 

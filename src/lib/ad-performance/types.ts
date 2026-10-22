@@ -69,6 +69,7 @@ export type AdPerformanceDashboardData = {
 };
 
 export type AdPerformanceCourse = {
+  freeWebinarAt?: string;
   status?: string | null;
   id: string;
   name: string;

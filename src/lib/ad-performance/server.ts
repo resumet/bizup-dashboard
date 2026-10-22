@@ -65,6 +65,7 @@ function toCourse(row: CourseRow): AdPerformanceCourse {
     instructorName: row.instructor_name,
     status: row.status,
     startsAt: row.starts_at,
+    freeWebinarAt: row.free_webinar_at,
   };
 }
 
@@ -126,6 +127,8 @@ export async function loadAdPerformanceIndex(workspaceId: string): Promise<AdPer
       updatedAt: row.updated_at,
     };
   });
+  const courseOrder = new Map(courses.map((course, index) => [course.id, index]));
+  dashboards.sort((a, b) => (courseOrder.get(a.course?.id ?? "") ?? Infinity) - (courseOrder.get(b.course?.id ?? "") ?? Infinity));
   return { courses, dashboards };
 }
 
