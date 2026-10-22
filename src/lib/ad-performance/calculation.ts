@@ -1,4 +1,23 @@
-import type { AdPerformanceDailyMetric, AdPerformanceSummary } from "./types";
+import type { AdPerformanceDailyMetric, AdPerformanceOrganicChannel, AdPerformanceSummary } from "./types";
+
+export function summarizeOrganicChannels(metrics: AdPerformanceDailyMetric[], channels: AdPerformanceOrganicChannel[]) {
+  const totals = new Map(channels.map((channel) => [channel.id, { ...channel, count: 0 }]));
+  let unknown = 0;
+  for (const metric of metrics) {
+    for (const [id, count] of Object.entries(metric.organicLeads)) {
+      const channel = totals.get(id);
+      if (channel) channel.count += count;
+      else unknown += count;
+    }
+  }
+  const result = [...totals.values()].sort((a, b) => a.sortOrder - b.sortOrder);
+  if (unknown > 0) {
+    const unassigned = result.find((channel) => channel.name.replace(/\s/gu, "") === "경로불명");
+    if (unassigned) unassigned.count += unknown;
+    else result.push({ id: "__unknown__", name: "경로불명", sortOrder: Number.MAX_SAFE_INTEGER, count: unknown });
+  }
+  return result;
+}
 
 export function calculateDailyAdSpend(metrics: AdPerformanceDailyMetric[]) {
   let cumulativeSpend = 0;

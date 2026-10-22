@@ -73,7 +73,7 @@ export function PublicExternalMarketingReport({ project, dashboard }: {
           </CardContent>
         </Card>
 
-        <AdPerformanceSummaryCards metrics={dashboard.metrics} totalBudget={dashboard.totalBudget} />
+        <AdPerformanceSummaryCards metrics={dashboard.metrics} totalBudget={dashboard.totalBudget} organicChannels={dashboard.organicChannels} />
         <section className="mt-8">
           <h2 className="mb-4 text-xl font-semibold tracking-tight">광고집행 결과</h2>
           <PublicExternalMarketingReportTable metrics={dashboard.metrics} />

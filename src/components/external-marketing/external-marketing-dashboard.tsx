@@ -124,7 +124,7 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard 
       <div className="sm:col-span-3 xl:col-span-5"><p className="text-xs text-muted-foreground">채널별 랜딩페이지</p><div className="mt-2 flex flex-wrap gap-2">{project.landingPages.length ? project.landingPages.map((page, index) => <Button key={`${page.channel}-${index}`} size="sm" variant="outline" asChild><Link href={page.url} target="_blank" rel="noopener noreferrer">{page.channel}<ExternalLink /></Link></Button>) : <span className="text-sm">미입력</span>}</div></div>
     </CardContent></Card>
 
-    <AdPerformanceSummaryCards metrics={dashboard.metrics} totalBudget={totalBudget} />
+    <AdPerformanceSummaryCards metrics={dashboard.metrics} totalBudget={totalBudget} organicChannels={dashboard.organicChannels} />
     <AdPerformanceSheetWorkspace dashboardId={dashboard.id} dashboardStartDate={startDate} sheetState={dashboard.sheetState} toolbarContainer={sheetToolbarContainer} allowTrackingImport={false} />
   </div>
 

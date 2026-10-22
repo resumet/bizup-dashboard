@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { calculateDailyAdSpend, summarizeAdPerformance } from "./calculation";
+import { calculateDailyAdSpend, summarizeAdPerformance, summarizeOrganicChannels } from "./calculation";
 import type { AdPerformanceDailyMetric } from "./types";
 
 const metric: AdPerformanceDailyMetric = {
@@ -20,6 +20,30 @@ const metric: AdPerformanceDailyMetric = {
   chatRoomMembers: null,
   organicLeads: { blog: 5, youtube: 3 },
 };
+
+test("오가닉 카드는 저장된 채널명과 순서를 사용하고 누락된 경로도 전체 합계에 포함한다", () => {
+  const channels = [
+    { id: "youtube", name: "유튜브", sortOrder: 2 },
+    { id: "instagram", name: "인스타", sortOrder: 1 },
+    { id: "empty", name: "기타", sortOrder: 3 },
+  ];
+  const snapshot = structuredClone(channels);
+  const metrics: AdPerformanceDailyMetric[] = [
+    { ...metric, organicLeads: { youtube: 3, instagram: 7, lost: 2 } },
+    { ...metric, organicLeads: { youtube: 5, lost: 4 } },
+  ];
+  const result = summarizeOrganicChannels(metrics, channels);
+  assert.deepEqual(result.map((item) => [item.name, item.count]), [["인스타", 7], ["유튜브", 8], ["기타", 0], ["경로불명", 6]]);
+  assert.equal(result.reduce((sum, item) => sum + item.count, 0), summarizeAdPerformance(metrics, 0).organicLandingLeads);
+  assert.deepEqual(channels, snapshot);
+  assert.deepEqual(summarizeOrganicChannels([], []), []);
+});
+
+test("이미 등록된 경로불명 채널에 미확인 DB를 합쳐 중복 열을 만들지 않는다", () => {
+  const result = summarizeOrganicChannels([{ ...metric, organicLeads: { known: 5, missing: 2 } }], [{ id: "known", name: "경로불명", sortOrder: 0 }]);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].count, 7);
+});
 
 test("광고비는 날짜순으로 누적하고 빈 날짜는 이전 누적액을 유지한다", () => {
   const rows = [
