@@ -3,10 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { adPerformanceOutcomeSummary, type AdPerformanceWebinarOutcome } from "@/lib/ad-performance/outcome-summary";
 import type { AdPerformanceDailyMetric } from "@/lib/ad-performance/types";
 
-export function AdPerformanceOutcomeCard({ metrics, webinar, courseId, error }: {
+export function AdPerformanceOutcomeCard({ metrics, webinar = null, courseId, error }: {
   metrics: AdPerformanceDailyMetric[];
-  webinar: AdPerformanceWebinarOutcome | null;
-  courseId: string;
+  webinar?: AdPerformanceWebinarOutcome | null;
+  courseId?: string;
   error?: string;
 }) {
   const summary = adPerformanceOutcomeSummary(metrics, webinar);
@@ -17,7 +17,7 @@ export function AdPerformanceOutcomeCard({ metrics, webinar, courseId, error }: 
         ? <span key={index}>(<mark className="box-decoration-clone rounded-sm bg-yellow-200 px-1 font-bold text-neutral-950 underline underline-offset-2">{part}</mark>)</span>
         : part)}</p>
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-      {courseId ? <Link href={`/services/course-webinars/${courseId}`} className="text-sm font-medium text-primary hover:underline">라이브 웨비나 실적 확인</Link>
+      {courseId === undefined ? null : courseId ? <Link href={`/services/course-webinars/${courseId}`} className="text-sm font-medium text-primary hover:underline">라이브 웨비나 실적 확인</Link>
         : <p className="text-sm text-muted-foreground">사전설정에서 강의를 연결하면 라이브 웨비나 실적이 표시됩니다.</p>}
     </CardContent>
   </Card>;

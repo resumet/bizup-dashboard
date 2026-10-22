@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2, ClipboardCopy, ExternalLink, Loader2, Save, Se
 
 import { AdPerformanceSheetWorkspace } from "@/components/ad-performance/ad-performance-sheet-workspace";
 import { AdPerformanceSummaryCards } from "@/components/ad-performance/ad-performance-summary-cards";
+import { AdPerformanceOutcomeCard } from "@/components/ad-performance/ad-performance-outcome-card";
 import { BackLink } from "@/components/layout/back-link";
 import { ExternalMarketingProjectFields } from "./project-fields";
 import { ExternalMarketingLinkDialog } from "./link-dialog";
@@ -125,6 +126,7 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard 
     </CardContent></Card>
 
     <AdPerformanceSummaryCards metrics={dashboard.metrics} totalBudget={totalBudget} organicChannels={dashboard.organicChannels} />
+    <AdPerformanceOutcomeCard metrics={dashboard.metrics} />
     <AdPerformanceSheetWorkspace dashboardId={dashboard.id} dashboardStartDate={startDate} sheetState={dashboard.sheetState} toolbarContainer={sheetToolbarContainer} allowTrackingImport={false} />
   </div>
 
