@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { emptyWebinarMetrics, formatMetric, parseWebinarMetrics, ratio, ratioDefinitions, webinarFields, type WebinarField, type WebinarRecord } from "@/lib/course-webinars/metrics";
+import { emptyWebinarMetrics, formatMetric, isAutomaticWebinarField, parseEditableWebinarMetrics, ratio, ratioDefinitions, webinarFields, type WebinarField, type WebinarRecord } from "@/lib/course-webinars/metrics";
 
 type Draft = Record<WebinarField, string>;
 const toDraft = (record: ReturnType<typeof emptyWebinarMetrics>): Draft => Object.fromEntries(webinarFields.map(({ key }) => [key, record[key]?.toString() ?? ""])) as Draft;
@@ -42,7 +42,11 @@ export function CourseWebinarEditor({ courseId }: { courseId: string }) {
   }, [dirty]);
   let preview = emptyWebinarMetrics();
   let validation = "";
-  try { preview = parseWebinarMetrics(draft); } catch (error) { validation = (error as Error).message; }
+  try {
+    preview = { ...parseEditableWebinarMetrics(draft),
+      payment_count: draft.payment_count === "" ? null : Number(draft.payment_count),
+      revenue: draft.revenue === "" ? null : Number(draft.revenue) };
+  } catch (error) { validation = (error as Error).message; }
   async function save(event: React.FormEvent) {
     event.preventDefault(); setNotice(""); setError("");
     if (validation) { setError(validation); return; }
@@ -60,7 +64,7 @@ export function CourseWebinarEditor({ courseId }: { courseId: string }) {
   }
   return <div className="space-y-6">
     <Card>
-      <CardHeader><CardTitle>라이브 웨비나 실적</CardTitle><CardDescription>강의별 최종 실적을 직접 입력합니다. 빈칸은 미입력, 0은 실제 실적 없음으로 저장합니다. 주문·비용 내역과 별도로 관리합니다.</CardDescription></CardHeader>
+      <CardHeader><CardTitle>라이브 웨비나 실적</CardTitle></CardHeader>
       <CardContent>
         {error && <p role="alert" className="mb-4 text-sm text-destructive">{error}</p>}
         {notice && <p role="status" className="mb-4 text-sm text-emerald-700">{notice}</p>}
@@ -69,7 +73,8 @@ export function CourseWebinarEditor({ courseId }: { courseId: string }) {
           <fieldset disabled={!loaded || loading || saving} className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {webinarFields.map(field => <div key={field.key} className="space-y-2">
               <Label htmlFor={`webinar-${field.key}`}>{field.label} ({field.unit})</Label>
-              <Input id={`webinar-${field.key}`} type="number" min={0} max={field.max} step={field.key === "hours_to_peak" ? "0.01" : "1"} inputMode={field.key === "hours_to_peak" ? "decimal" : "numeric"} value={draft[field.key]} placeholder="미입력" onChange={event => { setDraft(current => ({ ...current, [field.key]: event.target.value })); setNotice(""); }} />
+              <Input id={`webinar-${field.key}`} type={isAutomaticWebinarField(field.key) ? "text" : "number"} readOnly={isAutomaticWebinarField(field.key)} min={0} max={field.max} step={field.key === "hours_to_peak" ? "0.01" : "1"} inputMode={field.key === "hours_to_peak" ? "decimal" : "numeric"} value={isAutomaticWebinarField(field.key) && draft[field.key] !== "" ? Number(draft[field.key]).toLocaleString("ko-KR", { maximumFractionDigits: 2 }) : draft[field.key]} placeholder="미입력" onChange={event => { if (isAutomaticWebinarField(field.key)) return; setDraft(current => ({ ...current, [field.key]: event.target.value })); setNotice(""); }} />
+              {isAutomaticWebinarField(field.key) && <p className="text-xs text-muted-foreground">유료수강생 페이지의 {field.key === "payment_count" ? "전체 결제자 수" : "전체 결제금액"}에서 자동으로 집계합니다.</p>}
               {field.key === "hours_to_peak" && <p className="text-xs text-muted-foreground">라이브 시작부터 경과 시간 · 예: 1시간 30분 = 1.5</p>}
               {field.key === "group_chat_count" && <p className="text-xs text-muted-foreground">무료 단톡방이 여러 개라면 합산 인원을 입력합니다.</p>}
             </div>)}
@@ -84,7 +89,7 @@ export function CourseWebinarEditor({ courseId }: { courseId: string }) {
       </CardContent>
     </Card>
     <Card>
-      <CardHeader><CardTitle>전환율과 광고 효율</CardTitle><CardDescription>현재 입력값 기준입니다. 모든 라이브 전환율은 최대 인원을 기준으로 계산합니다. 구매 전환율은 결제 건수 기준이며 고유 구매자 비율과 다를 수 있습니다.</CardDescription></CardHeader>
+      <CardHeader><CardTitle>전환율과 광고 효율</CardTitle></CardHeader>
       <CardContent>
         <div className="mb-6 grid gap-3 sm:grid-cols-3" aria-label="웨비나 전환 단계">
           {([['group_chat_count', '최종 단톡방', '명'], ['live_peak_count', '라이브 최대', '명'], ['payment_count', '결제', '건']] as const).map(([key, label, unit], index) => <div className="rounded-xl border bg-muted/30 p-4" key={key}><p className="text-sm text-muted-foreground">{index + 1}. {label}</p><p className="mt-2 text-2xl font-semibold">{formatMetric(preview[key], unit)}</p></div>)}

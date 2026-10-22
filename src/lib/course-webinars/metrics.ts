@@ -15,6 +15,13 @@ export type WebinarRecord = WebinarMetrics & { course_id: string; version: numbe
 export type WebinarCourse = { id: string; name: string; instructor_name: string; free_webinar_at: string; metrics: WebinarRecord | null };
 export const emptyWebinarMetrics = (): WebinarMetrics => Object.fromEntries(webinarFields.map(field => [field.key, null])) as WebinarMetrics;
 
+export const isAutomaticWebinarField = (key: WebinarField) => key === "payment_count" || key === "revenue";
+
+export function parseEditableWebinarMetrics(value: unknown): WebinarMetrics {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return parseWebinarMetrics(value);
+  return parseWebinarMetrics({ ...value, payment_count: null, revenue: null });
+}
+
 export function parseWebinarMetrics(value: unknown): WebinarMetrics {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("웨비나 입력 형식이 올바르지 않습니다.");
   const input = value as Record<string, unknown>;
@@ -55,6 +62,8 @@ export function summarizeWebinars(courses: WebinarCourse[]) {
     const denominator = comparable.reduce((sum, course) => sum + course.metrics![definition.denominator]!, 0);
     return { ...definition, value: ratio(numerator, denominator), count: comparable.length };
   });
-  return { totals, ratios, entered: courses.filter(course => course.metrics && webinarFields.some(({ key }) => course.metrics![key] !== null)).length };
+  return { totals, ratios, entered: courses.filter(course => course.metrics && webinarFields.some(({ key }) =>
+    course.metrics![key] !== null && (!isAutomaticWebinarField(key) || course.metrics!.version > 0 || course.metrics![key]! > 0),
+  )).length };
 }
 export const formatMetric = (value: number | null | undefined, unit = "") => value == null ? "—" : `${value.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}${unit}`;

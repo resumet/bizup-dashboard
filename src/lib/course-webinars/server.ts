@@ -2,7 +2,8 @@ import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity"
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
-import type { WebinarCourse, WebinarRecord } from "./metrics";
+import { emptyWebinarMetrics, type WebinarCourse, type WebinarRecord } from "./metrics";
+import { loadWebinarPayments } from "./paid-roster";
 
 export class WebinarError extends Error {
   constructor(message: string, readonly status = 400) { super(message); }
@@ -44,6 +45,19 @@ export async function listWebinarCourses(client: Awaited<ReturnType<typeof webin
       const metric = row.course_webinar_metrics as unknown as WebinarRecord | WebinarRecord[] | null;
       items.push({ id: row.id, name: row.name, instructor_name: row.instructor_name, free_webinar_at: row.free_webinar_at, metrics: Array.isArray(metric) ? metric[0] ?? null : metric });
     }
-    if (!data || data.length < 500) return sortByNearestWebinar(items);
+    if (!data || data.length < 500) break;
   }
+  const payments = await loadWebinarPayments(client, items.map((item) => item.id));
+  return sortByNearestWebinar(items.map((item) => ({ ...item, metrics: {
+    ...emptyWebinarMetrics(), course_id: item.id, version: 0, updated_at: "", ...item.metrics, ...payments.get(item.id),
+  } })));
+}
+
+export async function loadWebinarRecord(client: Awaited<ReturnType<typeof webinarClient>>, courseId: string): Promise<WebinarRecord> {
+  const [result, payments] = await Promise.all([
+    client.from("course_webinar_metrics").select("*").eq("course_id", courseId).maybeSingle(),
+    loadWebinarPayments(client, [courseId]),
+  ]);
+  checkWebinarError(result.error);
+  return { ...emptyWebinarMetrics(), course_id: courseId, version: 0, updated_at: "", ...result.data, ...payments.get(courseId) };
 }
