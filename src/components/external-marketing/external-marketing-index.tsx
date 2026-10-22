@@ -3,25 +3,33 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, ChevronDown, Loader2, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, MoreHorizontal, Plus, Search, Trash2 } from "lucide-react";
 
 import { BackLink } from "@/components/layout/back-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { ExternalMarketingProjectSummary } from "@/lib/external-marketing/model";
 import { externalMarketingWbs, formatWbsCountdown, sortExternalMarketingProjects } from "@/lib/external-marketing/wbs";
 import { useSeoulDate } from "./use-seoul-date";
 
 const number = new Intl.NumberFormat("ko-KR");
 const won = new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW", maximumFractionDigits: 0 });
+const chipColors = [
+  "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200",
+  "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200",
+  "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
+  "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200",
+  "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-200",
+];
 
 export function ExternalMarketingIndex({ projects: initialProjects, today: initialToday }: { projects: ExternalMarketingProjectSummary[]; today: string }) {
   const router = useRouter();
   const today = useSeoulDate(initialToday);
   const [query, setQuery] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState("");
   const [projects, setProjects] = useState(initialProjects);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState("");
@@ -31,6 +39,7 @@ export function ExternalMarketingIndex({ projects: initialProjects, today: initi
   const visible = sorted.filter((project) => `${project.instructorName} ${project.courseName}`.normalize("NFKC").toLocaleLowerCase().includes(search));
   const recent = [...projects].filter((project) => project.instructorName.trim())
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
+  const selectedProject = projects.find((project) => project.dashboardId === selectedProjectId);
 
   async function createProject() {
     setCreating(true);
@@ -69,14 +78,25 @@ export function ExternalMarketingIndex({ projects: initialProjects, today: initi
     </div>
     {error ? <Alert variant="destructive" className="mt-6"><AlertTitle>처리하지 못했습니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
     <div className="mt-6 space-y-3">
-      <label className="block max-w-md text-sm font-medium">강사명·강의명 검색<Input className="mt-2" placeholder="강사명 또는 강의명" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
-      {recent.length ? <div className="flex flex-wrap gap-2" aria-label="최근 등록 강의의 강사">{recent.map((project) => <DropdownMenu key={project.dashboardId}>
-        <DropdownMenuTrigger asChild><Button variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20" title={`${project.courseName} ${project.cohort}`} aria-label={`${project.instructorName} ${project.courseName} 바로가기`}>{project.instructorName}<ChevronDown /></Button></DropdownMenuTrigger>
-        <DropdownMenuContent className="min-w-60"><DropdownMenuLabel>{[project.courseName || "외부 입력 대기", project.cohort].filter(Boolean).join(" · ")}</DropdownMenuLabel>
-          <DropdownMenuItem asChild><Link href={`/services/external-marketing/${project.dashboardId}?tab=wbs`}>WBS 바로가기</Link></DropdownMenuItem>
-          <DropdownMenuItem asChild><Link href={`/services/external-marketing/${project.dashboardId}?tab=performance`}>광고성과 바로가기</Link></DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>)}</div> : null}
+      <label className="block max-w-md text-sm font-medium">강사명·강의명 검색<span className="relative mt-2 block"><Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /><Input className="h-11 pl-9" placeholder="강사명 또는 강의명을 입력하세요" value={query} onChange={(event) => { setQuery(event.target.value); setSelectedProjectId(""); }} /></span></label>
+      {recent.length ? <div className="flex flex-wrap gap-1.5" aria-label="최근 등록 강의의 강사">{recent.map((project, index) => <button
+        key={project.dashboardId}
+        type="button"
+        aria-pressed={selectedProjectId === project.dashboardId}
+        aria-label={`${project.instructorName} ${project.courseName} 선택`}
+        title={[project.courseName, project.cohort].filter(Boolean).join(" · ")}
+        className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${chipColors[index % chipColors.length]} ${selectedProjectId === project.dashboardId ? "ring-2 ring-current ring-offset-1" : ""}`}
+        onClick={() => {
+          const nextId = selectedProjectId === project.dashboardId ? "" : project.dashboardId;
+          setSelectedProjectId(nextId);
+          setQuery(nextId ? project.instructorName : "");
+        }}
+      >{project.instructorName}</button>)}</div> : null}
+      {selectedProject ? <div className="flex flex-wrap items-center gap-2" aria-label="선택한 강의 바로가기">
+        <span className="text-sm font-medium">{[selectedProject.courseName || "외부 입력 대기", selectedProject.cohort].filter(Boolean).join(" · ")}</span>
+        <Button variant="outline" size="sm" asChild><Link href={`/services/external-marketing/${selectedProject.dashboardId}?tab=wbs`}>WBS 바로가기</Link></Button>
+        <Button variant="outline" size="sm" asChild><Link href={`/services/external-marketing/${selectedProject.dashboardId}?tab=performance`}>광고성과 바로가기</Link></Button>
+      </div> : null}
     </div>
     <section className="mt-6 rounded-lg border">
       <Table aria-label="외부마케팅대행 강의 목록"><TableHeader><TableRow>
