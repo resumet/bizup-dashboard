@@ -1,10 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { externalMarketingWbs, formatWbsCountdown } from "@/lib/external-marketing/wbs";
-import { getWebinarDayDifference, sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
+import { getWebinarDayDifference } from "@/lib/course-operations/webinar-proximity";
 
 export function ExternalMarketingWbs({ webinarDate, today }: { webinarDate: string; today: string }) {
-  const milestones = sortByNearestWebinar(externalMarketingWbs(webinarDate, today).map((milestone) => ({ ...milestone, webinarAt: milestone.dueDate })), today);
+  const milestones = externalMarketingWbs(webinarDate, today).sort((a, b) =>
+    Math.abs(a.daysLeft ?? Number.MAX_SAFE_INTEGER) - Math.abs(b.daysLeft ?? Number.MAX_SAFE_INTEGER)
+    || a.dueDate.localeCompare(b.dueDate));
   const webinarDays = milestones.some((milestone) => milestone.dueDate) ? getWebinarDayDifference(webinarDate, today) : null;
   const webinarCountdown = webinarDays === null ? "미입력" : webinarDays === 0 ? "D-Day" : webinarDays > 0 ? `D-${webinarDays}` : `D+${Math.abs(webinarDays)}`;
   const overdueStyle = "bg-neutral-100 hover:bg-neutral-100 dark:bg-neutral-800 dark:hover:bg-neutral-800";
