@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeft, CheckCircle2, ClipboardCopy, ExternalLink, Loader2, Save, Settings2, Share2 } from "lucide-react";
+import { ArrowLeft, ClipboardCopy, ExternalLink, Loader2, Save, Settings2, Share2 } from "lucide-react";
 
 import { AdPerformanceSheetWorkspace } from "@/components/ad-performance/ad-performance-sheet-workspace";
 import { AdPerformanceSummaryCards } from "@/components/ad-performance/ad-performance-summary-cards";
@@ -11,6 +11,7 @@ import { BackLink } from "@/components/layout/back-link";
 import { ExternalMarketingProjectFields } from "./project-fields";
 import { ExternalMarketingLinkDialog } from "./link-dialog";
 import { ExternalMarketingWbs } from "./external-marketing-wbs";
+import { ExternalMarketingSaveToast } from "./save-toast";
 import { useSeoulDate } from "./use-seoul-date";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -92,6 +93,7 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard,
 
   async function saveSettings() {
     setSaving(true);
+    setNotice("");
     setError("");
     try {
       await persist({ info: draftInfo, nextStartDate: draftStartDate, nextTotalBudget: draftTotalBudget, intakeEnabled: draftIntakeEnabled, publicEnabled: draftPublicEnabled });
@@ -125,14 +127,13 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard,
       <div className="flex flex-wrap items-center justify-end gap-2"><div ref={setSheetToolbarContainer} className={activeTab === "performance" ? "flex flex-wrap items-center gap-2" : "hidden"} /><Button variant="outline" disabled={saving} onClick={() => openLinkDialog("intake")}><ClipboardCopy />외부 입력 주소</Button><Button variant="outline" disabled={saving} onClick={() => openLinkDialog("public")}><Share2 />외부 공개</Button><Button variant="outline" onClick={openSettings}><Settings2 />사전설정</Button></div>
     </div>
     {error ? <Alert variant="destructive" className="mt-6"><AlertTitle>처리하지 못했습니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
-    {notice ? <Alert className="mt-6"><CheckCircle2 /><AlertTitle>완료</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert> : null}
 
-    <Card className="mt-6"><CardContent className="grid gap-4 pt-6 sm:grid-cols-3 xl:grid-cols-5">
+    <Card className="mt-6"><CardContent className="grid gap-4 pt-6 sm:grid-cols-3 xl:grid-cols-6">
+      <div><p className="text-xs text-muted-foreground">웨비나 날짜</p><p className="mt-1 font-medium tabular-nums">{project.webinarDate || "미입력"}</p></div>
       <div><p className="text-xs text-muted-foreground">강사명</p><p className="mt-1 font-medium">{project.instructorName || "미입력"}</p></div><div><p className="text-xs text-muted-foreground">기수</p><p className="mt-1 font-medium">{project.cohort || "미입력"}</p></div><div><p className="text-xs text-muted-foreground">광고 시작일</p><p className="mt-1 font-medium tabular-nums">{startDate}</p></div><div className="sm:col-span-2"><p className="text-xs text-muted-foreground">광고소재 드라이브</p>{project.creativeDriveUrl ? <Link href={project.creativeDriveUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex max-w-full items-center gap-1 truncate font-medium text-primary hover:underline">드라이브 열기 <ExternalLink className="size-3.5 shrink-0" /></Link> : <p className="mt-1 font-medium">미입력</p>}</div>
-      <div className="sm:col-span-3 xl:col-span-5"><p className="text-xs text-muted-foreground">채널별 랜딩페이지</p><div className="mt-2 flex flex-wrap gap-2">{project.landingPages.length ? project.landingPages.map((page, index) => <Button key={`${page.channel}-${index}`} size="sm" variant="outline" asChild><Link href={page.url} target="_blank" rel="noopener noreferrer">{page.channel}<ExternalLink /></Link></Button>) : <span className="text-sm">미입력</span>}</div></div>
+      <div className="sm:col-span-3 xl:col-span-6"><p className="text-xs text-muted-foreground">채널별 랜딩페이지</p><div className="mt-2 flex flex-wrap gap-2">{project.landingPages.length ? project.landingPages.map((page, index) => <Button key={`${page.channel}-${index}`} size="sm" variant="outline" asChild><Link href={page.url} target="_blank" rel="noopener noreferrer">{page.channel}<ExternalLink /></Link></Button>) : <span className="text-sm">미입력</span>}</div></div>
     </CardContent></Card>
 
-    <p className="mt-4 text-sm">웨비나 날짜 <span className="ml-2 font-medium tabular-nums">{project.webinarDate || "미입력"}</span></p>
     <Tabs className="mt-6" value={activeTab} onValueChange={(value) => {
       const tab = value === "performance" ? "performance" : "wbs";
       setActiveTab(tab);
@@ -149,6 +150,7 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard,
       </TabsContent>
     </Tabs>
   </div>
+  <ExternalMarketingSaveToast message={notice} onDismiss={setNotice} />
 
   {linkDialog ? <ExternalMarketingLinkDialog title={linkDialog.kind === "intake" ? "외부 입력 주소" : "외부 공개"} url={linkDialog.url} enabled={linkDialog.kind === "intake" ? project.intakeEnabled : project.publicEnabled} onClose={() => setLinkDialog(null)} onEnabledChange={(enabled) => changeLinkEnabled(linkDialog.kind, enabled)} /> : null}
 
