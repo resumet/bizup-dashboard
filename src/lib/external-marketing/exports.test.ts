@@ -14,6 +14,7 @@ const project: ExternalMarketingProject = {
   courseName: "외부 마케팅 강의",
   instructorName: "김강사",
   cohort: "3기",
+  webinarDate: "2026-11-27",
   landingPages: [{ channel: "Google", url: "https://example.com/google" }],
   creativeDriveUrl: "https://drive.google.com/example",
   intakeToken: "a".repeat(48),
@@ -21,6 +22,7 @@ const project: ExternalMarketingProject = {
   intakeEnabled: true,
   publicEnabled: true,
   updatedAt: "2026-10-22T00:00:00Z",
+  createdAt: "2026-10-22T00:00:00Z",
 };
 
 const dashboard: AdPerformanceDashboardData = {

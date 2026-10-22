@@ -10,6 +10,8 @@ import { AdPerformanceOutcomeCard } from "@/components/ad-performance/ad-perform
 import { BackLink } from "@/components/layout/back-link";
 import { ExternalMarketingProjectFields } from "./project-fields";
 import { ExternalMarketingLinkDialog } from "./link-dialog";
+import { ExternalMarketingWbs } from "./external-marketing-wbs";
+import { useSeoulDate } from "./use-seoul-date";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { AdPerformanceDashboardData } from "@/lib/ad-performance/types";
 import type { ExternalMarketingInfo, ExternalMarketingProject } from "@/lib/external-marketing/model";
 
@@ -26,10 +29,14 @@ function parseCount(value: string) {
   return Number.isSafeInteger(parsed) ? parsed : 0;
 }
 
-export function ExternalMarketingDashboard({ project: initialProject, dashboard }: {
+export function ExternalMarketingDashboard({ project: initialProject, dashboard, today: initialToday, initialTab = "wbs" }: {
   project: ExternalMarketingProject;
   dashboard: AdPerformanceDashboardData;
+  today: string;
+  initialTab?: "wbs" | "performance";
 }) {
+  const today = useSeoulDate(initialToday);
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [project, setProject] = useState(initialProject);
   const [startDate, setStartDate] = useState(dashboard.startDate);
   const [totalBudget, setTotalBudget] = useState(dashboard.totalBudget);
@@ -115,7 +122,7 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard 
   return <main className="min-h-screen"><div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
     <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
       <div className="flex min-w-0 items-center gap-2"><Button variant="ghost" size="icon-sm" asChild><BackLink href="/services/external-marketing"><ArrowLeft />돌아가기</BackLink></Button><h1 className="truncate text-3xl font-semibold tracking-tight">{project.courseName || "외부 입력 대기"}</h1></div>
-      <div className="flex flex-wrap items-center justify-end gap-2"><div ref={setSheetToolbarContainer} className="flex flex-wrap items-center gap-2" /><Button variant="outline" disabled={saving} onClick={() => openLinkDialog("intake")}><ClipboardCopy />외부 입력 주소</Button><Button variant="outline" disabled={saving} onClick={() => openLinkDialog("public")}><Share2 />외부 공개</Button><Button variant="outline" onClick={openSettings}><Settings2 />사전설정</Button></div>
+      <div className="flex flex-wrap items-center justify-end gap-2"><div ref={setSheetToolbarContainer} className={activeTab === "performance" ? "flex flex-wrap items-center gap-2" : "hidden"} /><Button variant="outline" disabled={saving} onClick={() => openLinkDialog("intake")}><ClipboardCopy />외부 입력 주소</Button><Button variant="outline" disabled={saving} onClick={() => openLinkDialog("public")}><Share2 />외부 공개</Button><Button variant="outline" onClick={openSettings}><Settings2 />사전설정</Button></div>
     </div>
     {error ? <Alert variant="destructive" className="mt-6"><AlertTitle>처리하지 못했습니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
     {notice ? <Alert className="mt-6"><CheckCircle2 /><AlertTitle>완료</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert> : null}
@@ -125,9 +132,22 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard 
       <div className="sm:col-span-3 xl:col-span-5"><p className="text-xs text-muted-foreground">채널별 랜딩페이지</p><div className="mt-2 flex flex-wrap gap-2">{project.landingPages.length ? project.landingPages.map((page, index) => <Button key={`${page.channel}-${index}`} size="sm" variant="outline" asChild><Link href={page.url} target="_blank" rel="noopener noreferrer">{page.channel}<ExternalLink /></Link></Button>) : <span className="text-sm">미입력</span>}</div></div>
     </CardContent></Card>
 
+    <p className="mt-4 text-sm">웨비나 날짜 <span className="ml-2 font-medium tabular-nums">{project.webinarDate || "미입력"}</span></p>
+    <Tabs className="mt-6" value={activeTab} onValueChange={(value) => {
+      const tab = value === "performance" ? "performance" : "wbs";
+      setActiveTab(tab);
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", tab);
+      window.history.replaceState(null, "", url);
+    }}>
+      <TabsList aria-label="외부마케팅대행 상세"><TabsTrigger value="wbs">WBS</TabsTrigger><TabsTrigger value="performance">광고성과</TabsTrigger></TabsList>
+      <TabsContent value="wbs"><ExternalMarketingWbs webinarDate={project.webinarDate} today={today} /></TabsContent>
+      <TabsContent value="performance" forceMount hidden={activeTab !== "performance"}>
     <AdPerformanceSummaryCards metrics={dashboard.metrics} totalBudget={totalBudget} organicChannels={dashboard.organicChannels} />
     <AdPerformanceOutcomeCard metrics={dashboard.metrics} />
     <AdPerformanceSheetWorkspace dashboardId={dashboard.id} dashboardStartDate={startDate} sheetState={dashboard.sheetState} toolbarContainer={sheetToolbarContainer} allowTrackingImport={false} />
+      </TabsContent>
+    </Tabs>
   </div>
 
   {linkDialog ? <ExternalMarketingLinkDialog title={linkDialog.kind === "intake" ? "외부 입력 주소" : "외부 공개"} url={linkDialog.url} enabled={linkDialog.kind === "intake" ? project.intakeEnabled : project.publicEnabled} onClose={() => setLinkDialog(null)} onEnabledChange={(enabled) => changeLinkEnabled(linkDialog.kind, enabled)} /> : null}

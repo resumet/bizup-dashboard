@@ -21,7 +21,6 @@ export async function readAllPerformanceRows<T>(query: (from: number, to: number
 
 type Dashboard = { id: string; course_id: string | null; start_date: string; total_budget: number | string };
 type Course = { id: string; name: string; instructor_name: string; free_webinar_at: string | null };
-type External = { dashboard_id: string; course_name: string; instructor_name: string; cohort: string };
 type RawMetric = Parameters<typeof toAdPerformanceMetric>[0] & { dashboard_id: string };
 type Channel = { id: string; dashboard_id: string; name: string; sort_order: number };
 type Organic = { dashboard_id: string; metric_date: string; channel_id: string; lead_count: number };
@@ -30,13 +29,11 @@ type Webinar = AdPerformanceWebinarOutcome & { course_id: string };
 export async function loadAdPerformanceBulk(workspaceId: string, client: SupabaseClient, admin = createAdminClient()): Promise<AdPerformanceBulkRow[]> {
   const exclusiveEndDate = currentSeoulDate();
   // Resolve workspace ownership first; child reads are limited to those exact IDs.
-  const [dashboards, courses, external] = await Promise.all([
-    readAllPerformanceRows<Dashboard>((from, to) => admin.from("ad_performance_dashboards").select("id,course_id,start_date,total_budget").eq("workspace_id", workspaceId).order("id").range(from, to)),
+  const [dashboards, courses] = await Promise.all([
+    readAllPerformanceRows<Dashboard>((from, to) => admin.from("ad_performance_dashboards").select("id,course_id,start_date,total_budget").eq("workspace_id", workspaceId).eq("service_scope", "bizup").order("id").range(from, to)),
     readAllPerformanceRows<Course>((from, to) => admin.from("courses").select("id,name,instructor_name,free_webinar_at").eq("workspace_id", workspaceId).order("id").range(from, to)),
-    readAllPerformanceRows<External>((from, to) => admin.from("external_marketing_projects").select("dashboard_id,course_name,instructor_name,cohort").eq("workspace_id", workspaceId).order("dashboard_id").range(from, to)),
   ]);
   const courseMap = new Map(courses.map((course) => [course.id, course]));
-  const externalMap = new Map(external.map((project) => [project.dashboard_id, project]));
   const courseIds = [...new Set(dashboards.flatMap((row) => row.course_id && courseMap.has(row.course_id) ? [row.course_id] : []))];
   const webinarRows = async () => {
     const rows: Webinar[] = [];
@@ -89,7 +86,6 @@ export async function loadAdPerformanceBulk(workspaceId: string, client: Supabas
   const ordered = sortByNearestWebinar(dashboards.map((dashboard) => ({ ...dashboard, free_webinar_at: courseMap.get(dashboard.course_id ?? "")?.free_webinar_at })));
   return ordered.map((dashboard) => {
     const course = courseMap.get(dashboard.course_id ?? "");
-    const project = externalMap.get(dashboard.id);
     const metrics = metricsMap.get(dashboard.id) ?? [];
     const saved = webinarMap.get(course?.id ?? "");
     const payments = paymentsResult.data?.get(course?.id ?? "");
@@ -99,9 +95,9 @@ export async function loadAdPerformanceBulk(workspaceId: string, client: Supabas
       payment_count: payments?.payment_count ?? null, revenue: payments?.revenue ?? null,
     } : null;
     return {
-      id: dashboard.id, name: course?.name ?? (project ? [project.course_name, project.cohort].filter(Boolean).join(" · ") : "강의 미설정"),
-      instructorName: course?.instructor_name ?? project?.instructor_name ?? "",
-      href: `/services/${project ? "external-marketing" : "ad-performance"}/${dashboard.id}`,
+      id: dashboard.id, name: course?.name ?? "강의 미설정",
+      instructorName: course?.instructor_name ?? "",
+      href: `/services/ad-performance/${dashboard.id}`,
       startDate: dashboard.start_date, endDate: metrics.at(-1)?.metricDate ?? null,
       values: bulkValues(metrics, Number(dashboard.total_budget), channelsMap.get(dashboard.id) ?? [], webinar),
       error: course && (webinarsResult.failed || paymentsResult.failed) ? "웨비나 또는 유료수강생 실적을 불러오지 못했습니다. 해당 지표는 입력값이 없는 것으로 표시됩니다." : undefined,

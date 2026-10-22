@@ -22,6 +22,7 @@ export async function POST() {
       .from("ad_performance_dashboards")
       .insert({
         workspace_id: membership.workspace_id,
+        service_scope: "external_marketing",
         course_id: null,
         start_date: defaultAdPerformanceStartDate(),
         total_budget: DEFAULT_AD_PERFORMANCE_BUDGET,

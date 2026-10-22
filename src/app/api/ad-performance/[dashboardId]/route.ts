@@ -15,6 +15,7 @@ async function authorizedDashboard(dashboardId: string, workspaceId: string) {
     .from("ad_performance_dashboards")
     .select("id")
     .eq("workspace_id", workspaceId)
+    .eq("service_scope", "bizup")
     .eq("id", z.uuid().parse(dashboardId))
     .maybeSingle();
   if (error) throw new Error(`광고성과 조회 실패: ${error.code}`);

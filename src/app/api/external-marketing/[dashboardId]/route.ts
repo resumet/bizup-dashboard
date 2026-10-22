@@ -53,6 +53,7 @@ export async function PUT(request: Request, { params }: Context) {
         course_name: input.courseName,
         instructor_name: input.instructorName,
         cohort: input.cohort,
+        webinar_date: input.webinarDate || null,
         landing_pages: input.landingPages,
         creative_drive_url: input.creativeDriveUrl,
         intake_enabled: input.intakeEnabled,

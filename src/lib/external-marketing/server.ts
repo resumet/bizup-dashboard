@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sortExternalMarketingProjects } from "./wbs";
 import { loadAdPerformanceDashboard } from "@/lib/ad-performance/server";
 import type { AdPerformanceDashboardData } from "@/lib/ad-performance/types";
 import {
@@ -16,6 +17,7 @@ type ProjectRow = {
   course_name: string;
   instructor_name: string;
   cohort: string;
+  webinar_date: string | null;
   landing_pages: unknown;
   creative_drive_url: string;
   intake_token: string;
@@ -23,6 +25,7 @@ type ProjectRow = {
   intake_enabled: boolean;
   public_enabled: boolean;
   updated_at: string;
+  created_at: string;
 };
 
 function normalizeProject(row: ProjectRow): ExternalMarketingProject {
@@ -30,6 +33,7 @@ function normalizeProject(row: ProjectRow): ExternalMarketingProject {
     courseName: row.course_name,
     instructorName: row.instructor_name,
     cohort: row.cohort,
+    webinarDate: row.webinar_date ?? "",
     landingPages: row.landing_pages,
     creativeDriveUrl: row.creative_drive_url,
   });
@@ -42,21 +46,22 @@ function normalizeProject(row: ProjectRow): ExternalMarketingProject {
     intakeEnabled: row.intake_enabled,
     publicEnabled: row.public_enabled,
     updatedAt: row.updated_at,
+    createdAt: row.created_at,
   };
 }
 
-const projectColumns = "dashboard_id,workspace_id,course_name,instructor_name,cohort,landing_pages,creative_drive_url,intake_token,public_token,intake_enabled,public_enabled,updated_at";
+const projectColumns = "dashboard_id,workspace_id,course_name,instructor_name,cohort,webinar_date,landing_pages,creative_drive_url,intake_token,public_token,intake_enabled,public_enabled,created_at,updated_at";
 
 export async function loadExternalMarketingProjects(workspaceId: string) {
   const admin = createAdminClient();
   const [projectsResult, summariesResult] = await Promise.all([
     admin.from("external_marketing_projects").select(projectColumns).eq("workspace_id", workspaceId).order("updated_at", { ascending: false }),
-    admin.from("ad_performance_dashboard_summaries").select("id,start_date,total_budget,metric_count,spend,paid_landing_leads,organic_landing_leads").eq("workspace_id", workspaceId),
+    admin.from("ad_performance_dashboard_summaries").select("id,start_date,total_budget,metric_count,spend,paid_landing_leads,organic_landing_leads").eq("workspace_id", workspaceId).eq("service_scope", "external_marketing"),
   ]);
   if (projectsResult.error) throw new Error(`외부마케팅대행 목록 조회 실패: ${projectsResult.error.code}`);
   if (summariesResult.error) throw new Error(`광고성과 요약 조회 실패: ${summariesResult.error.code}`);
   const summaries = new Map((summariesResult.data ?? []).map((row) => [row.id as string, row]));
-  return ((projectsResult.data ?? []) as ProjectRow[]).flatMap<ExternalMarketingProjectSummary>((row) => {
+  const projects = ((projectsResult.data ?? []) as ProjectRow[]).flatMap<ExternalMarketingProjectSummary>((row) => {
     const summary = summaries.get(row.dashboard_id);
     if (!summary) return [];
     return [{
@@ -69,6 +74,7 @@ export async function loadExternalMarketingProjects(workspaceId: string) {
       organicLandingLeads: Number(summary.organic_landing_leads ?? 0),
     }];
   });
+  return sortExternalMarketingProjects(projects);
 }
 
 export async function loadExternalMarketingProject(workspaceId: string, dashboardId: string) {
@@ -81,7 +87,7 @@ export async function loadExternalMarketingProject(workspaceId: string, dashboar
     .maybeSingle();
   if (error) throw new Error(`외부마케팅대행 조회 실패: ${error.code}`);
   if (!data) return null;
-  const dashboard = await loadAdPerformanceDashboard(workspaceId, dashboardId);
+  const dashboard = await loadAdPerformanceDashboard(workspaceId, dashboardId, "external_marketing");
   return dashboard ? { project: normalizeProject(data as ProjectRow), dashboard } : null;
 }
 
@@ -109,6 +115,6 @@ export async function loadPublicExternalMarketingReport(token: string): Promise<
 } | null> {
   const project = await loadProjectByToken(token, "public");
   if (!project) return null;
-  const dashboard = await loadAdPerformanceDashboard(project.workspaceId, project.dashboardId);
+  const dashboard = await loadAdPerformanceDashboard(project.workspaceId, project.dashboardId, "external_marketing");
   return dashboard ? { project, dashboard } : null;
 }

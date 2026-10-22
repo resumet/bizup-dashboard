@@ -96,7 +96,7 @@ export async function loadAdPerformanceIndex(workspaceId: string): Promise<AdPer
   const admin = createAdminClient();
   const [coursesResult, dashboardsResult] = await Promise.all([
     admin.from("courses").select("id,name,status,instructor_name,starts_at,free_webinar_at").eq("workspace_id", workspaceId).order("starts_at", { ascending: false }),
-    admin.from("ad_performance_dashboard_summaries").select("id,course_id,start_date,total_budget,updated_at,metric_count,spend,ad_leads,paid_landing_leads,organic_landing_leads,admin_cumulative_leads").eq("workspace_id", workspaceId).order("updated_at", { ascending: false }),
+    admin.from("ad_performance_dashboard_summaries").select("id,course_id,start_date,total_budget,updated_at,metric_count,spend,ad_leads,paid_landing_leads,organic_landing_leads,admin_cumulative_leads").eq("workspace_id", workspaceId).eq("service_scope", "bizup").order("updated_at", { ascending: false }),
   ]);
   if (coursesResult.error) throw new Error(`강의 목록 조회 실패: ${coursesResult.error.code}`);
   if (isMissingMigration(dashboardsResult.error)) {
@@ -135,12 +135,14 @@ export async function loadAdPerformanceIndex(workspaceId: string): Promise<AdPer
 export async function loadAdPerformanceDashboard(
   workspaceId: string,
   dashboardId: string,
+  serviceScope: "bizup" | "external_marketing" = "bizup",
 ): Promise<AdPerformanceDashboardData | null> {
   const admin = createAdminClient();
   const dashboardResult = await admin
     .from("ad_performance_dashboards")
     .select("id,course_id,start_date,total_budget,updated_at")
     .eq("workspace_id", workspaceId)
+    .eq("service_scope", serviceScope)
     .eq("id", dashboardId)
     .maybeSingle();
   if (isMissingMigration(dashboardResult.error)) return null;

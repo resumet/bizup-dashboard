@@ -10,9 +10,9 @@ function fixture(failTable = "") {
     google_ad_leads: 2, meta_ad_leads: 2, google_spend: 100, meta_spend: 100, google_landing_leads: 1, meta_landing_leads: 1, admin_cumulative_leads: 0, chat_room_members: 3 };
   const tables: Record<string, Record<string, unknown>[]> = {
     ad_performance_dashboards: [
-      { id: "a", workspace_id: "w", course_id: "c", start_date: "2020-01-01", total_budget: 1000 },
-      { id: "external", workspace_id: "w", course_id: null, start_date: "2020-01-01", total_budget: 0 },
-      { id: "foreign", workspace_id: "other", course_id: "foreign-c", start_date: "2020-01-01", total_budget: 0 },
+      { id: "a", workspace_id: "w", service_scope: "bizup", course_id: "c", start_date: "2020-01-01", total_budget: 1000 },
+      { id: "external", workspace_id: "w", service_scope: "external_marketing", course_id: null, start_date: "2020-01-01", total_budget: 0 },
+      { id: "foreign", workspace_id: "other", service_scope: "bizup", course_id: "foreign-c", start_date: "2020-01-01", total_budget: 0 },
     ],
     courses: [
       { id: "c", workspace_id: "w", name: "강의", instructor_name: "강사", free_webinar_at: "2020-01-01" },
@@ -50,17 +50,16 @@ function fixture(failTable = "") {
 test("일괄 조회는 워크스페이스 범위를 유지하고 오늘 지표를 제외하며 실제 유료수강생 결제를 반영한다", async () => {
   const { client, calls } = fixture();
   const rows = await loadAdPerformanceBulk("w", client, client);
-  assert.deepEqual(rows.map((row) => row.id), ["a", "external"]);
+  assert.deepEqual(rows.map((row) => row.id), ["a"]);
   assert.equal(rows[0].values.spend, 200);
   assert.equal(rows[0].values.databaseLeads, 5);
   assert.equal(rows[0].values.payments, 1);
   assert.equal(rows[0].values.revenue, 1000);
   assert.equal(rows[0].values.livePeak, 2);
-  assert.equal(rows[1].name, "외부 강의 · 2기");
-  assert.equal(rows[1].href, "/services/external-marketing/external");
-  assert.equal(rows[1].values.payments, null);
+  assert.equal(calls.some((call) => call.table === "external_marketing_projects"), false);
+  assert.equal(calls.find((call) => call.table === "ad_performance_dashboards")?.filters.service_scope, "bizup");
   for (const call of calls.filter((item) => ["courses", "ad_performance_dashboards", "external_marketing_projects"].includes(item.table))) assert.equal(call.filters.workspace_id, "w");
-  for (const call of calls.filter((item) => item.table.startsWith("ad_performance_") && item.table !== "ad_performance_dashboards")) assert.deepEqual(call.filters.dashboard_id, ["a", "external"]);
+  for (const call of calls.filter((item) => item.table.startsWith("ad_performance_") && item.table !== "ad_performance_dashboards")) assert.deepEqual(call.filters.dashboard_id, ["a"]);
   assert.deepEqual(calls.find((call) => call.table === "course_webinar_metrics")?.filters.course_id, ["c"]);
   assert.ok(calls.every((call) => !call.fields.includes("token")));
 });
