@@ -4,9 +4,11 @@ import { externalMarketingWbs, formatWbsCountdown } from "@/lib/external-marketi
 import { getWebinarDayDifference } from "@/lib/course-operations/webinar-proximity";
 
 export function ExternalMarketingWbs({ webinarDate, today }: { webinarDate: string; today: string }) {
-  const milestones = externalMarketingWbs(webinarDate, today).sort((a, b) =>
-    Math.abs(a.daysLeft ?? Number.MAX_SAFE_INTEGER) - Math.abs(b.daysLeft ?? Number.MAX_SAFE_INTEGER)
-    || a.dueDate.localeCompare(b.dueDate));
+  const milestones = externalMarketingWbs(webinarDate, today).sort((a, b) => {
+    if (!a.dueDate) return b.dueDate ? 1 : 0;
+    if (!b.dueDate) return -1;
+    return a.dueDate.localeCompare(b.dueDate);
+  });
   const webinarDays = milestones.some((milestone) => milestone.dueDate) ? getWebinarDayDifference(webinarDate, today) : null;
   const webinarCountdown = webinarDays === null ? "미입력" : webinarDays === 0 ? "D-Day" : webinarDays > 0 ? `D-${webinarDays}` : `D+${Math.abs(webinarDays)}`;
   const overdueStyle = "bg-neutral-100 hover:bg-neutral-100 dark:bg-neutral-800 dark:hover:bg-neutral-800";
