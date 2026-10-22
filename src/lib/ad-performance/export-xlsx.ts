@@ -1,9 +1,8 @@
 import type { Cell, CellObject, Row } from "write-excel-file/universal";
 
-import { buildMeaningSheetHeaders } from "@/lib/admin/meaning-sheet-headers";
 import { parseMeaningSheetMetricNumber } from "@/lib/admin/meaning-sheet-metrics";
-import { adPerformanceSheetRow } from "./sheet-row";
-import { AD_PERFORMANCE_VISIBLE_SOURCE_COLUMN_COUNT, currentSeoulDate } from "./sheet-workspace";
+import { adPerformanceTableRow, adPerformanceTableTotals, buildAdPerformanceTableHeaders, type AdPerformanceTableCell } from "./sheet-table";
+import { currentSeoulDate } from "./sheet-workspace";
 import type { AdPerformanceSheetState } from "./types";
 
 const WON_FORMAT = '#,##0"원"';
@@ -25,7 +24,7 @@ function sourceCell(value: string, column: number): Cell {
 
 export function adPerformanceExportRows(state: AdPerformanceSheetState, startDate: string): Row[] {
   const channels = state.tracking?.organicChannels ?? [];
-  const headers = buildMeaningSheetHeaders(state.sourceRows.slice(0, 2));
+  const headers = buildAdPerformanceTableHeaders(state.sourceRows.slice(0, 2));
   const top: Row = [];
   const bottom: Row = [];
   let bottomIndex = 0;
@@ -64,7 +63,7 @@ export function adPerformanceExportRows(state: AdPerformanceSheetState, startDat
   addHeader("랜딩접수총DB (광고)", "#DBEAFE");
   addHeader("자연유입 (오가닉)", "#D1FAE5", [...channels, "오가닉총합"]);
   addHeader("DB총합", "#FEF3C7");
-  for (const label of ["광고DB당 단가", "랜딩DB당 단가", "광고DB-랜딩DB 단가차이"]) {
+  for (const label of ["랜딩DB당 단가", "광고DB-랜딩DB 단가차이"]) {
     addHeader(label, "#EDE9FE", ["구글광고", "메타광고"]);
   }
   for (const label of ["누적비즈업 DB", "톡방누적 인원", "톡방입장 인원"]) {
@@ -73,28 +72,15 @@ export function adPerformanceExportRows(state: AdPerformanceSheetState, startDat
   addHeader("랜딩접수 DB단가", "#E0E7FF");
   addHeader("톡방접수 DB단가", "#E0E7FF");
 
-  return [top, bottom, ...state.sourceRows.slice(2).map((row): Row => {
-    const { manualInput, importedValues, landingDb, hasLandingDb, importedTotals,
-      chatEntries, unitCosts } = adPerformanceSheetRow(row, startDate, state);
-    return [
-      ...Array.from({ length: AD_PERFORMANCE_VISIBLE_SOURCE_COLUMN_COUNT }, (_, index) => sourceCell(row[index] ?? "", index)),
-      numberCell(hasLandingDb ? landingDb.googleLandingDb : null),
-      numberCell(hasLandingDb ? landingDb.metaLandingDb : null),
-      numberCell(importedTotals?.landing),
-      ...channels.map((channel) => numberCell(importedValues ? importedValues.organicByChannel[channel] ?? 0 : null)),
-      numberCell(importedTotals?.organic),
-      numberCell(importedTotals?.database),
-      ...[unitCosts.googleAdDbUnitCost, unitCosts.metaAdDbUnitCost,
-        unitCosts.googleLandingDbUnitCost, unitCosts.metaLandingDbUnitCost,
-        unitCosts.googleUnitCostDifference, unitCosts.metaUnitCostDifference,
-      ].map((value) => numberCell(value === null ? null : Math.round(value), WON_FORMAT)),
-      numberCell(manualInput?.bizupDbCumulative),
-      numberCell(manualInput?.chatMembersCumulative),
-      numberCell(chatEntries),
-      ...[unitCosts.landingReceptionDbUnitCost, unitCosts.chatReceptionDbUnitCost]
-        .map((value) => numberCell(value === null ? null : Math.round(value), WON_FORMAT)),
-    ];
-  })];
+  function exportCells(cells: AdPerformanceTableCell[]): Row {
+    return cells.map(({ value, format }) => typeof value === "string"
+      ? { value, type: String }
+      : numberCell(format === "won" && value !== null ? Math.round(value) : value, format === "won" ? WON_FORMAT : format === "percent" ? "0.00%" : "#,##0"));
+  }
+  const dataRows = state.sourceRows.slice(2);
+  const totals = exportCells(adPerformanceTableTotals(dataRows, startDate, state))
+    .map((item) => item ? { ...item, fontWeight: "bold" as const, backgroundColor: "#E0E7FF" } : null);
+  return [top, bottom, totals, ...dataRows.map((row) => exportCells(adPerformanceTableRow(row, startDate, state).cells))];
 }
 
 export async function buildAdPerformanceXlsx(state: AdPerformanceSheetState, startDate: string) {

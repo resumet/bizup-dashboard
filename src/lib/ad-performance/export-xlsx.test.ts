@@ -35,7 +35,8 @@ async function readExport(state: AdPerformanceSheetState) {
   const files = unzipSync(buffer);
   const xml = Buffer.from(files["xl/worksheets/sheet1.xml"]).toString();
   assert.match(xml, /<mergeCell ref="A1:A2"\s*\/>/u);
-  assert.match(xml, /<mergeCell ref="O1:P1"\s*\/>/u);
+  assert.match(xml, /<mergeCell ref="M1:N1"\s*\/>/u);
+  assert.match(xml, /<mergeCell ref="Q1:R1"\s*\/>/u);
   assert.match(xml, /xSplit="1"/u);
   assert.match(xml, /ySplit="2"/u);
   const [sheet] = await readXlsxFile(buffer);
@@ -46,12 +47,15 @@ test("표의 머리글·유입채널·수동 입력·계산값을 숫자 형식�
   const state = fixture();
   const snapshot = structuredClone(state);
   const rows = await readExport(state);
-  assert.equal(rows[0][14], "랜딩페이지 접수된DB");
-  assert.equal(rows[0][17], "자연유입 (오가닉)");
-  assert.deepEqual(rows[1].slice(17, 20), ["블로그", "유튜브", "오가닉총합"]);
+  assert.equal(rows[0][12], "광고접수 DB당 단가");
+  assert.equal(rows[0][16], "랜딩페이지 접수된DB");
+  assert.equal(rows[0][19], "자연유입 (오가닉)");
+  assert.deepEqual(rows[1].slice(19, 22), ["블로그", "유튜브", "오가닉총합"]);
   assert.equal(rows[1][1], 300000);
-  assert.deepEqual(rows[2].slice(0, 14), ["10월 14일", 300000, 1000, 2000, 50, 100, 0.05, 0.05, 0.2, 0.2, 100000, 200000, 10, 20]);
-  assert.deepEqual(rows[2].slice(14), [5, 10, 15, 3, 7, 10, 25, 10000, 10000, 20000, 20000, -10000, -10000, 125, 100, 10, 20000, 30000]);
+  assert.equal(rows[2][0], "합계");
+  assert.deepEqual(rows[2].slice(1), rows[3].slice(1));
+  assert.deepEqual(rows[3].slice(0, 16), ["10월 14일", 300000, 1000, 2000, 50, 100, 0.05, 0.05, 0.2, 0.2, 100000, 200000, 10000, 10000, 10, 20]);
+  assert.deepEqual(rows[3].slice(16), [5, 10, 15, 3, 7, 10, 25, 20000, 20000, -10000, -10000, 125, 100, 10, 20000, 30000]);
   assert.deepEqual(state, snapshot);
 });
 
@@ -60,7 +64,7 @@ test("페이지 크기를 넘는 전체 행과 마지막 행을 내보낸다", a
   state.sourceRows = [...state.sourceRows.slice(0, 2),
     ...Array.from({ length: 105 }, (_, index) => [String(index + 1), "0"])];
   const rows = await readExport(state);
-  assert.equal(rows.length, 107);
+  assert.equal(rows.length, 108);
   assert.equal(rows.at(-1)?.[0], "105");
   assert.equal(rows.at(-1)?.[1], 0);
 });
@@ -72,13 +76,14 @@ test("유입 파일이 없으면 원본 랜딩값을 사용하고 미입력값�
   state.sourceRows[2][15] = "7";
   state.manualInputs = {};
   const rows = await readExport(state);
-  assert.equal(rows[2].length, 30);
-  assert.deepEqual(rows[2].slice(14, 19), [0, 7, 7, 0, 7]);
-  assert.ok(rows[2].slice(19).every((value) => value === null));
+  assert.equal(rows[3].length, 30);
+  assert.deepEqual(rows[3].slice(12, 16), [10000, 10000, 10, 20]);
+  assert.deepEqual(rows[3].slice(16, 21), [0, 7, 7, 0, 7]);
+  assert.ok(rows[3].slice(21).every((value) => value === null));
   state.sourceRows[2][14] = "";
   state.sourceRows[2][15] = "";
   const blankRows = await readExport(state);
-  assert.ok(blankRows[2].slice(14).every((value) => value === null));
+  assert.ok(blankRows[3].slice(16).every((value) => value === null));
 });
 
 test("연도가 다른 유입 데이터는 섞지 않고 이전 날짜의 수동 입력으로 톡방 증감을 계산한다", async () => {
@@ -86,8 +91,8 @@ test("연도가 다른 유입 데이터는 섞지 않고 이전 날짜의 수동
   state.tracking!.dailyByDate["10-14"].fullDate = "2025-10-14";
   state.manualInputs["2026-10-14"].chatMembersCumulative = 80;
   const rows = await readExport(state);
-  assert.deepEqual(rows[2].slice(14, 21), [999, 999, 1998, null, null, 0, 1998]);
-  assert.equal(rows[2][29], -10);
+  assert.deepEqual(rows[3].slice(16, 23), [999, 999, 1998, null, null, 0, 1998]);
+  assert.equal(rows[3][29], -10);
 });
 
 test("수식처럼 시작하는 날짜와 채널명은 실행 가능한 수식이 아닌 문자열로 보존한다", async () => {
@@ -95,7 +100,7 @@ test("수식처럼 시작하는 날짜와 채널명은 실행 가능한 수식�
   state.sourceRows[2][0] = '=HYPERLINK("https://example.test")';
   state.tracking!.organicChannels[0] = "=1+1";
   const rows = await readExport(state);
-  assert.equal(rows[2][0], state.sourceRows[2][0]);
-  assert.equal(rows[1][17], "=1+1");
+  assert.equal(rows[3][0], state.sourceRows[2][0]);
+  assert.equal(rows[1][19], "=1+1");
   assert.match(adPerformanceExportFileName('강의/이름:*?'), /^강의_이름____광고지표_\d{4}-\d{2}-\d{2}\.xlsx$/u);
 });

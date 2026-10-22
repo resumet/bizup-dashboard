@@ -50,11 +50,13 @@ import {
 } from "@/components/ui/table";
 import {
   formatMeaningSheetSourceCell,
-  formatMeaningSheetWon,
 } from "@/lib/admin/meaning-sheet-metrics";
 import {
-  buildMeaningSheetHeaders,
-} from "@/lib/admin/meaning-sheet-headers";
+  buildAdPerformanceTableHeaders,
+  adPerformanceTableRow,
+  adPerformanceTableTotals,
+  formatAdPerformanceTableCell,
+} from "@/lib/ad-performance/sheet-table";
 import {
   AD_PERFORMANCE_VISIBLE_SOURCE_COLUMN_COUNT,
   canonicalGoogleSpreadsheetUrl,
@@ -64,7 +66,6 @@ import type {
   AdPerformanceSheetState,
 } from "@/lib/ad-performance/types";
 import { cn } from "@/lib/utils";
-import { adPerformanceSheetRow } from "@/lib/ad-performance/sheet-row";
 import { SheetUpdateDialog } from "@/components/ad-performance/sheet-update-dialog";
 import type { SheetUpdatePreview } from "@/lib/ad-performance/sheet-update";
 
@@ -88,6 +89,18 @@ function formatInteger(value: number | null | undefined) {
   return value === null || value === undefined
     ? ""
     : value.toLocaleString("ko-KR");
+}
+
+function metricCellClass(column: number, channelCount: number) {
+  if (column === 12 || column === 13) return "bg-violet-500/[0.03]";
+  if (column < 16) return "";
+  if (column < 18) return "bg-sky-500/[0.03]";
+  if (column === 18) return "bg-blue-500/[0.04] font-semibold";
+  if (column < 20 + channelCount) return "bg-emerald-500/[0.03]";
+  if (column === 20 + channelCount) return "bg-amber-500/[0.05] font-semibold";
+  if (column < 25 + channelCount) return "bg-violet-500/[0.03]";
+  if (column < 28 + channelCount) return "bg-orange-500/[0.03]";
+  return "bg-indigo-500/[0.03]";
 }
 
 function parseNonnegativeInteger(value: string, label: string) {
@@ -156,8 +169,9 @@ export function MeaningSheetWorkspace({
   const headerRows = sourceRows
     .slice(0, HEADER_ROW_COUNT)
     .map((row) => row.slice(0, AD_PERFORMANCE_VISIBLE_SOURCE_COLUMN_COUNT));
-  const headers = buildMeaningSheetHeaders(headerRows);
+  const headers = buildAdPerformanceTableHeaders(headerRows);
   const dataRows = sourceRows.slice(HEADER_ROW_COUNT);
+  const totals = adPerformanceTableTotals(dataRows, dashboardStartDate, sheetState);
   const pageCount = Math.max(1, Math.ceil(dataRows.length / PAGE_SIZE));
   const start = (page - 1) * PAGE_SIZE;
   const visibleRows = dataRows.slice(start, start + PAGE_SIZE);
@@ -582,7 +596,7 @@ export function MeaningSheetWorkspace({
       {sheetState ? <div
         ref={tableFullscreenRef}
         className={cn(
-          "flex min-h-0 flex-1 flex-col [&>[data-slot=table-container]]:overflow-visible",
+          "flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-auto [&>[data-slot=table-container]]:overflow-visible",
           isTableFullscreen && "h-screen overflow-auto bg-muted/30 p-3",
         )}
       >
@@ -664,15 +678,6 @@ export function MeaningSheetWorkspace({
                   className="sticky top-0 z-20 min-w-14 border-r border-b bg-amber-100 text-center text-[9px] leading-tight font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-200"
                 >
                   DB총합
-                </TableHead>
-                <TableHead
-                  colSpan={2}
-                  className="sticky top-0 z-20 h-7 border-r border-b bg-violet-100 text-center text-[9px] leading-tight font-semibold text-violet-900 dark:bg-violet-950 dark:text-violet-200"
-                  title="광고집행비용 ÷ 광고접수DB"
-                >
-                  광고DB당
-                  <br />
-                  단가
                 </TableHead>
                 <TableHead
                   colSpan={2}
@@ -776,8 +781,6 @@ export function MeaningSheetWorkspace({
                   "메타광고",
                   "구글광고",
                   "메타광고",
-                  "구글광고",
-                  "메타광고",
                 ].map((label, index) => (
                   <TableHead
                     key={`unit-cost-${index}`}
@@ -789,122 +792,28 @@ export function MeaningSheetWorkspace({
               </TableRow>
             </TableHeader>
             <TableBody>
+              <TableRow className="bg-primary/10 font-semibold hover:bg-primary/10">
+                {totals.map((item, index) => index === 0
+                  ? <TableHead key={index} scope="row" className="sticky left-0 z-10 border-r-2 bg-muted text-left font-sans">합계</TableHead>
+                  : <TableCell key={index} className="whitespace-nowrap border-r text-right">{formatAdPerformanceTableCell(item)}</TableCell>)}
+              </TableRow>
               {visibleRows.map((row, rowIndex) => {
                 const sourceRow = start + rowIndex + HEADER_ROW_COUNT + 1;
-                const {
-                  metricDate, manualInput, importedValues, landingDb, hasLandingDb,
-                  importedTotals, chatEntries, unitCosts, visibleSourceRow,
-                } = adPerformanceSheetRow(row, dashboardStartDate, sheetState);
-
-                return (
-                  <TableRow key={sourceRow}>
-                    {visibleSourceRow.map((cell, columnIndex) => {
-                      if (columnIndex === 0) {
-                        return (
-                          <TableCell
-                            key={`${sourceRow}-${columnIndex}`}
-                            className="sticky left-0 z-10 min-w-18 border-r-2 bg-background shadow-[2px_0_0_0_var(--border)]"
-                          >
-                            {metricDate ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-5 w-full justify-between gap-0.5 px-0.5 text-[10px] font-semibold text-primary hover:text-primary"
-                                title="톡방누적인원 입력"
-                                onClick={() => openManualInput(cell, metricDate)}
-                              >
-                                <span className="whitespace-nowrap">{cell}</span>
-                                <PencilLine className="size-3 opacity-60" />
-                              </Button>
-                            ) : (
-                              <span className="block px-0.5 py-0">{cell}</span>
-                            )}
-                          </TableCell>
-                        );
-                      }
-
-                      const displayCell = formatMeaningSheetSourceCell(
-                        cell,
-                        columnIndex,
-                      );
-
-                      return (
-                        <TableCell
-                          key={`${sourceRow}-${columnIndex}`}
-                          className="whitespace-nowrap border-r text-right align-middle leading-tight"
-                          title={displayCell}
-                        >
-                          {displayCell}
-                        </TableCell>
-                      );
-                    })}
-                    <TableCell className="border-r bg-sky-500/[0.03] text-right">
-                      {hasLandingDb
-                        ? formatInteger(landingDb.googleLandingDb)
-                        : ""}
-                    </TableCell>
-                    <TableCell className="border-r bg-sky-500/[0.03] text-right">
-                      {hasLandingDb
-                        ? formatInteger(landingDb.metaLandingDb)
-                        : ""}
-                    </TableCell>
-                    <TableCell className="border-r bg-blue-500/[0.04] text-right font-semibold">
-                      {formatInteger(importedTotals?.landing)}
-                    </TableCell>
-                    {organicChannels.map((channel) => (
-                      <TableCell
-                        key={`${sourceRow}-${channel}`}
-                        className="border-r bg-emerald-500/[0.03] text-right"
-                      >
-                        {importedValues
-                          ? formatInteger(
-                              importedValues.organicByChannel[channel] ?? 0,
-                            )
-                          : ""}
-                      </TableCell>
-                    ))}
-                    <TableCell className="border-r bg-emerald-500/[0.04] text-right font-semibold">
-                      {formatInteger(importedTotals?.organic)}
-                    </TableCell>
-                    <TableCell className="border-r bg-amber-500/[0.05] text-right font-semibold">
-                      {formatInteger(importedTotals?.database)}
-                    </TableCell>
-                    <TableCell className="border-r bg-violet-500/[0.03] text-right">
-                      {formatMeaningSheetWon(unitCosts.googleAdDbUnitCost)}
-                    </TableCell>
-                    <TableCell className="border-r bg-violet-500/[0.03] text-right">
-                      {formatMeaningSheetWon(unitCosts.metaAdDbUnitCost)}
-                    </TableCell>
-                    <TableCell className="border-r bg-violet-500/[0.03] text-right">
-                      {formatMeaningSheetWon(unitCosts.googleLandingDbUnitCost)}
-                    </TableCell>
-                    <TableCell className="border-r bg-violet-500/[0.03] text-right">
-                      {formatMeaningSheetWon(unitCosts.metaLandingDbUnitCost)}
-                    </TableCell>
-                    <TableCell className="border-r bg-violet-500/[0.03] text-right">
-                      {formatMeaningSheetWon(unitCosts.googleUnitCostDifference)}
-                    </TableCell>
-                    <TableCell className="border-r bg-violet-500/[0.03] text-right">
-                      {formatMeaningSheetWon(unitCosts.metaUnitCostDifference)}
-                    </TableCell>
-                    <TableCell className="border-r bg-orange-500/[0.04] text-right">
-                      {formatInteger(manualInput?.bizupDbCumulative)}
-                    </TableCell>
-                    <TableCell className="border-r bg-orange-500/[0.04] text-right">
-                      {formatInteger(manualInput?.chatMembersCumulative)}
-                    </TableCell>
-                    <TableCell className="border-r bg-orange-500/[0.04] text-right font-semibold">
-                      {formatInteger(chatEntries)}
-                    </TableCell>
-                    <TableCell className="border-r bg-indigo-500/[0.04] text-right font-semibold">
-                      {formatMeaningSheetWon(unitCosts.landingReceptionDbUnitCost)}
-                    </TableCell>
-                    <TableCell className="bg-indigo-500/[0.04] text-right font-semibold">
-                      {formatMeaningSheetWon(unitCosts.chatReceptionDbUnitCost)}
-                    </TableCell>
-                  </TableRow>
-                );
+                const { metricDate, cells } = adPerformanceTableRow(row, dashboardStartDate, sheetState);
+                return <TableRow key={sourceRow}>
+                  {cells.map((item, columnIndex) => {
+                    const displayCell = formatAdPerformanceTableCell(item);
+                    return columnIndex === 0 ? <TableCell key={columnIndex} className="sticky left-0 z-10 min-w-18 border-r-2 bg-background shadow-[2px_0_0_0_var(--border)]">
+                      {metricDate ? <Button type="button" variant="ghost" size="sm"
+                        className="h-5 w-full justify-between gap-0.5 px-0.5 text-[10px] font-semibold text-primary hover:text-primary"
+                        title="톡방누적인원 입력" onClick={() => openManualInput(displayCell, metricDate)}>
+                        <span className="whitespace-nowrap">{displayCell}</span><PencilLine className="size-3 opacity-60" />
+                      </Button> : <span className="block px-0.5 py-0">{displayCell}</span>}
+                    </TableCell> : <TableCell key={columnIndex}
+                      className={cn("whitespace-nowrap border-r text-right align-middle leading-tight", metricCellClass(columnIndex, organicChannels.length))}
+                      title={displayCell}>{displayCell}</TableCell>;
+                  })}
+                </TableRow>;
               })}
             </TableBody>
           </Table>

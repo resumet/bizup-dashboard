@@ -2,6 +2,7 @@
 
 import { isSelectableCourse } from "@/lib/course-operations/course-status";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -13,6 +14,8 @@ import {
 
 import { AdPerformanceSheetWorkspace } from "@/components/ad-performance/ad-performance-sheet-workspace";
 import { AdPerformanceSummaryCards } from "@/components/ad-performance/ad-performance-summary-cards";
+import { AdPerformanceOutcomeCard } from "@/components/ad-performance/ad-performance-outcome-card";
+import type { AdPerformanceWebinarOutcome } from "@/lib/ad-performance/outcome-summary";
 import { BackLink } from "@/components/layout/back-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -45,9 +48,14 @@ function parseCount(value: string) {
 
 export function AdPerformanceDashboard({
   initialData,
+  webinarOutcome = null,
+  webinarError,
 }: {
   initialData: AdPerformanceDashboardData;
+  webinarOutcome?: AdPerformanceWebinarOutcome | null;
+  webinarError?: string;
 }) {
+  const router = useRouter();
   const [courseId, setCourseId] = useState(initialData.course?.id ?? "");
   const [startDate, setStartDate] = useState(initialData.startDate);
   const [totalBudget, setTotalBudget] = useState(initialData.totalBudget);
@@ -100,6 +108,7 @@ export function AdPerformanceDashboard({
       setTotalBudget(draftTotalBudget);
       setNotice("광고 설정을 저장했습니다.");
       setSettingsOpen(false);
+      router.refresh();
     } catch (caught) {
       setSettingsError(
         caught instanceof Error ? caught.message : "광고 설정을 저장하지 못했습니다.",
@@ -159,6 +168,7 @@ export function AdPerformanceDashboard({
         ) : null}
 
         <AdPerformanceSummaryCards metrics={initialData.metrics} totalBudget={totalBudget} />
+        <AdPerformanceOutcomeCard metrics={initialData.metrics} webinar={courseId === initialData.course?.id ? webinarOutcome : null} courseId={courseId} error={webinarError} />
 
         <AdPerformanceSheetWorkspace
           dashboardId={initialData.id}

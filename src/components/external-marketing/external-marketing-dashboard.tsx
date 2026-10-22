@@ -8,6 +8,7 @@ import { AdPerformanceSheetWorkspace } from "@/components/ad-performance/ad-perf
 import { AdPerformanceSummaryCards } from "@/components/ad-performance/ad-performance-summary-cards";
 import { BackLink } from "@/components/layout/back-link";
 import { ExternalMarketingProjectFields } from "./project-fields";
+import { ExternalMarketingLinkDialog } from "./link-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,6 +33,7 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard 
   const [startDate, setStartDate] = useState(dashboard.startDate);
   const [totalBudget, setTotalBudget] = useState(dashboard.totalBudget);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [linkDialog, setLinkDialog] = useState<{ kind: "intake" | "public"; url: string } | null>(null);
   const [draftInfo, setDraftInfo] = useState<ExternalMarketingInfo>(initialProject);
   const [draftStartDate, setDraftStartDate] = useState(dashboard.startDate);
   const [draftTotalBudget, setDraftTotalBudget] = useState(dashboard.totalBudget);
@@ -94,34 +96,25 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard 
     }
   }
 
-  async function copyPath(path: string, message: string) {
-    try {
-      await navigator.clipboard.writeText(new URL(path, window.location.origin).toString());
-      setNotice(message);
-    } catch {
-      setNotice("주소를 복사하지 못했습니다.");
-    }
+  function openLinkDialog(kind: "intake" | "public") {
+    setLinkDialog({ kind, url: new URL(kind === "intake" ? intakePath : publicPath, window.location.origin).toString() });
   }
 
-  async function publish() {
-    setSaving(true);
-    setError("");
-    try {
-      if (!project.publicEnabled) {
-        await persist({ info: project, nextStartDate: startDate, nextTotalBudget: totalBudget, intakeEnabled: project.intakeEnabled, publicEnabled: true });
-      }
-      await copyPath(publicPath, "외부 공개 주소를 활성화하고 복사했습니다.");
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "외부 공개를 활성화하지 못했습니다.");
-    } finally {
-      setSaving(false);
-    }
+  async function changeLinkEnabled(kind: "intake" | "public", enabled: boolean) {
+    const response = await fetch(`/api/external-marketing/${project.dashboardId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, enabled }),
+    });
+    const result = await response.json() as { intakeEnabled: boolean; publicEnabled: boolean; message?: string };
+    if (!response.ok) throw new Error(result.message || "공개 설정을 저장하지 못했습니다.");
+    setProject((current) => ({ ...current, intakeEnabled: result.intakeEnabled, publicEnabled: result.publicEnabled }));
   }
 
   return <main className="min-h-screen"><div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
     <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
       <div className="flex min-w-0 items-center gap-2"><Button variant="ghost" size="icon-sm" asChild><BackLink href="/services/external-marketing"><ArrowLeft />돌아가기</BackLink></Button><h1 className="truncate text-3xl font-semibold tracking-tight">{project.courseName || "외부 입력 대기"}</h1></div>
-      <div className="flex flex-wrap items-center justify-end gap-2"><div ref={setSheetToolbarContainer} className="flex flex-wrap items-center gap-2" /><Button variant="outline" onClick={() => void copyPath(intakePath, "외부 입력 주소를 복사했습니다.")}><ClipboardCopy />외부 입력 주소</Button><Button variant="outline" disabled={saving} onClick={() => void publish()}>{saving ? <Loader2 className="animate-spin" /> : <Share2 />}외부 공개</Button><Button variant="outline" onClick={openSettings}><Settings2 />사전설정</Button></div>
+      <div className="flex flex-wrap items-center justify-end gap-2"><div ref={setSheetToolbarContainer} className="flex flex-wrap items-center gap-2" /><Button variant="outline" disabled={saving} onClick={() => openLinkDialog("intake")}><ClipboardCopy />외부 입력 주소</Button><Button variant="outline" disabled={saving} onClick={() => openLinkDialog("public")}><Share2 />외부 공개</Button><Button variant="outline" onClick={openSettings}><Settings2 />사전설정</Button></div>
     </div>
     {error ? <Alert variant="destructive" className="mt-6"><AlertTitle>처리하지 못했습니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
     {notice ? <Alert className="mt-6"><CheckCircle2 /><AlertTitle>완료</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert> : null}
@@ -134,6 +127,8 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard 
     <AdPerformanceSummaryCards metrics={dashboard.metrics} totalBudget={totalBudget} />
     <AdPerformanceSheetWorkspace dashboardId={dashboard.id} dashboardStartDate={startDate} sheetState={dashboard.sheetState} toolbarContainer={sheetToolbarContainer} allowTrackingImport={false} />
   </div>
+
+  {linkDialog ? <ExternalMarketingLinkDialog title={linkDialog.kind === "intake" ? "외부 입력 주소" : "외부 공개"} url={linkDialog.url} enabled={linkDialog.kind === "intake" ? project.intakeEnabled : project.publicEnabled} onClose={() => setLinkDialog(null)} onEnabledChange={(enabled) => changeLinkEnabled(linkDialog.kind, enabled)} /> : null}
 
   <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl"><DialogHeader><DialogTitle>외부마케팅대행 사전설정</DialogTitle></DialogHeader>
     <ExternalMarketingProjectFields value={draftInfo} onChange={setDraftInfo} disabled={saving} />

@@ -68,6 +68,25 @@ export async function PUT(request: Request, { params }: Context) {
   }
 }
 
+export async function PATCH(request: Request, { params }: Context) {
+  try {
+    const [{ dashboardId }, input] = await Promise.all([
+      params,
+      request.json().then((body) => z.object({ kind: z.enum(["intake", "public"]), enabled: z.boolean() }).strict().parse(body)),
+    ]);
+    const { user, admin, id } = await contextFor(dashboardId);
+    const { data, error } = await admin.from("external_marketing_projects")
+      .update({ [input.kind === "intake" ? "intake_enabled" : "public_enabled"]: input.enabled, updated_by: user.id, updated_at: new Date().toISOString() })
+      .eq("dashboard_id", id)
+      .select("intake_enabled,public_enabled")
+      .single();
+    if (error) throw new Error(`공개 설정 저장 실패: ${error.code}`);
+    return Response.json({ intakeEnabled: data.intake_enabled, publicEnabled: data.public_enabled });
+  } catch (error) {
+    return adPerformanceErrorResponse(error);
+  }
+}
+
 export async function DELETE(_request: Request, { params }: Context) {
   try {
     const { dashboardId } = await params;

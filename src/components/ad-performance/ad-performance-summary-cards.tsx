@@ -77,5 +77,9 @@ export function AdPerformanceSummaryCards({ metrics, totalBudget, className = "m
     <SummaryCard label="톡방입장인원" value={`${number.format(summary.latestChatRoomMembers)}명`} detail="최종 톡방누적인원" />
     <SummaryCard label="랜딩접수DB단가" value={formatWon(summary.paidLandingLeadCost)} detail="총광고비 ÷ 랜딩접수DB" />
     <SummaryCard label="톡방접수DB단가" value={formatWon(summary.chatRoomEntrantCost)} detail="총광고비 ÷ 톡방입장인원" />
+    <div className="col-span-full grid gap-3 sm:grid-cols-2">
+      <SummaryCard label="Google 광고접수 DB" value={`${number.format(summary.googleAdLeads)}건`} detail={`DB당 접수 단가 ${formatWon(summary.googleAdLeads > 0 ? summary.googleSpend / summary.googleAdLeads : null)}`} />
+      <SummaryCard label="Meta 광고접수 DB" value={`${number.format(summary.metaAdLeads)}건`} detail={`DB당 접수 단가 ${formatWon(summary.metaAdLeads > 0 ? summary.metaSpend / summary.metaAdLeads : null)}`} />
+    </div>
   </section>;
 }
