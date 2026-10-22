@@ -20,9 +20,7 @@ type ProjectRow = {
   webinar_date: string | null;
   landing_pages: unknown;
   creative_drive_url: string;
-  intake_token: string;
   public_token: string;
-  intake_enabled: boolean;
   public_enabled: boolean;
   updated_at: string;
   created_at: string;
@@ -41,16 +39,14 @@ function normalizeProject(row: ProjectRow): ExternalMarketingProject {
     ...info,
     dashboardId: row.dashboard_id,
     workspaceId: row.workspace_id,
-    intakeToken: row.intake_token,
     publicToken: row.public_token,
-    intakeEnabled: row.intake_enabled,
     publicEnabled: row.public_enabled,
     updatedAt: row.updated_at,
     createdAt: row.created_at,
   };
 }
 
-const projectColumns = "dashboard_id,workspace_id,course_name,instructor_name,cohort,webinar_date,landing_pages,creative_drive_url,intake_token,public_token,intake_enabled,public_enabled,created_at,updated_at";
+const projectColumns = "dashboard_id,workspace_id,course_name,instructor_name,cohort,webinar_date,landing_pages,creative_drive_url,public_token,public_enabled,created_at,updated_at";
 
 export async function loadExternalMarketingProjects(workspaceId: string) {
   const admin = createAdminClient();
@@ -91,29 +87,23 @@ export async function loadExternalMarketingProject(workspaceId: string, dashboar
   return dashboard ? { project: normalizeProject(data as ProjectRow), dashboard } : null;
 }
 
-async function loadProjectByToken(token: string, kind: "intake" | "public") {
+async function loadProjectByToken(token: string) {
   if (!externalMarketingTokenSchema.safeParse(token).success) return null;
-  const column = kind === "intake" ? "intake_token" : "public_token";
-  const enabledColumn = kind === "intake" ? "intake_enabled" : "public_enabled";
   const { data, error } = await createAdminClient()
     .from("external_marketing_projects")
     .select(projectColumns)
-    .eq(column, token)
-    .eq(enabledColumn, true)
+    .eq("public_token", token)
+    .eq("public_enabled", true)
     .maybeSingle();
   if (error) throw new Error(`외부마케팅대행 공개 조회 실패: ${error.code}`);
   return data ? normalizeProject(data as ProjectRow) : null;
-}
-
-export function loadExternalMarketingIntake(token: string) {
-  return loadProjectByToken(token, "intake");
 }
 
 export async function loadPublicExternalMarketingReport(token: string): Promise<{
   project: ExternalMarketingProject;
   dashboard: AdPerformanceDashboardData;
 } | null> {
-  const project = await loadProjectByToken(token, "public");
+  const project = await loadProjectByToken(token);
   if (!project) return null;
   const dashboard = await loadAdPerformanceDashboard(project.workspaceId, project.dashboardId, "external_marketing");
   return dashboard ? { project, dashboard } : null;

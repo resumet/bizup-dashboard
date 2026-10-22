@@ -1,13 +1,12 @@
-import Link from "next/link";
-import { Download, ExternalLink, FileDown } from "lucide-react";
+import { Download, FileDown } from "lucide-react";
 
 import { AdPerformanceOutcomeCard } from "@/components/ad-performance/ad-performance-outcome-card";
 import { AdPerformanceSummaryCards } from "@/components/ad-performance/ad-performance-summary-cards";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import type { AdPerformanceDashboardData } from "@/lib/ad-performance/types";
 import type { ExternalMarketingProject } from "@/lib/external-marketing/model";
 import { PublicExternalMarketingReportTable } from "./public-report-table";
+import { PublicExternalMarketingProjectInfo } from "./public-project-info";
 
 export function PublicExternalMarketingReport({ project, dashboard }: {
   project: ExternalMarketingProject;
@@ -32,47 +31,10 @@ export function PublicExternalMarketingReport({ project, dashboard }: {
           </div>
         </header>
 
-        <Card className="mt-6">
-          <CardContent className="grid gap-4 pt-6 sm:grid-cols-3 xl:grid-cols-6">
-            <div>
-              <p className="text-xs text-muted-foreground">강사명</p>
-              <p className="mt-1 font-medium">{project.instructorName || "—"}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">기수</p>
-              <p className="mt-1 font-medium">{project.cohort || "—"}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">광고 시작일</p>
-              <p className="mt-1 font-medium tabular-nums">{dashboard.startDate}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">광고소재 드라이브</p>
-              {project.creativeDriveUrl ? (
-                <Link
-                  href={project.creativeDriveUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-1 inline-flex items-center gap-1 font-medium text-primary hover:underline"
-                >
-                  드라이브 열기 <ExternalLink className="size-3.5" />
-                </Link>
-              ) : <p className="mt-1 font-medium">—</p>}
-            </div>
-            <div className="sm:col-span-3 xl:col-span-2">
-              <p className="text-xs text-muted-foreground">채널별 랜딩페이지</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {project.landingPages.length ? project.landingPages.map((page, index) => (
-                  <Button key={`${page.channel}-${index}`} variant="outline" size="sm" asChild>
-                    <Link href={page.url} target="_blank" rel="noopener noreferrer">
-                      {page.channel}<ExternalLink />
-                    </Link>
-                  </Button>
-                )) : <span className="text-sm">—</span>}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <PublicExternalMarketingProjectInfo token={project.publicToken} startDate={dashboard.startDate} initialInfo={{
+          courseName: project.courseName, instructorName: project.instructorName, cohort: project.cohort,
+          creativeDriveUrl: project.creativeDriveUrl, landingPages: project.landingPages,
+        }} />
 
         <AdPerformanceSummaryCards metrics={dashboard.metrics} totalBudget={dashboard.totalBudget} organicChannels={dashboard.organicChannels} />
         <AdPerformanceOutcomeCard metrics={dashboard.metrics} />

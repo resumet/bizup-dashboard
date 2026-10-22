@@ -56,13 +56,13 @@ export async function PUT(request: Request, { params }: Context) {
         webinar_date: input.webinarDate || null,
         landing_pages: input.landingPages,
         creative_drive_url: input.creativeDriveUrl,
-        intake_enabled: input.intakeEnabled,
+        intake_enabled: false,
         public_enabled: input.publicEnabled,
         updated_by: user.id,
         updated_at: now,
       })
       .eq("dashboard_id", id);
-    if (projectError) throw new Error(`외부 입력 설정 저장 실패: ${projectError.code}`);
+    if (projectError) throw new Error(`외부마케팅대행 설정 저장 실패: ${projectError.code}`);
     return Response.json({ saved: true });
   } catch (error) {
     return adPerformanceErrorResponse(error);
@@ -73,16 +73,16 @@ export async function PATCH(request: Request, { params }: Context) {
   try {
     const [{ dashboardId }, input] = await Promise.all([
       params,
-      request.json().then((body) => z.object({ kind: z.enum(["intake", "public"]), enabled: z.boolean() }).strict().parse(body)),
+      request.json().then((body) => z.object({ kind: z.literal("public"), enabled: z.boolean() }).strict().parse(body)),
     ]);
     const { user, admin, id } = await contextFor(dashboardId);
     const { data, error } = await admin.from("external_marketing_projects")
-      .update({ [input.kind === "intake" ? "intake_enabled" : "public_enabled"]: input.enabled, updated_by: user.id, updated_at: new Date().toISOString() })
+      .update({ public_enabled: input.enabled, updated_by: user.id, updated_at: new Date().toISOString() })
       .eq("dashboard_id", id)
-      .select("intake_enabled,public_enabled")
+      .select("public_enabled")
       .single();
     if (error) throw new Error(`공개 설정 저장 실패: ${error.code}`);
-    return Response.json({ intakeEnabled: data.intake_enabled, publicEnabled: data.public_enabled });
+    return Response.json({ publicEnabled: data.public_enabled });
   } catch (error) {
     return adPerformanceErrorResponse(error);
   }

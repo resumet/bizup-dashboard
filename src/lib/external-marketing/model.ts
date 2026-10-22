@@ -33,9 +33,11 @@ export const externalMarketingInfoSchema = z.object({
 export const externalMarketingSettingsSchema = externalMarketingInfoSchema.extend({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u, "광고 시작일을 확인해 주세요."),
   totalBudget: z.number().int().min(0).max(1_000_000_000_000),
-  intakeEnabled: z.boolean(),
   publicEnabled: z.boolean(),
 });
+
+export const externalMarketingPublicInfoSchema = externalMarketingInfoSchema.omit({ webinarDate: true }).strict();
+export type ExternalMarketingPublicInfo = z.infer<typeof externalMarketingPublicInfoSchema>;
 
 export type ExternalMarketingInfo = z.infer<typeof externalMarketingInfoSchema>;
 export type ExternalMarketingSettings = z.infer<typeof externalMarketingSettingsSchema>;
@@ -43,9 +45,7 @@ export type ExternalMarketingSettings = z.infer<typeof externalMarketingSettings
 export type ExternalMarketingProject = ExternalMarketingInfo & {
   dashboardId: string;
   workspaceId: string;
-  intakeToken: string;
   publicToken: string;
-  intakeEnabled: boolean;
   publicEnabled: boolean;
   updatedAt: string;
   createdAt: string;

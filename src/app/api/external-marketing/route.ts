@@ -37,6 +37,7 @@ export async function POST() {
       .from("external_marketing_projects")
       .insert({
         dashboard_id: dashboardId,
+        intake_enabled: false,
         workspace_id: membership.workspace_id,
         created_by: user.id,
         updated_by: user.id,

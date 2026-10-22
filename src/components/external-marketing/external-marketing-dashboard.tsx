@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeft, ClipboardCopy, ExternalLink, Loader2, Save, Settings2, Share2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, Loader2, Save, Settings2, Share2 } from "lucide-react";
 
 import { AdPerformanceSheetWorkspace } from "@/components/ad-performance/ad-performance-sheet-workspace";
 import { AdPerformanceSummaryCards } from "@/components/ad-performance/ad-performance-summary-cards";
@@ -42,25 +42,22 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard,
   const [startDate, setStartDate] = useState(dashboard.startDate);
   const [totalBudget, setTotalBudget] = useState(dashboard.totalBudget);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [linkDialog, setLinkDialog] = useState<{ kind: "intake" | "public"; url: string } | null>(null);
+  const [linkDialog, setLinkDialog] = useState<string | null>(null);
   const [draftInfo, setDraftInfo] = useState<ExternalMarketingInfo>(initialProject);
   const [draftStartDate, setDraftStartDate] = useState(dashboard.startDate);
   const [draftTotalBudget, setDraftTotalBudget] = useState(dashboard.totalBudget);
-  const [draftIntakeEnabled, setDraftIntakeEnabled] = useState(initialProject.intakeEnabled);
   const [draftPublicEnabled, setDraftPublicEnabled] = useState(initialProject.publicEnabled);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [sheetToolbarContainer, setSheetToolbarContainer] = useState<HTMLDivElement | null>(null);
 
-  const intakePath = `/public/external-marketing/intake/${project.intakeToken}`;
   const publicPath = `/public/external-marketing/report/${project.publicToken}`;
 
   async function persist(input: {
     info: ExternalMarketingInfo;
     nextStartDate: string;
     nextTotalBudget: number;
-    intakeEnabled: boolean;
     publicEnabled: boolean;
   }) {
     const response = await fetch(`/api/external-marketing/${project.dashboardId}`, {
@@ -70,13 +67,12 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard,
         ...input.info,
         startDate: input.nextStartDate,
         totalBudget: input.nextTotalBudget,
-        intakeEnabled: input.intakeEnabled,
         publicEnabled: input.publicEnabled,
       }),
     });
     const result = await response.json() as { message?: string };
     if (!response.ok) throw new Error(result.message || "설정을 저장하지 못했습니다.");
-    setProject((current) => ({ ...current, ...input.info, intakeEnabled: input.intakeEnabled, publicEnabled: input.publicEnabled }));
+    setProject((current) => ({ ...current, ...input.info, publicEnabled: input.publicEnabled }));
     setStartDate(input.nextStartDate);
     setTotalBudget(input.nextTotalBudget);
   }
@@ -85,7 +81,6 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard,
     setDraftInfo(project);
     setDraftStartDate(startDate);
     setDraftTotalBudget(totalBudget);
-    setDraftIntakeEnabled(project.intakeEnabled);
     setDraftPublicEnabled(project.publicEnabled);
     setError("");
     setSettingsOpen(true);
@@ -96,7 +91,7 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard,
     setNotice("");
     setError("");
     try {
-      await persist({ info: draftInfo, nextStartDate: draftStartDate, nextTotalBudget: draftTotalBudget, intakeEnabled: draftIntakeEnabled, publicEnabled: draftPublicEnabled });
+      await persist({ info: draftInfo, nextStartDate: draftStartDate, nextTotalBudget: draftTotalBudget, publicEnabled: draftPublicEnabled });
       setNotice("사전설정을 저장했습니다.");
       setSettingsOpen(false);
     } catch (caught) {
@@ -106,25 +101,25 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard,
     }
   }
 
-  function openLinkDialog(kind: "intake" | "public") {
-    setLinkDialog({ kind, url: new URL(kind === "intake" ? intakePath : publicPath, window.location.origin).toString() });
+  function openLinkDialog() {
+    setLinkDialog(new URL(publicPath, window.location.origin).toString());
   }
 
-  async function changeLinkEnabled(kind: "intake" | "public", enabled: boolean) {
+  async function changeLinkEnabled(enabled: boolean) {
     const response = await fetch(`/api/external-marketing/${project.dashboardId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind, enabled }),
+      body: JSON.stringify({ kind: "public", enabled }),
     });
-    const result = await response.json() as { intakeEnabled: boolean; publicEnabled: boolean; message?: string };
+    const result = await response.json() as { publicEnabled: boolean; message?: string };
     if (!response.ok) throw new Error(result.message || "공개 설정을 저장하지 못했습니다.");
-    setProject((current) => ({ ...current, intakeEnabled: result.intakeEnabled, publicEnabled: result.publicEnabled }));
+    setProject((current) => ({ ...current, publicEnabled: result.publicEnabled }));
   }
 
   return <main className="min-h-screen"><div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
     <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
-      <div className="flex min-w-0 items-center gap-2"><Button variant="ghost" size="icon-sm" asChild><BackLink href="/services/external-marketing"><ArrowLeft />돌아가기</BackLink></Button><h1 className="truncate text-3xl font-semibold tracking-tight">{project.courseName || "외부 입력 대기"}</h1></div>
-      <div className="flex flex-wrap items-center justify-end gap-2"><div ref={setSheetToolbarContainer} className={activeTab === "performance" ? "flex flex-wrap items-center gap-2" : "hidden"} /><Button variant="outline" disabled={saving} onClick={() => openLinkDialog("intake")}><ClipboardCopy />외부 입력 주소</Button><Button variant="outline" disabled={saving} onClick={() => openLinkDialog("public")}><Share2 />외부 공개</Button><Button variant="outline" onClick={openSettings}><Settings2 />사전설정</Button></div>
+      <div className="flex min-w-0 items-center gap-2"><Button variant="ghost" size="icon-sm" asChild><BackLink href="/services/external-marketing"><ArrowLeft />돌아가기</BackLink></Button><h1 className="truncate text-3xl font-semibold tracking-tight">{project.courseName || "강의명 미입력"}</h1></div>
+      <div className="flex flex-wrap items-center justify-end gap-2"><div ref={setSheetToolbarContainer} className={activeTab === "performance" ? "flex flex-wrap items-center gap-2" : "hidden"} /><Button variant="outline" disabled={saving} onClick={openLinkDialog}><Share2 />외부 공개</Button><Button variant="outline" onClick={openSettings}><Settings2 />사전설정</Button></div>
     </div>
     {error ? <Alert variant="destructive" className="mt-6"><AlertTitle>처리하지 못했습니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
 
@@ -152,12 +147,12 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard,
   </div>
   <ExternalMarketingSaveToast message={notice} onDismiss={setNotice} />
 
-  {linkDialog ? <ExternalMarketingLinkDialog title={linkDialog.kind === "intake" ? "외부 입력 주소" : "외부 공개"} url={linkDialog.url} enabled={linkDialog.kind === "intake" ? project.intakeEnabled : project.publicEnabled} onClose={() => setLinkDialog(null)} onEnabledChange={(enabled) => changeLinkEnabled(linkDialog.kind, enabled)} /> : null}
+  {linkDialog ? <ExternalMarketingLinkDialog url={linkDialog} enabled={project.publicEnabled} onClose={() => setLinkDialog(null)} onEnabledChange={changeLinkEnabled} /> : null}
 
   <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl"><DialogHeader><DialogTitle>외부마케팅대행 사전설정</DialogTitle></DialogHeader>
     <ExternalMarketingProjectFields value={draftInfo} onChange={setDraftInfo} disabled={saving} />
     <div className="grid gap-4 sm:grid-cols-2"><div className="grid gap-2"><Label htmlFor="external-start-date">광고 시작일</Label><Input id="external-start-date" type="date" value={draftStartDate} disabled={saving} onChange={(event) => setDraftStartDate(event.target.value)} /></div><div className="grid gap-2"><Label htmlFor="external-budget">총예산</Label><Input id="external-budget" inputMode="numeric" className="text-right tabular-nums" value={draftTotalBudget ? number.format(draftTotalBudget) : ""} disabled={saving} onChange={(event) => setDraftTotalBudget(parseCount(event.target.value))} /></div></div>
-    <div className="grid gap-3 rounded-lg border p-4"><label className="flex items-center gap-3 text-sm font-medium"><Checkbox checked={draftIntakeEnabled} onCheckedChange={(checked) => setDraftIntakeEnabled(checked === true)} />외부 입력 주소 활성화</label><label className="flex items-center gap-3 text-sm font-medium"><Checkbox checked={draftPublicEnabled} onCheckedChange={(checked) => setDraftPublicEnabled(checked === true)} />광고성과 외부 공개</label></div>
+    <div className="grid gap-3 rounded-lg border p-4"><label className="flex items-center gap-3 text-sm font-medium"><Checkbox checked={draftPublicEnabled} onCheckedChange={(checked) => setDraftPublicEnabled(checked === true)} />광고성과 외부 공개</label></div>
     {error ? <Alert variant="destructive"><AlertTitle>저장할 수 없습니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
     <DialogFooter><DialogClose asChild><Button type="button" variant="outline" disabled={saving}>취소</Button></DialogClose><Button type="button" disabled={saving || !draftStartDate} onClick={() => void saveSettings()}>{saving ? <Loader2 className="animate-spin" /> : <Save />}저장</Button></DialogFooter>
   </DialogContent></Dialog>

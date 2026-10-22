@@ -93,7 +93,7 @@ export function ExternalMarketingIndex({ projects: initialProjects, today: initi
         }}
       >{project.instructorName}</button>)}</div> : null}
       {selectedProject ? <div className="flex flex-wrap items-center gap-2" aria-label="선택한 강의 바로가기">
-        <span className="text-sm font-medium">{[selectedProject.courseName || "외부 입력 대기", selectedProject.cohort].filter(Boolean).join(" · ")}</span>
+        <span className="text-sm font-medium">{[selectedProject.courseName || "강의명 미입력", selectedProject.cohort].filter(Boolean).join(" · ")}</span>
         <Button variant="outline" size="sm" asChild><Link href={`/services/external-marketing/${selectedProject.dashboardId}?tab=wbs`}>WBS 바로가기</Link></Button>
         <Button variant="outline" size="sm" asChild><Link href={`/services/external-marketing/${selectedProject.dashboardId}?tab=performance`}>광고성과 바로가기</Link></Button>
       </div> : null}
@@ -102,7 +102,7 @@ export function ExternalMarketingIndex({ projects: initialProjects, today: initi
       <Table aria-label="외부마케팅대행 강의 목록"><TableHeader><TableRow>
         {["제목", "기수", "강사명", "광고집행비", "랜딩접수DB수", "접수DB당단가", "광고개시일", "소재전달일", "소재전달일까지 남은 날짜"].map((heading) => <TableHead key={heading}>{heading}</TableHead>)}
       </TableRow></TableHeader><TableBody>{visible.map((project) => {
-        const title = project.courseName || "외부 입력 대기";
+        const title = project.courseName || "강의명 미입력";
         const [advertising, creative] = externalMarketingWbs(project.webinarDate, today);
         const dbCount = project.paidLandingLeads + project.organicLandingLeads;
         return <TableRow key={project.dashboardId}>

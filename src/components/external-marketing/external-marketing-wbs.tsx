@@ -13,7 +13,7 @@ export function ExternalMarketingWbs({ webinarDate, today }: { webinarDate: stri
   const webinarCountdown = webinarDays === null ? "미입력" : webinarDays === 0 ? "D-Day" : webinarDays > 0 ? `D-${webinarDays}` : `D+${Math.abs(webinarDays)}`;
   const overdueStyle = "bg-neutral-100 hover:bg-neutral-100 dark:bg-neutral-800 dark:hover:bg-neutral-800";
   return <Card><CardHeader><CardTitle>WBS</CardTitle></CardHeader><CardContent>
-    {!webinarDate ? <p className="mb-4 text-sm text-muted-foreground">사전설정 또는 외부 입력 주소에서 웨비나 날짜를 입력하면 일정이 자동 계산됩니다.</p> : null}
+    {!webinarDate ? <p className="mb-4 text-sm text-muted-foreground">사전설정에서 웨비나 날짜를 입력하면 일정이 자동 계산됩니다.</p> : null}
     <Table aria-label="외부마케팅대행 WBS"><TableHeader><TableRow>
       <TableHead>업무</TableHead><TableHead>계산 기준</TableHead><TableHead>예정일</TableHead><TableHead>남은 날짜</TableHead>
     </TableRow></TableHeader><TableBody>{milestones.map((milestone) => <TableRow key={milestone.key} className={milestone.key === "creative" ? "bg-yellow-100 hover:bg-yellow-100 dark:bg-yellow-950 dark:hover:bg-yellow-950" : milestone.daysLeft !== null && milestone.daysLeft < 0 ? overdueStyle : ""}>
