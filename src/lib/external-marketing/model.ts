@@ -36,7 +36,9 @@ export const externalMarketingSettingsSchema = externalMarketingInfoSchema.exten
   publicEnabled: z.boolean(),
 });
 
-export const externalMarketingPublicInfoSchema = externalMarketingInfoSchema.omit({ webinarDate: true }).strict();
+export const externalMarketingPublicInfoSchema = externalMarketingInfoSchema.extend({
+  webinarDate: externalMarketingInfoSchema.shape.webinarDate.removeDefault(),
+}).strict();
 export type ExternalMarketingPublicInfo = z.infer<typeof externalMarketingPublicInfoSchema>;
 
 export type ExternalMarketingInfo = z.infer<typeof externalMarketingInfoSchema>;

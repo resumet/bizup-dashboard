@@ -33,6 +33,7 @@ export function PublicExternalMarketingReport({ project, dashboard }: {
 
         <PublicExternalMarketingProjectInfo token={project.publicToken} startDate={dashboard.startDate} initialInfo={{
           courseName: project.courseName, instructorName: project.instructorName, cohort: project.cohort,
+          webinarDate: project.webinarDate,
           creativeDriveUrl: project.creativeDriveUrl, landingPages: project.landingPages,
         }} />
 
