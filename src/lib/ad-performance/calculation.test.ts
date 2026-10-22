@@ -21,28 +21,31 @@ const metric: AdPerformanceDailyMetric = {
   organicLeads: { blog: 5, youtube: 3 },
 };
 
-test("오가닉 카드는 저장된 채널명과 순서를 사용하고 누락된 경로도 전체 합계에 포함한다", () => {
+test("오가닉 카드는 인스타·유튜브·경로불명으로 고정하고 유튜브에 나머지 모든 경로를 합산한다", () => {
   const channels = [
     { id: "youtube", name: "유튜브", sortOrder: 2 },
     { id: "instagram", name: "인스타", sortOrder: 1 },
-    { id: "empty", name: "기타", sortOrder: 3 },
+    { id: "other", name: "꿈꾸는사람들", sortOrder: 3 },
+    { id: "unknown", name: "경로불명", sortOrder: 4 },
   ];
   const snapshot = structuredClone(channels);
   const metrics: AdPerformanceDailyMetric[] = [
-    { ...metric, organicLeads: { youtube: 3, instagram: 7, lost: 2 } },
-    { ...metric, organicLeads: { youtube: 5, lost: 4 } },
+    { ...metric, organicLeads: { youtube: 3, instagram: 7, other: 10, unknown: 2 } },
+    { ...metric, organicLeads: { youtube: 5, other: 20, lost: 4, unknown: 3 } },
   ];
   const result = summarizeOrganicChannels(metrics, channels);
-  assert.deepEqual(result.map((item) => [item.name, item.count]), [["인스타", 7], ["유튜브", 8], ["기타", 0], ["경로불명", 6]]);
+  assert.deepEqual(result.map((item) => [item.name, item.count]), [["인스타", 7], ["유튜브", 42], ["경로불명", 5]]);
   assert.equal(result.reduce((sum, item) => sum + item.count, 0), summarizeAdPerformance(metrics, 0).organicLandingLeads);
   assert.deepEqual(channels, snapshot);
-  assert.deepEqual(summarizeOrganicChannels([], []), []);
+  assert.deepEqual(summarizeOrganicChannels([], []).map((item) => [item.name, item.count]), [["인스타", 0], ["유튜브", 0], ["경로불명", 0]]);
 });
 
-test("이미 등록된 경로불명 채널에 미확인 DB를 합쳐 중복 열을 만들지 않는다", () => {
-  const result = summarizeOrganicChannels([{ ...metric, organicLeads: { known: 5, missing: 2 } }], [{ id: "known", name: "경로불명", sortOrder: 0 }]);
-  assert.equal(result.length, 1);
-  assert.equal(result[0].count, 7);
+test("여러 인스타·경로불명 표기를 합치되 메타데이터가 없는 나머지는 유튜브에 포함한다", () => {
+  const result = summarizeOrganicChannels([{ ...metric, organicLeads: { insta1: 2, insta2: 5, unknown1: 3, unknown2: 4, missing: 11 } }], [
+    { id: "insta1", name: "인스타", sortOrder: 3 }, { id: "insta2", name: " 인스타그램 ", sortOrder: 0 },
+    { id: "unknown1", name: "경로불명", sortOrder: 2 }, { id: "unknown2", name: " 경로 불명 ", sortOrder: 1 },
+  ]);
+  assert.deepEqual(result.map((item) => [item.name, item.count]), [["인스타", 7], ["유튜브", 11], ["경로불명", 7]]);
 });
 
 test("광고비는 날짜순으로 누적하고 빈 날짜는 이전 누적액을 유지한다", () => {
