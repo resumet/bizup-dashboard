@@ -36,7 +36,7 @@ export async function loadMedia(courseId:string):Promise<MediaData>{
   const {admin,course}=await mediaMember(courseId);
   const [settings,appearances,channels,landingUtms]=await Promise.all([
     admin.from("course_youtube_settings").select("public_enabled,public_token,public_short_code,brief_enabled,brief_token,brief_short_code,brief,brief_revision,notion_page_id,notion_url,notion_public_url,notion_synced_revision").eq("course_id",courseId).single(),
-    admin.from("course_youtube_appearances").select("id,revision,channel_name,channel_url,video_url,landing_utm,request_status,filming_at,filming_confirmed,is_internal,note,respondent").eq("course_id",courseId).order("sort_order").order("created_at"),
+    admin.from("course_youtube_appearances").select("id,revision,channel_name,channel_url,video_url,landing_utm,request_status,filming_date,upload_date,filming_confirmed,is_internal,note,respondent").eq("course_id",courseId).order("sort_order").order("created_at"),
     admin.from("youtube_analyzed_channels").select("channel,position").eq("workspace_id",course.workspace_id).order("position",{ascending:false}).limit(500),
     loadLandingUtms(admin,courseId),
   ]);
@@ -71,7 +71,7 @@ export async function publicMedia(token:string,kind:"brief"|"schedule"){
   const {admin,settings,course}=await getPublicYoutubeShare(token,kind);
   const publicCourse={id:course.id,name:course.name,instructor_name:course.instructor_name,cohort:course.cohort,free_webinar_at:course.free_webinar_at};
   if(kind==="brief")return {course:publicCourse,brief:briefSchema.parse(settings.brief),revision:settings.brief_revision};
-  const {data:appearances,error:appearanceError}=await admin.from("course_youtube_appearances").select("id,revision,channel_name,channel_url,video_url,landing_utm,request_status,filming_at,filming_confirmed,note,respondent").eq("course_id",course.id).eq("is_internal",false).order("sort_order").order("created_at");
+  const {data:appearances,error:appearanceError}=await admin.from("course_youtube_appearances").select("id,revision,channel_name,channel_url,video_url,landing_utm,request_status,filming_date,upload_date,filming_confirmed,note,respondent").eq("course_id",course.id).eq("is_internal",false).order("sort_order").order("created_at");
   if(appearanceError)throw new MediaError("출연 정보를 불러오지 못했습니다.",500);
   const landingUtms=youtubeLandingUtms(await loadLandingUtms(admin,course.id));
   return {course:publicCourse,appearances:appearances.map(row=>({...row,is_internal:false,landing_utm:resolveLandingUtm(row.channel_name,row.landing_utm,landingUtms)}))};

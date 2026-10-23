@@ -26,17 +26,20 @@ test("UTM refresh uses updated links and preserves an explicit saved choice or l
   assert.equal(resolveLandingUtm("기존 채널", "https://example.test/legacy", [item]), "https://example.test/legacy");
   assert.equal(resolveLandingUtm("테스트 채널", "", [{...item,short_url:""}]), item.url);
 });
-test("both API schemas enforce appearance confirmation before filming confirmation and date", () => {
+test("both API schemas enforce appearance confirmation before filming and upload dates", () => {
   const row={...emptyAppearance(),id:"00000000-0000-4000-8000-000000000001",channel_name:"채널"};
   assert.equal(row.is_internal,false);
   assert.equal(appearanceSchema.parse({...row,is_internal:true}).is_internal,true);
   assert.equal("is_internal" in publicAppearanceSchema.parse({...row,request_status:"confirmed",is_internal:true}),false);
   for(const schema of [appearanceSchema,publicAppearanceSchema]) {
     assert.equal(schema.safeParse(row).success,schema===appearanceSchema);
-    assert.equal(schema.safeParse({...row,filming_confirmed:true,filming_at:"2026-11-03T05:30:00.000Z"}).success,false);
+    assert.equal(schema.safeParse({...row,filming_confirmed:true,filming_date:"2026-11-03"}).success,false);
     assert.equal(schema.safeParse({...row,request_status:"confirmed",filming_confirmed:true}).success,false);
-    assert.equal(schema.safeParse({...row,request_status:"confirmed",filming_at:"2026-11-03T05:30:00.000Z"}).success,false);
-    assert.equal(schema.safeParse({...row,request_status:"confirmed",filming_confirmed:true,filming_at:"2026-11-03T05:30:00.000Z"}).success,true);
+    assert.equal(schema.safeParse({...row,request_status:"confirmed",filming_date:"2026-11-03"}).success,false);
+    assert.equal(schema.safeParse({...row,request_status:"confirmed",upload_date:"2026-11-10"}).success,true);
+    assert.equal(schema.safeParse({...row,upload_date:"2026-11-10"}).success,false);
+    assert.equal(schema.safeParse({...row,request_status:"confirmed",filming_confirmed:true,filming_date:"2026-11-03",upload_date:"2026-11-10"}).success,true);
+    assert.equal(schema.safeParse({...row,request_status:"confirmed",filming_confirmed:true,filming_date:"2026-02-30"}).success,false);
   }
 });
 
