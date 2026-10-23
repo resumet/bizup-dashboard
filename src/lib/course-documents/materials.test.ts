@@ -8,6 +8,8 @@ import {
   courseDocumentPlanningSheetUrlSchema,
   courseDocumentReferencePlanningNumberSchema,
   courseDocumentMaterials,
+  instagramBulkFilmingSelectablePositions,
+  mergeInstagramFilmingDates,
   parseInstagramBulkTitles,
 } from "./materials";
 
@@ -80,4 +82,21 @@ test("DM 자료 링크는 HTTP 또는 HTTPS 주소만 허용한다", () => {
 
 test("일괄 제목은 줄 순서를 유지하고 끝의 빈 줄만 제거한다", () => {
   assert.deepEqual(parseInstagramBulkTitles(" 첫 제목 \r\n\r\n세 번째 제목\n\n"), ["첫 제목", "", "세 번째 제목"]);
+});
+
+test("촬영 일정 일괄 변경은 업로드 완료 항목을 제외하고 날짜 필드만 합친다", () => {
+  const materials = courseDocumentMaterials([], 3).map((material) => material.position === 2
+    ? { ...material, title: "저장 전 제목", uploadCompleted: true }
+    : material);
+
+  assert.deepEqual(instagramBulkFilmingSelectablePositions(materials), [1, 3]);
+
+  const merged = mergeInstagramFilmingDates(materials, [
+    { position: 1, filmingDate: "2026-11-02" },
+    { position: 3, filmingDate: "2026-11-02" },
+  ]);
+  assert.equal(merged[0].filmingDate, "2026-11-02");
+  assert.equal(merged[1].filmingDate, "");
+  assert.equal(merged[1].title, "저장 전 제목");
+  assert.equal(merged[2].filmingDate, "2026-11-02");
 });

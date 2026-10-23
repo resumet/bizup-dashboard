@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Toast } from "radix-ui";
-import { AlertTriangle, Ban, Check, Circle, Copy, ExternalLink, FileSpreadsheet, ListPlus, Loader2, Pencil, RefreshCw, Save, Settings, Trash2, Upload, Users, X } from "lucide-react";
+import { AlertTriangle, Ban, CalendarDays, Check, Circle, Copy, ExternalLink, FileSpreadsheet, ListPlus, Loader2, Pencil, RefreshCw, Save, Settings, Trash2, Upload, Users, X } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +21,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { instagramCourseOptionLabel } from "@/lib/course-documents/course-options";
 import { instagramProgressSummary, progressPercentage } from "@/lib/course-documents/instagram-progress";
 import { instagramDmMaterialHref, instagramDmMaterialValue, instagramExternalDmPath } from "@/lib/course-documents/instagram-upload";
-import { parseInstagramBulkTitles } from "@/lib/course-documents/materials";
+import { instagramBulkFilmingSelectablePositions, mergeInstagramFilmingDates, parseInstagramBulkTitles } from "@/lib/course-documents/materials";
 import type { BlockedPhone, CourseDocumentCourse, CourseDocumentMaterial } from "@/lib/course-documents/types";
 import { formatWebinarDate } from "@/lib/course-operations/webinar-proximity";
 
@@ -98,6 +98,10 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
   const [savingBulkTitles, setSavingBulkTitles] = useState(false);
   const [bulkTitleDialogOpen, setBulkTitleDialogOpen] = useState(false);
   const [bulkTitleText, setBulkTitleText] = useState("");
+  const [savingBulkFilmingDate, setSavingBulkFilmingDate] = useState(false);
+  const [bulkFilmingDateDialogOpen, setBulkFilmingDateDialogOpen] = useState(false);
+  const [bulkFilmingDate, setBulkFilmingDate] = useState("");
+  const [selectedFilmingPositions, setSelectedFilmingPositions] = useState<Set<number>>(() => new Set());
   const [toast, setToast] = useState<{ id: number; message: string } | null>(null);
   const toastId = useRef(0);
   const notify = useCallback((message: string) => {
@@ -145,6 +149,9 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
       .then(({ response, body }) => {
         if (!active) return;
         if (!response.ok || !body.courses || !body.blockedPhones) throw new Error(body.message ?? "데이터를 불러오지 못했습니다.");
+        setSelectedFilmingPositions(new Set());
+        setBulkFilmingDateDialogOpen(false);
+        setBulkFilmingDate("");
         setCourses(body.courses);
         setSavedMaterialsByCourse(materialSnapshots(body.courses));
         setBlockedPhones(body.blockedPhones);
@@ -302,6 +309,54 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
     }
   }
 
+  function toggleFilmingSelection(position: number, selected: boolean) {
+    setSelectedFilmingPositions((current) => {
+      const next = new Set(current);
+      if (selected) next.add(position);
+      else next.delete(position);
+      return next;
+    });
+  }
+
+  function openBulkFilmingDateDialog() {
+    if (!selectedCourse) return;
+    const selectedMaterials = selectedCourse.materials.filter((material) => selectedFilmingPositions.has(material.position) && !material.uploadCompleted);
+    if (!selectedMaterials.length) return;
+    const dates = new Set(selectedMaterials.map((material) => material.filmingDate));
+    setBulkFilmingDate(dates.size === 1 ? selectedMaterials[0].filmingDate : "");
+    setBulkFilmingDateDialogOpen(true);
+  }
+
+  async function saveBulkFilmingDate(filmingDate: string) {
+    if (!selectedCourse) return;
+    const positions = selectedCourse.materials
+      .filter((material) => selectedFilmingPositions.has(material.position) && !material.uploadCompleted)
+      .map((material) => material.position);
+    if (!positions.length) return;
+    setSavingBulkFilmingDate(true); setError(""); setNotice("");
+    try {
+      const body = await post({ action: "bulk-update-filming-date", courseId: selectedCourse.id, positions, filmingDate });
+      if (!body.materials || body.materials.length !== positions.length) throw new Error("변경된 촬영 일정을 확인하지 못했습니다.");
+      const updates = body.materials.map((material) => ({ position: material.position, filmingDate: material.filmingDate }));
+      setCourses((current) => current.map((course) => course.id === selectedCourse.id
+        ? { ...course, materials: mergeInstagramFilmingDates(course.materials, updates) }
+        : course));
+      setSavedMaterialsByCourse((current) => ({
+        ...current,
+        [selectedCourse.id]: mergeInstagramFilmingDates(current[selectedCourse.id] ?? [], updates),
+      }));
+      setSelectedFilmingPositions(new Set());
+      setBulkFilmingDateDialogOpen(false);
+      setNotice(filmingDate
+        ? `촬영 일정 ${positions.length}건을 ${filmingDate}로 변경했습니다.`
+        : `촬영 일정 ${positions.length}건을 비웠습니다.`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "촬영 일정을 일괄 변경하지 못했습니다.");
+    } finally {
+      setSavingBulkFilmingDate(false);
+    }
+  }
+
   async function saveInstagramSettings() {
     if (!selectedCourse) return;
     const totalCount = Number(settingsDraft.totalCount);
@@ -335,6 +390,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
         planningCompletedCount: String(nextMaterials.filter((item) => item.planningCompleted).length),
         filmingCompletedCount: String(nextMaterials.filter((item) => item.filmingCompleted).length),
       });
+      setSelectedFilmingPositions(new Set());
       setSettingsDialogOpen(false);
       setNotice("인스타그램 진행 설정을 저장했습니다.");
     } catch (caught) {
@@ -464,6 +520,12 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
     && bulkTitles.length > 0
     && bulkTitles.length <= (selectedCourse?.materials.length ?? 0)
     && bulkTitles.every((title) => title.length <= 200);
+  const selectableFilmingPositions = instagramBulkFilmingSelectablePositions(selectedCourse?.materials ?? []);
+  const selectableFilmingPositionSet = new Set(selectableFilmingPositions);
+  const activeSelectedFilmingPositions = [...selectedFilmingPositions].filter((position) => selectableFilmingPositionSet.has(position));
+  const allFilmingRowsSelected = selectableFilmingPositions.length > 0
+    && selectableFilmingPositions.every((position) => selectedFilmingPositions.has(position));
+  const selectedCompletedFilmingCount = selectedCourse?.materials.filter((material) => activeSelectedFilmingPositions.includes(material.position) && material.filmingCompleted).length ?? 0;
   return (
     <Toast.Provider label="인스타그램 관리 알림" duration={5000}>
     <TooltipProvider delayDuration={300}>
@@ -518,26 +580,28 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                     <div className="flex flex-wrap justify-end gap-2 xl:col-start-2 xl:row-start-2">
                       <Button variant="outline" disabled={busy} onClick={openPlanningSheet}><FileSpreadsheet />기획시트</Button>
                       <Button variant="outline" disabled={savingBulkTitles || !selectedCourse.materials.length} onClick={openBulkTitleDialog}><ListPlus />제목 일괄입력</Button>
+                      <Button variant="outline" disabled={savingMaterials || savingBulkFilmingDate || activeSelectedFilmingPositions.length === 0} onClick={openBulkFilmingDateDialog}><CalendarDays />촬영 일정 일괄 변경{activeSelectedFilmingPositions.length ? ` (${activeSelectedFilmingPositions.length})` : ""}</Button>
                       <Button variant="outline" disabled={!externalUrl} onClick={() => void copyText(new URL(externalUrl, window.location.origin).toString()).then(() => setNotice("외부 작성 주소를 복사했습니다.")).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "주소를 복사하지 못했습니다."))}><Copy />주소 복사</Button>
                       <Button variant="outline" disabled={busy} onClick={() => void updateAccess(selectedCourse.externalEditEnabled, true)}><RefreshCw />재발급</Button>
                       <Button variant={selectedCourse.externalEditEnabled ? "outline" : "default"} disabled={busy} onClick={() => void updateAccess(!selectedCourse.externalEditEnabled)}>{selectedCourse.externalEditEnabled ? "비활성화" : "외부 작성 활성화"}</Button>
-                      <Button disabled={savingMaterials || materialChangeCount === 0} onClick={() => void saveMaterials()}>
+                      <Button disabled={savingMaterials || savingBulkFilmingDate || materialChangeCount === 0} onClick={() => void saveMaterials()}>
                         {savingMaterials ? <Loader2 className="animate-spin" /> : <Save />}
                         {savingMaterials ? "저장 중" : materialChangeCount ? `저장하기 (${materialChangeCount})` : "저장됨"}
                       </Button>
                     </div>
                 </div>
-                <div className="overflow-x-auto rounded-lg border"><Table className="min-w-[1940px]"><TableHeader className="sticky top-0 z-10 bg-background"><TableRow className="hover:bg-background"><TableHead className="w-16 text-center">번호</TableHead><TableHead className="w-32 text-center">기획번호</TableHead><TableHead className="min-w-64">제목</TableHead><TableHead className="w-24 text-center">기획 완료</TableHead><TableHead className="w-24 text-center">촬영 완료</TableHead><TableHead className="w-40">촬영 일정</TableHead><TableHead className="w-24 text-center">편집 완료</TableHead><TableHead className="w-24 text-center">업로드 완료</TableHead><TableHead className="w-28 text-center">업로드</TableHead><TableHead className="w-40">업로드 일정</TableHead><TableHead className="w-28 text-center">링크</TableHead><TableHead className="w-28 text-center">DM 자료</TableHead><TableHead className="w-28">작성 상태</TableHead><TableHead className="w-24">공개 상태</TableHead><TableHead className="w-32 text-right">작업</TableHead></TableRow></TableHeader><TableBody>{selectedCourse.materials.map((material) => {
+                <div className="overflow-x-auto rounded-lg border"><Table className="min-w-[2000px]"><TableHeader className="sticky top-0 z-10 bg-background"><TableRow className="hover:bg-background"><TableHead className="w-12 text-center"><div className="flex justify-center"><Checkbox aria-label="촬영 일정 변경 가능한 항목 전체 선택" checked={allFilmingRowsSelected ? true : activeSelectedFilmingPositions.length ? "indeterminate" : false} disabled={savingMaterials || savingBulkFilmingDate || selectableFilmingPositions.length === 0} onCheckedChange={(checked) => setSelectedFilmingPositions(checked === true ? new Set(selectableFilmingPositions) : new Set())} /></div></TableHead><TableHead className="w-16 text-center">번호</TableHead><TableHead className="w-32 text-center">기획번호</TableHead><TableHead className="min-w-64">제목</TableHead><TableHead className="w-24 text-center">기획 완료</TableHead><TableHead className="w-24 text-center">촬영 완료</TableHead><TableHead className="w-40">촬영 일정</TableHead><TableHead className="w-24 text-center">편집 완료</TableHead><TableHead className="w-24 text-center">업로드 완료</TableHead><TableHead className="w-28 text-center">업로드</TableHead><TableHead className="w-40">업로드 일정</TableHead><TableHead className="w-28 text-center">링크</TableHead><TableHead className="w-28 text-center">DM 자료</TableHead><TableHead className="w-28">작성 상태</TableHead><TableHead className="w-24">공개 상태</TableHead><TableHead className="w-32 text-right">작업</TableHead></TableRow></TableHeader><TableBody>{selectedCourse.materials.map((material) => {
                   const document = material.documentId ? selectedDocumentsById.get(material.documentId) : undefined;
                   const displayedDmMaterial = instagramDmMaterialValue(material.dmMaterial, document);
                   const dmMaterialHref = instagramDmMaterialHref(displayedDmMaterial);
                   return <TableRow key={material.position}>
+                    <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 촬영 일정 변경 선택`} checked={selectedFilmingPositions.has(material.position)} disabled={savingMaterials || savingBulkFilmingDate || material.uploadCompleted} onCheckedChange={(checked) => toggleFilmingSelection(material.position, checked === true)} /></div></TableCell>
                     <TableCell className="text-center font-mono text-sm text-muted-foreground">{String(material.position).padStart(2, "0")}</TableCell>
                     <TableCell><Input className="mx-auto w-20 text-center font-mono" aria-label={`${material.position}번 기획번호`} value={material.referencePlanningNumber} inputMode="numeric" maxLength={2} placeholder="00" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { referencePlanningNumber: event.target.value.replace(/\D/g, "").slice(0, 2) })} /></TableCell>
                     <TableCell><Input aria-label={`${material.position}번 자료 제목`} value={material.title} maxLength={200} placeholder="강사가 작성할 글의 제목" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { title: event.target.value })} /></TableCell>
                     <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 기획 완료`} checked={material.planningCompleted} disabled={savingMaterials || material.uploadCompleted} onCheckedChange={(checked) => updateProgress(material.position, "planning", checked === true)} /></div></TableCell>
                     <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 촬영 완료`} checked={material.filmingCompleted} disabled={savingMaterials || material.uploadCompleted} onCheckedChange={(checked) => updateProgress(material.position, "filming", checked === true)} /></div></TableCell>
-                    <TableCell><Input type="date" aria-label={`${material.position}번 촬영 일정`} value={material.filmingDate} disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { filmingDate: event.target.value })} /></TableCell>
+                    <TableCell><Input type="date" aria-label={`${material.position}번 촬영 일정`} value={material.filmingDate} disabled={savingMaterials || savingBulkFilmingDate} onChange={(event) => updateMaterial(material.position, { filmingDate: event.target.value })} /></TableCell>
                     <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 편집 완료`} checked={material.editingCompleted} disabled={savingMaterials || material.uploadCompleted} onCheckedChange={(checked) => updateProgress(material.position, "editing", checked === true)} /></div></TableCell>
                     <TableCell><div className="flex justify-center"><button type="button" className="rounded p-2" aria-label={`${material.position}번 업로드 완료 상태. 자동으로 관리됩니다.`} onClick={() => notify("업로드 완료는 콘텐츠 링크와 DM 자료 링크가 모두 저장되면 자동으로 체크됩니다.")}><Checkbox checked={material.uploadCompleted} tabIndex={-1} aria-hidden="true" className="pointer-events-none" /></button></div></TableCell>
                     <TableCell><div className="flex justify-center"><Button type="button" size="sm" variant="outline" disabled={savingMaterials || savingUpload} onClick={() => openUploadDialog(material)}><Upload />업로드</Button></div></TableCell>
@@ -553,6 +617,29 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
               </div> : <Card><CardContent className="flex min-h-80 items-center justify-center text-muted-foreground">강의를 찾을 수 없습니다.</CardContent></Card>}
         </>
       )}
+      <Dialog open={bulkFilmingDateDialogOpen} onOpenChange={(open) => { if (!savingBulkFilmingDate) setBulkFilmingDateDialogOpen(open); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>촬영 일정 일괄 변경</DialogTitle>
+            <DialogDescription className="sr-only">선택한 인스타그램 콘텐츠의 촬영 일정을 한 번에 변경합니다.</DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); void saveBulkFilmingDate(bulkFilmingDate); }}>
+            <div className="space-y-2">
+              <Label htmlFor="instagram-bulk-filming-date">촬영 일정</Label>
+              <Input id="instagram-bulk-filming-date" type="date" value={bulkFilmingDate} disabled={savingBulkFilmingDate} onChange={(event) => setBulkFilmingDate(event.target.value)} />
+              <p className="text-sm text-muted-foreground">선택한 {activeSelectedFilmingPositions.length}개 항목에 같은 날짜를 저장합니다. 촬영 완료 상태는 변경하지 않습니다.</p>
+            </div>
+            {selectedCompletedFilmingCount ? <Alert><AlertTriangle /><AlertDescription>선택 항목 중 촬영 완료 {selectedCompletedFilmingCount}건도 일정만 변경됩니다.</AlertDescription></Alert> : null}
+            <DialogFooter className="sm:justify-between">
+              <Button type="button" variant="destructive" disabled={savingBulkFilmingDate} onClick={() => void saveBulkFilmingDate("")}>일정 비우기</Button>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" disabled={savingBulkFilmingDate} onClick={() => setBulkFilmingDateDialogOpen(false)}>취소</Button>
+                <Button type="submit" disabled={savingBulkFilmingDate || !bulkFilmingDate}>{savingBulkFilmingDate ? <Loader2 className="animate-spin" /> : <Save />}{savingBulkFilmingDate ? "저장 중" : "변경 저장"}</Button>
+              </div>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <Dialog open={bulkTitleDialogOpen} onOpenChange={(open) => { if (!savingBulkTitles) setBulkTitleDialogOpen(open); }}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>

@@ -68,6 +68,13 @@ const requestSchema = z.discriminatedUnion("action", [
     titles: z.array(courseDocumentMaterialTitleSchema).min(1).max(COURSE_DOCUMENT_MATERIAL_LIMIT),
   }),
   z.object({
+    action: z.literal("bulk-update-filming-date"),
+    courseId: z.uuid(),
+    positions: z.array(courseDocumentMaterialPositionSchema).min(1).max(COURSE_DOCUMENT_MATERIAL_LIMIT)
+      .refine((positions) => new Set(positions).size === positions.length, "중복된 인스타 자료 번호가 있습니다."),
+    filmingDate: courseDocumentMaterialDateSchema,
+  }),
+  z.object({
     action: z.literal("save-upload-links"),
     courseId: z.uuid(),
     position: courseDocumentMaterialPositionSchema,
@@ -371,6 +378,42 @@ export async function POST(request: Request) {
       if (error?.code === "PGRST116") throw new Error("NOT_FOUND");
       if (error) throw new Error(`인스타 업로드 링크 저장 실패: ${error.code}`);
       return Response.json({ material: toMaterial(data) });
+    }
+
+    if (input.action === "bulk-update-filming-date") {
+      const { data: course } = await admin
+        .from("courses")
+        .select("id")
+        .eq("id", input.courseId)
+        .eq("workspace_id", membership.workspace_id)
+        .maybeSingle();
+      if (!course) throw new Error("NOT_FOUND");
+
+      const { data: targetMaterials, error: targetError } = await admin
+        .from("course_instagram_materials")
+        .select("position,upload_completed")
+        .eq("course_id", course.id)
+        .in("position", input.positions);
+      if (targetError) throw new Error(`인스타 자료 확인 실패: ${targetError.code}`);
+      if ((targetMaterials ?? []).length !== input.positions.length) throw new Error("선택한 인스타 자료를 찾을 수 없습니다.");
+      if ((targetMaterials ?? []).some((material) => material.upload_completed)) {
+        throw new Error("업로드 완료 항목의 촬영 일정은 일괄 변경할 수 없습니다.");
+      }
+
+      const { data, error } = await admin
+        .from("course_instagram_materials")
+        .update({
+          filming_date: input.filmingDate || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("course_id", course.id)
+        .eq("upload_completed", false)
+        .in("position", input.positions)
+        .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material")
+        .order("position");
+      if (error) throw new Error(`촬영 일정 일괄 저장 실패: ${error.code}`);
+      if ((data ?? []).length !== input.positions.length) throw new Error("변경된 촬영 일정을 모두 확인하지 못했습니다.");
+      return Response.json({ materials: (data ?? []).map(toMaterial) });
     }
 
     if (input.action === "save-materials") {

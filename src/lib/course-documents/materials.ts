@@ -78,6 +78,22 @@ export function parseInstagramBulkTitles(value: string) {
   return lines.map((line) => line.trim());
 }
 
+export function instagramBulkFilmingSelectablePositions(
+  materials: Pick<CourseDocumentMaterial, "position" | "uploadCompleted">[],
+) {
+  return materials.filter((material) => !material.uploadCompleted).map((material) => material.position);
+}
+
+export function mergeInstagramFilmingDates(
+  materials: CourseDocumentMaterial[],
+  updates: Pick<CourseDocumentMaterial, "position" | "filmingDate">[],
+) {
+  const filmingDateByPosition = new Map(updates.map((material) => [material.position, material.filmingDate]));
+  return materials.map((material) => filmingDateByPosition.has(material.position)
+    ? { ...material, filmingDate: filmingDateByPosition.get(material.position)! }
+    : material);
+}
+
 export function courseDocumentMaterials(
   saved: Array<{
     position: number;
