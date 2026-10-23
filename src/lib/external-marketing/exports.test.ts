@@ -53,8 +53,14 @@ test("외부 공개 보고서를 숫자 형식의 엑셀로 만든다", async ()
   const workbook = await buildExternalMarketingXlsx(project, dashboard);
   const [sheet] = await readXlsxFile(workbook);
   assert.equal(sheet.data[0][0], project.courseName);
+  assert.equal(sheet.data[2][6], "랜딩접수DB");
+  assert.equal(sheet.data[2][7], "단톡방 입장");
+  assert.equal(sheet.data[3][0], "전체");
   assert.equal(sheet.data[3][1], 1_000);
   assert.equal(sheet.data[3][5], 200_000);
+  assert.equal(sheet.data[3][6], 20);
+  assert.equal(sheet.data[3][7], 30);
+  assert.equal(sheet.data[4][0], "2026-10-20");
 });
 
 test("외부 공개 보고서를 A4 가로 PDF로 만든다", async () => {
