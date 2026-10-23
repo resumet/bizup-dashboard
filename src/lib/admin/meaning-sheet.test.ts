@@ -203,6 +203,25 @@ test("신청 목록에서 오늘 신청분을 제외한 전체 행을 누적 비
   assert.equal(result.bizupDbCumulativeCount, 2);
 });
 
+test("외부광고 신청 목록은 자체광고와 지정 매체 조합만 유료 랜딩 접수로 집계한다", () => {
+  const result = parseMeaningTrackingApplyList([
+    ["신청일", "유입경로", "진행매체"],
+    ["26.10.06", "자체광고", "메타광고"],
+    ["26.10.06", "자체광고", "구글"],
+    ["26.10.06", "자체광고", "메타"],
+    ["26.10.06", "그로스임팩트", "메타광고"],
+    ["26.10.06", "다른경로", "구글"],
+  ], "2026-10-07", {
+    channel: "자체광고",
+    metaMedia: "메타광고",
+    googleMedia: "구글",
+  });
+
+  assert.equal(result.matchedRowCount, 2);
+  assert.equal(result.dailyByDate["10-06"].metaLandingDb, 1);
+  assert.equal(result.dailyByDate["10-06"].googleLandingDb, 1);
+});
+
 test("Google 시트의 월일 표기를 엑셀 날짜 키와 연결한다", () => {
   assert.equal(meaningSheetDateKey("9월30일"), "09-30");
   assert.equal(meaningSheetDateKey("2026.10.1"), "10-01");

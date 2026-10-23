@@ -93,7 +93,10 @@ export async function POST(request: Request, { params }: Context) {
       context.startDate,
     );
     if (!current) throw new Error("원본 시트를 먼저 연결해 주세요.");
-    const tracking = await parseAdPerformanceTrackingFile(file);
+    const tracking = await parseAdPerformanceTrackingFile(
+      file,
+      context.serviceScope,
+    );
     const next = applyTrackingToSheet({
       ...current,
       trackingFileName: file.name.replace(/[\\/]/gu, "").slice(0, 255),

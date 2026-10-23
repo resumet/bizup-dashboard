@@ -167,11 +167,27 @@ function applyListHeaderColumns(row: readonly unknown[]) {
   return { date, channel, media };
 }
 
+export type MeaningTrackingPaidLandingRules = {
+  channel: string;
+  metaMedia: string;
+  googleMedia: string;
+};
+
+const DEFAULT_PAID_LANDING_RULES: MeaningTrackingPaidLandingRules = {
+  channel: "그로스임팩트",
+  metaMedia: "메타",
+  googleMedia: "구글",
+};
+
 export function parseMeaningTrackingApplyList(
   rows: readonly (readonly unknown[])[],
   todayDate = currentSeoulDate(),
+  paidLandingRules: MeaningTrackingPaidLandingRules = DEFAULT_PAID_LANDING_RULES,
 ): MeaningTrackingImport {
   const paidLandingDate = previousIsoDate(todayDate);
+  const paidLandingChannel = normalizedText(paidLandingRules.channel);
+  const metaLandingMedia = normalizedText(paidLandingRules.metaMedia);
+  const googleLandingMedia = normalizedText(paidLandingRules.googleMedia);
   const dailyByDate: Record<string, MeaningTrackingDailyValues> = {};
   const youtubeChannels: string[] = [];
   const knownYoutubeChannels = new Set<string>();
@@ -202,12 +218,12 @@ export function parseMeaningTrackingApplyList(
     if (date.fullDate < todayDate) {
       daily ??= dailyByDate[dailyKey] = emptyDailyValues(date.fullDate);
       daily.landingDbImported = true;
-      if (normalizedChannel === "그로스임팩트" && media === "메타") {
+      if (normalizedChannel === paidLandingChannel && media === metaLandingMedia) {
         daily.metaLandingDb += 1;
         matchedRowCount += 1;
         continue;
       }
-      if (normalizedChannel === "그로스임팩트" && media === "구글") {
+      if (normalizedChannel === paidLandingChannel && media === googleLandingMedia) {
         daily.googleLandingDb += 1;
         matchedRowCount += 1;
         continue;

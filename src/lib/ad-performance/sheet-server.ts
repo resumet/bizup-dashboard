@@ -49,7 +49,14 @@ export type AdPerformanceDashboardContext = {
   dashboardId: string;
   workspaceId: string;
   startDate: string;
+  serviceScope: "bizup" | "external_marketing";
 };
+
+const EXTERNAL_MARKETING_PAID_LANDING_RULES = {
+  channel: "자체광고",
+  metaMedia: "메타광고",
+  googleMedia: "구글",
+} as const;
 
 export type GoogleWorkbookSheet = {
   name: string;
@@ -158,7 +165,7 @@ export async function authorizeAdPerformanceDashboard(
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("ad_performance_dashboards")
-    .select("id,workspace_id,start_date")
+    .select("id,workspace_id,start_date,service_scope")
     .eq("workspace_id", workspaceId)
     .eq("id", dashboardId)
     .maybeSingle();
@@ -168,6 +175,9 @@ export async function authorizeAdPerformanceDashboard(
     dashboardId: data.id as string,
     workspaceId: data.workspace_id as string,
     startDate: data.start_date as string,
+    serviceScope: data.service_scope === "external_marketing"
+      ? "external_marketing"
+      : "bizup",
   };
 }
 
@@ -361,7 +371,10 @@ export async function loadGoogleWorkbook(
   };
 }
 
-export async function parseAdPerformanceTrackingFile(file: File) {
+export async function parseAdPerformanceTrackingFile(
+  file: File,
+  serviceScope: AdPerformanceDashboardContext["serviceScope"] = "bizup",
+) {
   const format = trackingFileFormat(file.name);
   if (!format) throw new Error(".xlsx 또는 .csv 파일만 추가할 수 있습니다.");
   if (file.size <= 0 || file.size > AD_PERFORMANCE_MAX_TRACKING_BYTES) {
@@ -370,11 +383,21 @@ export async function parseAdPerformanceTrackingFile(file: File) {
   return parseAdPerformanceTrackingBuffer(
     Buffer.from(await file.arrayBuffer()),
     format,
+    serviceScope,
   );
 }
 
-function parseTrackingRows(rows: readonly (readonly unknown[])[]) {
-  const applyList = parseMeaningTrackingApplyList(rows);
+function parseTrackingRows(
+  rows: readonly (readonly unknown[])[],
+  serviceScope: AdPerformanceDashboardContext["serviceScope"],
+) {
+  const applyList = serviceScope === "external_marketing"
+    ? parseMeaningTrackingApplyList(
+      rows,
+      undefined,
+      EXTERNAL_MARKETING_PAID_LANDING_RULES,
+    )
+    : parseMeaningTrackingApplyList(rows);
   if ((Object.keys(applyList.dailyByDate).length && applyList.matchedRowCount)
     || Object.keys(applyList.applicationCountsByDate ?? {}).length) {
     return applyList;
@@ -389,6 +412,7 @@ function parseTrackingRows(rows: readonly (readonly unknown[])[]) {
 async function parseAdPerformanceTrackingBuffer(
   buffer: Buffer,
   format: TrackingFileFormat,
+  serviceScope: AdPerformanceDashboardContext["serviceScope"] = "bizup",
 ) {
   if (format === "csv") {
     const rows = parseCsv(buffer.toString("utf8"), {
@@ -396,7 +420,7 @@ async function parseAdPerformanceTrackingBuffer(
       relax_column_count: true,
       skip_empty_lines: true,
     }) as string[][];
-    const parsed = parseTrackingRows(rows);
+    const parsed = parseTrackingRows(rows, serviceScope);
     if (parsed) return parsed;
   } else {
     const workbook = await readXlsxFile(buffer);
@@ -405,7 +429,7 @@ async function parseAdPerformanceTrackingBuffer(
       ...workbook.filter((sheet) => sheet.sheet !== MEANING_TRACKING_SHEET_NAME),
     ];
     for (const sheet of orderedSheets) {
-      const parsed = parseTrackingRows(sheet.data);
+      const parsed = parseTrackingRows(sheet.data, serviceScope);
       if (parsed) return parsed;
     }
   }
@@ -427,6 +451,7 @@ export async function refreshAdPerformanceTrackingImport(
     ...(await parseAdPerformanceTrackingBuffer(
       Buffer.from(await file.arrayBuffer()),
       trackingFileFormat(path) ?? "xlsx",
+      context.serviceScope,
     )),
     sourceStoragePath: path,
   };

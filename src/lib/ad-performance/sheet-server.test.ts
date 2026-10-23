@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   loadGoogleWorkbook,
+  parseAdPerformanceTrackingFile,
   parsePublicGoogleSheetNames,
 } from "./sheet-server";
 
@@ -51,4 +52,24 @@ test("XLSX 내보내기가 401이면 공개 HTML과 GViz CSV로 모든 탭을 �
   assert.equal(workbook.sheets[0]?.rows[2]?.[1], "1,000");
   assert.equal(workbook.sheets[1]?.rows[1]?.[1], "500");
   assert.equal(requestedUrls.length, 4);
+});
+
+test("외부마케팅 업로드는 자체광고의 메타광고와 구글을 분리 집계한다", async () => {
+  const file = new File([
+    [
+      "신청일,유입경로,진행매체",
+      "26.10.06,자체광고,메타광고",
+      "26.10.06,자체광고,구글",
+      "26.10.06,그로스임팩트,메타",
+    ].join("\n"),
+  ], "external-landing.csv", { type: "text/csv" });
+
+  const result = await parseAdPerformanceTrackingFile(
+    file,
+    "external_marketing",
+  );
+
+  assert.equal(result.matchedRowCount, 2);
+  assert.equal(result.dailyByDate["10-06"].metaLandingDb, 1);
+  assert.equal(result.dailyByDate["10-06"].googleLandingDb, 1);
 });
