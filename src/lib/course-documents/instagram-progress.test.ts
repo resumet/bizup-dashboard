@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { countWeekdaysInclusive, instagramProgressSummary, webinarDeadlineDateKey } from "./instagram-progress";
+import { countWeekdaysInclusive, instagramProgressSummary, progressPercentage, webinarDeadlineDateKey } from "./instagram-progress";
 import type { CourseDocumentMaterial } from "./types";
 
 function material(position: number, progress: Partial<CourseDocumentMaterial> = {}): CourseDocumentMaterial {
@@ -46,10 +46,29 @@ test("남은 업로드 건수가 남은 평일보다 많으면 위험 상태를 
     remainingUploadCount: 2,
     deadlineDateKey: "2026-10-26",
     remainingWeekdays: 2,
+    requiredUploadCount: 1,
+    uploadShortfallCount: 0,
     isAtRisk: false,
   });
 
   assert.equal(instagramProgressSummary([
     material(1), material(2), material(3),
   ], "2026-10-27T01:00:00.000Z", "2026-10-23").isAtRisk, true);
+});
+
+test("오늘부터 마감일까지 평일당 한 건을 올릴 수 있도록 최소 업로드 목표와 부족분을 계산한다", () => {
+  const summary = instagramProgressSummary([
+    material(1, { uploadCompleted: true }),
+    material(2), material(3), material(4), material(5),
+  ], "2026-10-27T01:00:00.000Z", "2026-10-23");
+
+  assert.equal(summary.requiredUploadCount, 3);
+  assert.equal(summary.uploadShortfallCount, 2);
+  assert.equal(summary.isAtRisk, true);
+});
+
+test("진행률은 소수점 없이 가장 가까운 정수로 반올림한다", () => {
+  assert.equal(progressPercentage(1, 3), 33);
+  assert.equal(progressPercentage(2, 3), 67);
+  assert.equal(progressPercentage(0, 0), 0);
 });

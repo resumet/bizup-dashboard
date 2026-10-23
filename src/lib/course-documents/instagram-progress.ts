@@ -60,6 +60,12 @@ export function instagramProgressSummary(
   const remainingWeekdays = deadlineDateKey
     ? countWeekdaysInclusive(todayDateKey, deadlineDateKey)
     : null;
+  const requiredUploadCount = remainingWeekdays === null
+    ? null
+    : Math.min(Math.max(totalCount - remainingWeekdays, 0), totalCount);
+  const uploadShortfallCount = requiredUploadCount === null
+    ? null
+    : Math.max(requiredUploadCount - uploadCompletedCount, 0);
   return {
     totalCount,
     planningCompletedCount,
@@ -68,11 +74,13 @@ export function instagramProgressSummary(
     remainingUploadCount,
     deadlineDateKey,
     remainingWeekdays,
-    isAtRisk: remainingWeekdays !== null && remainingUploadCount > remainingWeekdays,
+    requiredUploadCount,
+    uploadShortfallCount,
+    isAtRisk: uploadShortfallCount !== null && uploadShortfallCount > 0,
   };
 }
 
 export function progressPercentage(completed: number, total: number) {
   if (!total) return 0;
-  return Math.round((completed / total) * 1000) / 10;
+  return Math.round((completed / total) * 100);
 }
