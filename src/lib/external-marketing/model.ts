@@ -38,6 +38,11 @@ export const externalMarketingSettingsSchema = externalMarketingInfoSchema.exten
   publicEnabled: z.boolean(),
 });
 
+export const externalMarketingPatchSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("public"), enabled: z.boolean() }).strict(),
+  z.object({ kind: z.literal("advertising_started"), started: z.boolean() }).strict(),
+]);
+
 export const externalMarketingPublicInfoSchema = externalMarketingInfoSchema.extend({
   webinarDate: externalMarketingInfoSchema.shape.webinarDate.removeDefault(),
 }).strict();
@@ -57,6 +62,7 @@ export type ExternalMarketingProject = ExternalMarketingInfo & {
   workspaceId: string;
   publicToken: string;
   publicEnabled: boolean;
+  advertisingStarted: boolean;
   updatedAt: string;
   createdAt: string;
 };

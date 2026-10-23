@@ -37,8 +37,8 @@ export function formatExternalMarketingWebinarDate(value: string, includeYear = 
   return (includeYear ? webinarFullDateFormatter : webinarMonthDayFormatter).format(date);
 }
 
-export function formatExternalMarketingProjectTitle(title: string, webinarDate: string) {
-  return `(${formatExternalMarketingWebinarDate(webinarDate, false)}) ${title}`;
+export function formatExternalMarketingProjectTitle(title: string, webinarDate: string, advertisingStarted: boolean) {
+  return `${advertisingStarted ? "🏃" : "🛑"} (${formatExternalMarketingWebinarDate(webinarDate, false)}) ${title}`;
 }
 
 export function externalMarketingWbs(webinarDate: string, today: string) {

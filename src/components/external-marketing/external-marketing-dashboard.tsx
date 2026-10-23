@@ -116,6 +116,28 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard,
     setProject((current) => ({ ...current, publicEnabled: result.publicEnabled }));
   }
 
+  async function changeAdvertisingStarted(advertisingStarted: boolean) {
+    setSaving(true);
+    setNotice("");
+    setError("");
+    try {
+      const response = await fetch(`/api/external-marketing/${project.dashboardId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "advertising_started", started: advertisingStarted }),
+      });
+      const result = await response.json() as { advertisingStarted?: boolean; message?: string };
+      if (!response.ok || typeof result.advertisingStarted !== "boolean") throw new Error(result.message || "광고 시작 여부를 저장하지 못했습니다.");
+      const savedAdvertisingStarted = result.advertisingStarted;
+      setProject((current) => ({ ...current, advertisingStarted: savedAdvertisingStarted }));
+      setNotice(savedAdvertisingStarted ? "광고 시작 상태로 변경했습니다." : "광고 시작 전 상태로 변경했습니다.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "광고 시작 여부를 저장하지 못했습니다.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return <main className="min-h-screen"><div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
     <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
       <div className="flex min-w-0 items-center gap-2"><Button variant="ghost" size="icon-sm" asChild><BackLink href="/services/external-marketing"><ArrowLeft />돌아가기</BackLink></Button><h1 className="truncate text-3xl font-semibold tracking-tight">{project.courseName || "강의명 미입력"}</h1></div>
@@ -124,6 +146,7 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard,
     {error ? <Alert variant="destructive" className="mt-6"><AlertTitle>처리하지 못했습니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
 
     <Card className="mt-6"><CardContent className="grid gap-4 pt-6 sm:grid-cols-3 xl:grid-cols-6">
+      <label className="grid cursor-pointer gap-2"><span className="text-xs text-muted-foreground">광고 시작 여부</span><span className="flex items-center gap-2 font-medium"><Checkbox checked={project.advertisingStarted} disabled={saving} onCheckedChange={(checked) => void changeAdvertisingStarted(checked === true)} />{project.advertisingStarted ? "광고 시작됨" : "광고 시작 전"}</span></label>
       <div><p className="text-xs text-muted-foreground">웨비나 날짜</p><p className="mt-1 font-medium tabular-nums">{project.webinarDate || "미입력"}</p></div>
       <div><p className="text-xs text-muted-foreground">강사명</p><p className="mt-1 font-medium">{project.instructorName || "미입력"}</p></div>
       <div><p className="text-xs text-muted-foreground">관계사</p><p className="mt-1 font-medium">{project.affiliateName || "미입력"}</p></div>

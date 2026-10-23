@@ -5,7 +5,7 @@ import {
   requireCourseOperationsMembership,
   requireCourseOperationsUser,
 } from "@/lib/course-operations/server";
-import { externalMarketingSettingsSchema } from "@/lib/external-marketing/model";
+import { externalMarketingPatchSchema, externalMarketingSettingsSchema } from "@/lib/external-marketing/model";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -75,9 +75,18 @@ export async function PATCH(request: Request, { params }: Context) {
   try {
     const [{ dashboardId }, input] = await Promise.all([
       params,
-      request.json().then((body) => z.object({ kind: z.literal("public"), enabled: z.boolean() }).strict().parse(body)),
+      request.json().then((body) => externalMarketingPatchSchema.parse(body)),
     ]);
     const { user, admin, id } = await contextFor(dashboardId);
+    if (input.kind === "advertising_started") {
+      const { data, error } = await admin.from("external_marketing_projects")
+        .update({ advertising_started: input.started, updated_by: user.id, updated_at: new Date().toISOString() })
+        .eq("dashboard_id", id)
+        .select("advertising_started")
+        .single();
+      if (error) throw new Error(`광고 시작 여부 저장 실패: ${error.code}`);
+      return Response.json({ advertisingStarted: data.advertising_started });
+    }
     const { data, error } = await admin.from("external_marketing_projects")
       .update({ public_enabled: input.enabled, updated_by: user.id, updated_at: new Date().toISOString() })
       .eq("dashboard_id", id)

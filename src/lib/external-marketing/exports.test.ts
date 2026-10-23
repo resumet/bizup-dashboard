@@ -21,6 +21,7 @@ const project: ExternalMarketingProject = {
   creativeDriveUrl: "https://drive.google.com/example",
   publicToken: "b".repeat(48),
   publicEnabled: true,
+  advertisingStarted: true,
   updatedAt: "2026-10-22T00:00:00Z",
   createdAt: "2026-10-22T00:00:00Z",
 };

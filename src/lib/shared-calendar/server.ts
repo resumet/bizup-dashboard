@@ -178,7 +178,7 @@ export async function saveCalendarEvent(context: Awaited<ReturnType<typeof calen
   checkDatabase(typeError);
   if (!type) throw new CalendarError("회의 종류를 찾을 수 없습니다.");
   if (input.courseId) {
-    if (type.code !== "instructor_zoom") throw new CalendarError("강사 줌미팅에만 강의를 연결할 수 있습니다.");
+    if (type.code !== "instructor_zoom" && type.code !== "youtube_filming") throw new CalendarError("강사 줌미팅 또는 유튜브 촬영에만 강의를 연결할 수 있습니다.");
     const { data: course, error } = await supabase.from("courses").select("id").eq("workspace_id", workspaceId).eq("id", input.courseId).maybeSingle();
     checkDatabase(error);
     if (!course) throw new CalendarError("연결할 강의를 찾을 수 없습니다.");

@@ -133,7 +133,7 @@ export function CalendarEventForm({ event, date, types, courses, initialCourseId
           </div>
           <p className="text-xs text-muted-foreground">한국시간 · 시작 08:00~21:00 · 소요 30분~24시간, 30분 단위<br />{formatCalendarTime({ start_minutes: draft.startMinutes, duration_minutes: draft.durationMinutes, time_tbd: draft.timeTbd })}</p>
           <LocationFields kind={draft.locationKind} text={draft.locationText} onChange={(locationKind, locationText) => setDraft({ ...draft, locationKind, locationText })} />
-          {selectedType?.code === "instructor_zoom" ? <label className="grid gap-2">연결 강의<select aria-label="연결 강의" className={selectClass} value={draft.courseId ?? ""} onChange={(e) => setDraft({ ...draft, courseId: e.target.value || null })}>
+          {selectedType?.code === "instructor_zoom" || selectedType?.code === "youtube_filming" ? <label className="grid gap-2">연결 강의<select aria-label="연결 강의" className={selectClass} value={draft.courseId ?? ""} onChange={(e) => setDraft({ ...draft, courseId: e.target.value || null })}>
             <option value="">연결 안 함</option>
             {selectedCourse && !isSelectableCourse(selectedCourse) ? <option value={selectedCourse.id} hidden disabled>{selectedCourse.name} · {selectedCourse.instructor_name}</option> : null}
             {courses.filter(isSelectableCourse).map((course) => <option key={course.id} value={course.id}>{course.name} · {course.instructor_name}{course.cohort ? ` · ${course.cohort}` : ""}</option>)}

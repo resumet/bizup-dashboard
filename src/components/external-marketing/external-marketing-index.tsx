@@ -110,7 +110,7 @@ export function ExternalMarketingIndex({ projects: initialProjects, today: initi
         <TableHead className="w-12 text-right"><span className="sr-only">옵션</span></TableHead>
       </TableRow></TableHeader><TableBody>{visible.map((project) => {
         const title = project.courseName || "강의명 미입력";
-        const displayTitle = formatExternalMarketingProjectTitle(title, project.webinarDate);
+        const displayTitle = formatExternalMarketingProjectTitle(title, project.webinarDate, project.advertisingStarted);
         const [advertising, creative] = externalMarketingWbs(project.webinarDate, today);
         const dbCount = project.paidLandingLeads + project.organicLandingLeads;
         return <TableRow key={project.dashboardId}>

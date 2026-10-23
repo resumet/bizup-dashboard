@@ -24,6 +24,7 @@ type ProjectRow = {
   creative_drive_url: string;
   public_token: string;
   public_enabled: boolean;
+  advertising_started: boolean;
   updated_at: string;
   created_at: string;
 };
@@ -45,12 +46,13 @@ function normalizeProject(row: ProjectRow): ExternalMarketingProject {
     workspaceId: row.workspace_id,
     publicToken: row.public_token,
     publicEnabled: row.public_enabled,
+    advertisingStarted: row.advertising_started,
     updatedAt: row.updated_at,
     createdAt: row.created_at,
   };
 }
 
-const projectColumns = "dashboard_id,workspace_id,course_name,instructor_name,affiliate_name,project_manager,cohort,webinar_date,landing_pages,creative_drive_url,public_token,public_enabled,created_at,updated_at";
+const projectColumns = "dashboard_id,workspace_id,course_name,instructor_name,affiliate_name,project_manager,cohort,webinar_date,landing_pages,creative_drive_url,public_token,public_enabled,advertising_started,created_at,updated_at";
 
 export async function loadExternalMarketingProjects(workspaceId: string) {
   const admin = createAdminClient();
