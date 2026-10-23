@@ -22,7 +22,15 @@ function sourceCell(value: string, column: number): Cell {
   return numberCell(parsed, [1, 10, 11].includes(column) ? WON_FORMAT : "#,##0");
 }
 
-export function adPerformanceExportRows(state: AdPerformanceSheetState, startDate: string): Row[] {
+type AdPerformanceExportOptions = {
+  cumulativeDbLabel?: string;
+};
+
+export function adPerformanceExportRows(
+  state: AdPerformanceSheetState,
+  startDate: string,
+  { cumulativeDbLabel = "누적비즈업 DB" }: AdPerformanceExportOptions = {},
+): Row[] {
   const channels = state.tracking?.organicChannels ?? [];
   const headers = buildAdPerformanceTableHeaders(state.sourceRows.slice(0, 2));
   const top: Row = [];
@@ -66,7 +74,7 @@ export function adPerformanceExportRows(state: AdPerformanceSheetState, startDat
   for (const label of ["랜딩DB당 단가", "광고DB-랜딩DB 단가차이"]) {
     addHeader(label, "#EDE9FE", ["구글광고", "메타광고"]);
   }
-  for (const label of ["누적비즈업 DB", "톡방누적 인원", "톡방입장 인원"]) {
+  for (const label of [cumulativeDbLabel, "톡방누적 인원", "톡방입장 인원"]) {
     addHeader(label, "#FFEDD5");
   }
   addHeader("랜딩접수 DB단가", "#E0E7FF");
@@ -83,9 +91,13 @@ export function adPerformanceExportRows(state: AdPerformanceSheetState, startDat
   return [top, bottom, totals, ...dataRows.map((row) => exportCells(adPerformanceTableRow(row, startDate, state).cells))];
 }
 
-export async function buildAdPerformanceXlsx(state: AdPerformanceSheetState, startDate: string) {
+export async function buildAdPerformanceXlsx(
+  state: AdPerformanceSheetState,
+  startDate: string,
+  options: AdPerformanceExportOptions = {},
+) {
   const { default: writeXlsxFile } = await import("write-excel-file/universal");
-  const rows = adPerformanceExportRows(state, startDate);
+  const rows = adPerformanceExportRows(state, startDate, options);
   return writeXlsxFile(rows, {
     sheet: "광고지표", stickyRowsCount: 2, stickyColumnsCount: 1,
     columns: rows[0].map((_, index) => ({ width: index === 0 ? 20 : 18 })),

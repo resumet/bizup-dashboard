@@ -10,10 +10,11 @@ import type { SheetUpdatePreview } from "@/lib/ad-performance/sheet-update";
 const PAGE_SIZE = 50;
 const display = (value: string | number | null) => value === null ? "—" : typeof value === "number" ? value.toLocaleString("ko-KR") : value;
 
-export function SheetUpdateDialog({ preview, busy, error, onConfirm, onCancel }: {
+export function SheetUpdateDialog({ preview, busy, error, cumulativeDbLabel = "누적비즈업 DB", onConfirm, onCancel }: {
   preview: SheetUpdatePreview;
   busy: boolean;
   error: string;
+  cumulativeDbLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -36,7 +37,7 @@ export function SheetUpdateDialog({ preview, busy, error, onConfirm, onCancel }:
         <Table className="w-full table-fixed text-xs sm:text-sm">
           <TableHeader><TableRow><TableHead className="w-[24%]">날짜</TableHead><TableHead className="w-[36%]">항목</TableHead><TableHead className="w-[20%] text-right">변경 전</TableHead><TableHead className="w-[20%] text-right">변경 후</TableHead></TableRow></TableHeader>
           <TableBody>{preview.changes.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((change, index) => <TableRow key={`${page}-${index}`}>
-            <TableCell className="whitespace-normal">{change.date}</TableCell><TableCell className="whitespace-normal break-words">{change.field}</TableCell>
+            <TableCell className="whitespace-normal">{change.date}</TableCell><TableCell className="whitespace-normal break-words">{change.field === "누적비즈업 DB" ? cumulativeDbLabel : change.field}</TableCell>
             <TableCell className="text-right whitespace-normal break-all tabular-nums">{display(change.before)}</TableCell><TableCell className="text-right font-semibold whitespace-normal break-all tabular-nums">{display(change.after)}</TableCell>
           </TableRow>)}</TableBody>
         </Table>

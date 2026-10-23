@@ -28,8 +28,12 @@ function fixture(): AdPerformanceSheetState {
   };
 }
 
-async function readExport(state: AdPerformanceSheetState) {
-  const blob = await buildAdPerformanceXlsx(state, "2026-10-01");
+async function readExport(state: AdPerformanceSheetState, cumulativeDbLabel?: string) {
+  const blob = await buildAdPerformanceXlsx(
+    state,
+    "2026-10-01",
+    cumulativeDbLabel ? { cumulativeDbLabel } : undefined,
+  );
   const buffer = Buffer.from(await blob.arrayBuffer());
   assert.equal(buffer.subarray(0, 2).toString(), "PK");
   const files = unzipSync(buffer);
@@ -57,6 +61,11 @@ test("표의 머리글·유입채널·수동 입력·계산값을 숫자 형식�
   assert.deepEqual(rows[3].slice(0, 16), ["10월 14일", 300000, 1000, 2000, 50, 100, 0.05, 0.05, 0.2, 0.2, 100000, 200000, 10000, 10000, 10, 20]);
   assert.deepEqual(rows[3].slice(16), [5, 10, 15, 3, 7, 10, 25, 20000, 20000, -10000, -10000, 125, 100, 10, 20000, 30000]);
   assert.deepEqual(state, snapshot);
+});
+
+test("외부마케팅용 엑셀에서는 누적고객사 DB 머리글을 사용한다", async () => {
+  const rows = await readExport(fixture(), "누적고객사 DB");
+  assert.equal(rows[0][27], "누적고객사 DB");
 });
 
 test("페이지 크기를 넘는 전체 행과 마지막 행을 내보낸다", async () => {

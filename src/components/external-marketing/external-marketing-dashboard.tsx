@@ -141,7 +141,15 @@ export function ExternalMarketingDashboard({ project: initialProject, dashboard,
       <TabsContent value="performance" forceMount hidden={activeTab !== "performance"}>
     <AdPerformanceSummaryCards metrics={dashboard.metrics} totalBudget={totalBudget} organicChannels={dashboard.organicChannels} />
     <AdPerformanceOutcomeCard metrics={dashboard.metrics} />
-    <AdPerformanceSheetWorkspace dashboardId={dashboard.id} dashboardStartDate={startDate} sheetState={dashboard.sheetState} toolbarContainer={sheetToolbarContainer} allowTrackingImport={false} />
+    <AdPerformanceSheetWorkspace
+      dashboardId={dashboard.id}
+      dashboardStartDate={startDate}
+      sheetState={dashboard.sheetState}
+      toolbarContainer={sheetToolbarContainer}
+      trackingImportLabel="랜딩엑셀 업로드"
+      trackingImportNoun="랜딩 엑셀"
+      cumulativeDbLabel="누적고객사 DB"
+    />
       </TabsContent>
     </Tabs>
   </div>

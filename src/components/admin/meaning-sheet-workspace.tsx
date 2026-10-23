@@ -14,7 +14,7 @@ import {
   Upload,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -71,6 +71,7 @@ import type { SheetUpdatePreview } from "@/lib/ad-performance/sheet-update";
 
 const HEADER_ROW_COUNT = 2;
 const PAGE_SIZE = 100;
+const TRACKING_FILE_EXTENSION = /\.(xlsx|csv)$/iu;
 
 type SelectedDate = {
   key: string;
@@ -125,12 +126,18 @@ export function MeaningSheetWorkspace({
   sheetState,
   toolbarContainer,
   allowTrackingImport = true,
+  trackingImportLabel = "유입엑셀추가",
+  trackingImportNoun = "유입 엑셀",
+  cumulativeDbLabel = "누적비즈업 DB",
 }: {
   dashboardId: string;
   dashboardStartDate: string;
   sheetState: AdPerformanceSheetState | null;
   toolbarContainer: HTMLElement | null;
   allowTrackingImport?: boolean;
+  trackingImportLabel?: string;
+  trackingImportNoun?: string;
+  cumulativeDbLabel?: string;
 }) {
   const router = useRouter();
   const [page, setPage] = useState(1);
@@ -142,6 +149,7 @@ export function MeaningSheetWorkspace({
     sheetState?.sheetName ?? "",
   );
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isTrackingFileDraggedOver, setIsTrackingFileDraggedOver] = useState(false);
   const [busyAction, setBusyAction] = useState<
     "preview" | "connect" | "refresh" | "upload" | "reset" | "manual" | "export" | null
   >(null);
@@ -154,6 +162,7 @@ export function MeaningSheetWorkspace({
   const [fullscreenError, setFullscreenError] = useState("");
   const [isTableFullscreen, setIsTableFullscreen] = useState(false);
   const tableFullscreenRef = useRef<HTMLDivElement>(null);
+  const trackingFileInputRef = useRef<HTMLInputElement>(null);
   const sheetVersionRef = useRef(sheetState?.version ?? 0);
   const exportInProgressRef = useRef(false);
   const updateInProgressRef = useRef(false);
@@ -177,6 +186,7 @@ export function MeaningSheetWorkspace({
   const visibleRows = dataRows.slice(start, start + PAGE_SIZE);
   const organicChannels = tracking?.organicChannels ?? [];
   const organicColumnCount = organicChannels.length + 1;
+  const cumulativeDbHeading = cumulativeDbLabel.replace(/\s*DB$/u, "");
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -341,6 +351,31 @@ export function MeaningSheetWorkspace({
     await requestSheetUpdate("upload", selectedFile);
   }
 
+  function selectTrackingFile(file: File | null) {
+    setIsTrackingFileDraggedOver(false);
+    if (!file) return;
+    if (!TRACKING_FILE_EXTENSION.test(file.name)) {
+      setSelectedFile(null);
+      setError(".xlsx 또는 .csv 파일만 업로드할 수 있습니다.");
+      if (trackingFileInputRef.current) trackingFileInputRef.current.value = "";
+      return;
+    }
+    setError("");
+    setSelectedFile(file);
+  }
+
+  function dropTrackingFile(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    if (busyAction !== null) return;
+    selectTrackingFile(event.dataTransfer.files[0] ?? null);
+  }
+
+  function openTrackingFilePicker() {
+    if (!trackingFileInputRef.current) return;
+    trackingFileInputRef.current.value = "";
+    trackingFileInputRef.current.click();
+  }
+
   async function requestSheetUpdate(action: "upload" | "refresh", file: File | null, confirmation?: SheetUpdatePreview) {
     if (updateInProgressRef.current || busyAction !== null) return;
     updateInProgressRef.current = true;
@@ -388,7 +423,7 @@ export function MeaningSheetWorkspace({
   }
 
   async function resetImport() {
-    if (!window.confirm("저장된 유입 엑셀 값을 초기화할까요?")) return;
+    if (!window.confirm(`저장된 ${trackingImportNoun} 값을 초기화할까요?`)) return;
     setBusyAction("reset");
     setError("");
     try {
@@ -398,15 +433,15 @@ export function MeaningSheetWorkspace({
       );
       if (!response.ok) {
         throw new Error(
-          await errorFromResponse(response, "유입 엑셀을 초기화하지 못했습니다."),
+          await errorFromResponse(response, `${trackingImportNoun}을 초기화하지 못했습니다.`),
         );
       }
       setTrackingDialogOpen(false);
       setSelectedFile(null);
-      refreshAfterSave("유입 엑셀을 초기화했습니다.");
+      refreshAfterSave(`${trackingImportNoun}을 초기화했습니다.`);
     } catch (caught) {
       setError(
-        caught instanceof Error ? caught.message : "유입 엑셀을 초기화하지 못했습니다.",
+        caught instanceof Error ? caught.message : `${trackingImportNoun}을 초기화하지 못했습니다.`,
       );
     } finally {
       setBusyAction(null);
@@ -421,7 +456,7 @@ export function MeaningSheetWorkspace({
     setNotice("");
     try {
       const { buildAdPerformanceXlsx, adPerformanceExportFileName } = await import("@/lib/ad-performance/export-xlsx");
-      const blob = await buildAdPerformanceXlsx(sheetState, dashboardStartDate);
+      const blob = await buildAdPerformanceXlsx(sheetState, dashboardStartDate, { cumulativeDbLabel });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -533,11 +568,13 @@ export function MeaningSheetWorkspace({
         disabled={!sheetState || busyAction !== null}
         onClick={() => {
           setSelectedFile(null);
+          setIsTrackingFileDraggedOver(false);
+          if (trackingFileInputRef.current) trackingFileInputRef.current.value = "";
           setError("");
           setTrackingDialogOpen(true);
         }}
       >
-        <Upload />유입엑셀추가
+        <Upload />{trackingImportLabel}
       </Button> : null}
       <Button
         type="button"
@@ -573,6 +610,7 @@ export function MeaningSheetWorkspace({
         preview={pendingUpdate.preview}
         busy={busyAction !== null}
         error={error}
+        cumulativeDbLabel={cumulativeDbLabel}
         onCancel={() => { setPendingUpdate(null); setError(""); }}
         onConfirm={() => void requestSheetUpdate(pendingUpdate.action, pendingUpdate.file, pendingUpdate.preview)}
       /> : null}
@@ -701,7 +739,7 @@ export function MeaningSheetWorkspace({
                   rowSpan={HEADER_ROW_COUNT}
                   className="sticky top-0 z-20 min-w-16 whitespace-normal border-r border-b bg-orange-100 text-center text-[9px] leading-tight font-semibold text-orange-900 dark:bg-orange-950 dark:text-orange-200"
                 >
-                  누적비즈업
+                  {cumulativeDbHeading}
                   <br />
                   DB
                 </TableHead>
@@ -967,22 +1005,66 @@ export function MeaningSheetWorkspace({
         <DialogContent className="sm:max-w-md">
           <form className="grid gap-5" onSubmit={uploadTracking}>
             <DialogHeader>
-              <DialogTitle>유입엑셀추가</DialogTitle>
+              <DialogTitle>{trackingImportLabel}</DialogTitle>
               <DialogDescription className="sr-only">
                 신청일, 유입경로, 진행매체 열이 있는 엑셀 또는 CSV 파일을 추가합니다.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-2">
               <Label htmlFor="ad-tracking-file">엑셀 또는 CSV 파일</Label>
-              <Input
+              <input
+                ref={trackingFileInputRef}
                 id="ad-tracking-file"
                 type="file"
+                className="sr-only"
                 accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
                 disabled={busyAction !== null}
-                onChange={(event) =>
-                  setSelectedFile(event.currentTarget.files?.[0] ?? null)
-                }
+                onChange={(event) => selectTrackingFile(event.currentTarget.files?.[0] ?? null)}
               />
+              <div
+                onDragEnter={(event) => {
+                  event.preventDefault();
+                  if (busyAction === null) setIsTrackingFileDraggedOver(true);
+                }}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "copy";
+                  if (busyAction === null) setIsTrackingFileDraggedOver(true);
+                }}
+                onDragLeave={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                    setIsTrackingFileDraggedOver(false);
+                  }
+                }}
+                onDrop={dropTrackingFile}
+                className={cn(
+                  "grid min-h-44 place-items-center rounded-xl border-2 border-dashed p-6 text-center transition-colors",
+                  isTrackingFileDraggedOver
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-muted/20",
+                  busyAction !== null && "pointer-events-none opacity-60",
+                )}
+              >
+                <div className="grid justify-items-center gap-3">
+                  <span className="grid size-11 place-items-center rounded-full bg-background shadow-sm ring-1 ring-border">
+                    <Upload className="size-5 text-muted-foreground" />
+                  </span>
+                  <div className="space-y-1">
+                    <p className="max-w-72 break-all text-sm font-medium">
+                      {selectedFile?.name ?? "파일을 여기에 끌어다 놓으세요"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">.xlsx 또는 .csv</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={busyAction !== null}
+                    onClick={openTrackingFilePicker}
+                  >
+                    {selectedFile ? "다른 파일 선택" : "파일 선택"}
+                  </Button>
+                </div>
+              </div>
             </div>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             <DialogFooter className="sm:justify-between">
