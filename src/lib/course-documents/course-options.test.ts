@@ -14,6 +14,8 @@ function course(overrides: Partial<CourseDocumentCourse> = {}): CourseDocumentCo
     externalEditEnabled: false,
     externalAccessToken: "",
     planningSheetUrl: "",
+    instagramAccountUrl: "",
+    instagramTotalCount: 0,
     materials: [],
     documents: [],
     ...overrides,

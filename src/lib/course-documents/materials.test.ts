@@ -9,27 +9,47 @@ import {
   courseDocumentMaterials,
 } from "./materials";
 
-test("강의별 인스타 자료 슬롯을 1번부터 40번까지 만든다", () => {
+test("강의별 인스타 자료 슬롯을 설정한 전체 진행 건수만큼 만든다", () => {
   const materials = courseDocumentMaterials([
     { position: 2, title: "두 번째 자료", referencePlanningNumber: "07", documentId: "00000000-0000-4000-8000-000000000002" },
-  ]);
+  ], 40);
 
-  assert.equal(materials.length, COURSE_DOCUMENT_MATERIAL_LIMIT);
-  assert.deepEqual(materials[0], { position: 1, title: "", referencePlanningNumber: "", documentId: null });
+  assert.equal(materials.length, 40);
+  assert.deepEqual(materials[0], {
+    position: 1,
+    title: "",
+    referencePlanningNumber: "",
+    documentId: null,
+    planningCompleted: false,
+    filmingDate: "",
+    filmingCompleted: false,
+    uploadDate: "",
+    uploadCompleted: false,
+    uploadedUrl: "",
+    dmMaterial: "",
+  });
   assert.deepEqual(materials[1], {
     position: 2,
     title: "두 번째 자료",
     referencePlanningNumber: "07",
     documentId: "00000000-0000-4000-8000-000000000002",
+    planningCompleted: false,
+    filmingDate: "",
+    filmingCompleted: false,
+    uploadDate: "",
+    uploadCompleted: false,
+    uploadedUrl: "",
+    dmMaterial: "",
   });
   assert.equal(materials.at(-1)?.position, 40);
 });
 
-test("인스타 자료 위치는 1번부터 40번까지만 허용한다", () => {
+test("인스타 자료 위치는 1번부터 500번까지만 허용한다", () => {
+  assert.equal(COURSE_DOCUMENT_MATERIAL_LIMIT, 500);
   assert.equal(courseDocumentMaterialPositionSchema.safeParse(1).success, true);
-  assert.equal(courseDocumentMaterialPositionSchema.safeParse(40).success, true);
+  assert.equal(courseDocumentMaterialPositionSchema.safeParse(500).success, true);
   assert.equal(courseDocumentMaterialPositionSchema.safeParse(0).success, false);
-  assert.equal(courseDocumentMaterialPositionSchema.safeParse(41).success, false);
+  assert.equal(courseDocumentMaterialPositionSchema.safeParse(501).success, false);
 });
 
 test("참고기획번호는 한두 자리 숫자를 두 자리로 정규화한다", () => {

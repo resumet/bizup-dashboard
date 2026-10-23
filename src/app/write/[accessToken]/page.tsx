@@ -28,7 +28,7 @@ export default async function ExternalWriterPage({ params }: Props) {
       title: row.title,
       referencePlanningNumber: row.reference_planning_number,
       documentId: row.document_id,
-    })));
+    })), result.settings.instagram_total_count);
     documents = (documentsResult.data ?? []).map((row) => toDocumentSummary(row));
   } catch (error) {
     message = error instanceof Error && error.message === "EXTERNAL_DISABLED" ? "현재 외부 문서 작성이 비활성화되어 있습니다." : "외부 작성 페이지를 찾을 수 없습니다.";

@@ -3,18 +3,20 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Ban, Check, Circle, Copy, ExternalLink, FileSpreadsheet, Loader2, Pencil, RefreshCw, Save, Trash2, Users } from "lucide-react";
+import { AlertTriangle, Ban, Check, Circle, Copy, ExternalLink, FileSpreadsheet, Loader2, Pencil, RefreshCw, Save, Trash2, Users } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { instagramCourseOptionLabel } from "@/lib/course-documents/course-options";
+import { instagramProgressSummary, progressPercentage } from "@/lib/course-documents/instagram-progress";
 import type { BlockedPhone, CourseDocumentCourse, CourseDocumentMaterial } from "@/lib/course-documents/types";
 import { formatWebinarDate } from "@/lib/course-operations/webinar-proximity";
 
@@ -36,6 +38,34 @@ function materialSnapshots(courses: CourseDocumentCourse[]) {
   ]));
 }
 
+type InstagramSettingsDraft = {
+  accountUrl: string;
+  totalCount: string;
+  planningCompletedCount: string;
+  filmingCompletedCount: string;
+};
+
+function instagramSettingsDraft(course: CourseDocumentCourse): InstagramSettingsDraft {
+  return {
+    accountUrl: course.instagramAccountUrl,
+    totalCount: String(course.instagramTotalCount),
+    planningCompletedCount: String(course.materials.filter((item) => item.planningCompleted).length),
+    filmingCompletedCount: String(course.materials.filter((item) => item.filmingCompleted).length),
+  };
+}
+
+function materialHasChanges(current: CourseDocumentMaterial, saved?: CourseDocumentMaterial) {
+  return current.title !== (saved?.title ?? "")
+    || current.referencePlanningNumber !== (saved?.referencePlanningNumber ?? "")
+    || current.planningCompleted !== (saved?.planningCompleted ?? false)
+    || current.filmingDate !== (saved?.filmingDate ?? "")
+    || current.filmingCompleted !== (saved?.filmingCompleted ?? false)
+    || current.uploadDate !== (saved?.uploadDate ?? "")
+    || current.uploadCompleted !== (saved?.uploadCompleted ?? false)
+    || current.uploadedUrl !== (saved?.uploadedUrl ?? "")
+    || current.dmMaterial !== (saved?.dmMaterial ?? "");
+}
+
 function StatusBadge({ label, color }: { label: string; color: "blue" | "yellow" }) {
   const colorClass = color === "blue" ? "text-blue-600" : "text-yellow-500";
   return <Badge variant="outline"><Circle aria-hidden="true" className={`${colorClass} fill-current`} />{label}</Badge>;
@@ -49,7 +79,14 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [savingMaterials, setSavingMaterials] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
   const [savedMaterialsByCourse, setSavedMaterialsByCourse] = useState<Record<string, CourseDocumentMaterial[]>>({});
+  const [settingsDraft, setSettingsDraft] = useState<InstagramSettingsDraft>({
+    accountUrl: "",
+    totalCount: "0",
+    planningCompletedCount: "0",
+    filmingCompletedCount: "0",
+  });
   const [planningSheetOpen, setPlanningSheetOpen] = useState(false);
   const [planningSheetUrl, setPlanningSheetUrl] = useState("");
   const [blockedDialogOpen, setBlockedDialogOpen] = useState(false);
@@ -68,6 +105,8 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
       setCourses(body.courses);
       setSavedMaterialsByCourse(materialSnapshots(body.courses));
       setBlockedPhones(body.blockedPhones);
+      const loadedCourse = body.courses.find((course) => course.id === courseId);
+      if (loadedCourse) setSettingsDraft(instagramSettingsDraft(loadedCourse));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "데이터를 불러오지 못했습니다.");
     } finally {
@@ -85,17 +124,27 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
         setCourses(body.courses);
         setSavedMaterialsByCourse(materialSnapshots(body.courses));
         setBlockedPhones(body.blockedPhones);
+        const loadedCourse = body.courses.find((course) => course.id === courseId);
+        if (loadedCourse) setSettingsDraft(instagramSettingsDraft(loadedCourse));
       })
       .catch((caught: unknown) => { if (active) setError(caught instanceof Error ? caught.message : "데이터를 불러오지 못했습니다."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [endpoint]);
+  }, [courseId, endpoint]);
 
   const selectedCourse = courses.find((course) => course.id === courseId);
 
   async function post(payload: Record<string, unknown>) {
     const response = await fetch("/api/instagram-management", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    const body = await response.json() as { id?: string; setting?: { enabled: boolean; accessToken: string }; materials?: CourseDocumentMaterial[]; planningSheetUrl?: string; blockedPhone?: BlockedPhone; message?: string };
+    const body = await response.json() as {
+      id?: string;
+      setting?: { enabled: boolean; accessToken: string };
+      instagramSettings?: { accountUrl: string; totalCount: number };
+      materials?: CourseDocumentMaterial[];
+      planningSheetUrl?: string;
+      blockedPhone?: BlockedPhone;
+      message?: string;
+    };
     if (!response.ok) throw new Error(body.message ?? "요청을 처리하지 못했습니다.");
     return body;
   }
@@ -112,12 +161,77 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
     finally { setBusy(false); }
   }
 
-  function updateMaterial(position: number, changes: Partial<Pick<CourseDocumentMaterial, "title" | "referencePlanningNumber">>) {
+  function updateMaterial(position: number, changes: Partial<Omit<CourseDocumentMaterial, "position" | "documentId">>) {
     if (!selectedCourse) return;
+    const nextMaterials = selectedCourse.materials.map((material) => material.position === position ? { ...material, ...changes } : material);
     setCourses((current) => current.map((course) => course.id === selectedCourse.id ? {
       ...course,
-      materials: course.materials.map((material) => material.position === position ? { ...material, ...changes } : material),
+      materials: nextMaterials,
     } : course));
+    setSettingsDraft((current) => ({
+      ...current,
+      planningCompletedCount: String(nextMaterials.filter((item) => item.planningCompleted).length),
+      filmingCompletedCount: String(nextMaterials.filter((item) => item.filmingCompleted).length),
+    }));
+  }
+
+  function updateProgress(position: number, field: "planning" | "filming" | "upload", checked: boolean) {
+    if (field === "planning") {
+      updateMaterial(position, checked
+        ? { planningCompleted: true }
+        : { planningCompleted: false, filmingCompleted: false, uploadCompleted: false });
+      return;
+    }
+    if (field === "filming") {
+      updateMaterial(position, checked
+        ? { planningCompleted: true, filmingCompleted: true }
+        : { filmingCompleted: false, uploadCompleted: false });
+      return;
+    }
+    updateMaterial(position, checked
+      ? { planningCompleted: true, filmingCompleted: true, uploadCompleted: true }
+      : { uploadCompleted: false });
+  }
+
+  async function saveInstagramSettings() {
+    if (!selectedCourse) return;
+    const totalCount = Number(settingsDraft.totalCount);
+    const planningCompletedCount = Number(settingsDraft.planningCompletedCount);
+    const filmingCompletedCount = Number(settingsDraft.filmingCompletedCount);
+    setSavingSettings(true); setError(""); setNotice("");
+    try {
+      const body = await post({
+        action: "save-instagram-settings",
+        courseId: selectedCourse.id,
+        accountUrl: settingsDraft.accountUrl,
+        totalCount,
+        planningCompletedCount,
+        filmingCompletedCount,
+      });
+      if (!body.instagramSettings || !body.materials) throw new Error("저장된 인스타그램 진행 설정을 확인하지 못했습니다.");
+      const nextMaterials = body.materials;
+      setCourses((current) => current.map((course) => course.id === selectedCourse.id ? {
+        ...course,
+        instagramAccountUrl: body.instagramSettings!.accountUrl,
+        instagramTotalCount: body.instagramSettings!.totalCount,
+        materials: nextMaterials,
+      } : course));
+      setSavedMaterialsByCourse((current) => ({
+        ...current,
+        [selectedCourse.id]: nextMaterials.map((material) => ({ ...material })),
+      }));
+      setSettingsDraft({
+        accountUrl: body.instagramSettings.accountUrl,
+        totalCount: String(body.instagramSettings.totalCount),
+        planningCompletedCount: String(nextMaterials.filter((item) => item.planningCompleted).length),
+        filmingCompletedCount: String(nextMaterials.filter((item) => item.filmingCompleted).length),
+      });
+      setNotice("인스타그램 진행 설정을 저장했습니다.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "인스타그램 진행 설정을 저장하지 못했습니다.");
+    } finally {
+      setSavingSettings(false);
+    }
   }
 
   async function saveMaterials() {
@@ -126,8 +240,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
     const savedByPosition = new Map(savedMaterials.map((material) => [material.position, material]));
     const changedMaterials = selectedCourse.materials.filter((material) => {
       const saved = savedByPosition.get(material.position);
-      return material.title !== (saved?.title ?? "")
-        || material.referencePlanningNumber !== (saved?.referencePlanningNumber ?? "");
+      return materialHasChanges(material, saved);
     });
     if (!changedMaterials.length) return;
     setSavingMaterials(true); setError(""); setNotice("");
@@ -139,6 +252,13 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
           position: material.position,
           title: material.title,
           referencePlanningNumber: material.referencePlanningNumber,
+          planningCompleted: material.planningCompleted,
+          filmingDate: material.filmingDate,
+          filmingCompleted: material.filmingCompleted,
+          uploadDate: material.uploadDate,
+          uploadCompleted: material.uploadCompleted,
+          uploadedUrl: material.uploadedUrl,
+          dmMaterial: material.dmMaterial,
         })),
       });
       if (!body.materials || body.materials.length !== changedMaterials.length) throw new Error("저장된 인스타 자료를 확인하지 못했습니다.");
@@ -204,14 +324,25 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
   // A fresh preview URL avoids reusing the former dashboard preview in messengers.
   const externalUrl = selectedCourse?.externalAccessToken ? `/write/${selectedCourse.externalAccessToken}?preview=instagram` : "";
   const assignedDocumentIds = new Set(selectedCourse?.materials.flatMap((material) => material.documentId ? [material.documentId] : []) ?? []);
+  const selectedDocumentsById = new Map(selectedCourse?.documents.map((document) => [document.id, document] as const) ?? []);
   const legacyDocuments = selectedCourse?.documents.filter((document) => !assignedDocumentIds.has(document.id)) ?? [];
   const selectedSavedMaterials = selectedCourse ? savedMaterialsByCourse[selectedCourse.id] ?? [] : [];
   const selectedSavedByPosition = new Map(selectedSavedMaterials.map((material) => [material.position, material]));
   const materialChangeCount = selectedCourse?.materials.filter((material) => {
     const saved = selectedSavedByPosition.get(material.position);
-    return material.title !== (saved?.title ?? "")
-      || material.referencePlanningNumber !== (saved?.referencePlanningNumber ?? "");
+    return materialHasChanges(material, saved);
   }).length ?? 0;
+  const progressSummary = selectedCourse
+    ? instagramProgressSummary(selectedCourse.materials, selectedCourse.freeWebinarAt)
+    : null;
+  const settingsNumbers = {
+    totalCount: Number(settingsDraft.totalCount),
+    planningCompletedCount: Number(settingsDraft.planningCompletedCount),
+    filmingCompletedCount: Number(settingsDraft.filmingCompletedCount),
+  };
+  const settingsValid = Object.values(settingsNumbers).every((value) => Number.isInteger(value) && value >= 0 && value <= 500)
+    && settingsNumbers.filmingCompletedCount <= settingsNumbers.planningCompletedCount
+    && settingsNumbers.planningCompletedCount <= settingsNumbers.totalCount;
   return (
     <TooltipProvider delayDuration={300}>
     <div className="space-y-6">
@@ -235,6 +366,49 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
               </details>;
             })}</div> : selectedCourse ? <div className="space-y-5">
                 <h1 className="text-2xl font-semibold">{instagramCourseOptionLabel(selectedCourse)}</h1>
+                <Card>
+                  <CardHeader><CardTitle>강의 진행 설정</CardTitle></CardHeader>
+                  <CardContent>
+                    <form className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(20rem,2fr)_repeat(3,minmax(8rem,1fr))_auto]" onSubmit={(event) => { event.preventDefault(); void saveInstagramSettings(); }}>
+                      <div className="space-y-2">
+                        <Label htmlFor="instagram-account-url">업로드 중인 계정 링크</Label>
+                        <Input id="instagram-account-url" type="url" maxLength={2048} placeholder="https://www.instagram.com/..." value={settingsDraft.accountUrl} disabled={savingSettings} onChange={(event) => setSettingsDraft((current) => ({ ...current, accountUrl: event.target.value }))} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="instagram-total-count">전체 진행 건수</Label>
+                        <Input id="instagram-total-count" type="number" min={0} max={500} value={settingsDraft.totalCount} disabled={savingSettings} onChange={(event) => setSettingsDraft((current) => ({ ...current, totalCount: event.target.value }))} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="instagram-planning-count">기획 완료 건수</Label>
+                        <Input id="instagram-planning-count" type="number" min={0} max={500} value={settingsDraft.planningCompletedCount} disabled={savingSettings} onChange={(event) => setSettingsDraft((current) => ({ ...current, planningCompletedCount: event.target.value }))} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="instagram-filming-count">촬영 완료 건수</Label>
+                        <Input id="instagram-filming-count" type="number" min={0} max={500} value={settingsDraft.filmingCompletedCount} disabled={savingSettings} onChange={(event) => setSettingsDraft((current) => ({ ...current, filmingCompletedCount: event.target.value }))} />
+                      </div>
+                      <Button className="self-end" type="submit" disabled={savingSettings || !settingsValid || materialChangeCount > 0}>
+                        {savingSettings ? <Loader2 className="animate-spin" /> : <Save />}
+                        설정 저장
+                      </Button>
+                    </form>
+                    <p className="mt-3 text-sm text-muted-foreground">완료 건수를 바꾸면 현재 완료 항목을 우선 유지하고 앞 번호부터 자동으로 맞춥니다. 저장된 내용이 있는 마지막 번호보다 전체 건수를 작게 줄일 수 없습니다. 표에 저장하지 않은 변경이 있으면 표를 먼저 저장해 주세요.</p>
+                    {selectedCourse.instagramAccountUrl ? <Button className="mt-3" variant="outline" size="sm" asChild><a href={selectedCourse.instagramAccountUrl} target="_blank" rel="noopener noreferrer"><ExternalLink />계정 열기</a></Button> : null}
+                  </CardContent>
+                </Card>
+                {progressSummary ? <section className="space-y-3">
+                  <h2 className="text-xl font-semibold">진행 요약</h2>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+                    {[
+                      { label: "전체 진행", value: `${progressSummary.totalCount}건`, detail: "100%" },
+                      { label: "기획 완료", value: `${progressSummary.planningCompletedCount}건`, detail: `${progressPercentage(progressSummary.planningCompletedCount, progressSummary.totalCount)}%` },
+                      { label: "촬영 완료", value: `${progressSummary.filmingCompletedCount}건`, detail: `${progressPercentage(progressSummary.filmingCompletedCount, progressSummary.totalCount)}%` },
+                      { label: "업로드 완료", value: `${progressSummary.uploadCompletedCount}건`, detail: `${progressPercentage(progressSummary.uploadCompletedCount, progressSummary.totalCount)}%` },
+                      { label: "남은 업로드", value: `${progressSummary.remainingUploadCount}건`, detail: progressSummary.deadlineDateKey ? `${progressSummary.deadlineDateKey}까지` : "웨비나 날짜 없음" },
+                      { label: "남은 업로드 평일", value: progressSummary.remainingWeekdays === null ? "-" : `${progressSummary.remainingWeekdays}일`, detail: "웨비나 전날까지" },
+                    ].map((item) => <Card key={item.label}><CardContent className="space-y-1 pt-5"><p className="text-sm text-muted-foreground">{item.label}</p><p className="text-2xl font-semibold">{item.value}</p><p className="text-xs text-muted-foreground">{item.detail}</p></CardContent></Card>)}
+                  </div>
+                  {progressSummary.isAtRisk ? <Alert variant="destructive"><AlertTriangle /><AlertDescription>남은 평일 {progressSummary.remainingWeekdays}일보다 업로드 {progressSummary.remainingUploadCount}건이 많습니다. 이대로 올리면 기획된 콘텐츠를 모두 올리지 못할 수도 있습니다.</AlertDescription></Alert> : null}
+                </section> : null}
                 <div className="space-y-3">
                     <div className="flex justify-end xl:col-start-2 xl:row-start-1">
                       <Badge variant={selectedCourse.externalEditEnabled ? "default" : "secondary"}>{selectedCourse.externalEditEnabled ? "외부 작성 허용" : "비활성화"}</Badge>
@@ -250,10 +424,24 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                       </Button>
                     </div>
                 </div>
-                <div className="rounded-lg border"><Table><TableHeader className="sticky top-0 z-10 bg-background"><TableRow className="hover:bg-background"><TableHead className="w-16 text-center">번호</TableHead><TableHead className="w-32 text-center">참고기획번호</TableHead><TableHead className="min-w-72">제목</TableHead><TableHead className="w-32">작성 상태</TableHead><TableHead className="w-28">공개 상태</TableHead><TableHead className="w-32 text-right">작업</TableHead></TableRow></TableHeader><TableBody>{selectedCourse.materials.map((material) => {
-                  const document = selectedCourse.documents.find((item) => item.id === material.documentId);
-                  return <TableRow key={material.position}><TableCell className="text-center font-mono text-sm text-muted-foreground">{String(material.position).padStart(2, "0")}</TableCell><TableCell><Input className="mx-auto w-20 text-center font-mono" aria-label={`${material.position}번 참고기획번호`} value={material.referencePlanningNumber} inputMode="numeric" maxLength={2} placeholder="00" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { referencePlanningNumber: event.target.value.replace(/\D/g, "").slice(0, 2) })} /></TableCell><TableCell><Input aria-label={`${material.position}번 자료 제목`} value={material.title} maxLength={200} placeholder="강사가 작성할 글의 제목" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { title: event.target.value })} /></TableCell><TableCell>{document ? <StatusBadge label="작성됨" color="blue" /> : <StatusBadge label="미작성" color="yellow" />}</TableCell><TableCell>{document ? <StatusBadge label={document.status === "published" ? "공개" : "비공개"} color={document.status === "published" ? "blue" : "yellow"} /> : <span className="text-sm text-muted-foreground">-</span>}</TableCell><TableCell><div className="flex justify-end gap-1">{document ? <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon-sm" aria-label="문서 수정 및 리드게이트 설정" disabled={savingMaterials} onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}><Pencil /></Button></TooltipTrigger><TooltipContent>문서 수정 및 리드게이트 설정</TooltipContent></Tooltip> : null}{document?.status === "published" ? <Button variant="ghost" size="icon-sm" asChild><a aria-label={`${material.position}번 공개 글 열기`} href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink /></a></Button> : null}{document ? <Button variant="ghost" size="icon-sm" aria-label={`${material.position}번 글 삭제`} disabled={busy || savingMaterials} onClick={() => void deleteDocument(document.id)}><Trash2 /></Button> : null}</div></TableCell></TableRow>;
-                })}</TableBody></Table></div>
+                <div className="overflow-x-auto rounded-lg border"><Table className="min-w-[1980px]"><TableHeader className="sticky top-0 z-10 bg-background"><TableRow className="hover:bg-background"><TableHead className="w-16 text-center">번호</TableHead><TableHead className="w-32 text-center">참고기획번호</TableHead><TableHead className="min-w-64">제목</TableHead><TableHead className="w-24 text-center">기획 완료</TableHead><TableHead className="w-40">촬영 일정</TableHead><TableHead className="w-24 text-center">촬영 완료</TableHead><TableHead className="w-40">업로드 일정</TableHead><TableHead className="w-24 text-center">업로드 완료</TableHead><TableHead className="min-w-64">업로드된 콘텐츠 링크</TableHead><TableHead className="min-w-64">DM 자료</TableHead><TableHead className="w-28">작성 상태</TableHead><TableHead className="w-24">공개 상태</TableHead><TableHead className="w-32 text-right">작업</TableHead></TableRow></TableHeader><TableBody>{selectedCourse.materials.map((material) => {
+                  const document = material.documentId ? selectedDocumentsById.get(material.documentId) : undefined;
+                  return <TableRow key={material.position}>
+                    <TableCell className="text-center font-mono text-sm text-muted-foreground">{String(material.position).padStart(2, "0")}</TableCell>
+                    <TableCell><Input className="mx-auto w-20 text-center font-mono" aria-label={`${material.position}번 참고기획번호`} value={material.referencePlanningNumber} inputMode="numeric" maxLength={2} placeholder="00" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { referencePlanningNumber: event.target.value.replace(/\D/g, "").slice(0, 2) })} /></TableCell>
+                    <TableCell><Input aria-label={`${material.position}번 자료 제목`} value={material.title} maxLength={200} placeholder="강사가 작성할 글의 제목" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { title: event.target.value })} /></TableCell>
+                    <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 기획 완료`} checked={material.planningCompleted} disabled={savingMaterials} onCheckedChange={(checked) => updateProgress(material.position, "planning", checked === true)} /></div></TableCell>
+                    <TableCell><Input type="date" aria-label={`${material.position}번 촬영 일정`} value={material.filmingDate} disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { filmingDate: event.target.value })} /></TableCell>
+                    <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 촬영 완료`} checked={material.filmingCompleted} disabled={savingMaterials} onCheckedChange={(checked) => updateProgress(material.position, "filming", checked === true)} /></div></TableCell>
+                    <TableCell><Input type="date" aria-label={`${material.position}번 업로드 일정`} value={material.uploadDate} disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { uploadDate: event.target.value })} /></TableCell>
+                    <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 업로드 완료`} checked={material.uploadCompleted} disabled={savingMaterials} onCheckedChange={(checked) => updateProgress(material.position, "upload", checked === true)} /></div></TableCell>
+                    <TableCell><Input type="url" aria-label={`${material.position}번 업로드된 콘텐츠 링크`} maxLength={2048} placeholder="https://www.instagram.com/..." value={material.uploadedUrl} disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { uploadedUrl: event.target.value })} /></TableCell>
+                    <TableCell><Input aria-label={`${material.position}번 DM 자료`} maxLength={5000} placeholder="DM 자료명 또는 링크" value={material.dmMaterial} disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { dmMaterial: event.target.value })} /></TableCell>
+                    <TableCell>{document ? <StatusBadge label="작성됨" color="blue" /> : <StatusBadge label="미작성" color="yellow" />}</TableCell>
+                    <TableCell>{document ? <StatusBadge label={document.status === "published" ? "공개" : "비공개"} color={document.status === "published" ? "blue" : "yellow"} /> : <span className="text-sm text-muted-foreground">-</span>}</TableCell>
+                    <TableCell><div className="flex justify-end gap-1">{document ? <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon-sm" aria-label="문서 수정 및 리드게이트 설정" disabled={savingMaterials} onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}><Pencil /></Button></TooltipTrigger><TooltipContent>문서 수정 및 리드게이트 설정</TooltipContent></Tooltip> : null}{document?.status === "published" ? <Button variant="ghost" size="icon-sm" asChild><a aria-label={`${material.position}번 공개 글 열기`} href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink /></a></Button> : null}{document ? <Button variant="ghost" size="icon-sm" aria-label={`${material.position}번 글 삭제`} disabled={busy || savingMaterials} onClick={() => void deleteDocument(document.id)}><Trash2 /></Button> : null}</div></TableCell>
+                  </TableRow>;
+                })}</TableBody></Table>{!selectedCourse.materials.length ? <div className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">전체 진행 건수를 입력하고 설정을 저장해 주세요.</div> : null}</div>
                 {legacyDocuments.length ? <Card><CardHeader><CardTitle>이전 방식 미연결 글 {legacyDocuments.length}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>제목</TableHead><TableHead>상태</TableHead><TableHead>수정일</TableHead><TableHead className="text-right">작업</TableHead></TableRow></TableHeader><TableBody>{legacyDocuments.map((document) => <TableRow key={document.id}><TableCell className="font-medium">{document.title}</TableCell><TableCell><Badge variant={document.status === "published" ? "default" : "secondary"}>{document.status === "published" ? "공개" : "비공개"}</Badge></TableCell><TableCell className="text-muted-foreground">{dateTime(document.updatedAt)}</TableCell><TableCell><div className="flex justify-end gap-1"><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon-sm" aria-label="문서 수정 및 리드게이트 설정" onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}><Pencil /></Button></TooltipTrigger><TooltipContent>문서 수정 및 리드게이트 설정</TooltipContent></Tooltip>{document.status === "published" ? <Button variant="ghost" size="icon-sm" asChild><a aria-label="이전 공개 글 열기" href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink /></a></Button> : null}<Button variant="ghost" size="icon-sm" aria-label="이전 글 삭제" disabled={busy} onClick={() => void deleteDocument(document.id)}><Trash2 /></Button></div></TableCell></TableRow>)}</TableBody></Table></CardContent></Card> : null}
               </div> : <Card><CardContent className="flex min-h-80 items-center justify-center text-muted-foreground">강의를 찾을 수 없습니다.</CardContent></Card>}
         </>

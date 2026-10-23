@@ -105,6 +105,13 @@ export type CourseDocumentMaterial = {
   title: string;
   referencePlanningNumber: string;
   documentId: string | null;
+  planningCompleted: boolean;
+  filmingDate: string;
+  filmingCompleted: boolean;
+  uploadDate: string;
+  uploadCompleted: boolean;
+  uploadedUrl: string;
+  dmMaterial: string;
 };
 
 export type CourseDocumentCourse = {
@@ -117,6 +124,8 @@ export type CourseDocumentCourse = {
   externalEditEnabled: boolean;
   externalAccessToken: string;
   planningSheetUrl: string;
+  instagramAccountUrl: string;
+  instagramTotalCount: number;
   materials: CourseDocumentMaterial[];
   documents: CourseDocumentSummary[];
 };
