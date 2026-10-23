@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Ban, Check, Circle, Copy, ExternalLink, FileSpreadsheet, Loader2, Pencil, RefreshCw, Save, Trash2, Upload, Users } from "lucide-react";
+import { AlertTriangle, Ban, Check, Circle, Copy, ExternalLink, FileSpreadsheet, Loader2, Pencil, RefreshCw, Save, Settings, Trash2, Upload, Users } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -88,6 +88,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
   const [busy, setBusy] = useState(false);
   const [savingMaterials, setSavingMaterials] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [savingUpload, setSavingUpload] = useState(false);
   const [savedMaterialsByCourse, setSavedMaterialsByCourse] = useState<Record<string, CourseDocumentMaterial[]>>({});
   const [settingsDraft, setSettingsDraft] = useState<InstagramSettingsDraft>({
@@ -285,12 +286,19 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
         planningCompletedCount: String(nextMaterials.filter((item) => item.planningCompleted).length),
         filmingCompletedCount: String(nextMaterials.filter((item) => item.filmingCompleted).length),
       });
+      setSettingsDialogOpen(false);
       setNotice("인스타그램 진행 설정을 저장했습니다.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "인스타그램 진행 설정을 저장하지 못했습니다.");
     } finally {
       setSavingSettings(false);
     }
+  }
+
+  function openSettingsDialog() {
+    if (!selectedCourse) return;
+    setSettingsDraft(instagramSettingsDraft(selectedCourse));
+    setSettingsDialogOpen(true);
   }
 
   async function saveMaterials() {
@@ -424,36 +432,13 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                 {!items.length && <p className="p-5 text-sm text-muted-foreground">해당 상태의 강의가 없습니다.</p>}
               </details>;
             })}</div> : selectedCourse ? <div className="space-y-5">
-                <h1 className="text-2xl font-semibold">{instagramCourseOptionLabel(selectedCourse)}</h1>
-                <Card>
-                  <CardHeader><CardTitle>강의 진행 설정</CardTitle></CardHeader>
-                  <CardContent>
-                    <form className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(20rem,2fr)_repeat(3,minmax(8rem,1fr))_auto]" onSubmit={(event) => { event.preventDefault(); void saveInstagramSettings(); }}>
-                      <div className="space-y-2">
-                        <Label htmlFor="instagram-account-url">업로드 중인 계정 링크</Label>
-                        <Input id="instagram-account-url" type="url" maxLength={2048} placeholder="https://www.instagram.com/..." value={settingsDraft.accountUrl} disabled={savingSettings} onChange={(event) => setSettingsDraft((current) => ({ ...current, accountUrl: event.target.value }))} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="instagram-total-count">전체 진행 건수</Label>
-                        <Input id="instagram-total-count" type="number" min={0} max={500} value={settingsDraft.totalCount} disabled={savingSettings} onChange={(event) => setSettingsDraft((current) => ({ ...current, totalCount: event.target.value }))} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="instagram-planning-count">기획 완료 건수</Label>
-                        <Input id="instagram-planning-count" type="number" min={0} max={500} value={settingsDraft.planningCompletedCount} disabled={savingSettings} onChange={(event) => setSettingsDraft((current) => ({ ...current, planningCompletedCount: event.target.value }))} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="instagram-filming-count">촬영 완료 건수</Label>
-                        <Input id="instagram-filming-count" type="number" min={0} max={500} value={settingsDraft.filmingCompletedCount} disabled={savingSettings} onChange={(event) => setSettingsDraft((current) => ({ ...current, filmingCompletedCount: event.target.value }))} />
-                      </div>
-                      <Button className="self-end" type="submit" disabled={savingSettings || !settingsValid || materialChangeCount > 0}>
-                        {savingSettings ? <Loader2 className="animate-spin" /> : <Save />}
-                        설정 저장
-                      </Button>
-                    </form>
-                    <p className="mt-3 text-sm text-muted-foreground">완료 건수를 바꾸면 현재 완료 항목을 우선 유지하고 앞 번호부터 자동으로 맞춥니다. 저장된 내용이 있는 마지막 번호보다 전체 건수를 작게 줄일 수 없습니다. 표에 저장하지 않은 변경이 있으면 표를 먼저 저장해 주세요.</p>
-                    {selectedCourse.instagramAccountUrl ? <Button className="mt-3" variant="outline" size="sm" asChild><a href={selectedCourse.instagramAccountUrl} target="_blank" rel="noopener noreferrer"><ExternalLink />계정 열기</a></Button> : null}
-                  </CardContent>
-                </Card>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h1 className="text-2xl font-semibold">{instagramCourseOptionLabel(selectedCourse)}</h1>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedCourse.instagramAccountUrl ? <Button variant="outline" asChild><a href={selectedCourse.instagramAccountUrl} target="_blank" rel="noopener noreferrer"><ExternalLink />계정 열기</a></Button> : null}
+                    <Button type="button" variant="outline" onClick={openSettingsDialog}><Settings />설정</Button>
+                  </div>
+                </div>
                 {progressSummary ? <section className="space-y-3">
                   <h2 className="text-xl font-semibold">진행 요약</h2>
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
@@ -508,6 +493,42 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
               </div> : <Card><CardContent className="flex min-h-80 items-center justify-center text-muted-foreground">강의를 찾을 수 없습니다.</CardContent></Card>}
         </>
       )}
+      <Dialog open={settingsDialogOpen} onOpenChange={(open) => { if (!savingSettings) setSettingsDialogOpen(open); }}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>강의 진행 설정</DialogTitle>
+            <DialogDescription className="sr-only">인스타그램 계정 링크와 전체·기획 완료·촬영 완료 건수를 설정합니다.</DialogDescription>
+          </DialogHeader>
+          <form className="space-y-5" onSubmit={(event) => { event.preventDefault(); void saveInstagramSettings(); }}>
+            <div className="space-y-2">
+              <Label htmlFor="instagram-account-url">업로드 중인 계정 링크</Label>
+              <Input id="instagram-account-url" type="url" maxLength={2048} placeholder="https://www.instagram.com/..." value={settingsDraft.accountUrl} disabled={savingSettings} onChange={(event) => setSettingsDraft((current) => ({ ...current, accountUrl: event.target.value }))} />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="instagram-total-count">전체 진행 건수</Label>
+                <Input id="instagram-total-count" type="number" min={0} max={500} value={settingsDraft.totalCount} disabled={savingSettings} onChange={(event) => setSettingsDraft((current) => ({ ...current, totalCount: event.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="instagram-planning-count">기획 완료 건수</Label>
+                <Input id="instagram-planning-count" type="number" min={0} max={500} value={settingsDraft.planningCompletedCount} disabled={savingSettings} onChange={(event) => setSettingsDraft((current) => ({ ...current, planningCompletedCount: event.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="instagram-filming-count">촬영 완료 건수</Label>
+                <Input id="instagram-filming-count" type="number" min={0} max={500} value={settingsDraft.filmingCompletedCount} disabled={savingSettings} onChange={(event) => setSettingsDraft((current) => ({ ...current, filmingCompletedCount: event.target.value }))} />
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">완료 건수를 바꾸면 현재 완료 항목을 우선 유지하고 앞 번호부터 자동으로 맞춥니다. 저장된 내용이 있는 마지막 번호보다 전체 건수를 작게 줄일 수 없습니다. 표에 저장하지 않은 변경이 있으면 표를 먼저 저장해 주세요.</p>
+            <DialogFooter>
+              <Button type="button" variant="outline" disabled={savingSettings} onClick={() => setSettingsDialogOpen(false)}>취소</Button>
+              <Button type="submit" disabled={savingSettings || !settingsValid || materialChangeCount > 0}>
+                {savingSettings ? <Loader2 className="animate-spin" /> : <Save />}
+                설정 저장
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <Dialog open={uploadDraft !== null} onOpenChange={(open) => { if (!open && !savingUpload) setUploadDraft(null); }}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
