@@ -1,6 +1,10 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { externalMarketingPublicInfoSchema, externalMarketingTokenSchema } from "./model";
+import {
+  externalMarketingChatMembersSchema,
+  externalMarketingPublicInfoSchema,
+  externalMarketingTokenSchema,
+} from "./model";
 
 export async function savePublicExternalMarketingInfo(token: string, input: unknown, clientFactory = createAdminClient) {
   if (!externalMarketingTokenSchema.safeParse(token).success) return null;
@@ -13,4 +17,25 @@ export async function savePublicExternalMarketingInfo(token: string, input: unkn
   if (error) throw new Error(`공개 강의 정보 저장 실패: ${error.code}`);
   return data ? externalMarketingPublicInfoSchema.parse({ courseName: data.course_name, instructorName: data.instructor_name,
     cohort: data.cohort, webinarDate: data.webinar_date ?? "", creativeDriveUrl: data.creative_drive_url, landingPages: data.landing_pages }) : null;
+}
+
+export async function savePublicExternalMarketingChatMembers(
+  token: string,
+  input: unknown,
+  clientFactory = createAdminClient,
+) {
+  if (!externalMarketingTokenSchema.safeParse(token).success) return null;
+  const value = externalMarketingChatMembersSchema.parse(input);
+  const { data, error } = await clientFactory().rpc("save_public_external_marketing_chat_members", {
+    p_public_token: token,
+    p_metric_date: value.metricDate,
+    p_chat_members_cumulative: value.chatMembersCumulative,
+  });
+
+  if (error) {
+    if (error.code === "PT404") return null;
+    throw new Error(`공개 단톡방 인원 저장 실패: ${error.code}`);
+  }
+
+  return { ...value, version: Number(data) };
 }

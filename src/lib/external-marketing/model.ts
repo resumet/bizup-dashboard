@@ -41,6 +41,12 @@ export const externalMarketingPublicInfoSchema = externalMarketingInfoSchema.ext
 }).strict();
 export type ExternalMarketingPublicInfo = z.infer<typeof externalMarketingPublicInfoSchema>;
 
+export const externalMarketingChatMembersSchema = z.object({
+  metricDate: z.iso.date(),
+  chatMembersCumulative: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).nullable(),
+}).strict();
+export type ExternalMarketingChatMembersInput = z.infer<typeof externalMarketingChatMembersSchema>;
+
 export type ExternalMarketingInfo = z.infer<typeof externalMarketingInfoSchema>;
 export type ExternalMarketingSettings = z.infer<typeof externalMarketingSettingsSchema>;
 

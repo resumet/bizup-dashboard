@@ -41,7 +41,7 @@ export function PublicExternalMarketingReport({ project, dashboard }: {
         <AdPerformanceOutcomeCard metrics={dashboard.metrics} />
         <section className="mt-8">
           <h2 className="mb-4 text-xl font-semibold tracking-tight">광고집행 결과</h2>
-          <PublicExternalMarketingReportTable metrics={dashboard.metrics} />
+          <PublicExternalMarketingReportTable metrics={dashboard.metrics} token={project.publicToken} />
         </section>
       </div>
     </main>
