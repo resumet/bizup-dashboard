@@ -58,6 +58,7 @@ export async function PUT(request: Request, { params }: Context) {
         webinar_date: input.webinarDate || null,
         landing_pages: input.landingPages,
         creative_drive_url: input.creativeDriveUrl,
+        previous_cohort_creative_notion_url: input.previousCohortCreativeNotionUrl,
         intake_enabled: false,
         public_enabled: input.publicEnabled,
         updated_by: user.id,

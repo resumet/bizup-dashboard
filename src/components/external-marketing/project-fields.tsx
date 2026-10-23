@@ -33,5 +33,6 @@ export function ExternalMarketingProjectFields({ value, onChange, disabled = fal
       </div>)}</div> : <p className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">채널 추가를 눌러 랜딩페이지를 입력해 주세요.</p>}
     </fieldset>
     <div className="grid gap-2"><Label htmlFor="external-creative-drive">광고소재 드라이브 주소</Label><Input id="external-creative-drive" type="url" placeholder="https://drive.google.com/..." value={value.creativeDriveUrl} maxLength={2048} disabled={disabled} onChange={(event) => patch({ creativeDriveUrl: event.target.value })} /></div>
+    <div className="grid gap-2"><Label htmlFor="external-previous-creative-notion">이전 기수 광고소재 정리 링크</Label><Input id="external-previous-creative-notion" type="url" placeholder="https://app.notion.com/p/..." value={value.previousCohortCreativeNotionUrl} maxLength={2048} disabled={disabled} onChange={(event) => patch({ previousCohortCreativeNotionUrl: event.target.value })} /><p className="text-sm text-muted-foreground">이전 기수의 광고소재가 정리된 노션 페이지 주소를 입력해 주세요.</p></div>
   </div>;
 }

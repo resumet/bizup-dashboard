@@ -35,7 +35,7 @@ export function PublicExternalMarketingReport({ project, dashboard }: {
           courseName: project.courseName, instructorName: project.instructorName,
           affiliateName: project.affiliateName, projectManager: project.projectManager, cohort: project.cohort,
           webinarDate: project.webinarDate,
-          creativeDriveUrl: project.creativeDriveUrl, landingPages: project.landingPages,
+          creativeDriveUrl: project.creativeDriveUrl, previousCohortCreativeNotionUrl: project.previousCohortCreativeNotionUrl, landingPages: project.landingPages,
         }} />
 
         <AdPerformanceSummaryCards metrics={dashboard.metrics} totalBudget={dashboard.totalBudget} organicChannels={dashboard.organicChannels} />

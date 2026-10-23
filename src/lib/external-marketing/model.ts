@@ -16,6 +16,14 @@ const optionalUrl = z
     }
   }, "http 또는 https 주소를 입력해 주세요.");
 
+const optionalNotionUrl = optionalUrl.refine((value) => {
+  if (!value) return true;
+  const hostname = new URL(value).hostname.toLowerCase();
+  return hostname === "notion.com" || hostname.endsWith(".notion.com") ||
+    hostname === "notion.so" || hostname.endsWith(".notion.so") ||
+    hostname === "notion.site" || hostname.endsWith(".notion.site");
+}, "노션 페이지 주소를 입력해 주세요.");
+
 export const landingPageSchema = z.object({
   channel: z.string().trim().min(1, "채널명을 입력해 주세요.").max(80),
   url: optionalUrl.refine(Boolean, "랜딩페이지 주소를 입력해 주세요."),
@@ -30,6 +38,7 @@ export const externalMarketingInfoSchema = z.object({
   webinarDate: z.union([z.iso.date(), z.literal("")]).default(""),
   landingPages: z.array(landingPageSchema).max(20),
   creativeDriveUrl: optionalUrl,
+  previousCohortCreativeNotionUrl: optionalNotionUrl.default(""),
 });
 
 export const externalMarketingSettingsSchema = externalMarketingInfoSchema.extend({

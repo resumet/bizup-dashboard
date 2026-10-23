@@ -1,17 +1,18 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, BarChart3, BriefcaseBusiness, CalendarDays, CalendarRange, LayoutDashboard, Megaphone, TvMinimalPlay, Wallet } from "lucide-react";
+import { ArrowRight, BarChart3, BriefcaseBusiness, CalendarDays, CalendarRange, LayoutDashboard, Megaphone, Puzzle, TvMinimalPlay, Wallet } from "lucide-react";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
 import { AdminManagementButton } from "@/components/admin/admin-management-button";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
+import { Button } from "@/components/ui/button";
 
 export default async function HomePage() {
   const user = await getAuthenticatedUser(await createClient());
   if (!user) redirect("/login");
   return <main className="min-h-screen">
-    <header className="border-b bg-background"><div className="mx-auto flex min-h-16 max-w-[1900px] items-center justify-between px-5 py-4 lg:px-8"><BrandHomeLink /><div className="flex items-center gap-2"><AdminManagementButton email={user.email ?? ""} /><UserAccountMenu email={user.email ?? ""} /></div></div></header>
+    <header className="border-b bg-background"><div className="mx-auto flex min-h-16 max-w-[1900px] items-center px-5 py-4 lg:px-8"><BrandHomeLink /><Button variant="ghost" size="sm" className="ml-3" asChild><Link href="/extras"><Puzzle /> 부가기능</Link></Button><div className="ml-auto flex items-center gap-2"><AdminManagementButton email={user.email ?? ""} /><UserAccountMenu email={user.email ?? ""} /></div></div></header>
     <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8 lg:py-12">
       <section aria-label="주요 서비스">
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">

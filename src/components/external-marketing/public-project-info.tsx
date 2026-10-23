@@ -28,7 +28,8 @@ export function PublicExternalMarketingProjectInfo({ initialInfo, token, startDa
     setNotice("");
     const parsed = externalMarketingPublicInfoSchema.safeParse({ courseName: draft.courseName, instructorName: draft.instructorName,
       affiliateName: draft.affiliateName, projectManager: draft.projectManager, cohort: draft.cohort,
-      webinarDate: draft.webinarDate, creativeDriveUrl: draft.creativeDriveUrl, landingPages: draft.landingPages });
+      webinarDate: draft.webinarDate, creativeDriveUrl: draft.creativeDriveUrl,
+      previousCohortCreativeNotionUrl: draft.previousCohortCreativeNotionUrl, landingPages: draft.landingPages });
     if (!parsed.success) { setError(parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요."); return; }
     setSaving(true);
     try {
@@ -58,6 +59,7 @@ export function PublicExternalMarketingProjectInfo({ initialInfo, token, startDa
         <div><p className="text-xs text-muted-foreground">웨비나 날짜</p><p className="mt-1 font-medium tabular-nums">{info.webinarDate || "미입력"}</p></div>
         <div><p className="text-xs text-muted-foreground">광고 시작일</p><p className="mt-1 font-medium tabular-nums">{startDate}</p></div>
         <div className="sm:col-span-2"><p className="text-xs text-muted-foreground">광고소재 드라이브</p>{info.creativeDriveUrl ? <Link href={info.creativeDriveUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 font-medium text-primary hover:underline">드라이브 열기<ExternalLink className="size-3.5" /></Link> : <p className="mt-1 font-medium">—</p>}</div>
+        <div className="sm:col-span-2"><p className="text-xs text-muted-foreground">이전 기수 광고소재 정리</p>{info.previousCohortCreativeNotionUrl ? <Link href={info.previousCohortCreativeNotionUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 font-medium text-primary hover:underline">바로가기<ExternalLink className="size-3.5" /></Link> : <p className="mt-1 font-medium">—</p>}</div>
         <div className="sm:col-span-3 xl:col-span-6"><p className="text-xs text-muted-foreground">채널별 랜딩페이지</p><div className="mt-2 flex flex-wrap gap-2">{info.landingPages.length ? info.landingPages.map((page, index) => <Button key={`${page.channel}-${index}`} variant="outline" size="sm" asChild><Link href={page.url} target="_blank" rel="noopener noreferrer">{page.channel}<ExternalLink /></Link></Button>) : <span className="text-sm">—</span>}</div></div>
       </div>
     </CardContent></Card>

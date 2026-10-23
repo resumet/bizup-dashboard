@@ -22,6 +22,8 @@ test("웨비나 임박순·최근 종료순·미입력순을 지키고 실제 �
   assert.deepEqual(sortExternalMarketingProjects(input, "2026-10-23").map((row) => row.webinarDate), ["2026-10-23", "2026-11-10", "2026-10-22", "2026-10-21", ""]);
   const info = { courseName: "강의", instructorName: "강사", affiliateName: "관계사", projectManager: "담당PM", cohort: "1기", landingPages: [], creativeDriveUrl: "" };
   assert.equal(externalMarketingInfoSchema.parse(info).webinarDate, "");
+  assert.equal(externalMarketingInfoSchema.parse({ ...info, previousCohortCreativeNotionUrl: "https://app.notion.com/p/40295b2493eb8021a30aed988ada9312?source=copy_link#40295b2493eb80618c0dc4e7837d93be" }).previousCohortCreativeNotionUrl.includes("app.notion.com"), true);
+  assert.equal(externalMarketingInfoSchema.safeParse({ ...info, previousCohortCreativeNotionUrl: "https://example.com/page" }).success, false);
   assert.equal(externalMarketingInfoSchema.safeParse({ ...info, webinarDate: "2026-02-30" }).success, false);
   assert.deepEqual(externalMarketingPatchSchema.parse({ kind: "advertising_started", started: true }), { kind: "advertising_started", started: true });
   assert.equal(externalMarketingPatchSchema.safeParse({ kind: "advertising_started", started: true, publicEnabled: false }).success, false);

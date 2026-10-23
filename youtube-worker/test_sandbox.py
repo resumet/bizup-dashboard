@@ -11,6 +11,7 @@ os.environ["WORKER_API_TOKEN"] = "test-worker-token"
 os.environ["DOWNLOAD_SIGNING_SECRET"] = "test-signing-secret"
 os.environ["PUBLIC_BASE_URL"] = "https://sandbox.example"
 os.environ["SANDBOX_DOWNLOADS"] = "1"
+os.environ["OPENAI_API_KEY"] = "test-openai-key"
 
 from fastapi.testclient import TestClient
 from fastapi import HTTPException
@@ -84,6 +85,56 @@ class SandboxTests(unittest.TestCase):
         self.assertTrue(Path(options["ffmpeg_location"]).is_file())
         with YoutubeDL(options) as downloader:
             self.assertTrue(FFmpegMergerPP(downloader).available)
+
+    def test_video_upload_transcription_and_result_downloads(self):
+        payload = b"test video fixture"
+        with tempfile.TemporaryDirectory(prefix="bizup-transcription-test-") as root:
+            directory = Path(root) / "job"
+            directory.mkdir()
+
+            def finish(_directory, source_path, title):
+                self.assertEqual(source_path.read_bytes(), payload)
+                audio_path = _directory / "audio.mp3"
+                text_path = _directory / "transcript.txt"
+                audio_path.write_bytes(b"audio fixture")
+                text_path.write_text("테스트 대본", encoding="utf-8-sig")
+                with worker.job_lock:
+                    worker.job.update(
+                        status="ready",
+                        title=title,
+                        transcript="테스트 대본",
+                        audio_path=audio_path,
+                        text_path=text_path,
+                        audio_filename="test_음성.mp3",
+                        text_filename="test_대본.txt",
+                    )
+
+            body = {
+                "filename": "sample.mp4",
+                "size": len(payload),
+                "content_type": "video/mp4",
+            }
+            with patch.object(worker.tempfile, "mkdtemp", return_value=str(directory)), patch.object(worker, "finish_transcription", side_effect=finish):
+                prepared_response = self.client.post("/v1/transcriptions/uploads", headers=self.headers, json=body)
+                self.assertEqual(prepared_response.status_code, 200)
+                prepared = prepared_response.json()
+                upload_response = self.client.put(
+                    route(prepared["uploadUrl"]),
+                    content=payload,
+                    headers={"Content-Type": "video/mp4", "Origin": "https://bizup-dashboard.vercel.app"},
+                )
+                self.assertEqual(upload_response.status_code, 200)
+                status = self.wait_status(prepared)
+                self.assertEqual(status["status"], "ready")
+                self.assertEqual(status["transcript"], "테스트 대본")
+                self.assertEqual(self.client.get(route(prepared["audioUrl"])).content, b"audio fixture")
+                self.assertIn("테스트 대본".encode(), self.client.get(route(prepared["textUrl"])).content)
+
+    def test_video_upload_validation(self):
+        body = {"filename": "sample.exe", "size": 100, "content_type": "application/octet-stream"}
+        response = self.client.post("/v1/transcriptions/uploads", headers=self.headers, json=body)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("영상만", response.json()["detail"])
 
 
 if __name__ == "__main__":

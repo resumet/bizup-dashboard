@@ -19,6 +19,7 @@ const project: ExternalMarketingProject = {
   webinarDate: "2026-11-27",
   landingPages: [{ channel: "Google", url: "https://example.com/google" }],
   creativeDriveUrl: "https://drive.google.com/example",
+  previousCohortCreativeNotionUrl: "https://app.notion.com/p/example",
   publicToken: "b".repeat(48),
   publicEnabled: true,
   advertisingStarted: true,

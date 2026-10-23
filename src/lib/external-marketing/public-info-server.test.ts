@@ -5,7 +5,7 @@ import { ZodError } from "zod";
 import { savePublicExternalMarketingChatMembers, savePublicExternalMarketingInfo } from "./public-info-server";
 import { externalMarketingWbs } from "./wbs";
 
-const info = { courseName: "강의", instructorName: "강사", affiliateName: "관계사", projectManager: "담당PM", cohort: "2기", webinarDate: "2026-11-23", creativeDriveUrl: "https://drive.google.com/example", landingPages: [{ channel: "구글", url: "https://example.com" }] };
+const info = { courseName: "강의", instructorName: "강사", affiliateName: "관계사", projectManager: "담당PM", cohort: "2기", webinarDate: "2026-11-23", creativeDriveUrl: "https://drive.google.com/example", previousCohortCreativeNotionUrl: "https://app.notion.com/p/example", landingPages: [{ channel: "구글", url: "https://example.com" }] };
 const token = "a".repeat(48);
 function fixture(enabled = true) {
   let payload: Record<string, unknown> | undefined;
@@ -16,7 +16,7 @@ function fixture(enabled = true) {
       update(value: Record<string, unknown>) { payload = value; return query; },
       eq(key: string, value: unknown) { filters[key] = value; return query; },
       select() { return query; },
-      async maybeSingle() { return { error: null, data: enabled ? { course_name: payload?.course_name, instructor_name: payload?.instructor_name, affiliate_name: payload?.affiliate_name, project_manager: payload?.project_manager, cohort: payload?.cohort, webinar_date: payload?.webinar_date, creative_drive_url: payload?.creative_drive_url, landing_pages: payload?.landing_pages } : null }; },
+      async maybeSingle() { return { error: null, data: enabled ? { course_name: payload?.course_name, instructor_name: payload?.instructor_name, affiliate_name: payload?.affiliate_name, project_manager: payload?.project_manager, cohort: payload?.cohort, webinar_date: payload?.webinar_date, creative_drive_url: payload?.creative_drive_url, previous_cohort_creative_notion_url: payload?.previous_cohort_creative_notion_url, landing_pages: payload?.landing_pages } : null }; },
     };
     return query;
   } } as unknown as SupabaseClient;
@@ -27,7 +27,7 @@ test("공개 정보 수정은 공개 중인 토큰의 웨비나 날짜를 저장
   const f = fixture();
   assert.deepEqual(await savePublicExternalMarketingInfo(token, info, () => f.client), info);
   assert.deepEqual(f.filters, { public_token: token, public_enabled: true });
-  assert.deepEqual(Object.keys(f.payload()!).sort(), ["affiliate_name", "cohort", "course_name", "creative_drive_url", "instructor_name", "landing_pages", "project_manager", "updated_at", "webinar_date"]);
+  assert.deepEqual(Object.keys(f.payload()!).sort(), ["affiliate_name", "cohort", "course_name", "creative_drive_url", "instructor_name", "landing_pages", "previous_cohort_creative_notion_url", "project_manager", "updated_at", "webinar_date"]);
   const saved = await savePublicExternalMarketingInfo(token, { ...info, webinarDate: "2026-11-30" }, () => f.client);
   assert.equal(f.payload()!.webinar_date, "2026-11-30");
   assert.deepEqual(externalMarketingWbs(saved!.webinarDate, "2026-10-23").map((milestone) => milestone.dueDate), ["2026-11-09", "2026-11-02", "2026-10-26", "2026-10-24"]);
@@ -42,7 +42,7 @@ test("비활성화되거나 잘못된 토큰은 수정 결과를 반환하지 �
 });
 
 test("공개 화면에서 공개 상태·예산을 덮어쓰거나 잘못된 날짜·URL을 저장할 수 없다", async () => {
-  for (const extra of [{ publicEnabled: false }, { webinarDate: "2026-02-30" }, { webinarDate: undefined }, { totalBudget: 0 }, { creativeDriveUrl: "javascript:alert(1)" }, { affiliateName: "가".repeat(121) }, { projectManager: "나".repeat(121) }]) {
+  for (const extra of [{ publicEnabled: false }, { webinarDate: "2026-02-30" }, { webinarDate: undefined }, { totalBudget: 0 }, { creativeDriveUrl: "javascript:alert(1)" }, { previousCohortCreativeNotionUrl: "https://example.com/not-notion" }, { affiliateName: "가".repeat(121) }, { projectManager: "나".repeat(121) }]) {
     await assert.rejects(savePublicExternalMarketingInfo(token, { ...info, ...extra }, () => { throw new Error("검증 전에 DB에 접근하면 안 됨"); }), ZodError);
   }
 });

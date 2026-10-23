@@ -22,6 +22,7 @@ type ProjectRow = {
   webinar_date: string | null;
   landing_pages: unknown;
   creative_drive_url: string;
+  previous_cohort_creative_notion_url: string;
   public_token: string;
   public_enabled: boolean;
   advertising_started: boolean;
@@ -39,6 +40,7 @@ function normalizeProject(row: ProjectRow): ExternalMarketingProject {
     webinarDate: row.webinar_date ?? "",
     landingPages: row.landing_pages,
     creativeDriveUrl: row.creative_drive_url,
+    previousCohortCreativeNotionUrl: row.previous_cohort_creative_notion_url,
   });
   return {
     ...info,
@@ -52,7 +54,7 @@ function normalizeProject(row: ProjectRow): ExternalMarketingProject {
   };
 }
 
-const projectColumns = "dashboard_id,workspace_id,course_name,instructor_name,affiliate_name,project_manager,cohort,webinar_date,landing_pages,creative_drive_url,public_token,public_enabled,advertising_started,created_at,updated_at";
+const projectColumns = "dashboard_id,workspace_id,course_name,instructor_name,affiliate_name,project_manager,cohort,webinar_date,landing_pages,creative_drive_url,previous_cohort_creative_notion_url,public_token,public_enabled,advertising_started,created_at,updated_at";
 
 export async function loadExternalMarketingProjects(workspaceId: string) {
   const admin = createAdminClient();

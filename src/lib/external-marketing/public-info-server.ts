@@ -12,13 +12,16 @@ export async function savePublicExternalMarketingInfo(token: string, input: unkn
   const { data, error } = await clientFactory().from("external_marketing_projects")
     .update({ course_name: info.courseName, instructor_name: info.instructorName, affiliate_name: info.affiliateName,
       project_manager: info.projectManager, cohort: info.cohort,
-      webinar_date: info.webinarDate || null, creative_drive_url: info.creativeDriveUrl, landing_pages: info.landingPages, updated_at: new Date().toISOString() })
+      webinar_date: info.webinarDate || null, creative_drive_url: info.creativeDriveUrl,
+      previous_cohort_creative_notion_url: info.previousCohortCreativeNotionUrl,
+      landing_pages: info.landingPages, updated_at: new Date().toISOString() })
     .eq("public_token", token).eq("public_enabled", true)
-    .select("course_name,instructor_name,affiliate_name,project_manager,cohort,webinar_date,creative_drive_url,landing_pages").maybeSingle();
+    .select("course_name,instructor_name,affiliate_name,project_manager,cohort,webinar_date,creative_drive_url,previous_cohort_creative_notion_url,landing_pages").maybeSingle();
   if (error) throw new Error(`공개 강의 정보 저장 실패: ${error.code}`);
   return data ? externalMarketingPublicInfoSchema.parse({ courseName: data.course_name, instructorName: data.instructor_name,
     affiliateName: data.affiliate_name, projectManager: data.project_manager,
-    cohort: data.cohort, webinarDate: data.webinar_date ?? "", creativeDriveUrl: data.creative_drive_url, landingPages: data.landing_pages }) : null;
+    cohort: data.cohort, webinarDate: data.webinar_date ?? "", creativeDriveUrl: data.creative_drive_url,
+    previousCohortCreativeNotionUrl: data.previous_cohort_creative_notion_url, landingPages: data.landing_pages }) : null;
 }
 
 export async function savePublicExternalMarketingChatMembers(

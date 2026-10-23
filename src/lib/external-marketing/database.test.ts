@@ -51,6 +51,11 @@ test("외부마케팅대행 프로젝트는 강의 없이 광고 대시보드에
     assert.equal((await db.query<{ advertising_started: boolean }>("select advertising_started from public.external_marketing_projects where dashboard_id=$1", [dashboardId])).rows[0].advertising_started, false);
     await db.query("update public.external_marketing_projects set advertising_started=true where dashboard_id=$1", [dashboardId]);
     assert.equal((await db.query<{ advertising_started: boolean }>("select advertising_started from public.external_marketing_projects where dashboard_id=$1", [dashboardId])).rows[0].advertising_started, true);
+    await db.exec(await readFile("supabase/migrations/20261023060434_add_external_marketing_previous_creative_notion_url.sql", "utf8"));
+    const notionUrl = "https://app.notion.com/p/40295b2493eb8021a30aed988ada9312?source=copy_link#40295b2493eb80618c0dc4e7837d93be";
+    await db.query("update public.external_marketing_projects set previous_cohort_creative_notion_url=$2 where dashboard_id=$1", [dashboardId, notionUrl]);
+    assert.equal((await db.query<{ previous_cohort_creative_notion_url: string }>("select previous_cohort_creative_notion_url from public.external_marketing_projects where dashboard_id=$1", [dashboardId])).rows[0].previous_cohort_creative_notion_url, notionUrl);
+    await assert.rejects(db.query("update public.external_marketing_projects set previous_cohort_creative_notion_url=$2 where dashboard_id=$1", [dashboardId, "x".repeat(2049)]), /external_marketing_previous_creative_notion_url_length_check/u);
     const newDashboardId = "00000000-0000-4000-8000-000000000014";
     await db.query("insert into public.ad_performance_dashboards(id,workspace_id,start_date,created_by,updated_by) values($1,$2,'2026-10-23',$3,$3)", [newDashboardId, workspaceId, userId]);
     assert.equal((await db.query<{ service_scope: string }>("select service_scope from public.ad_performance_dashboards where id=$1", [newDashboardId])).rows[0].service_scope, "bizup");
