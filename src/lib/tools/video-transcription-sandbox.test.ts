@@ -9,14 +9,19 @@ test("격리 환경에서 유튜브 전사 작업을 준비하고 브라우저�
   process.env.OPENAI_API_KEY = "test-openai-key";
   let deleted = 0;
   let workerToken = "";
+  let cookieFileWritten = false;
+  let cookiePathConfigured = false;
   const fake = {
     domain: () => "https://sandbox.example",
-    writeFiles: async () => {},
+    writeFiles: async (files: Array<{ path: string; content: Buffer }>) => {
+      cookieFileWritten ||= files.some((file) => file.path.endsWith("/youtube-cookies.txt"));
+    },
     runCommand: async (command: { args: string[]; env?: Record<string, string> }) => {
       if (command.env) {
         workerToken = command.env.WORKER_API_TOKEN;
         assert.equal(command.env.OPENAI_API_KEY, "test-openai-key");
         assert.equal(command.env.OPENAI_TRANSCRIPTION_MODEL, "gpt-transcribe");
+        cookiePathConfigured ||= command.env.YOUTUBE_COOKIES_PATH?.endsWith("/youtube-cookies.txt") === true;
       }
       return { exitCode: 0 };
     },
@@ -48,8 +53,11 @@ test("격리 환경에서 유튜브 전사 작업을 준비하고 브라우저�
   const prepared = await prepareSandboxTranscription({
     type: "youtube",
     url: "https://youtu.be/jNQXAC9IVRw",
+    youtubeCookies: ".youtube.com\tTRUE\t/\tTRUE\t0\tLOGIN_INFO\ttest-secret",
   });
   assert.equal(prepared.audioUrl, "https://sandbox.example/audio");
+  assert.equal(cookieFileWritten, true);
+  assert.equal(cookiePathConfigured, true);
   assert.equal(deleted, 0, "결과 다운로드가 끝날 때까지 작업 환경을 유지한다");
 
   context.mock.method(global, "fetch", async (url: string, options: RequestInit) => {

@@ -14,13 +14,14 @@ export async function POST(request: Request) {
     const body = (await request.json()) as Partial<TranscriptionSource> & {
       type?: string;
       url?: string;
+      youtubeCookies?: string;
       filename?: string;
       size?: number;
       contentType?: string;
     };
     const source: TranscriptionSource =
       body.type === "youtube"
-        ? { type: "youtube", url: body.url ?? "" }
+        ? { type: "youtube", url: body.url ?? "", youtubeCookies: body.youtubeCookies }
         : body.type === "upload"
           ? {
               type: "upload",

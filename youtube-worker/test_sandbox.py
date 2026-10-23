@@ -86,6 +86,22 @@ class SandboxTests(unittest.TestCase):
         with YoutubeDL(options) as downloader:
             self.assertTrue(FFmpegMergerPP(downloader).available)
 
+    def test_youtube_auth_options_and_block_message(self):
+        with tempfile.NamedTemporaryFile() as cookies:
+            with patch.dict(os.environ, {
+                "YOUTUBE_COOKIES_PATH": cookies.name,
+                "YOUTUBE_TRANSCRIPTION_PROXY_URL": "http://proxy.example:8080",
+            }):
+                options = worker.downloader_options()
+                self.assertEqual(options["cookiefile"], cookies.name)
+                self.assertEqual(options["proxy"], "http://proxy.example:8080")
+                self.assertIn("tv_embedded", options["extractor_args"]["youtube"]["player_client"])
+        message = worker.youtube_download_error_message(
+            RuntimeError("Sign in to confirm you're not a bot"),
+            "fallback",
+        )
+        self.assertIn("cookies.txt", message)
+
     def test_video_upload_transcription_and_result_downloads(self):
         payload = b"test video fixture"
         with tempfile.TemporaryDirectory(prefix="bizup-transcription-test-") as root:

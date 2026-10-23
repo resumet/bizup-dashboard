@@ -24,6 +24,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   formatFileSize,
+  MAX_YOUTUBE_COOKIE_BYTES,
+  sanitizeYoutubeCookies,
   type PreparedTranscription,
   validateVideoUpload,
 } from "@/lib/tools/video-transcription";
@@ -106,6 +108,7 @@ export function VideoTranscriptionTool() {
   const [sourceType, setSourceType] = useState<SourceType>("youtube");
   const [url, setUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [youtubeCookiesFile, setYoutubeCookiesFile] = useState<File | null>(null);
   const [consent, setConsent] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -115,6 +118,7 @@ export function VideoTranscriptionTool() {
   const [result, setResult] = useState<{ title: string; transcript: string } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const youtubeCookiesInputRef = useRef<HTMLInputElement | null>(null);
   const busy = !["idle", "ready"].includes(phase);
 
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -134,6 +138,23 @@ export function VideoTranscriptionTool() {
     }
   }
 
+  async function selectYoutubeCookiesFile(nextFile: File | null) {
+    setError("");
+    if (!nextFile) {
+      setYoutubeCookiesFile(null);
+      return;
+    }
+    try {
+      if (nextFile.size > MAX_YOUTUBE_COOKIE_BYTES) throw new Error("YouTube cookies.txt 파일은 512KB 이하여야 합니다.");
+      sanitizeYoutubeCookies(await nextFile.text());
+      setYoutubeCookiesFile(nextFile);
+    } catch (cause) {
+      setYoutubeCookiesFile(null);
+      if (youtubeCookiesInputRef.current) youtubeCookiesInputRef.current.value = "";
+      setError(cause instanceof Error ? cause.message : "YouTube cookies.txt 파일을 확인해 주세요.");
+    }
+  }
+
   function reset() {
     abortRef.current?.abort();
     abortRef.current = null;
@@ -143,6 +164,8 @@ export function VideoTranscriptionTool() {
     setError("");
     setUploadProgress(0);
     setConsent(false);
+    setYoutubeCookiesFile(null);
+    if (youtubeCookiesInputRef.current) youtubeCookiesInputRef.current.value = "";
   }
 
   async function start() {
@@ -160,13 +183,16 @@ export function VideoTranscriptionTool() {
       if (sourceType === "youtube" && !consent) throw new Error("영상 사용 권한을 확인해 주세요.");
       if (sourceType === "upload" && !file) throw new Error("업로드할 영상 파일을 선택해 주세요.");
       if (file) validateVideoUpload({ filename: file.name, size: file.size, contentType: file.type });
+      const youtubeCookies = youtubeCookiesFile
+        ? sanitizeYoutubeCookies(await youtubeCookiesFile.text())
+        : undefined;
 
       const response = await fetch("/api/tools/video-transcription", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           sourceType === "youtube"
-            ? { type: "youtube", url: url.trim() }
+            ? { type: "youtube", url: url.trim(), youtubeCookies }
             : {
                 type: "upload",
                 filename: file!.name,
@@ -243,6 +269,25 @@ export function VideoTranscriptionTool() {
                   onChange={(event) => setUrl(event.target.value)}
                 />
                 <p className="text-sm text-muted-foreground">공개된 단일 영상 주소만 사용할 수 있습니다.</p>
+              </div>
+              <div className="space-y-2 rounded-lg border bg-muted/20 p-4">
+                <Label htmlFor="transcription-youtube-cookies">YouTube 인증 cookies.txt (선택)</Label>
+                <Input
+                  ref={youtubeCookiesInputRef}
+                  id="transcription-youtube-cookies"
+                  type="file"
+                  accept=".txt,text/plain"
+                  disabled={busy}
+                  onChange={(event) => void selectYoutubeCookiesFile(event.target.files?.[0] ?? null)}
+                />
+                <p className="text-sm text-muted-foreground">
+                  서버 접근 차단 오류가 발생할 때만 사용하세요. YouTube 도메인 쿠키만 작업용 격리 환경에 전달되며 작업 종료 후 폐기됩니다.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  로그인 정보가 포함되므로 메신저로 전달하지 말고, 가능하면 별도 업무용 계정을 사용하세요.{" "}
+                  <a className="font-medium text-foreground underline underline-offset-4" href="https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies" target="_blank" rel="noopener noreferrer">cookies.txt 준비 방법</a>
+                </p>
+                {youtubeCookiesFile ? <p className="text-sm font-medium">선택됨: {youtubeCookiesFile.name}</p> : null}
               </div>
               <label className="flex items-start gap-3 rounded-lg border p-4 text-sm leading-6">
                 <Checkbox

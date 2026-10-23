@@ -55,7 +55,27 @@ def downloader_options() -> dict:
         import imageio_ffmpeg
         options["ffmpeg_location"] = imageio_ffmpeg.get_ffmpeg_exe()
         options["js_runtimes"] = {"node": {}}
+    cookies_path = os.getenv("YOUTUBE_COOKIES_PATH", "").strip()
+    if cookies_path and Path(cookies_path).is_file():
+        options["cookiefile"] = cookies_path
+        options["extractor_args"] = {
+            "youtube": {"player_client": ["tv_embedded", "web_creator", "default"]},
+        }
+    proxy_url = os.getenv("YOUTUBE_TRANSCRIPTION_PROXY_URL", "").strip()
+    if proxy_url:
+        options["proxy"] = proxy_url
     return options
+
+
+def youtube_download_error_message(error: Exception, fallback: str) -> str:
+    message = str(error).lower()
+    if "sign in to confirm" in message or "not a bot" in message:
+        return "유튜브가 서버 접속을 차단했습니다. YouTube 인증 cookies.txt를 선택해 다시 시도하거나 영상 파일을 직접 업로드해 주세요."
+    if "http error 403" in message:
+        return "유튜브가 음원 접근을 거부했습니다. YouTube 인증 cookies.txt를 선택해 다시 시도하거나 영상 파일을 직접 업로드해 주세요."
+    if "private video" in message or "members-only" in message:
+        return "비공개 또는 멤버십 영상은 접근 권한이 있는 YouTube 인증 cookies.txt가 필요합니다."
+    return fallback
 
 
 class VideoRequest(BaseModel):
@@ -111,7 +131,10 @@ def safe_info(url: str) -> dict:
         with YoutubeDL({**downloader_options(), "quiet": True, "no_warnings": True, "noplaylist": True, "skip_download": True}) as ydl:
             info = ydl.extract_info(url, download=False)
     except DownloadError as error:
-        raise HTTPException(status_code=400, detail="공개 영상 정보를 확인하지 못했습니다.") from error
+        raise HTTPException(
+            status_code=400,
+            detail=youtube_download_error_message(error, "공개 영상 정보를 확인하지 못했습니다."),
+        ) from error
 
     if not isinstance(info, dict):
         raise HTTPException(status_code=400, detail="영상 정보가 올바르지 않습니다.")
@@ -250,7 +273,6 @@ def extract_audio(source: Path, directory: Path) -> Path:
 
 
 def download_youtube_audio_source(url: str, directory: Path) -> tuple[Path, str]:
-    info = safe_info(url)
     output = str(directory / "source.%(ext)s")
     try:
         with YoutubeDL({
@@ -262,9 +284,13 @@ def download_youtube_audio_source(url: str, directory: Path) -> tuple[Path, str]
             "format": "bestaudio/best",
             "outtmpl": output,
         }) as ydl:
-            ydl.extract_info(url, download=True)
+            info = ydl.extract_info(url, download=True)
     except DownloadError as error:
-        raise RuntimeError("공개 영상의 음성을 내려받지 못했습니다.") from error
+        raise RuntimeError(
+            youtube_download_error_message(error, "공개 영상의 음성을 내려받지 못했습니다."),
+        ) from error
+    if not isinstance(info, dict):
+        raise RuntimeError("영상 정보를 확인하지 못했습니다.")
     files = [path for path in directory.glob("source.*") if path.is_file() and path.suffix not in {".part", ".ytdl"}]
     if not files:
         raise RuntimeError("영상 음원 파일을 찾지 못했습니다.")

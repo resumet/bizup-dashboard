@@ -1,9 +1,10 @@
 export const MAX_TRANSCRIPTION_VIDEO_BYTES = 500 * 1024 * 1024;
+export const MAX_YOUTUBE_COOKIE_BYTES = 512 * 1024;
 
 const VIDEO_EXTENSIONS = new Set(["mp4", "mov", "m4v", "webm", "mkv", "avi"]);
 
 export type TranscriptionSource =
-  | { type: "youtube"; url: string }
+  | { type: "youtube"; url: string; youtubeCookies?: string }
   | { type: "upload"; filename: string; size: number; contentType: string };
 
 export type PreparedTranscription = {
@@ -12,6 +13,29 @@ export type PreparedTranscription = {
   textUrl: string;
   uploadUrl?: string;
 };
+
+export function sanitizeYoutubeCookies(value: string) {
+  const normalized = value.replace(/\r\n?/g, "\n").trim();
+  if (!normalized) throw new Error("YouTube cookies.txt 파일이 비어 있습니다.");
+  if (new TextEncoder().encode(normalized).byteLength > MAX_YOUTUBE_COOKIE_BYTES) {
+    throw new Error("YouTube cookies.txt 파일은 512KB 이하여야 합니다.");
+  }
+
+  const youtubeCookies = normalized.split("\n").flatMap((rawLine) => {
+    const line = rawLine.trim();
+    if (!line || (line.startsWith("#") && !line.startsWith("#HttpOnly_"))) return [];
+    const fields = line.split("\t");
+    if (fields.length !== 7) return [];
+    const domain = fields[0].replace(/^#HttpOnly_/, "").replace(/^\./, "").toLowerCase();
+    if (domain !== "youtube.com" && !domain.endsWith(".youtube.com")) return [];
+    return [fields.join("\t")];
+  });
+
+  if (!youtubeCookies.length) {
+    throw new Error("YouTube 도메인의 로그인 쿠키가 포함된 Netscape 형식 cookies.txt 파일을 선택해 주세요.");
+  }
+  return `# Netscape HTTP Cookie File\n${youtubeCookies.join("\n")}\n`;
+}
 
 export function validateVideoUpload(input: {
   filename: string;

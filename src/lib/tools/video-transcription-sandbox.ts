@@ -9,6 +9,7 @@ import { parseYoutubeUrl } from "./youtube-download";
 import {
   type PreparedTranscription,
   type TranscriptionSource,
+  sanitizeYoutubeCookies,
   validateVideoUpload,
 } from "./video-transcription";
 
@@ -25,7 +26,23 @@ async function removeSandbox(sandbox: Sandbox) {
   }
 }
 
-async function startTranscriptionWorker() {
+function youtubeCookies(sourceCookies?: string) {
+  const configured = process.env.YOUTUBE_COOKIES_BASE64?.trim();
+  const raw = sourceCookies?.trim() || (configured ? Buffer.from(configured, "base64").toString("utf8") : "");
+  return raw ? sanitizeYoutubeCookies(raw) : "";
+}
+
+function youtubeProxyUrl() {
+  const value = process.env.YOUTUBE_TRANSCRIPTION_PROXY_URL?.trim();
+  if (!value) return "";
+  const url = new URL(value);
+  if (!["http:", "https:", "socks5:", "socks5h:"].includes(url.protocol)) {
+    throw new Error("YouTube 전사용 프록시 주소 형식이 올바르지 않습니다.");
+  }
+  return value;
+}
+
+async function startTranscriptionWorker(cookies = "") {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
     throw new Error("음성 전사 API 설정이 필요합니다. 관리자에게 문의해 주세요.");
@@ -52,10 +69,12 @@ async function startTranscriptionWorker() {
       readFile(path.join(process.cwd(), "youtube-worker/app.py")),
       readFile(path.join(process.cwd(), "youtube-worker/requirements-sandbox.txt")),
     ]);
-    await sandbox.writeFiles([
+    const workerFiles = [
       { path: `${DIRECTORY}/app.py`, content: app },
       { path: `${DIRECTORY}/requirements.txt`, content: requirements },
-    ]);
+    ];
+    if (cookies) workerFiles.push({ path: `${DIRECTORY}/youtube-cookies.txt`, content: Buffer.from(cookies) });
+    await sandbox.writeFiles(workerFiles);
     const venv = await sandbox.runCommand({
       cmd: "python3",
       args: ["-m", "venv", `${DIRECTORY}/venv`],
@@ -88,6 +107,8 @@ async function startTranscriptionWorker() {
         SANDBOX_DOWNLOADS: "1",
         OPENAI_API_KEY: apiKey,
         OPENAI_TRANSCRIPTION_MODEL: process.env.OPENAI_TRANSCRIPTION_MODEL?.trim() || "gpt-transcribe",
+        ...(cookies ? { YOUTUBE_COOKIES_PATH: `${DIRECTORY}/youtube-cookies.txt` } : {}),
+        ...(youtubeProxyUrl() ? { YOUTUBE_TRANSCRIPTION_PROXY_URL: youtubeProxyUrl() } : {}),
       },
     });
     const ready = await sandbox.runCommand({
@@ -145,7 +166,8 @@ async function requestWorker(
 }
 
 export async function prepareSandboxTranscription(source: TranscriptionSource) {
-  const worker = await startTranscriptionWorker();
+  const cookies = source.type === "youtube" ? youtubeCookies(source.youtubeCookies) : "";
+  const worker = await startTranscriptionWorker(cookies);
   try {
     if (source.type === "youtube") {
       const { url } = parseYoutubeUrl(source.url);
