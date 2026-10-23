@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Ban, Check, Circle, Copy, ExternalLink, FileSpreadsheet, Loader2, Pencil, RefreshCw, Save, Settings, Trash2, Upload, Users } from "lucide-react";
+import { Toast } from "radix-ui";
+import { AlertTriangle, Ban, Check, Circle, Copy, ExternalLink, FileSpreadsheet, ListPlus, Loader2, Pencil, RefreshCw, Save, Settings, Trash2, Upload, Users, X } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -14,10 +16,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { instagramCourseOptionLabel } from "@/lib/course-documents/course-options";
 import { instagramProgressSummary, progressPercentage } from "@/lib/course-documents/instagram-progress";
 import { instagramDmMaterialHref, instagramDmMaterialValue, instagramExternalDmPath } from "@/lib/course-documents/instagram-upload";
+import { parseInstagramBulkTitles } from "@/lib/course-documents/materials";
 import type { BlockedPhone, CourseDocumentCourse, CourseDocumentMaterial } from "@/lib/course-documents/types";
 import { formatWebinarDate } from "@/lib/course-operations/webinar-proximity";
 
@@ -68,6 +72,7 @@ function materialHasChanges(current: CourseDocumentMaterial, saved?: CourseDocum
     || current.planningCompleted !== (saved?.planningCompleted ?? false)
     || current.filmingDate !== (saved?.filmingDate ?? "")
     || current.filmingCompleted !== (saved?.filmingCompleted ?? false)
+    || current.editingCompleted !== (saved?.editingCompleted ?? false)
     || current.uploadDate !== (saved?.uploadDate ?? "")
     || current.uploadCompleted !== (saved?.uploadCompleted ?? false)
     || current.uploadedUrl !== (saved?.uploadedUrl ?? "")
@@ -90,6 +95,14 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [savingUpload, setSavingUpload] = useState(false);
+  const [savingBulkTitles, setSavingBulkTitles] = useState(false);
+  const [bulkTitleDialogOpen, setBulkTitleDialogOpen] = useState(false);
+  const [bulkTitleText, setBulkTitleText] = useState("");
+  const [toast, setToast] = useState<{ id: number; message: string } | null>(null);
+  const toastId = useRef(0);
+  const notify = useCallback((message: string) => {
+    setToast({ id: ++toastId.current, message });
+  }, []);
   const [savedMaterialsByCourse, setSavedMaterialsByCourse] = useState<Record<string, CourseDocumentMaterial[]>>({});
   const [settingsDraft, setSettingsDraft] = useState<InstagramSettingsDraft>({
     accountUrl: "",
@@ -187,22 +200,22 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
     }));
   }
 
-  function updateProgress(position: number, field: "planning" | "filming" | "upload", checked: boolean) {
+  function updateProgress(position: number, field: "planning" | "filming" | "editing", checked: boolean) {
     if (field === "planning") {
       updateMaterial(position, checked
         ? { planningCompleted: true }
-        : { planningCompleted: false, filmingCompleted: false, uploadCompleted: false });
+        : { planningCompleted: false, filmingCompleted: false, editingCompleted: false });
       return;
     }
     if (field === "filming") {
       updateMaterial(position, checked
         ? { planningCompleted: true, filmingCompleted: true }
-        : { filmingCompleted: false, uploadCompleted: false });
+        : { filmingCompleted: false, editingCompleted: false });
       return;
     }
     updateMaterial(position, checked
-      ? { planningCompleted: true, filmingCompleted: true, uploadCompleted: true }
-      : { uploadCompleted: false });
+      ? { planningCompleted: true, filmingCompleted: true, editingCompleted: true }
+      : { editingCompleted: false });
   }
 
   function openUploadDialog(material: CourseDocumentMaterial) {
@@ -233,6 +246,10 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
       const savedMaterial = body.material;
       const mergeUploadDetails = (material: CourseDocumentMaterial): CourseDocumentMaterial => ({
         ...material,
+        planningCompleted: savedMaterial.planningCompleted,
+        filmingCompleted: savedMaterial.filmingCompleted,
+        editingCompleted: savedMaterial.editingCompleted,
+        uploadCompleted: savedMaterial.uploadCompleted,
         uploadedUrl: savedMaterial.uploadedUrl,
         dmMaterial: savedMaterial.dmMaterial,
       });
@@ -245,11 +262,43 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
         [selectedCourse.id]: (current[selectedCourse.id] ?? []).map((material) => material.position === savedMaterial.position ? mergeUploadDetails(material) : material),
       }));
       setUploadDraft(null);
-      setNotice(`${savedMaterial.position}번 콘텐츠의 업로드 정보를 저장했습니다.`);
+      setNotice(`${savedMaterial.position}번 콘텐츠의 업로드 정보를 저장했습니다.${savedMaterial.uploadCompleted ? " 두 링크가 모두 입력되어 업로드 완료로 처리했습니다." : ""}`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "업로드 정보를 저장하지 못했습니다.");
     } finally {
       setSavingUpload(false);
+    }
+  }
+
+  function openBulkTitleDialog() {
+    if (!selectedCourse) return;
+    setBulkTitleText(selectedCourse.materials.map((material) => material.title).join("\n"));
+    setBulkTitleDialogOpen(true);
+  }
+
+  async function saveBulkTitles() {
+    if (!selectedCourse) return;
+    const titles = parseInstagramBulkTitles(bulkTitleText);
+    if (!titles.length || titles.length > selectedCourse.materials.length || titles.some((title) => title.length > 200)) return;
+    setSavingBulkTitles(true); setError(""); setNotice("");
+    try {
+      const body = await post({ action: "save-material-titles", courseId: selectedCourse.id, titles });
+      if (!body.materials || body.materials.length !== titles.length) throw new Error("저장된 제목을 확인하지 못했습니다.");
+      const updatedByPosition = new Map(body.materials.map((material) => [material.position, material]));
+      const updatedTitleByDocumentId = new Map(body.materials.flatMap((material) => material.documentId ? [[material.documentId, material.title] as const] : []));
+      const nextMaterials = selectedCourse.materials.map((material) => updatedByPosition.get(material.position) ?? material);
+      setCourses((current) => current.map((course) => course.id === selectedCourse.id ? {
+        ...course,
+        materials: nextMaterials,
+        documents: course.documents.map((document) => updatedTitleByDocumentId.has(document.id) ? { ...document, title: updatedTitleByDocumentId.get(document.id)! } : document),
+      } : course));
+      setSavedMaterialsByCourse((current) => ({ ...current, [selectedCourse.id]: nextMaterials.map((material) => ({ ...material })) }));
+      setBulkTitleDialogOpen(false);
+      setNotice(`제목 ${titles.length}개를 일괄 저장했습니다.`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "제목을 일괄 저장하지 못했습니다.");
+    } finally {
+      setSavingBulkTitles(false);
     }
   }
 
@@ -322,7 +371,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
           planningCompleted: material.planningCompleted,
           filmingDate: material.filmingDate,
           filmingCompleted: material.filmingCompleted,
-          uploadDate: material.uploadDate,
+          editingCompleted: material.editingCompleted,
           uploadCompleted: material.uploadCompleted,
           uploadedUrl: material.uploadedUrl,
           dmMaterial: material.dmMaterial,
@@ -410,7 +459,13 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
   const settingsValid = Object.values(settingsNumbers).every((value) => Number.isInteger(value) && value >= 0 && value <= 500)
     && settingsNumbers.filmingCompletedCount <= settingsNumbers.planningCompletedCount
     && settingsNumbers.planningCompletedCount <= settingsNumbers.totalCount;
+  const bulkTitles = parseInstagramBulkTitles(bulkTitleText);
+  const bulkTitlesValid = Boolean(selectedCourse)
+    && bulkTitles.length > 0
+    && bulkTitles.length <= (selectedCourse?.materials.length ?? 0)
+    && bulkTitles.every((title) => title.length <= 200);
   return (
+    <Toast.Provider label="인스타그램 관리 알림" duration={5000}>
     <TooltipProvider delayDuration={300}>
     <div className="space-y-6">
       {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
@@ -451,10 +506,10 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                       { label: "촬영 완료", value: `${progressSummary.filmingCompletedCount}건`, detail: `${progressPercentage(progressSummary.filmingCompletedCount, progressSummary.totalCount)}%` },
                       { label: "업로드 완료", value: `${progressSummary.uploadCompletedCount}건`, detail: `${progressPercentage(progressSummary.uploadCompletedCount, progressSummary.totalCount)}%` },
                       { label: "남은 업로드", value: `${progressSummary.remainingUploadCount}건`, detail: progressSummary.deadlineDateKey ? `${progressSummary.deadlineDateKey}까지` : "웨비나 날짜 없음" },
-                      { label: "남은 업로드 평일", value: progressSummary.remainingWeekdays === null ? "-" : `${progressSummary.remainingWeekdays}일`, detail: "웨비나 전날까지" },
+                      { label: "남은 업로드 가능일", value: progressSummary.remainingWeekdays === null ? "-" : `${progressSummary.remainingWeekdays}일`, detail: "웨비나 당일까지" },
                     ].map((item) => <Card key={item.label}><CardContent className="space-y-1 pt-5"><p className="text-sm text-muted-foreground">{item.label}</p><p className="text-2xl font-semibold">{item.value}</p><p className="text-xs text-muted-foreground">{item.detail}</p></CardContent></Card>)}
                   </div>
-                  {progressSummary.isAtRisk ? <Alert variant="destructive"><AlertTriangle /><AlertDescription>오늘 기준 최소 {progressSummary.requiredUploadCount}건이 업로드되어야 하지만 현재 {progressSummary.uploadCompletedCount}건으로 {progressSummary.uploadShortfallCount}건 부족합니다. 남은 평일 {progressSummary.remainingWeekdays}일 안에 업로드 {progressSummary.remainingUploadCount}건을 완료해야 하므로 이대로 진행하면 기획된 콘텐츠를 모두 올리지 못할 수도 있습니다.</AlertDescription></Alert> : null}
+                  {progressSummary.isAtRisk ? <Alert variant="destructive"><AlertTriangle /><AlertDescription>오늘 기준 최소 {progressSummary.requiredUploadCount}건이 업로드되어야 하지만 현재 {progressSummary.uploadCompletedCount}건으로 {progressSummary.uploadShortfallCount}건 부족합니다. 남은 업로드 가능일 {progressSummary.remainingWeekdays}일 안에 업로드 {progressSummary.remainingUploadCount}건을 완료해야 하므로 이대로 진행하면 기획된 콘텐츠를 모두 올리지 못할 수도 있습니다.</AlertDescription></Alert> : null}
                 </section> : null}
                 <div className="space-y-3">
                     <div className="flex justify-end xl:col-start-2 xl:row-start-1">
@@ -462,6 +517,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                     </div>
                     <div className="flex flex-wrap justify-end gap-2 xl:col-start-2 xl:row-start-2">
                       <Button variant="outline" disabled={busy} onClick={openPlanningSheet}><FileSpreadsheet />기획시트</Button>
+                      <Button variant="outline" disabled={savingBulkTitles || !selectedCourse.materials.length} onClick={openBulkTitleDialog}><ListPlus />제목 일괄입력</Button>
                       <Button variant="outline" disabled={!externalUrl} onClick={() => void copyText(new URL(externalUrl, window.location.origin).toString()).then(() => setNotice("외부 작성 주소를 복사했습니다.")).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "주소를 복사하지 못했습니다."))}><Copy />주소 복사</Button>
                       <Button variant="outline" disabled={busy} onClick={() => void updateAccess(selectedCourse.externalEditEnabled, true)}><RefreshCw />재발급</Button>
                       <Button variant={selectedCourse.externalEditEnabled ? "outline" : "default"} disabled={busy} onClick={() => void updateAccess(!selectedCourse.externalEditEnabled)}>{selectedCourse.externalEditEnabled ? "비활성화" : "외부 작성 활성화"}</Button>
@@ -471,7 +527,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                       </Button>
                     </div>
                 </div>
-                <div className="overflow-x-auto rounded-lg border"><Table className="min-w-[1840px]"><TableHeader className="sticky top-0 z-10 bg-background"><TableRow className="hover:bg-background"><TableHead className="w-16 text-center">번호</TableHead><TableHead className="w-32 text-center">기획번호</TableHead><TableHead className="min-w-64">제목</TableHead><TableHead className="w-24 text-center">기획 완료</TableHead><TableHead className="w-24 text-center">촬영 완료</TableHead><TableHead className="w-40">촬영 일정</TableHead><TableHead className="w-24 text-center">업로드 완료</TableHead><TableHead className="w-40">업로드 일정</TableHead><TableHead className="w-28 text-center">링크</TableHead><TableHead className="w-28 text-center">DM 자료</TableHead><TableHead className="w-28 text-center">업로드</TableHead><TableHead className="w-28">작성 상태</TableHead><TableHead className="w-24">공개 상태</TableHead><TableHead className="w-32 text-right">작업</TableHead></TableRow></TableHeader><TableBody>{selectedCourse.materials.map((material) => {
+                <div className="overflow-x-auto rounded-lg border"><Table className="min-w-[1940px]"><TableHeader className="sticky top-0 z-10 bg-background"><TableRow className="hover:bg-background"><TableHead className="w-16 text-center">번호</TableHead><TableHead className="w-32 text-center">기획번호</TableHead><TableHead className="min-w-64">제목</TableHead><TableHead className="w-24 text-center">기획 완료</TableHead><TableHead className="w-24 text-center">촬영 완료</TableHead><TableHead className="w-40">촬영 일정</TableHead><TableHead className="w-24 text-center">편집 완료</TableHead><TableHead className="w-24 text-center">업로드 완료</TableHead><TableHead className="w-28 text-center">업로드</TableHead><TableHead className="w-40">업로드 일정</TableHead><TableHead className="w-28 text-center">링크</TableHead><TableHead className="w-28 text-center">DM 자료</TableHead><TableHead className="w-28">작성 상태</TableHead><TableHead className="w-24">공개 상태</TableHead><TableHead className="w-32 text-right">작업</TableHead></TableRow></TableHeader><TableBody>{selectedCourse.materials.map((material) => {
                   const document = material.documentId ? selectedDocumentsById.get(material.documentId) : undefined;
                   const displayedDmMaterial = instagramDmMaterialValue(material.dmMaterial, document);
                   const dmMaterialHref = instagramDmMaterialHref(displayedDmMaterial);
@@ -479,14 +535,15 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                     <TableCell className="text-center font-mono text-sm text-muted-foreground">{String(material.position).padStart(2, "0")}</TableCell>
                     <TableCell><Input className="mx-auto w-20 text-center font-mono" aria-label={`${material.position}번 기획번호`} value={material.referencePlanningNumber} inputMode="numeric" maxLength={2} placeholder="00" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { referencePlanningNumber: event.target.value.replace(/\D/g, "").slice(0, 2) })} /></TableCell>
                     <TableCell><Input aria-label={`${material.position}번 자료 제목`} value={material.title} maxLength={200} placeholder="강사가 작성할 글의 제목" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { title: event.target.value })} /></TableCell>
-                    <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 기획 완료`} checked={material.planningCompleted} disabled={savingMaterials} onCheckedChange={(checked) => updateProgress(material.position, "planning", checked === true)} /></div></TableCell>
-                    <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 촬영 완료`} checked={material.filmingCompleted} disabled={savingMaterials} onCheckedChange={(checked) => updateProgress(material.position, "filming", checked === true)} /></div></TableCell>
+                    <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 기획 완료`} checked={material.planningCompleted} disabled={savingMaterials || material.uploadCompleted} onCheckedChange={(checked) => updateProgress(material.position, "planning", checked === true)} /></div></TableCell>
+                    <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 촬영 완료`} checked={material.filmingCompleted} disabled={savingMaterials || material.uploadCompleted} onCheckedChange={(checked) => updateProgress(material.position, "filming", checked === true)} /></div></TableCell>
                     <TableCell><Input type="date" aria-label={`${material.position}번 촬영 일정`} value={material.filmingDate} disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { filmingDate: event.target.value })} /></TableCell>
-                    <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 업로드 완료`} checked={material.uploadCompleted} disabled={savingMaterials || !material.filmingCompleted} onCheckedChange={(checked) => updateProgress(material.position, "upload", checked === true)} /></div></TableCell>
-                    <TableCell><Input type="date" aria-label={`${material.position}번 업로드 일정`} value={material.uploadDate} disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { uploadDate: event.target.value })} /></TableCell>
+                    <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 편집 완료`} checked={material.editingCompleted} disabled={savingMaterials || material.uploadCompleted} onCheckedChange={(checked) => updateProgress(material.position, "editing", checked === true)} /></div></TableCell>
+                    <TableCell><div className="flex justify-center"><button type="button" className="rounded p-2" aria-label={`${material.position}번 업로드 완료 상태. 자동으로 관리됩니다.`} onClick={() => notify("업로드 완료는 콘텐츠 링크와 DM 자료 링크가 모두 저장되면 자동으로 체크됩니다.")}><Checkbox checked={material.uploadCompleted} tabIndex={-1} aria-hidden="true" className="pointer-events-none" /></button></div></TableCell>
+                    <TableCell><div className="flex justify-center"><Button type="button" size="sm" variant="outline" disabled={savingMaterials || savingUpload} onClick={() => openUploadDialog(material)}><Upload />업로드</Button></div></TableCell>
+                    <TableCell><Input type="date" aria-label={`${material.position}번 업로드 일정`} value={material.uploadDate} disabled /></TableCell>
                     <TableCell className="text-center">{material.uploadedUrl ? <Button type="button" size="sm" variant="outline" asChild><a href={material.uploadedUrl} target="_blank" rel="noopener noreferrer"><ExternalLink />바로가기</a></Button> : <span className="text-muted-foreground">-</span>}</TableCell>
                     <TableCell className="text-center">{dmMaterialHref ? <Button type="button" size="sm" variant="outline" asChild><a href={dmMaterialHref} target="_blank" rel="noopener noreferrer"><ExternalLink />바로가기</a></Button> : <span className="text-muted-foreground">-</span>}</TableCell>
-                    <TableCell><div className="flex justify-center"><Button type="button" size="sm" variant="outline" disabled={savingMaterials || savingUpload} onClick={() => openUploadDialog(material)}><Upload />업로드</Button></div></TableCell>
                     <TableCell>{document ? <StatusBadge label="작성됨" color="blue" /> : <StatusBadge label="미작성" color="yellow" />}</TableCell>
                     <TableCell>{document ? <StatusBadge label={document.status === "published" ? "공개" : "비공개"} color={document.status === "published" ? "blue" : "yellow"} /> : <span className="text-sm text-muted-foreground">-</span>}</TableCell>
                     <TableCell><div className="flex justify-end gap-1">{document ? <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon-sm" aria-label="문서 수정 및 리드게이트 설정" disabled={savingMaterials} onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}><Pencil /></Button></TooltipTrigger><TooltipContent>문서 수정 및 리드게이트 설정</TooltipContent></Tooltip> : null}{document?.status === "published" ? <Button variant="ghost" size="icon-sm" asChild><a aria-label={`${material.position}번 공개 글 열기`} href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink /></a></Button> : null}{document ? <Button variant="ghost" size="icon-sm" aria-label={`${material.position}번 글 삭제`} disabled={busy || savingMaterials} onClick={() => void deleteDocument(document.id)}><Trash2 /></Button> : null}</div></TableCell>
@@ -496,6 +553,28 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
               </div> : <Card><CardContent className="flex min-h-80 items-center justify-center text-muted-foreground">강의를 찾을 수 없습니다.</CardContent></Card>}
         </>
       )}
+      <Dialog open={bulkTitleDialogOpen} onOpenChange={(open) => { if (!savingBulkTitles) setBulkTitleDialogOpen(open); }}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>제목 일괄입력</DialogTitle>
+            <DialogDescription className="sr-only">줄마다 하나씩 입력한 제목을 번호 순서대로 저장합니다.</DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); void saveBulkTitles(); }}>
+            <div className="space-y-2">
+              <Label htmlFor="instagram-bulk-titles">제목 목록</Label>
+              <Textarea id="instagram-bulk-titles" rows={14} maxLength={100_500} value={bulkTitleText} disabled={savingBulkTitles} onChange={(event) => setBulkTitleText(event.target.value)} placeholder={"첫 번째 제목\n두 번째 제목\n세 번째 제목"} />
+              <p className="text-sm text-muted-foreground">한 줄이 한 항목이며 1번부터 순서대로 저장됩니다. 입력한 줄만 기존 제목을 덮어씁니다.</p>
+              <p className={bulkTitles.length > (selectedCourse?.materials.length ?? 0) || bulkTitles.some((title) => title.length > 200) ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>
+                {bulkTitles.length}개 입력 · 최대 {selectedCourse?.materials.length ?? 0}개 · 제목당 200자
+              </p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" disabled={savingBulkTitles} onClick={() => setBulkTitleDialogOpen(false)}>취소</Button>
+              <Button type="submit" disabled={savingBulkTitles || !bulkTitlesValid}>{savingBulkTitles ? <Loader2 className="animate-spin" /> : <Save />}{savingBulkTitles ? "저장 중" : "일괄 저장"}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <Dialog open={settingsDialogOpen} onOpenChange={(open) => { if (!savingSettings) setSettingsDialogOpen(open); }}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
@@ -588,7 +667,15 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
           </form>
         </DialogContent>
       </Dialog>
+      {toast ? <>
+        <Toast.Root key={toast.id} duration={5000} onOpenChange={(open) => { if (!open) setToast((current) => current?.id === toast.id ? null : current); }} className="flex items-center gap-3 rounded-xl border bg-popover p-4 text-popover-foreground shadow-lg">
+          <Toast.Description className="min-w-0 flex-1 break-words text-sm">{toast.message}</Toast.Description>
+          <Toast.Close asChild><Button type="button" size="icon-sm" variant="ghost" aria-label="알림 닫기"><X /></Button></Toast.Close>
+        </Toast.Root>
+        {createPortal(<Toast.Viewport label="인스타그램 관리 알림" aria-live="off" className="pointer-events-auto fixed inset-x-4 bottom-4 z-[100] mx-auto flex max-w-xl list-none flex-col gap-2 outline-none" />, document.body)}
+      </> : null}
     </div>
     </TooltipProvider>
+    </Toast.Provider>
   );
 }

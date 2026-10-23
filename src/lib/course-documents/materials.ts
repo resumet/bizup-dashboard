@@ -72,6 +72,12 @@ export const courseDocumentDmMaterialSchema = z
   .trim()
   .max(5000, "DM 자료는 5,000자까지 입력할 수 있습니다.");
 
+export function parseInstagramBulkTitles(value: string) {
+  const lines = value.replace(/\r/g, "").split("\n");
+  while (lines.length && !lines.at(-1)?.trim()) lines.pop();
+  return lines.map((line) => line.trim());
+}
+
 export function courseDocumentMaterials(
   saved: Array<{
     position: number;
@@ -81,6 +87,7 @@ export function courseDocumentMaterials(
     planningCompleted?: boolean;
     filmingDate?: string | null;
     filmingCompleted?: boolean;
+    editingCompleted?: boolean;
     uploadDate?: string | null;
     uploadCompleted?: boolean;
     uploadedUrl?: string;
@@ -103,6 +110,7 @@ export function courseDocumentMaterials(
       planningCompleted: material?.planningCompleted ?? false,
       filmingDate: material?.filmingDate ?? "",
       filmingCompleted: material?.filmingCompleted ?? false,
+      editingCompleted: material?.editingCompleted ?? false,
       uploadDate: material?.uploadDate ?? "",
       uploadCompleted: material?.uploadCompleted ?? false,
       uploadedUrl: material?.uploadedUrl ?? "",

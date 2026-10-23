@@ -108,6 +108,7 @@ export type CourseDocumentMaterial = {
   planningCompleted: boolean;
   filmingDate: string;
   filmingCompleted: boolean;
+  editingCompleted: boolean;
   uploadDate: string;
   uploadCompleted: boolean;
   uploadedUrl: string;

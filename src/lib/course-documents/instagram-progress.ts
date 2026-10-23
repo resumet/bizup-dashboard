@@ -29,9 +29,24 @@ export function webinarDeadlineDateKey(freeWebinarAt: string) {
   const webinar = new Date(freeWebinarAt);
   if (Number.isNaN(webinar.getTime())) return null;
   const { year, month, day } = dateParts(webinar);
-  const deadline = utcDate(year, month, day);
-  deadline.setUTCDate(deadline.getUTCDate() - 1);
-  return deadline.toISOString().slice(0, 10);
+  return utcDate(year, month, day).toISOString().slice(0, 10);
+}
+
+export function instagramUploadSchedule(freeWebinarAt: string, totalCount: number) {
+  const deadlineDateKey = webinarDeadlineDateKey(freeWebinarAt);
+  const normalizedTotalCount = Math.max(0, Math.trunc(totalCount));
+  if (!deadlineDateKey || !normalizedTotalCount) return [];
+
+  const dates = Array<string>(normalizedTotalCount);
+  const cursor = new Date(`${deadlineDateKey}T00:00:00Z`);
+  for (let index = normalizedTotalCount - 1; index >= 0; index -= 1) {
+    dates[index] = cursor.toISOString().slice(0, 10);
+    if (index === 0) continue;
+    do {
+      cursor.setUTCDate(cursor.getUTCDate() - 1);
+    } while (cursor.getUTCDay() === 0 || cursor.getUTCDay() === 6);
+  }
+  return dates;
 }
 
 export function countWeekdaysInclusive(startDateKey: string, endDateKey: string) {
@@ -57,8 +72,9 @@ export function instagramProgressSummary(
   const uploadCompletedCount = materials.filter((item) => item.uploadCompleted).length;
   const remainingUploadCount = Math.max(totalCount - uploadCompletedCount, 0);
   const deadlineDateKey = webinarDeadlineDateKey(freeWebinarAt);
+  const uploadSchedule = instagramUploadSchedule(freeWebinarAt, totalCount);
   const remainingWeekdays = deadlineDateKey
-    ? countWeekdaysInclusive(todayDateKey, deadlineDateKey)
+    ? uploadSchedule.filter((dateKey) => dateKey >= todayDateKey).length
     : null;
   const requiredUploadCount = remainingWeekdays === null
     ? null

@@ -8,6 +8,7 @@ import {
   courseDocumentPlanningSheetUrlSchema,
   courseDocumentReferencePlanningNumberSchema,
   courseDocumentMaterials,
+  parseInstagramBulkTitles,
 } from "./materials";
 
 test("강의별 인스타 자료 슬롯을 설정한 전체 진행 건수만큼 만든다", () => {
@@ -24,6 +25,7 @@ test("강의별 인스타 자료 슬롯을 설정한 전체 진행 건수만큼 
     planningCompleted: false,
     filmingDate: "",
     filmingCompleted: false,
+    editingCompleted: false,
     uploadDate: "",
     uploadCompleted: false,
     uploadedUrl: "",
@@ -37,6 +39,7 @@ test("강의별 인스타 자료 슬롯을 설정한 전체 진행 건수만큼 
     planningCompleted: false,
     filmingDate: "",
     filmingCompleted: false,
+    editingCompleted: false,
     uploadDate: "",
     uploadCompleted: false,
     uploadedUrl: "",
@@ -73,4 +76,8 @@ test("DM 자료 링크는 HTTP 또는 HTTPS 주소만 허용한다", () => {
   assert.equal(courseDocumentDmMaterialUrlSchema.parse(""), "");
   assert.equal(courseDocumentDmMaterialUrlSchema.safeParse("javascript:alert(1)").success, false);
   assert.equal(courseDocumentDmMaterialUrlSchema.safeParse("DM 자료").success, false);
+});
+
+test("일괄 제목은 줄 순서를 유지하고 끝의 빈 줄만 제거한다", () => {
+  assert.deepEqual(parseInstagramBulkTitles(" 첫 제목 \r\n\r\n세 번째 제목\n\n"), ["첫 제목", "", "세 번째 제목"]);
 });

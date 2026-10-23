@@ -27,7 +27,7 @@ const materialInputSchema = z.object({
   planningCompleted: z.boolean(),
   filmingDate: courseDocumentMaterialDateSchema,
   filmingCompleted: z.boolean(),
-  uploadDate: courseDocumentMaterialDateSchema,
+  editingCompleted: z.boolean(),
   uploadCompleted: z.boolean(),
   uploadedUrl: courseDocumentInstagramUrlSchema,
   dmMaterial: courseDocumentDmMaterialSchema,
@@ -37,6 +37,9 @@ const materialInputSchema = z.object({
   }
   if (material.uploadCompleted && !material.filmingCompleted) {
     context.addIssue({ code: "custom", message: "업로드 완료 항목은 촬영 완료 상태여야 합니다." });
+  }
+  if (material.uploadCompleted && !material.editingCompleted) {
+    context.addIssue({ code: "custom", message: "업로드 완료 항목은 편집 완료 상태여야 합니다." });
   }
 });
 
@@ -60,6 +63,11 @@ const requestSchema = z.discriminatedUnion("action", [
     materials: z.array(materialInputSchema).min(1).max(COURSE_DOCUMENT_MATERIAL_LIMIT),
   }),
   z.object({
+    action: z.literal("save-material-titles"),
+    courseId: z.uuid(),
+    titles: z.array(courseDocumentMaterialTitleSchema).min(1).max(COURSE_DOCUMENT_MATERIAL_LIMIT),
+  }),
+  z.object({
     action: z.literal("save-upload-links"),
     courseId: z.uuid(),
     position: courseDocumentMaterialPositionSchema,
@@ -81,6 +89,7 @@ function toMaterial(row: {
   planning_completed: boolean;
   filming_date: string | null;
   filming_completed: boolean;
+  editing_completed: boolean;
   upload_date: string | null;
   upload_completed: boolean;
   uploaded_url: string;
@@ -94,6 +103,7 @@ function toMaterial(row: {
     planningCompleted: row.planning_completed,
     filmingDate: row.filming_date ?? "",
     filmingCompleted: row.filming_completed,
+    editingCompleted: row.editing_completed,
     uploadDate: row.upload_date ?? "",
     uploadCompleted: row.upload_completed,
     uploadedUrl: row.uploaded_url,
@@ -138,7 +148,7 @@ export async function GET(request: Request) {
     const [settingsResult, documentsResult, materialsResult, leadsResult, blockedResult] = await Promise.all([
       admin.from("course_document_settings").select("course_id,external_edit_enabled,external_access_token,planning_sheet_url,instagram_account_url,instagram_total_count").eq("workspace_id", membership.workspace_id),
       admin.from("course_documents").select("id,course_id,instructor_name,title,slug,status,lead_gate_enabled,lead_gate_after_block_id,created_at,updated_at,published_at,course_document_leads(count)").eq("workspace_id", membership.workspace_id).in("course_id", materialCourseIds).is("deleted_at", null).order("updated_at", { ascending: false }),
-      admin.from("course_instagram_materials").select("course_id,position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,upload_date,upload_completed,uploaded_url,dm_material").in("course_id", materialCourseIds).order("position"),
+      admin.from("course_instagram_materials").select("course_id,position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material").in("course_id", materialCourseIds).order("position"),
       includeLeads ? admin.from("course_document_leads").select("id,document_id,course_id,instructor_name,name,phone,utm_source,utm_medium,utm_campaign,utm_content,referrer,created_at,course_documents!inner(title),courses!inner(name)").eq("workspace_id", membership.workspace_id).order("created_at", { ascending: false }).limit(10_000) : Promise.resolve({ data: [], error: null }),
       !courseId ? admin.from("course_document_blocked_phones").select("id,phone_normalized,memo,created_at").eq("workspace_id", membership.workspace_id).order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
     ]);
@@ -242,6 +252,11 @@ export async function POST(request: Request) {
       }
       if (resizeError) throw new Error(`인스타그램 진행 설정 저장 실패: ${resizeError.code}`);
 
+      const { error: scheduleError } = await admin.rpc("refresh_instagram_upload_schedule", {
+        p_course_id: input.courseId,
+      });
+      if (scheduleError) throw new Error(`인스타그램 업로드 일정 생성 실패: ${scheduleError.code}`);
+
       const [settingsResult, materialsResult] = await Promise.all([
         admin.from("course_document_settings")
           .select("instagram_account_url,instagram_total_count")
@@ -249,7 +264,7 @@ export async function POST(request: Request) {
           .eq("workspace_id", membership.workspace_id)
           .single(),
         admin.from("course_instagram_materials")
-          .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,upload_date,upload_completed,uploaded_url,dm_material")
+          .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material")
           .eq("course_id", input.courseId)
           .order("position"),
       ]);
@@ -287,6 +302,52 @@ export async function POST(request: Request) {
       return Response.json({ planningSheetUrl: data.planning_sheet_url });
     }
 
+    if (input.action === "save-material-titles") {
+      const { data: course } = await admin
+        .from("courses")
+        .select("id")
+        .eq("id", input.courseId)
+        .eq("workspace_id", membership.workspace_id)
+        .maybeSingle();
+      if (!course) throw new Error("NOT_FOUND");
+
+      const { data: setting, error: settingError } = await admin
+        .from("course_document_settings")
+        .select("instagram_total_count")
+        .eq("course_id", course.id)
+        .eq("workspace_id", membership.workspace_id)
+        .single();
+      if (settingError) throw new Error(`인스타 자료 설정 조회 실패: ${settingError.code}`);
+      if (input.titles.length > setting.instagram_total_count) {
+        throw new Error(`제목은 전체 진행 건수 ${setting.instagram_total_count}개까지만 입력할 수 있습니다.`);
+      }
+
+      const positions = input.titles.map((_, index) => index + 1);
+      const { data: linkedMaterials, error: linkedError } = await admin
+        .from("course_instagram_materials")
+        .select("position,document_id")
+        .eq("course_id", course.id)
+        .in("position", positions);
+      if (linkedError) throw new Error(`인스타 자료 확인 실패: ${linkedError.code}`);
+      const linkedPositions = new Set((linkedMaterials ?? []).filter((material) => material.document_id).map((material) => material.position));
+      if (input.titles.some((title, index) => linkedPositions.has(index + 1) && !title)) {
+        throw new Error("강사가 작성한 글이 있는 항목의 제목은 비워둘 수 없습니다.");
+      }
+
+      const { data, error } = await admin
+        .from("course_instagram_materials")
+        .upsert(input.titles.map((title, index) => ({
+          course_id: course.id,
+          position: index + 1,
+          title,
+          updated_at: new Date().toISOString(),
+        })), { onConflict: "course_id,position" })
+        .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material")
+        .order("position");
+      if (error) throw new Error(`인스타 제목 일괄 저장 실패: ${error.code}`);
+      return Response.json({ materials: (data ?? []).map(toMaterial) });
+    }
+
     if (input.action === "save-upload-links") {
       const { data: course } = await admin
         .from("courses")
@@ -305,7 +366,7 @@ export async function POST(request: Request) {
         })
         .eq("course_id", course.id)
         .eq("position", input.position)
-        .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,upload_date,upload_completed,uploaded_url,dm_material")
+        .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material")
         .single();
       if (error?.code === "PGRST116") throw new Error("NOT_FOUND");
       if (error) throw new Error(`인스타 업로드 링크 저장 실패: ${error.code}`);
@@ -347,13 +408,13 @@ export async function POST(request: Request) {
           planning_completed: material.planningCompleted,
           filming_date: material.filmingDate || null,
           filming_completed: material.filmingCompleted,
-          upload_date: material.uploadDate || null,
+          editing_completed: material.editingCompleted,
           upload_completed: material.uploadCompleted,
           uploaded_url: material.uploadedUrl,
           dm_material: material.dmMaterial,
           updated_at: new Date().toISOString(),
         })), { onConflict: "course_id,position" })
-        .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,upload_date,upload_completed,uploaded_url,dm_material")
+        .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material")
         .order("position");
       if (error?.code === "23505") throw new Error("이 글은 이미 다른 인스타 자료에 연결되어 있습니다.");
       if (error) throw new Error(`인스타 자료 저장 실패: ${error.code}`);
