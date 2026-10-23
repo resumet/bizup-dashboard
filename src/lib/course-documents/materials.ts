@@ -18,7 +18,7 @@ export const courseDocumentMaterialTitleSchema = z
 export const courseDocumentReferencePlanningNumberSchema = z
   .string()
   .trim()
-  .regex(/^$|^[0-9]{1,2}$/, "참고기획번호는 두 자리 숫자로 입력해 주세요.")
+  .regex(/^$|^[0-9]{1,2}$/, "기획번호는 두 자리 숫자로 입력해 주세요.")
   .transform((value) => value ? value.padStart(2, "0") : "");
 
 export const courseDocumentPlanningSheetUrlSchema = z
@@ -48,6 +48,20 @@ export const courseDocumentInstagramUrlSchema = z
       return false;
     }
   }, "올바른 HTTP 또는 HTTPS 링크를 입력해 주세요.");
+
+export const courseDocumentDmMaterialUrlSchema = z
+  .string()
+  .trim()
+  .max(2048, "DM 자료 링크는 2,048자까지 입력할 수 있습니다.")
+  .refine((value) => {
+    if (!value) return true;
+    try {
+      const url = new URL(value);
+      return url.protocol === "https:" || url.protocol === "http:";
+    } catch {
+      return false;
+    }
+  }, "올바른 HTTP 또는 HTTPS DM 자료 링크를 입력해 주세요.");
 
 export const courseDocumentMaterialDateSchema = z
   .string()

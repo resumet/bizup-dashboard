@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   COURSE_DOCUMENT_MATERIAL_LIMIT,
+  courseDocumentDmMaterialUrlSchema,
   courseDocumentMaterialPositionSchema,
   courseDocumentPlanningSheetUrlSchema,
   courseDocumentReferencePlanningNumberSchema,
@@ -52,7 +53,7 @@ test("인스타 자료 위치는 1번부터 500번까지만 허용한다", () =>
   assert.equal(courseDocumentMaterialPositionSchema.safeParse(501).success, false);
 });
 
-test("참고기획번호는 한두 자리 숫자를 두 자리로 정규화한다", () => {
+test("기획번호는 한두 자리 숫자를 두 자리로 정규화한다", () => {
   assert.equal(courseDocumentReferencePlanningNumberSchema.parse("1"), "01");
   assert.equal(courseDocumentReferencePlanningNumberSchema.parse("12"), "12");
   assert.equal(courseDocumentReferencePlanningNumberSchema.parse(""), "");
@@ -65,4 +66,11 @@ test("기획시트 URL은 HTTP 또는 HTTPS 주소만 허용한다", () => {
   assert.equal(courseDocumentPlanningSheetUrlSchema.parse(""), "");
   assert.equal(courseDocumentPlanningSheetUrlSchema.safeParse("javascript:alert(1)").success, false);
   assert.equal(courseDocumentPlanningSheetUrlSchema.safeParse("기획시트").success, false);
+});
+
+test("DM 자료 링크는 HTTP 또는 HTTPS 주소만 허용한다", () => {
+  assert.equal(courseDocumentDmMaterialUrlSchema.parse("https://example.com/dm-guide"), "https://example.com/dm-guide");
+  assert.equal(courseDocumentDmMaterialUrlSchema.parse(""), "");
+  assert.equal(courseDocumentDmMaterialUrlSchema.safeParse("javascript:alert(1)").success, false);
+  assert.equal(courseDocumentDmMaterialUrlSchema.safeParse("DM 자료").success, false);
 });
