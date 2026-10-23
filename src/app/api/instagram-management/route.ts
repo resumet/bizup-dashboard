@@ -58,6 +58,15 @@ const requestSchema = z.discriminatedUnion("action", [
     courseId: z.uuid(),
     materials: z.array(materialInputSchema).min(1).max(COURSE_DOCUMENT_MATERIAL_LIMIT),
   }),
+  z.object({
+    action: z.literal("save-upload-details"),
+    courseId: z.uuid(),
+    position: courseDocumentMaterialPositionSchema,
+    uploadDate: courseDocumentMaterialDateSchema,
+    uploadCompleted: z.boolean(),
+    uploadedUrl: courseDocumentInstagramUrlSchema,
+    dmMaterial: courseDocumentDmMaterialSchema,
+  }),
   z.object({ action: z.literal("save-planning-sheet"), courseId: z.uuid(), url: courseDocumentPlanningSheetUrlSchema }),
   z.object({ action: z.literal("save-document"), documentId: z.uuid(), document: adminCourseDocumentSchema }),
   z.object({ action: z.literal("delete-document"), documentId: z.uuid() }),
@@ -277,6 +286,44 @@ export async function POST(request: Request) {
         .single();
       if (error) throw new Error(`기획시트 URL 저장 실패: ${error.code}`);
       return Response.json({ planningSheetUrl: data.planning_sheet_url });
+    }
+
+    if (input.action === "save-upload-details") {
+      const { data: course } = await admin
+        .from("courses")
+        .select("id")
+        .eq("id", input.courseId)
+        .eq("workspace_id", membership.workspace_id)
+        .maybeSingle();
+      if (!course) throw new Error("NOT_FOUND");
+
+      const { data: existing, error: existingError } = await admin
+        .from("course_instagram_materials")
+        .select("position,filming_completed")
+        .eq("course_id", course.id)
+        .eq("position", input.position)
+        .maybeSingle();
+      if (existingError) throw new Error(`인스타 업로드 정보 확인 실패: ${existingError.code}`);
+      if (!existing) throw new Error("NOT_FOUND");
+      if (input.uploadCompleted && !existing.filming_completed) {
+        throw new Error("촬영 완료 후 업로드 완료로 표시할 수 있습니다.");
+      }
+
+      const { data, error } = await admin
+        .from("course_instagram_materials")
+        .update({
+          upload_date: input.uploadDate || null,
+          upload_completed: input.uploadCompleted,
+          uploaded_url: input.uploadedUrl,
+          dm_material: input.dmMaterial,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("course_id", course.id)
+        .eq("position", input.position)
+        .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,upload_date,upload_completed,uploaded_url,dm_material")
+        .single();
+      if (error) throw new Error(`인스타 업로드 정보 저장 실패: ${error.code}`);
+      return Response.json({ material: toMaterial(data) });
     }
 
     if (input.action === "save-materials") {
