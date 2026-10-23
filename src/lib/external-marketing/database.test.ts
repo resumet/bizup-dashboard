@@ -41,6 +41,12 @@ test("외부마케팅대행 프로젝트는 강의 없이 광고 대시보드에
     await assert.rejects(db.query("update public.ad_performance_dashboards set service_scope='bizup' where id=$1", [dashboardId]), /foreign key/u);
     await db.query("update public.external_marketing_projects set webinar_date='2026-11-27' where dashboard_id=$1", [dashboardId]);
     assert.equal((await db.query<{ webinar_date: string }>("select webinar_date::text from public.external_marketing_projects where dashboard_id=$1", [dashboardId])).rows[0].webinar_date, "2026-11-27");
+    await db.exec(await readFile("supabase/migrations/20261023045945_external_marketing_affiliate_project_manager.sql", "utf8"));
+    await db.query("update public.external_marketing_projects set affiliate_name=$2, project_manager=$3 where dashboard_id=$1", [dashboardId, "비즈업 관계사", "박PM"]);
+    const assignment = (await db.query<{ affiliate_name: string; project_manager: string }>("select affiliate_name,project_manager from public.external_marketing_projects where dashboard_id=$1", [dashboardId])).rows[0];
+    assert.deepEqual(assignment, { affiliate_name: "비즈업 관계사", project_manager: "박PM" });
+    await assert.rejects(db.query("update public.external_marketing_projects set affiliate_name=$2 where dashboard_id=$1", [dashboardId, "가".repeat(121)]), /external_marketing_affiliate_name_length_check/u);
+    await assert.rejects(db.query("update public.external_marketing_projects set project_manager=$2 where dashboard_id=$1", [dashboardId, "나".repeat(121)]), /external_marketing_project_manager_length_check/u);
     const newDashboardId = "00000000-0000-4000-8000-000000000014";
     await db.query("insert into public.ad_performance_dashboards(id,workspace_id,start_date,created_by,updated_by) values($1,$2,'2026-10-23',$3,$3)", [newDashboardId, workspaceId, userId]);
     assert.equal((await db.query<{ service_scope: string }>("select service_scope from public.ad_performance_dashboards where id=$1", [newDashboardId])).rows[0].service_scope, "bizup");

@@ -22,10 +22,10 @@ export function externalMarketingExportFilename(project: ExternalMarketingProjec
 }
 
 export async function buildExternalMarketingXlsx(project: ExternalMarketingProject, dashboard: AdPerformanceDashboardData) {
-  const headers = ["날짜", "총 광고노출", "광고클릭", "클릭전환율", "랜딩전환율", "광고집행비용", "랜딩접수DB", "단톡방 입장", "광고DB당단가", "Google 랜딩DB당단가", "Meta 랜딩DB당단가", "랜딩접수DB단가", "톡방접수 DB당단가"];
+  const headers = ["날짜", "총 광고노출", "광고클릭", "클릭전환율", "랜딩전환율", "광고집행비용", "랜딩접수DB", "오늘 단톡방 입장인원", "누적 단톡방 인원", "광고DB당단가", "Google 랜딩DB당단가", "Meta 랜딩DB당단가", "랜딩접수DB단가", "톡방접수 DB당단가"];
   const rows: Row[] = [
     [{ value: project.courseName || "광고집행 결과", fontWeight: "bold" }, ...Array.from({ length: headers.length - 1 }, () => null)],
-    [`강사명 ${project.instructorName || "-"} · 기수 ${project.cohort || "-"} · 광고 시작일 ${dashboard.startDate}`, ...Array.from({ length: headers.length - 1 }, () => null)],
+    [`강사명 ${project.instructorName || "-"} · 관계사 ${project.affiliateName || "-"} · 담당PM ${project.projectManager || "-"} · 기수 ${project.cohort || "-"} · 광고 시작일 ${dashboard.startDate}`, ...Array.from({ length: headers.length - 1 }, () => null)],
     headers.map((value) => ({ value, fontWeight: "bold" as const, backgroundColor: "#E2E8F0", align: "center" as const })),
   ];
   const reportRows = buildExternalMarketingReportRows(dashboard.metrics);
@@ -42,6 +42,7 @@ export async function buildExternalMarketingXlsx(project: ExternalMarketingProje
       item.spend,
       item.landingReceptionDb,
       item.chatRoomEntrants,
+      item.chatRoomCumulative,
       item.adDbUnitCost === null ? null : Math.round(item.adDbUnitCost),
       item.googleLandingDbUnitCost === null ? null : Math.round(item.googleLandingDbUnitCost),
       item.metaLandingDbUnitCost === null ? null : Math.round(item.metaLandingDbUnitCost),
@@ -57,8 +58,8 @@ export async function buildExternalMarketingXlsx(project: ExternalMarketingProje
 }
 
 const PAGE: [number, number] = [841.89, 595.28];
-const columns = [50, 55, 48, 53, 53, 64, 54, 54, 62, 88, 76, 80];
-const headers = ["날짜", "총 광고노출", "광고클릭", "클릭전환율", "랜딩전환율", "광고집행비용", "랜딩접수DB", "단톡방 입장", "광고DB당단가", "랜딩DB당단가(G/M)", "랜딩접수DB단가", "톡방접수 DB당단가"];
+const columns = [50, 55, 48, 53, 53, 64, 54, 54, 54, 62, 88, 76, 80];
+const headers = ["날짜", "총 광고노출", "광고클릭", "클릭전환율", "랜딩전환율", "광고집행비용", "랜딩접수DB", "오늘 단톡방 입장인원", "누적 단톡방 인원", "광고DB당단가", "랜딩DB당단가(G/M)", "랜딩접수DB단가", "톡방접수 DB당단가"];
 
 function fit(value: string, font: PDFFont, size: number, width: number) {
   if (font.widthOfTextAtSize(value, size) <= width) return value;
@@ -75,7 +76,7 @@ function drawText(page: PDFPage, font: PDFFont, value: string, x: number, y: num
 }
 
 function rowValues(row: ExternalMarketingReportRow) {
-  return [row.metricDate, number.format(row.impressions), number.format(row.clicks), percent(row.clickConversionRate), percent(row.landingConversionRate), won(row.spend), number.format(row.landingReceptionDb), row.chatRoomEntrants === null ? "-" : number.format(row.chatRoomEntrants), won(row.adDbUnitCost), `G ${won(row.googleLandingDbUnitCost)} / M ${won(row.metaLandingDbUnitCost)}`, won(row.landingReceptionDbUnitCost), won(row.chatReceptionDbUnitCost)];
+  return [row.metricDate, number.format(row.impressions), number.format(row.clicks), percent(row.clickConversionRate), percent(row.landingConversionRate), won(row.spend), number.format(row.landingReceptionDb), row.chatRoomEntrants === null ? "-" : number.format(row.chatRoomEntrants), row.chatRoomCumulative === null ? "-" : number.format(row.chatRoomCumulative), won(row.adDbUnitCost), `G ${won(row.googleLandingDbUnitCost)} / M ${won(row.metaLandingDbUnitCost)}`, won(row.landingReceptionDbUnitCost), won(row.chatReceptionDbUnitCost)];
 }
 
 function drawTableHeader(page: PDFPage, font: PDFFont, y: number) {
@@ -111,7 +112,7 @@ export async function buildExternalMarketingPdf(project: ExternalMarketingProjec
   const reportRows = buildExternalMarketingReportRows(dashboard.metrics);
   let page = pdf.addPage(PAGE);
   page.drawText(project.courseName || "광고집행 결과", { x: 28, y: 548, size: 22, font, color: rgb(0.08, 0.11, 0.16) });
-  page.drawText(`강사명 ${project.instructorName || "-"}   |   기수 ${project.cohort || "-"}   |   광고 시작일 ${dashboard.startDate}`, { x: 28, y: 523, size: 8.5, font, color: rgb(0.35, 0.38, 0.44) });
+  drawText(page, font, `강사명 ${project.instructorName || "-"}   |   관계사 ${project.affiliateName || "-"}   |   담당PM ${project.projectManager || "-"}   |   기수 ${project.cohort || "-"}   |   광고 시작일 ${dashboard.startDate}`, 28, 523, 786, 8.5, "left", rgb(0.35, 0.38, 0.44));
   const landingPageSummary = project.landingPages.length
     ? project.landingPages.map((item) => `${item.channel}: ${item.url}`).join("   |   ")
     : "-";
@@ -119,7 +120,7 @@ export async function buildExternalMarketingPdf(project: ExternalMarketingProjec
   drawText(page, font, `광고소재 드라이브   ${project.creativeDriveUrl || "-"}`, 28, 492, 786, 7.2, "left", rgb(0.35, 0.38, 0.44));
   const cards = [
     ["전체 집행비용 누적", won(summary.spend)], ["잔여 예산", won(summary.remainingBudget)], ["전체DB 총합계", `${number.format(summary.totalDatabaseLeads)}건`],
-    ["톡방입장인원", `${number.format(summary.latestChatRoomMembers)}명`], ["랜딩접수DB단가", won(summary.paidLandingLeadCost)], ["톡방접수DB단가", won(summary.chatRoomEntrantCost)],
+    ["누적 단톡방 인원", `${number.format(summary.latestChatRoomMembers)}명`], ["랜딩접수DB단가", won(summary.paidLandingLeadCost)], ["톡방접수DB단가", won(summary.chatRoomEntrantCost)],
   ];
   cards.forEach(([label, value], index) => {
     const cardWidth = 250;

@@ -13,6 +13,8 @@ const project: ExternalMarketingProject = {
   workspaceId: "00000000-0000-4000-8000-000000000002",
   courseName: "외부 마케팅 강의",
   instructorName: "김강사",
+  affiliateName: "비즈업 관계사",
+  projectManager: "박PM",
   cohort: "3기",
   webinarDate: "2026-11-27",
   landingPages: [{ channel: "Google", url: "https://example.com/google" }],
@@ -53,13 +55,17 @@ test("외부 공개 보고서를 숫자 형식의 엑셀로 만든다", async ()
   const workbook = await buildExternalMarketingXlsx(project, dashboard);
   const [sheet] = await readXlsxFile(workbook);
   assert.equal(sheet.data[0][0], project.courseName);
+  assert.match(String(sheet.data[1][0]), /관계사 비즈업 관계사/u);
+  assert.match(String(sheet.data[1][0]), /담당PM 박PM/u);
   assert.equal(sheet.data[2][6], "랜딩접수DB");
-  assert.equal(sheet.data[2][7], "단톡방 입장");
+  assert.equal(sheet.data[2][7], "오늘 단톡방 입장인원");
+  assert.equal(sheet.data[2][8], "누적 단톡방 인원");
   assert.equal(sheet.data[3][0], "전체");
   assert.equal(sheet.data[3][1], 1_000);
   assert.equal(sheet.data[3][5], 200_000);
   assert.equal(sheet.data[3][6], 20);
-  assert.equal(sheet.data[3][7], 30);
+  assert.equal(sheet.data[3][7], null);
+  assert.equal(sheet.data[3][8], 30);
   assert.equal(sheet.data[4][0], "2026-10-20");
 });
 

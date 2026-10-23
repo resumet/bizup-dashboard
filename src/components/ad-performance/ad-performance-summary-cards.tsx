@@ -70,7 +70,7 @@ export function AdPerformanceSummaryCards({ metrics, totalBudget, organicChannel
     <MetricCard title="집행비용" columns={spendColumns} />
     <MetricCard title="광고접수DB" columns={adColumns} footer={<p>랜딩접수DB단가 <span className="ml-1 font-medium tabular-nums text-foreground">{formatWon(summary.paidLandingLeadCost)}</span></p>} />
     <MetricCard title="오가닉DB" columns={organicColumns} />
-    <MetricCard title="톡방입장인원" columns={[{ key: "chat", label: "단톡방", value: `${number.format(summary.latestChatRoomMembers)}명`,
-      detail: formatWon(summary.chatRoomEntrantCost), valueLabel: "톡방입장인원", detailLabel: "톡방접수DB단가" }]} />
+    <MetricCard title="누적 단톡방 인원" columns={[{ key: "chat", label: "단톡방", value: `${number.format(summary.latestChatRoomMembers)}명`,
+      detail: formatWon(summary.chatRoomEntrantCost), valueLabel: "누적 단톡방 인원", detailLabel: "톡방접수DB단가" }]} />
   </section>;
 }

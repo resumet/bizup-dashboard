@@ -23,6 +23,7 @@ export function buildExternalMarketingReportRows(metrics: AdPerformanceDailyMetr
       spend: metric.totalSpend,
       landingReceptionDb: metric.paidLandingLeads,
       chatRoomEntrants: metric.chatRoomEntrants,
+      chatRoomCumulative: metric.chatRoomMembers,
       adDbUnitCost: unitCost(metric.totalSpend, adLeads),
       googleLandingDbUnitCost: metric.googleLandingLeadCost,
       metaLandingDbUnitCost: metric.metaLandingLeadCost,
@@ -67,7 +68,9 @@ export function buildExternalMarketingReportTotalRow(
   const adLeads = totals.googleAdLeads + totals.metaAdLeads;
   const spend = totals.googleSpend + totals.metaSpend;
   const landingReceptionDb = totals.googleLandingLeads + totals.metaLandingLeads;
-  const chatRoomEntrants = daily.findLast((metric) => metric.chatRoomMembers !== null)?.chatRoomMembers ?? 0;
+  const latestChatRoomMetric = daily.findLast((metric) => metric.chatRoomMembers !== null);
+  const chatRoomEntrants = latestChatRoomMetric?.chatRoomEntrants ?? null;
+  const chatRoomCumulative = latestChatRoomMetric?.chatRoomMembers ?? null;
 
   return {
     metricDate: "전체",
@@ -78,10 +81,11 @@ export function buildExternalMarketingReportTotalRow(
     spend,
     landingReceptionDb,
     chatRoomEntrants,
+    chatRoomCumulative,
     adDbUnitCost: unitCost(spend, adLeads),
     googleLandingDbUnitCost: unitCost(totals.googleSpend, totals.googleLandingLeads),
     metaLandingDbUnitCost: unitCost(totals.metaSpend, totals.metaLandingLeads),
     landingReceptionDbUnitCost: unitCost(spend, landingReceptionDb),
-    chatReceptionDbUnitCost: unitCost(spend, chatRoomEntrants),
+    chatReceptionDbUnitCost: unitCost(spend, chatRoomCumulative ?? 0),
   };
 }

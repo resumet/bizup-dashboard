@@ -52,6 +52,8 @@ export async function PUT(request: Request, { params }: Context) {
       .update({
         course_name: input.courseName,
         instructor_name: input.instructorName,
+        affiliate_name: input.affiliateName,
+        project_manager: input.projectManager,
         cohort: input.cohort,
         webinar_date: input.webinarDate || null,
         landing_pages: input.landingPages,

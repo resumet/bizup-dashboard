@@ -16,6 +16,8 @@ type ProjectRow = {
   workspace_id: string;
   course_name: string;
   instructor_name: string;
+  affiliate_name: string;
+  project_manager: string;
   cohort: string;
   webinar_date: string | null;
   landing_pages: unknown;
@@ -30,6 +32,8 @@ function normalizeProject(row: ProjectRow): ExternalMarketingProject {
   const info = externalMarketingInfoSchema.parse({
     courseName: row.course_name,
     instructorName: row.instructor_name,
+    affiliateName: row.affiliate_name,
+    projectManager: row.project_manager,
     cohort: row.cohort,
     webinarDate: row.webinar_date ?? "",
     landingPages: row.landing_pages,
@@ -46,7 +50,7 @@ function normalizeProject(row: ProjectRow): ExternalMarketingProject {
   };
 }
 
-const projectColumns = "dashboard_id,workspace_id,course_name,instructor_name,cohort,webinar_date,landing_pages,creative_drive_url,public_token,public_enabled,created_at,updated_at";
+const projectColumns = "dashboard_id,workspace_id,course_name,instructor_name,affiliate_name,project_manager,cohort,webinar_date,landing_pages,creative_drive_url,public_token,public_enabled,created_at,updated_at";
 
 export async function loadExternalMarketingProjects(workspaceId: string) {
   const admin = createAdminClient();

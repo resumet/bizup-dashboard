@@ -26,6 +26,7 @@ test("외부 공개 보고서의 합계, 전환율, 단가를 계산한다", () 
   assert.equal(row.landingConversionRate, 20);
   assert.equal(row.landingReceptionDb, 20);
   assert.equal(row.chatRoomEntrants, null);
+  assert.equal(row.chatRoomCumulative, 30);
   assert.equal(row.adDbUnitCost, 20_000);
   assert.equal(row.landingReceptionDbUnitCost, 10_000);
 });
@@ -47,6 +48,7 @@ test("단톡방 입장은 전날 누적인원과의 차이로 계산한다", () 
   ]);
   assert.equal(rows[1].landingReceptionDb, 10);
   assert.equal(rows[1].chatRoomEntrants, 12);
+  assert.equal(rows[1].chatRoomCumulative, 42);
 });
 
 test("전체 행은 합계 분모로 전환율과 단가를 다시 계산한다", () => {
@@ -71,7 +73,8 @@ test("전체 행은 합계 분모로 전환율과 단가를 다시 계산한다"
   assert.equal(total.landingReceptionDb, 20);
   assert.equal(total.landingConversionRate, 20);
   assert.equal(total.spend, 200_000);
-  assert.equal(total.chatRoomEntrants, 25);
+  assert.equal(total.chatRoomEntrants, 15);
+  assert.equal(total.chatRoomCumulative, 25);
   assert.equal(total.adDbUnitCost, 20_000);
   assert.equal(total.landingReceptionDbUnitCost, 10_000);
   assert.equal(total.chatReceptionDbUnitCost, 8_000);

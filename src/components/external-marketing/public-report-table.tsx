@@ -44,6 +44,7 @@ function ReportRow({ row, total = false, onDateClick }: {
     <td className={`${cell} font-semibold`}>{cost(row.spend)}</td>
     <td className={cell}>{number.format(row.landingReceptionDb)}</td>
     <td className={cell}>{row.chatRoomEntrants === null ? "—" : number.format(row.chatRoomEntrants)}</td>
+    <td className={cell}>{row.chatRoomCumulative === null ? "—" : number.format(row.chatRoomCumulative)}</td>
     <td className={cell}>{cost(row.adDbUnitCost)}</td>
     <td className={cell}><span className="block">G {cost(row.googleLandingDbUnitCost)}</span><span className="block">M {cost(row.metaLandingDbUnitCost)}</span></td>
     <td className={cell}>{cost(row.landingReceptionDbUnitCost)}</td>
@@ -103,18 +104,18 @@ export function PublicExternalMarketingReportTable({ metrics, token }: {
   }
 
   return <>
-    <div className="overflow-x-auto rounded-lg border" role="region" aria-label="날짜별 광고집행 결과 표" tabIndex={0}><table className="w-full min-w-[1520px] border-collapse">
-      <caption className="sr-only">날짜별 광고 노출, 클릭, 전환율, 광고비, 랜딩접수 DB, 단톡방 입장과 DB 단가</caption>
-      <thead className="bg-muted/65 text-muted-foreground"><tr><th className={`${head} text-left`}>날짜</th><th className={head}>총 광고노출</th><th className={head}>광고클릭</th><th className={head}>클릭전환율</th><th className={head}>랜딩전환율</th><th className={head}>광고집행비용</th><th className={head}>랜딩접수DB</th><th className={head}>단톡방 입장</th><th className={head}>광고DB당단가</th><th className={head}>랜딩DB당단가</th><th className={head}>랜딩접수DB단가</th><th className={head}>톡방접수 DB당단가</th></tr></thead>
-      <tbody>{total ? <ReportRow row={total} total /> : null}{rows.length ? rows.map((row) => <ReportRow key={row.metricDate} row={row} onDateClick={openChatMembersInput} />) : <tr><td colSpan={12} className="px-5 py-12 text-center text-sm text-muted-foreground">표시할 광고집행 결과가 없습니다.</td></tr>}</tbody>
+    <div className="overflow-x-auto rounded-lg border" role="region" aria-label="날짜별 광고집행 결과 표" tabIndex={0}><table className="w-full min-w-[1620px] border-collapse">
+      <caption className="sr-only">날짜별 광고 노출, 클릭, 전환율, 광고비, 랜딩접수 DB, 오늘 및 누적 단톡방 인원과 DB 단가</caption>
+      <thead className="bg-muted/65 text-muted-foreground"><tr><th className={`${head} text-left`}>날짜</th><th className={head}>총 광고노출</th><th className={head}>광고클릭</th><th className={head}>클릭전환율</th><th className={head}>랜딩전환율</th><th className={head}>광고집행비용</th><th className={head}>랜딩접수DB</th><th className={head}>오늘 단톡방 입장인원</th><th className={head}>누적 단톡방 인원</th><th className={head}>광고DB당단가</th><th className={head}>랜딩DB당단가</th><th className={head}>랜딩접수DB단가</th><th className={head}>톡방접수 DB당단가</th></tr></thead>
+      <tbody>{total ? <ReportRow row={total} total /> : null}{rows.length ? rows.map((row) => <ReportRow key={row.metricDate} row={row} onDateClick={openChatMembersInput} />) : <tr><td colSpan={13} className="px-5 py-12 text-center text-sm text-muted-foreground">표시할 광고집행 결과가 없습니다.</td></tr>}</tbody>
     </table></div>
 
     <Dialog open={Boolean(selectedDate)} onOpenChange={(open) => { if (!open && !saving) setSelectedDate(""); }}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader><DialogTitle>단톡방 입장 인원 입력</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>현재 누적 단톡방 인원 입력</DialogTitle></DialogHeader>
         <form className="grid gap-5" onSubmit={save}>
           <div className="grid gap-2">
-            <Label htmlFor="public-chat-members">{selectedDate} 누적 입장 인원</Label>
+            <Label htmlFor="public-chat-members">{selectedDate} 기준 현재 누적 인원</Label>
             <Input
               id="public-chat-members"
               inputMode="numeric"
@@ -125,7 +126,7 @@ export function PublicExternalMarketingReportTable({ metrics, token }: {
               disabled={saving}
               autoFocus
             />
-            <p className="text-xs leading-relaxed text-muted-foreground">해당 날짜 기준 누적 인원을 입력하면 표의 단톡방 입장은 전날 누적 인원과의 차이로 자동 계산됩니다. 값을 비우고 저장하면 입력값이 삭제됩니다.</p>
+            <p className="text-xs leading-relaxed text-muted-foreground">해당 날짜까지 단톡방에 들어온 현재 누적 인원을 입력해 주세요. 오늘 입장인원은 전날 누적 인원과의 차이로 자동 계산됩니다. 값을 비우고 저장하면 입력값이 삭제됩니다.</p>
           </div>
           {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
           <DialogFooter>

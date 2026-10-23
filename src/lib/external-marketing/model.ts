@@ -24,6 +24,8 @@ export const landingPageSchema = z.object({
 export const externalMarketingInfoSchema = z.object({
   courseName: z.string().trim().max(200),
   instructorName: z.string().trim().max(120),
+  affiliateName: z.string().trim().max(120),
+  projectManager: z.string().trim().max(120),
   cohort: z.string().trim().max(80),
   webinarDate: z.union([z.iso.date(), z.literal("")]).default(""),
   landingPages: z.array(landingPageSchema).max(20),

@@ -42,7 +42,7 @@ test("공개 보고서 단톡방 입력 함수는 수동 입력과 지표를 원
         primary key (dashboard_id, metric_date)
       );
     `);
-    await db.exec(await readFile("supabase/migrations/20261023023146_public_external_marketing_chat_members.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations/20261023023646_public_external_marketing_chat_members.sql", "utf8"));
     await db.query("insert into public.ad_performance_dashboards(id,workspace_id,service_scope) values($1,$2,'external_marketing')", [dashboardId, workspaceId]);
     await db.query("insert into public.external_marketing_projects(dashboard_id,workspace_id,public_token,public_enabled) values($1,$2,$3,true)", [dashboardId, workspaceId, token]);
     await db.query(`insert into public.ad_performance_sheet_states(dashboard_id,manual_inputs,version) values($1,$2::jsonb,3)`, [dashboardId, JSON.stringify({

@@ -27,7 +27,8 @@ export function PublicExternalMarketingProjectInfo({ initialInfo, token, startDa
     setError("");
     setNotice("");
     const parsed = externalMarketingPublicInfoSchema.safeParse({ courseName: draft.courseName, instructorName: draft.instructorName,
-      cohort: draft.cohort, webinarDate: draft.webinarDate, creativeDriveUrl: draft.creativeDriveUrl, landingPages: draft.landingPages });
+      affiliateName: draft.affiliateName, projectManager: draft.projectManager, cohort: draft.cohort,
+      webinarDate: draft.webinarDate, creativeDriveUrl: draft.creativeDriveUrl, landingPages: draft.landingPages });
     if (!parsed.success) { setError(parsed.error.issues[0]?.message ?? "입력값을 확인해 주세요."); return; }
     setSaving(true);
     try {
@@ -51,6 +52,8 @@ export function PublicExternalMarketingProjectInfo({ initialInfo, token, startDa
       <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-6">
         <div><p className="text-xs text-muted-foreground">강의명</p><p className="mt-1 break-words font-medium">{info.courseName || "—"}</p></div>
         <div><p className="text-xs text-muted-foreground">강사명</p><p className="mt-1 font-medium">{info.instructorName || "—"}</p></div>
+        <div><p className="text-xs text-muted-foreground">관계사</p><p className="mt-1 font-medium">{info.affiliateName || "—"}</p></div>
+        <div><p className="text-xs text-muted-foreground">담당PM</p><p className="mt-1 font-medium">{info.projectManager || "—"}</p></div>
         <div><p className="text-xs text-muted-foreground">기수</p><p className="mt-1 font-medium">{info.cohort || "—"}</p></div>
         <div><p className="text-xs text-muted-foreground">웨비나 날짜</p><p className="mt-1 font-medium tabular-nums">{info.webinarDate || "미입력"}</p></div>
         <div><p className="text-xs text-muted-foreground">광고 시작일</p><p className="mt-1 font-medium tabular-nums">{startDate}</p></div>

@@ -42,7 +42,7 @@ export function ExternalMarketingIndex({ projects: initialProjects, today: initi
   const [error, setError] = useState("");
   const sorted = sortExternalMarketingProjects(projects, today);
   const search = query.trim().normalize("NFKC").toLocaleLowerCase();
-  const visible = sorted.filter((project) => `${project.instructorName} ${project.courseName}`.normalize("NFKC").toLocaleLowerCase().includes(search));
+  const visible = sorted.filter((project) => `${project.instructorName} ${project.courseName} ${project.affiliateName} ${project.projectManager}`.normalize("NFKC").toLocaleLowerCase().includes(search));
   const recent = [...projects].filter((project) => project.instructorName.trim())
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
   const selectedProject = projects.find((project) => project.dashboardId === selectedProjectId);
@@ -84,7 +84,7 @@ export function ExternalMarketingIndex({ projects: initialProjects, today: initi
     </div>
     {error ? <Alert variant="destructive" className="mt-6"><AlertTitle>처리하지 못했습니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
     <div className="mt-6 space-y-3">
-      <label className="block max-w-md text-sm font-medium">강사명·강의명 검색<span className="relative mt-2 block"><Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /><Input className="h-11 pl-9" placeholder="강사명 또는 강의명을 입력하세요" value={query} onChange={(event) => { setQuery(event.target.value); setSelectedProjectId(""); }} /></span></label>
+      <label className="block max-w-md text-sm font-medium">외부마케팅대행 검색<span className="relative mt-2 block"><Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /><Input className="h-11 pl-9" placeholder="강의명, 강사명, 관계사 또는 담당PM" value={query} onChange={(event) => { setQuery(event.target.value); setSelectedProjectId(""); }} /></span></label>
       {recent.length ? <div className="flex flex-wrap gap-1.5" aria-label="최근 등록 강의의 강사">{recent.map((project, index) => <button
         key={project.dashboardId}
         type="button"
@@ -106,7 +106,7 @@ export function ExternalMarketingIndex({ projects: initialProjects, today: initi
     </div>
     <section className="mt-6 rounded-lg border">
       <Table aria-label="외부마케팅대행 강의 목록"><TableHeader><TableRow>
-        {["제목", "웨비나 날짜", "기수", "강사명", "광고집행비", "랜딩접수DB수", "접수DB당단가", "광고개시일", "소재전달일", "소재전달일까지 남은 날짜"].map((heading) => <TableHead key={heading}>{heading}</TableHead>)}
+        {["제목", "웨비나 날짜", "기수", "강사명", "관계사", "담당PM", "광고집행비", "랜딩접수DB수", "접수DB당단가", "광고개시일", "소재전달일", "소재전달일까지 남은 날짜"].map((heading) => <TableHead key={heading}>{heading}</TableHead>)}
         <TableHead className="w-12 text-right"><span className="sr-only">옵션</span></TableHead>
       </TableRow></TableHeader><TableBody>{visible.map((project) => {
         const title = project.courseName || "강의명 미입력";
@@ -117,6 +117,7 @@ export function ExternalMarketingIndex({ projects: initialProjects, today: initi
           <TableCell className="min-w-72"><Link href={`/services/external-marketing/${project.dashboardId}`} className="font-medium text-primary hover:underline">{displayTitle}</Link></TableCell>
           <TableCell className="tabular-nums"><time dateTime={project.webinarDate || undefined}>{formatExternalMarketingWebinarDate(project.webinarDate)}</time></TableCell>
           <TableCell>{project.cohort || "미입력"}</TableCell><TableCell>{project.instructorName || "미입력"}</TableCell>
+          <TableCell>{project.affiliateName || "미입력"}</TableCell><TableCell>{project.projectManager || "미입력"}</TableCell>
           <TableCell className="tabular-nums">{won.format(project.spend)}</TableCell><TableCell className="tabular-nums">{number.format(dbCount)}건</TableCell>
           <TableCell className="tabular-nums">{dbCount > 0 ? won.format(project.spend / dbCount) : "—"}</TableCell>
           <TableCell className="tabular-nums">{advertising.dueDate || "미입력"}</TableCell><TableCell className="tabular-nums">{creative.dueDate || "미입력"}</TableCell>
