@@ -53,6 +53,7 @@ export type DashboardLeave = {
 };
 
 type DashboardData = {
+  userName: string;
   todayLabel: string;
   courses: DashboardCourse[];
   wbsTasks: DashboardWbsTask[];
@@ -73,11 +74,11 @@ function SectionHeader({
   tone: string;
 }) {
   return (
-    <CardHeader className="flex flex-col items-start gap-5 border-b px-5 py-5 sm:px-6 sm:py-6">
-      <span className={cn("grid size-12 shrink-0 place-items-center rounded-2xl", tone)}>
-        <Icon className="size-6" strokeWidth={1.8} aria-hidden="true" />
+    <CardHeader className="flex-row items-center gap-3 border-b px-5 py-4 sm:px-6">
+      <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", tone)}>
+        <Icon className="size-5" strokeWidth={1.8} aria-hidden="true" />
       </span>
-      <CardTitle className="text-xl font-semibold tracking-tight">
+      <CardTitle className="text-lg font-semibold tracking-tight">
         <Link href={href} className="rounded-sm transition-colors hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2">
           {title}
         </Link>
@@ -121,7 +122,7 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
     <main className="min-h-dvh bg-slate-50/70">
       <div className="mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
         <div className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-semibold tracking-[-0.035em] text-slate-950">강의 대시보드</h1>
+          <h1 className="text-3xl font-semibold tracking-[-0.035em] text-slate-950">{data.userName}님 안녕하세요.</h1>
           <div className="inline-flex w-fit items-center gap-2 rounded-full border bg-white px-3.5 py-2 text-sm font-medium text-slate-600 shadow-sm">
             <CalendarDays className="size-4 text-blue-600" aria-hidden="true" />
             {data.todayLabel}
@@ -167,14 +168,11 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
                 <div className="space-y-2.5">
                   {data.wbsTasks.slice(0, 7).map((task) => (
                     <Link key={`${task.courseId}-${task.itemId}`} href={`/services/course-wbs?courseId=${task.courseId}`} className="group flex gap-3 rounded-xl border border-slate-200 p-3.5 transition-colors hover:border-violet-300 hover:bg-violet-50/40">
-                      <span className={cn("mt-1 size-2 shrink-0 rounded-full", task.timing === "overdue" ? "bg-red-500" : task.timing === "today" ? "bg-amber-500" : "bg-violet-500")} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-slate-900 group-hover:text-violet-800">{task.title}</p>
-                        <p className="mt-1 truncate text-xs text-muted-foreground">{task.courseName}</p>
-                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-                          <span className="inline-flex items-center gap-1"><CalendarDays className="size-3" aria-hidden="true" />{dateLabel(task.scheduledDate)}</span>
-                          {task.owner ? <span className="inline-flex items-center gap-1"><UserRound className="size-3" aria-hidden="true" />{task.owner}</span> : null}
-                        </div>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                          {task.owner || "담당자 미정"} | {dateLabel(task.scheduledDate)} | {task.courseName}
+                        </p>
                       </div>
                       <Badge variant={task.timing === "overdue" ? "destructive" : "secondary"} className="mt-0.5">
                         {task.timing === "overdue" ? "지연" : task.timing === "today" ? "오늘" : "예정"}

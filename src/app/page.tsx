@@ -120,6 +120,7 @@ export default async function HomePage() {
   return (
     <CourseDashboard
       data={{
+        userName: context.user.displayName ?? "사용자",
         todayLabel: todayLabel(today),
         courses,
         wbsTasks,
