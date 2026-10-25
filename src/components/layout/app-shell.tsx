@@ -196,6 +196,7 @@ function SidebarContent({
               <div className="border-l border-white/10 pl-2">
                 <SidebarLink item={{ label: "관리자 설정", href: "/admin", exact: true }} pathname={pathname} onNavigate={onNavigate} />
                 <SidebarLink item={{ label: "임직원 관리", href: "/hr/personnel" }} pathname={pathname} onNavigate={onNavigate} />
+                <SidebarLink item={{ label: "비품 관리", href: "/admin/supplies" }} pathname={pathname} onNavigate={onNavigate} />
                 <SidebarLink item={{ label: "캘린더 항목 관리", href: "/admin/calendar" }} pathname={pathname} onNavigate={onNavigate} />
               </div>
             </section>

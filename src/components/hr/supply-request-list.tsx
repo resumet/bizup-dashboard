@@ -37,7 +37,7 @@ const priceFormatter = new Intl.NumberFormat("ko-KR");
 const approvalLabel: Record<SupplyApprovalStatus, string> = {
   pending: "승인 대기",
   approved: "승인",
-  rejected: "반려",
+  rejected: "거부",
 };
 
 function ApprovalBadge({ status }: { status: SupplyApprovalStatus }) {
@@ -150,7 +150,7 @@ export function SupplyRequestList({
                               <SelectContent>
                                 <SelectItem value="pending">승인 대기</SelectItem>
                                 <SelectItem value="approved">승인</SelectItem>
-                                <SelectItem value="rejected">반려</SelectItem>
+                                <SelectItem value="rejected">거부</SelectItem>
                               </SelectContent>
                             </Select>
                             {approvalBusy ? <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" aria-hidden="true" /> : null}

@@ -20,7 +20,7 @@ export default async function SupplyRequestsPage() {
           </Link>
         </Button>
       </div>
-      <SupplyRequestList initialRequests={requests} canManage={context.isAdmin} />
+      <SupplyRequestList initialRequests={requests} canManage={false} />
     </div>
   );
 }

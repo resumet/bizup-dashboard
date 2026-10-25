@@ -19,7 +19,7 @@ test("비품 신청 DB가 금액·승인·구매 상태와 서버 전용 접근�
       insert into auth.users values ('${USER}');
       insert into public.workspaces values ('${WORKSPACE}');
     `);
-    await db.exec(await readFile("supabase/migrations/20261025090000_supply_requests.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations/20261025140632_supply_requests.sql", "utf8"));
 
     await db.exec("set role anon");
     await assert.rejects(() => db.query("select * from public.supply_requests"), /permission denied/u);
