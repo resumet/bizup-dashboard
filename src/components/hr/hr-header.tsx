@@ -15,6 +15,9 @@ function getMenuName(pathname: string) {
   if (pathname === "/hr/personnel" || pathname.startsWith("/hr/personnel/")) {
     return "임직원관리";
   }
+  if (pathname === "/hr/supplies" || pathname.startsWith("/hr/supplies/")) {
+    return "비품신청";
+  }
   return "업무관리";
 }
 

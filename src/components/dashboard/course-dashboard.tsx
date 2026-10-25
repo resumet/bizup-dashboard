@@ -9,7 +9,6 @@ import {
   Clock3,
   MapPin,
   Palmtree,
-  UserRound,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -136,22 +135,12 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
               {data.errors.courses ? <ErrorState>{data.errors.courses}</ErrorState> : data.courses.length ? (
                 <div className="space-y-2.5">
                   {data.courses.slice(0, 6).map((course) => (
-                    <Link key={course.id} href={`/services/course-operations/${course.id}`} className="group flex items-start gap-3 rounded-xl border border-slate-200 p-3.5 transition-colors hover:border-blue-300 hover:bg-blue-50/40">
+                    <Link key={course.id} href={`/services/course-operations/${course.id}`} className="group flex gap-3 rounded-xl border border-slate-200 p-3.5 transition-colors hover:border-blue-300 hover:bg-blue-50/40">
                       <div className="min-w-0 flex-1">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <span className="truncate font-semibold text-slate-900 group-hover:text-blue-700">{course.name}</span>
-                        </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                          <span className="inline-flex items-center gap-1">
-                            <UserRound className="size-3.5" aria-hidden="true" />
-                            {course.instructor || "강사 미정"}
-                          </span>
-                          <span className="inline-flex items-center gap-1">
-                            <CalendarDays className="size-3.5" aria-hidden="true" />
-                            웨비나 {course.webinarDate}
-                          </span>
-                          {course.cohort ? <Badge variant="outline" className="shrink-0">{course.cohort}</Badge> : null}
-                        </div>
+                        <p className="truncate text-sm font-semibold text-slate-900 group-hover:text-blue-700">{course.name}</p>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                          {course.instructor || "강사 미정"} | {course.webinarDate} | {course.cohort || "기수 미정"}
+                        </p>
                       </div>
                       {course.countdown ? <Badge variant="secondary" className="mt-0.5 shrink-0 bg-blue-50 text-blue-700">{course.countdown}</Badge> : null}
                     </Link>

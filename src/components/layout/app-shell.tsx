@@ -71,6 +71,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     items: [
       { label: "팀 업무", href: "/hr", exact: true },
       { label: "근태 관리", href: "/hr/leave" },
+      { label: "비품 신청", href: "/hr/supplies" },
       { label: "공용 캘린더", href: "/calendar" },
     ],
   },

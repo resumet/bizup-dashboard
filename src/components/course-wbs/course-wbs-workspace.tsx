@@ -27,9 +27,10 @@ import { reorderWbsItems } from "@/lib/course-wbs/reorder";
 import { selectablePeople } from "@/lib/course-wbs/people";
 import { datesForStartOffset, dueDateForOffset, dueDateForStartDate, WBS_DUE_OFFSETS, WBS_START_OFFSETS } from "@/lib/course-wbs/schedule-options";
 import { sortWbsItemsByStartDate } from "@/lib/course-wbs/start-date-sort";
+import { mergeTemplateItems } from "@/lib/course-wbs/template-items";
 import type { WbsItemSelection } from "@/lib/course-wbs/item-schedules";
 import type { CourseWbs, CourseWbsBootstrap, WbsCourse, WbsDashboard, WbsDashboardTask, WbsItem, WbsScheduleEntry, WbsSummary, WbsTemplate } from "@/lib/course-wbs/types";
-import { applyTemplateToCourse, syncWebinarItem, webinarDateFromTimestamp, webinarDayLabel, WEBINAR_ITEM_ID } from "@/lib/course-wbs/webinar-date";
+import { syncWebinarItem, webinarDateFromTimestamp, webinarDayLabel, WEBINAR_ITEM_ID } from "@/lib/course-wbs/webinar-date";
 
 type WbsResponse = { wbs: CourseWbs | null; webinarAt: string | null };
 
@@ -495,13 +496,11 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
 
   function applyTemplate() {
     if (!template || saving || loadingWbs || !courseReady) return;
-    if (items.length && (hasWbs || dirty) && !window.confirm("현재 목록을 템플릿으로 바꿀까요? 저장하지 않은 변경 사항은 사라집니다.")) return;
-    setItems(ordered(applyTemplateToCourse(template.items, webinarDate).map((item) => ({
-      ...item, id: item.id === WEBINAR_ITEM_ID ? WEBINAR_ITEM_ID : crypto.randomUUID(), completed: false,
-    }))));
+    if (items.length && (hasWbs || dirty) && !window.confirm("최신 템플릿과 동기화할까요? 완료 체크는 유지되고 추가·삭제·수정된 항목이 반영됩니다. 저장하지 않은 변경 사항은 사라집니다.")) return;
+    setItems(ordered(mergeTemplateItems(items, template.items, webinarDate)));
     setDirty(true);
     setView("list");
-    setNotice("템플릿을 불러왔습니다. 강의 WBS 저장을 눌러 연결하세요.");
+    setNotice("최신 템플릿과 동기화했습니다. 완료 체크는 유지했습니다. 강의 WBS 저장을 눌러 반영하세요.");
     setError("");
   }
 
