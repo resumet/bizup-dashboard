@@ -80,6 +80,7 @@ export type ExternalMarketingProjectSummary = ExternalMarketingProject & {
   startDate: string;
   totalBudget: number;
   spend: number;
+  adLeads: number;
   metricCount: number;
   paidLandingLeads: number;
   organicLandingLeads: number;

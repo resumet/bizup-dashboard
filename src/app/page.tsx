@@ -10,6 +10,8 @@ import {
 import { getCachedCourseSummaries } from "@/lib/course-operations/list-cache";
 import { formatWebinarCountdown, formatWebinarDate } from "@/lib/course-operations/webinar-proximity";
 import { loadCourseWbsBootstrap } from "@/lib/course-wbs/server";
+import { activeExternalMarketingCourses } from "@/lib/dashboard/external-marketing";
+import { loadExternalMarketingProjects } from "@/lib/external-marketing/server";
 import { formatCalendarTime, formatLocation, koreaToday } from "@/lib/shared-calendar/calendar";
 import { calendarContext, loadCalendarEvents } from "@/lib/shared-calendar/server";
 import { loadCalendarLeaves, loadCalendarWebinars } from "@/lib/shared-calendar/sources-server";
@@ -33,15 +35,16 @@ export default async function HomePage() {
 
   const today = koreaToday();
   const range = { from: today, to: today };
-  const [coursesResult, wbsResult, eventsResult, webinarsResult, leavesResult] = await Promise.allSettled([
+  const [coursesResult, wbsResult, eventsResult, webinarsResult, leavesResult, externalMarketingResult] = await Promise.allSettled([
     getCachedCourseSummaries(context.workspaceId),
     loadCourseWbsBootstrap(context.workspaceId),
     loadCalendarEvents(context.supabase, context.workspaceId, range),
     loadCalendarWebinars(context.supabase, context.workspaceId, range),
     loadCalendarLeaves(context, range),
+    loadExternalMarketingProjects(context.workspaceId),
   ]);
 
-  const errors: Partial<Record<"courses" | "wbs" | "schedules" | "leaves", string>> = {};
+  const errors: Partial<Record<"courses" | "wbs" | "schedules" | "leaves" | "externalMarketing", string>> = {};
 
   const courses: DashboardCourse[] = coursesResult.status === "fulfilled"
     ? coursesResult.value
@@ -117,6 +120,11 @@ export default async function HomePage() {
     : [];
   if (leavesResult.status === "rejected") errors.leaves = errorMessage("휴가자");
 
+  const externalMarketing = externalMarketingResult.status === "fulfilled"
+    ? activeExternalMarketingCourses(externalMarketingResult.value)
+    : [];
+  if (externalMarketingResult.status === "rejected") errors.externalMarketing = errorMessage("외부 마케팅");
+
   return (
     <CourseDashboard
       data={{
@@ -126,6 +134,7 @@ export default async function HomePage() {
         wbsTasks,
         schedules,
         leaves,
+        externalMarketing,
         errors,
       }}
     />

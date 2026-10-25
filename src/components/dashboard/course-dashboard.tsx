@@ -8,11 +8,13 @@ import {
   CircleAlert,
   Clock3,
   MapPin,
+  Megaphone,
   Palmtree,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { DashboardExternalMarketingCourse } from "@/lib/dashboard/external-marketing";
 import { cn } from "@/lib/utils";
 
 export type DashboardCourse = {
@@ -58,8 +60,15 @@ type DashboardData = {
   wbsTasks: DashboardWbsTask[];
   schedules: DashboardSchedule[];
   leaves: DashboardLeave[];
-  errors: Partial<Record<"courses" | "wbs" | "schedules" | "leaves", string>>;
+  externalMarketing: DashboardExternalMarketingCourse[];
+  errors: Partial<Record<"courses" | "wbs" | "schedules" | "leaves" | "externalMarketing", string>>;
 };
+
+const numberFormatter = new Intl.NumberFormat("ko-KR");
+
+function won(value: number | null) {
+  return value === null ? "-" : `${numberFormatter.format(Math.round(value))}원`;
+}
 
 function SectionHeader({
   icon: Icon,
@@ -212,6 +221,40 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
                   ))}
                 </div>
               ) : <EmptyState>오늘 휴가자가 없습니다.</EmptyState>}
+            </CardContent>
+          </Card>
+
+          <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
+            <SectionHeader icon={Megaphone} title="외부 마케팅 진행 강의" href="/services/external-marketing" tone="bg-rose-50 text-rose-700" />
+            <CardContent className="p-4 sm:p-5">
+              {data.errors.externalMarketing ? <ErrorState>{data.errors.externalMarketing}</ErrorState> : data.externalMarketing.length ? (
+                <div className="space-y-2.5">
+                  {data.externalMarketing.slice(0, 6).map((project) => (
+                    <Link key={project.dashboardId} href={`/services/external-marketing/${project.dashboardId}?tab=performance`} className="group block rounded-xl border border-slate-200 p-3.5 transition-colors hover:border-rose-300 hover:bg-rose-50/40">
+                      <p className="truncate text-sm font-semibold text-slate-900 group-hover:text-rose-800">{project.courseName || "강의명 미입력"}</p>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">
+                        {project.instructorName || "강사 미정"} | {project.cohort || "기수 미정"}
+                      </p>
+                      <dl className="mt-3 grid gap-3 rounded-lg bg-slate-50 p-3 sm:grid-cols-3">
+                        <div>
+                          <dt className="text-[11px] text-muted-foreground">집행금액</dt>
+                          <dd className="mt-1 text-sm font-semibold tabular-nums text-slate-900">{won(project.spend)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-[11px] text-muted-foreground">랜딩접수 DB / 단가</dt>
+                          <dd className="mt-1 text-sm font-semibold tabular-nums text-slate-900">{numberFormatter.format(project.landingLeads)}건</dd>
+                          <dd className="mt-0.5 text-xs tabular-nums text-muted-foreground">단가 {won(project.landingLeadCost)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-[11px] text-muted-foreground">광고접수 DB / 단가</dt>
+                          <dd className="mt-1 text-sm font-semibold tabular-nums text-slate-900">{numberFormatter.format(project.adLeads)}건</dd>
+                          <dd className="mt-0.5 text-xs tabular-nums text-muted-foreground">단가 {won(project.adLeadCost)}</dd>
+                        </div>
+                      </dl>
+                    </Link>
+                  ))}
+                </div>
+              ) : <EmptyState>현재 진행 중인 외부 마케팅 강의가 없습니다.</EmptyState>}
             </CardContent>
           </Card>
         </div>

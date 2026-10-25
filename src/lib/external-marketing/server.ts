@@ -60,7 +60,7 @@ export async function loadExternalMarketingProjects(workspaceId: string) {
   const admin = createAdminClient();
   const [projectsResult, summariesResult] = await Promise.all([
     admin.from("external_marketing_projects").select(projectColumns).eq("workspace_id", workspaceId).order("updated_at", { ascending: false }),
-    admin.from("ad_performance_dashboard_summaries").select("id,start_date,total_budget,metric_count,spend,paid_landing_leads,organic_landing_leads").eq("workspace_id", workspaceId).eq("service_scope", "external_marketing"),
+    admin.from("ad_performance_dashboard_summaries").select("id,start_date,total_budget,metric_count,spend,ad_leads,paid_landing_leads,organic_landing_leads").eq("workspace_id", workspaceId).eq("service_scope", "external_marketing"),
   ]);
   if (projectsResult.error) throw new Error(`외부마케팅대행 목록 조회 실패: ${projectsResult.error.code}`);
   if (summariesResult.error) throw new Error(`광고성과 요약 조회 실패: ${summariesResult.error.code}`);
@@ -74,6 +74,7 @@ export async function loadExternalMarketingProjects(workspaceId: string) {
       totalBudget: Number(summary.total_budget),
       metricCount: Number(summary.metric_count ?? 0),
       spend: Number(summary.spend ?? 0),
+      adLeads: Number(summary.ad_leads ?? 0),
       paidLandingLeads: Number(summary.paid_landing_leads ?? 0),
       organicLandingLeads: Number(summary.organic_landing_leads ?? 0),
     }];
