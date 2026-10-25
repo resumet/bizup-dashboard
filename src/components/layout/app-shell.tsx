@@ -8,7 +8,6 @@ import {
   BookOpenCheck,
   BriefcaseBusiness,
   ChevronRight,
-  LayoutDashboard,
   Menu,
   MonitorPlay,
   Puzzle,
@@ -42,11 +41,10 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     items: [
       { label: "강의 운영 자동화", href: "/services/course-operations", exact: true },
       { label: "강의 WBS", href: "/services/course-wbs" },
+      { label: "강의 일정 플래너", href: "/services/course-schedule-planner" },
       { label: "수강생 관리 및 정산", href: "/services/course-operations/students-settlements" },
-      { label: "콘텐츠 관리", href: "/services/content-management" },
       { label: "라이브 웨비나", href: "/services/course-webinars" },
-      { label: "강사 정보 받기", href: "/services/instructor-intakes" },
-      { label: "강의별 정산", href: "/services/settlement-analysis" },
+      { label: "유튜브 채널 관리", href: "/services/youtube-channels" },
     ],
   },
   {
@@ -54,8 +52,6 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     icon: BarChart3,
     items: [
       { label: "광고성과", href: "/services/ad-performance" },
-      { label: "주문결제 매출분석", href: "/services/purchase-analysis" },
-      { label: "자금 흐름", href: "/services/cash-flow" },
       { label: "입출금 장부", href: "/services/cash-ledger" },
     ],
   },
@@ -79,18 +75,14 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     ],
   },
   {
-    label: "채널 · 외부",
+    label: "외부 마케팅 대행",
     icon: MonitorPlay,
-    items: [
-      { label: "유튜브 채널 관리", href: "/services/youtube-channels" },
-      { label: "외부 마케팅", href: "/services/external-marketing" },
-    ],
+    items: [{ label: "외부 마케팅", href: "/services/external-marketing" }],
   },
   {
     label: "도구",
     icon: Puzzle,
     items: [
-      { label: "강의 일정 플래너", href: "/services/course-schedule-planner" },
       { label: "수강생 명단 중복 검사", href: "/services/roster-duplicates" },
       { label: "결제자 · 수강생 비교", href: "/services/roster-comparison" },
       { label: "강의 정산 계산기", href: "/tools/settlement-calculator" },
@@ -163,19 +155,10 @@ function SidebarContent({
       <div className="flex h-20 shrink-0 items-center border-b border-white/10 px-5">
         <BrandHomeLink className="text-white" />
       </div>
-      <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-4" aria-label="전체 메뉴">
-        <Link
-          href="/"
-          onClick={onNavigate}
-          aria-current={pathname === "/" ? "page" : undefined}
-          className={cn(
-            "mb-4 flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
-            pathname === "/" ? "bg-blue-600 text-white" : "text-slate-200 hover:bg-white/8 hover:text-white",
-          )}
-        >
-          <LayoutDashboard className="size-5" aria-hidden="true" />
-          강의 대시보드
-        </Link>
+      <nav
+        className="min-h-0 flex-1 overflow-y-auto px-3 py-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        aria-label="전체 메뉴"
+      >
         <div className="space-y-5">
           {NAVIGATION_GROUPS.map((group) => {
             const GroupIcon = group.icon;
