@@ -4,18 +4,14 @@ import {
   BookOpenCheck,
   CalendarClock,
   CalendarDays,
-  ChartGantt,
   CircleAlert,
   Clock3,
   MapPin,
-  Megaphone,
-  Palmtree,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DashboardExternalMarketingCourse } from "@/lib/dashboard/external-marketing";
-import { cn } from "@/lib/utils";
 
 export type DashboardCourse = {
   id: string;
@@ -71,21 +67,14 @@ function won(value: number | null) {
 }
 
 function SectionHeader({
-  icon: Icon,
   title,
   href,
-  tone,
 }: {
-  icon: typeof BookOpenCheck;
   title: string;
   href: string;
-  tone: string;
 }) {
   return (
-    <CardHeader className="flex-row items-center gap-3 border-b px-5 py-4 sm:px-6">
-      <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", tone)}>
-        <Icon className="size-5" strokeWidth={1.8} aria-hidden="true" />
-      </span>
+    <CardHeader className="border-b px-5 py-4 sm:px-6">
       <CardTitle className="text-lg font-semibold tracking-tight">
         <Link href={href} className="rounded-sm transition-colors hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2">
           {title}
@@ -139,11 +128,11 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
 
         <div className="grid gap-5 lg:grid-cols-2">
           <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
-            <SectionHeader icon={BookOpenCheck} title="현재 진행 중인 강의" href="/services/course-operations" tone="bg-blue-50 text-blue-700" />
+            <SectionHeader title="현재 진행 중인 강의" href="/services/course-operations" />
             <CardContent className="p-4 sm:p-5">
               {data.errors.courses ? <ErrorState>{data.errors.courses}</ErrorState> : data.courses.length ? (
                 <div className="space-y-2.5">
-                  {data.courses.slice(0, 6).map((course) => (
+                  {data.courses.slice(0, 4).map((course) => (
                     <Link key={course.id} href={`/services/course-operations/${course.id}`} className="group flex gap-3 rounded-xl border border-slate-200 p-3.5 transition-colors hover:border-blue-300 hover:bg-blue-50/40">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-slate-900 group-hover:text-blue-700">{course.name}</p>
@@ -160,11 +149,11 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
           </Card>
 
           <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
-            <SectionHeader icon={ChartGantt} title="지금 해야 할 WBS" href="/services/course-wbs" tone="bg-violet-50 text-violet-700" />
+            <SectionHeader title="지금 해야 할 WBS" href="/services/course-wbs" />
             <CardContent className="p-4 sm:p-5">
               {data.errors.wbs ? <ErrorState>{data.errors.wbs}</ErrorState> : data.wbsTasks.length ? (
                 <div className="space-y-2.5">
-                  {data.wbsTasks.slice(0, 7).map((task) => (
+                  {data.wbsTasks.slice(0, 4).map((task) => (
                     <Link key={`${task.courseId}-${task.itemId}`} href={`/services/course-wbs?courseId=${task.courseId}`} className="group flex gap-3 rounded-xl border border-slate-200 p-3.5 transition-colors hover:border-violet-300 hover:bg-violet-50/40">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-slate-900 group-hover:text-violet-800">{task.title}</p>
@@ -183,11 +172,11 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
           </Card>
 
           <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
-            <SectionHeader icon={CalendarClock} title="오늘 일정" href="/calendar" tone="bg-amber-50 text-amber-700" />
+            <SectionHeader title="오늘 일정" href="/calendar" />
             <CardContent className="p-4 sm:p-5">
               {data.errors.schedules ? <ErrorState>{data.errors.schedules}</ErrorState> : data.schedules.length ? (
                 <div className="grid gap-3 md:grid-cols-2">
-                  {data.schedules.map((schedule) => (
+                  {data.schedules.slice(0, 4).map((schedule) => (
                     <Link key={schedule.id} href={schedule.href} className="group rounded-xl border border-slate-200 p-4 transition-colors hover:border-amber-300 hover:bg-amber-50/40">
                       <div className="flex items-start justify-between gap-3">
                         <p className="line-clamp-2 font-semibold text-slate-900 group-hover:text-amber-800">{schedule.title}</p>
@@ -206,11 +195,11 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
           </Card>
 
           <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
-            <SectionHeader icon={Palmtree} title="오늘 휴가자" href="/hr/leave" tone="bg-emerald-50 text-emerald-700" />
+            <SectionHeader title="오늘 휴가자" href="/hr/leave" />
             <CardContent className="p-4 sm:p-5">
               {data.errors.leaves ? <ErrorState>{data.errors.leaves}</ErrorState> : data.leaves.length ? (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-                  {data.leaves.map((leave) => (
+                  {data.leaves.slice(0, 4).map((leave) => (
                     <Link key={leave.id} href={leave.href} className="flex items-center gap-3 rounded-xl border border-slate-200 p-4 transition-colors hover:border-emerald-300 hover:bg-emerald-50/40">
                       <span className="grid size-10 shrink-0 place-items-center rounded-full bg-emerald-100 font-semibold text-emerald-800">{leave.name.slice(0, 1)}</span>
                       <div className="min-w-0">
@@ -225,11 +214,11 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
           </Card>
 
           <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
-            <SectionHeader icon={Megaphone} title="외부 마케팅 진행 강의" href="/services/external-marketing" tone="bg-rose-50 text-rose-700" />
+            <SectionHeader title="외부 마케팅 진행 강의" href="/services/external-marketing" />
             <CardContent className="p-4 sm:p-5">
               {data.errors.externalMarketing ? <ErrorState>{data.errors.externalMarketing}</ErrorState> : data.externalMarketing.length ? (
                 <div className="space-y-2.5">
-                  {data.externalMarketing.slice(0, 6).map((project) => (
+                  {data.externalMarketing.slice(0, 4).map((project) => (
                     <Link key={project.dashboardId} href={`/services/external-marketing/${project.dashboardId}?tab=performance`} className="group block rounded-xl border border-slate-200 p-3.5 transition-colors hover:border-rose-300 hover:bg-rose-50/40">
                       <p className="truncate text-sm font-semibold text-slate-900 group-hover:text-rose-800">{project.courseName || "강의명 미입력"}</p>
                       <p className="mt-1 truncate text-xs text-muted-foreground">
