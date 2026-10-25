@@ -1,0 +1,236 @@
+import Link from "next/link";
+import {
+  ArrowRight,
+  BookOpenCheck,
+  CalendarClock,
+  CalendarDays,
+  ChartGantt,
+  CircleAlert,
+  Clock3,
+  MapPin,
+  Palmtree,
+  UserRound,
+} from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+
+export type DashboardCourse = {
+  id: string;
+  name: string;
+  instructor: string;
+  cohort: string;
+  webinarDate: string;
+  countdown: string;
+};
+
+export type DashboardWbsTask = {
+  courseId: string;
+  itemId: string;
+  courseName: string;
+  title: string;
+  owner: string;
+  scheduledDate: string;
+  timing: "overdue" | "today" | "upcoming";
+};
+
+export type DashboardSchedule = {
+  id: string;
+  title: string;
+  time: string;
+  detail: string;
+  location: string;
+  href: string;
+  startMinutes: number;
+};
+
+export type DashboardLeave = {
+  id: string;
+  name: string;
+  unit: string;
+  href: string;
+};
+
+type DashboardData = {
+  todayLabel: string;
+  courses: DashboardCourse[];
+  wbsTasks: DashboardWbsTask[];
+  schedules: DashboardSchedule[];
+  leaves: DashboardLeave[];
+  errors: Partial<Record<"courses" | "wbs" | "schedules" | "leaves", string>>;
+};
+
+function SectionHeader({
+  icon: Icon,
+  title,
+  count,
+  href,
+  linkLabel,
+  tone,
+}: {
+  icon: typeof BookOpenCheck;
+  title: string;
+  count: number;
+  href: string;
+  linkLabel: string;
+  tone: string;
+}) {
+  return (
+    <CardHeader className="flex-row items-center gap-3 border-b px-5 py-4 sm:px-6">
+      <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", tone)}>
+        <Icon className="size-5" strokeWidth={1.8} aria-hidden="true" />
+      </span>
+      <CardTitle className="text-lg font-semibold tracking-tight">{title}</CardTitle>
+      <Badge variant="secondary" className="ml-1 tabular-nums">{count}</Badge>
+      <Link href={href} className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+        {linkLabel}<ArrowRight className="size-3.5" aria-hidden="true" />
+      </Link>
+    </CardHeader>
+  );
+}
+
+function EmptyState({ children }: { children: string }) {
+  return (
+    <div className="flex min-h-36 flex-col items-center justify-center rounded-xl border border-dashed bg-slate-50/70 px-5 text-center text-sm text-muted-foreground">
+      <CalendarClock className="mb-3 size-6 text-slate-400" aria-hidden="true" />
+      {children}
+    </div>
+  );
+}
+
+function ErrorState({ children }: { children: string }) {
+  return (
+    <div className="flex min-h-24 items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 text-sm text-red-700">
+      <CircleAlert className="size-5 shrink-0" aria-hidden="true" />
+      {children}
+    </div>
+  );
+}
+
+function dateLabel(value: string) {
+  if (!value) return "일정 미정";
+  const date = new Date(`${value}T00:00:00+09:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "short",
+    day: "numeric",
+    weekday: "short",
+  }).format(date);
+}
+
+export function CourseDashboard({ data }: { data: DashboardData }) {
+  return (
+    <main className="min-h-dvh bg-slate-50/70">
+      <div className="mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
+        <div className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-semibold tracking-[-0.035em] text-slate-950">강의 대시보드</h1>
+          <div className="inline-flex w-fit items-center gap-2 rounded-full border bg-white px-3.5 py-2 text-sm font-medium text-slate-600 shadow-sm">
+            <CalendarDays className="size-4 text-blue-600" aria-hidden="true" />
+            {data.todayLabel}
+          </div>
+        </div>
+
+        <div className="grid gap-5 xl:grid-cols-12">
+          <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm xl:col-span-7">
+            <SectionHeader icon={BookOpenCheck} title="현재 진행 중인 강의" count={data.courses.length} href="/services/course-operations" linkLabel="전체 강의" tone="bg-blue-50 text-blue-700" />
+            <CardContent className="p-4 sm:p-5">
+              {data.errors.courses ? <ErrorState>{data.errors.courses}</ErrorState> : data.courses.length ? (
+                <div className="divide-y">
+                  {data.courses.slice(0, 6).map((course) => (
+                    <Link key={course.id} href={`/services/course-operations/${course.id}`} className="group grid gap-3 rounded-lg px-2 py-4 transition-colors hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-3">
+                      <div className="min-w-0">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="truncate font-semibold text-slate-900 group-hover:text-blue-700">{course.name}</span>
+                          {course.cohort ? <Badge variant="outline" className="shrink-0">{course.cohort}</Badge> : null}
+                        </div>
+                        <div className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <UserRound className="size-3.5" aria-hidden="true" />
+                          {course.instructor || "강사 미정"}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm sm:justify-end">
+                        <span className="text-muted-foreground">웨비나 {course.webinarDate}</span>
+                        {course.countdown ? <Badge className="bg-blue-50 text-blue-700">{course.countdown}</Badge> : null}
+                        <ArrowRight className="size-4 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-blue-600" aria-hidden="true" />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : <EmptyState>현재 진행 중인 강의가 없습니다.</EmptyState>}
+            </CardContent>
+          </Card>
+
+          <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm xl:col-span-5">
+            <SectionHeader icon={ChartGantt} title="지금 해야 할 WBS" count={data.wbsTasks.length} href="/services/course-wbs" linkLabel="WBS 열기" tone="bg-violet-50 text-violet-700" />
+            <CardContent className="p-4 sm:p-5">
+              {data.errors.wbs ? <ErrorState>{data.errors.wbs}</ErrorState> : data.wbsTasks.length ? (
+                <div className="space-y-2.5">
+                  {data.wbsTasks.slice(0, 7).map((task) => (
+                    <Link key={`${task.courseId}-${task.itemId}`} href={`/services/course-wbs?courseId=${task.courseId}`} className="group flex gap-3 rounded-xl border border-slate-200 p-3.5 transition-colors hover:border-violet-300 hover:bg-violet-50/40">
+                      <span className={cn("mt-1 size-2 shrink-0 rounded-full", task.timing === "overdue" ? "bg-red-500" : task.timing === "today" ? "bg-amber-500" : "bg-violet-500")} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-900 group-hover:text-violet-800">{task.title}</p>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">{task.courseName}</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                          <span className="inline-flex items-center gap-1"><CalendarDays className="size-3" aria-hidden="true" />{dateLabel(task.scheduledDate)}</span>
+                          {task.owner ? <span className="inline-flex items-center gap-1"><UserRound className="size-3" aria-hidden="true" />{task.owner}</span> : null}
+                        </div>
+                      </div>
+                      <Badge variant={task.timing === "overdue" ? "destructive" : "secondary"} className="mt-0.5">
+                        {task.timing === "overdue" ? "지연" : task.timing === "today" ? "오늘" : "예정"}
+                      </Badge>
+                    </Link>
+                  ))}
+                </div>
+              ) : <EmptyState>현재 확인할 WBS 업무가 없습니다.</EmptyState>}
+            </CardContent>
+          </Card>
+
+          <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm xl:col-span-7">
+            <SectionHeader icon={CalendarClock} title="오늘 일정" count={data.schedules.length} href="/calendar" linkLabel="캘린더 열기" tone="bg-amber-50 text-amber-700" />
+            <CardContent className="p-4 sm:p-5">
+              {data.errors.schedules ? <ErrorState>{data.errors.schedules}</ErrorState> : data.schedules.length ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {data.schedules.map((schedule) => (
+                    <Link key={schedule.id} href={schedule.href} className="group rounded-xl border border-slate-200 p-4 transition-colors hover:border-amber-300 hover:bg-amber-50/40">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="line-clamp-2 font-semibold text-slate-900 group-hover:text-amber-800">{schedule.title}</p>
+                        <ArrowRight className="mt-1 size-4 shrink-0 text-slate-400" aria-hidden="true" />
+                      </div>
+                      <div className="mt-3 space-y-1.5 text-xs text-muted-foreground">
+                        <p className="flex items-center gap-2"><Clock3 className="size-3.5 text-amber-600" aria-hidden="true" />{schedule.time}</p>
+                        <p className="flex items-center gap-2"><BookOpenCheck className="size-3.5 text-amber-600" aria-hidden="true" />{schedule.detail}</p>
+                        {schedule.location ? <p className="flex items-center gap-2"><MapPin className="size-3.5 text-amber-600" aria-hidden="true" />{schedule.location}</p> : null}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : <EmptyState>오늘 등록된 일정이 없습니다.</EmptyState>}
+            </CardContent>
+          </Card>
+
+          <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm xl:col-span-5">
+            <SectionHeader icon={Palmtree} title="오늘 휴가자" count={data.leaves.length} href="/hr/leave" linkLabel="근태 관리" tone="bg-emerald-50 text-emerald-700" />
+            <CardContent className="p-4 sm:p-5">
+              {data.errors.leaves ? <ErrorState>{data.errors.leaves}</ErrorState> : data.leaves.length ? (
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                  {data.leaves.map((leave) => (
+                    <Link key={leave.id} href={leave.href} className="flex items-center gap-3 rounded-xl border border-slate-200 p-4 transition-colors hover:border-emerald-300 hover:bg-emerald-50/40">
+                      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-emerald-100 font-semibold text-emerald-800">{leave.name.slice(0, 1)}</span>
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-slate-900">{leave.name}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{leave.unit}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : <EmptyState>오늘 휴가자가 없습니다.</EmptyState>}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </main>
+  );
+}

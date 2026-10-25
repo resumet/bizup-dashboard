@@ -1,48 +1,132 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, BarChart3, BriefcaseBusiness, CalendarDays, CalendarRange, LayoutDashboard, Megaphone, Puzzle, TvMinimalPlay, Wallet } from "lucide-react";
-import { BrandHomeLink } from "@/components/layout/brand-home-link";
-import { UserAccountMenu } from "@/components/auth/user-account-menu";
-import { AdminManagementButton } from "@/components/admin/admin-management-button";
-import { createClient } from "@/lib/supabase/server";
-import { getAuthenticatedUser } from "@/lib/supabase/auth";
-import { Button } from "@/components/ui/button";
+
+import {
+  CourseDashboard,
+  type DashboardCourse,
+  type DashboardLeave,
+  type DashboardSchedule,
+  type DashboardWbsTask,
+} from "@/components/dashboard/course-dashboard";
+import { getCachedCourseSummaries } from "@/lib/course-operations/list-cache";
+import { formatWebinarCountdown, formatWebinarDate } from "@/lib/course-operations/webinar-proximity";
+import { loadCourseWbsBootstrap } from "@/lib/course-wbs/server";
+import { formatCalendarTime, formatLocation, koreaToday } from "@/lib/shared-calendar/calendar";
+import { calendarContext, loadCalendarEvents } from "@/lib/shared-calendar/server";
+import { loadCalendarLeaves, loadCalendarWebinars } from "@/lib/shared-calendar/sources-server";
+
+function errorMessage(section: string) {
+  return `${section} 정보를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.`;
+}
+
+function todayLabel(today: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  }).format(new Date(`${today}T00:00:00+09:00`));
+}
 
 export default async function HomePage() {
-  const user = await getAuthenticatedUser(await createClient());
-  if (!user) redirect("/login");
-  return <main className="min-h-screen">
-    <header className="border-b bg-background"><div className="mx-auto flex min-h-16 max-w-[1900px] items-center px-5 py-4 lg:px-8"><BrandHomeLink /><Button variant="ghost" size="sm" className="ml-3" asChild><Link href="/extras"><Puzzle /> 부가기능</Link></Button><div className="ml-auto flex items-center gap-2"><AdminManagementButton email={user.email ?? ""} /><UserAccountMenu email={user.email ?? ""} /></div></div></header>
-    <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8 lg:py-12">
-      <section aria-label="주요 서비스">
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
-        {[
-          { href: "/work", name: "강의관리", description: "강의 운영, 수강생 명단, 알림톡·문자와 정산 등 기존 업무 도구를 사용합니다.", icon: LayoutDashboard, color: "bg-blue-50 text-blue-700" },
-          { href: "/hr", name: "업무관리", description: "오늘의 업무와 진행 상황, 담당자 이관 내역을 관리합니다.", icon: BriefcaseBusiness, color: "bg-emerald-50 text-emerald-700" },
-          { href: "/hr/leave", name: "근태관리", description: "휴가 신청과 부여 현황, 임직원 정보를 확인합니다.", icon: CalendarDays, color: "bg-rose-50 text-rose-700" },
-          { href: "/calendar", name: "공용캘린더", description: "", icon: CalendarDays, color: "bg-amber-50 text-amber-700" },
-          { href: "/services/ad-performance", name: "광고성과", description: "Google·Meta 광고의 날짜별 노출, 클릭, 접수 DB와 집행비를 기록합니다.", icon: BarChart3, color: "bg-violet-50 text-violet-700" },
-          { href: "/services/youtube-channels", name: "유튜브 채널 관리", description: "채널별 공개 영상 성과를 비교하고 분석 이력을 확인합니다.", icon: TvMinimalPlay, color: "bg-red-50 text-red-700" },
-          { href: "/services/cash-ledger", name: "입출금 장부", description: "", icon: Wallet, color: "bg-teal-50 text-teal-700" },
-          { href: "/services/course-schedule-planner", name: "강의 일정 플래너", description: "예비 강의와 확정된 웨비나 일정을 달력에서 한눈에 확인합니다.", icon: CalendarRange, color: "bg-amber-50 text-amber-700" },
-        ].map(({ href, name, description, icon: Icon, color }) => <Link key={href} href={href} className="group flex min-w-0 flex-col rounded-lg border bg-white p-7 shadow-sm transition hover:border-blue-400 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600">
-          <span className={`inline-flex self-start rounded-lg p-3 ${color}`}><Icon className="size-7" /></span>
-          <h2 className="mt-6 text-2xl font-semibold">{name}</h2>{description ? <p className="mt-3 min-h-14 leading-7 text-muted-foreground">{description}</p> : null}
-          <span className="mt-auto flex items-center gap-2 pt-8 text-sm font-medium">{name} 시작하기 <ArrowRight className="size-4 shrink-0 transition group-hover:translate-x-1" /></span>
-        </Link>)}
-      </div>
-      </section>
-      <section className="mt-12 border-t pt-8" aria-labelledby="external-services-title">
-        <h2 id="external-services-title" className="text-2xl font-semibold tracking-tight">외부서비스</h2>
-        <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
-          <Link href="/services/external-marketing" className="group flex min-w-0 flex-col rounded-lg border bg-white p-7 shadow-sm transition hover:border-blue-400 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-600">
-            <span className="inline-flex self-start rounded-lg bg-cyan-50 p-3 text-cyan-700"><Megaphone className="size-7" /></span>
-            <h3 className="mt-6 text-2xl font-semibold">외부마케팅대행</h3>
-            <p className="mt-3 min-h-14 leading-7 text-muted-foreground">외부 강의의 광고성과를 수집하고 공개용 결과 보고서를 관리합니다.</p>
-            <span className="mt-auto flex items-center gap-2 pt-8 text-sm font-medium">외부마케팅대행 시작하기 <ArrowRight className="size-4 shrink-0 transition group-hover:translate-x-1" /></span>
-          </Link>
-        </div>
-      </section>
-    </div>
-  </main>;
+  const context = await calendarContext().catch(() => null);
+  if (!context) redirect("/login");
+
+  const today = koreaToday();
+  const range = { from: today, to: today };
+  const [coursesResult, wbsResult, eventsResult, webinarsResult, leavesResult] = await Promise.allSettled([
+    getCachedCourseSummaries(context.workspaceId),
+    loadCourseWbsBootstrap(context.workspaceId),
+    loadCalendarEvents(context.supabase, context.workspaceId, range),
+    loadCalendarWebinars(context.supabase, context.workspaceId, range),
+    loadCalendarLeaves(context, range),
+  ]);
+
+  const errors: Partial<Record<"courses" | "wbs" | "schedules" | "leaves", string>> = {};
+
+  const courses: DashboardCourse[] = coursesResult.status === "fulfilled"
+    ? coursesResult.value
+      .filter((course) => course.status === "ongoing")
+      .map((course) => ({
+        id: course.id,
+        name: course.name,
+        instructor: course.instructor_name,
+        cohort: course.cohort,
+        webinarDate: formatWebinarDate(course.free_webinar_at),
+        countdown: formatWebinarCountdown(course.free_webinar_at, today),
+      }))
+    : [];
+  if (coursesResult.status === "rejected") errors.courses = errorMessage("강의");
+
+  const wbsTasks: DashboardWbsTask[] = [];
+  if (wbsResult.status === "fulfilled") {
+    const courseById = new Map(wbsResult.value.courses.map((course) => [course.id, course]));
+    const ongoingCourseIds = new Set(wbsResult.value.courses.filter((course) => course.status === "ongoing").map((course) => course.id));
+    const tasks = [
+      ...wbsResult.value.dashboard.overdueTasks.map((task) => ({ ...task, timing: "overdue" as const })),
+      ...wbsResult.value.dashboard.upcomingTasks.map((task) => ({
+        ...task,
+        timing: task.scheduledDate === today ? "today" as const : "upcoming" as const,
+      })),
+    ];
+    wbsTasks.push(...tasks
+      .filter((task) => ongoingCourseIds.has(task.courseId))
+      .map((task) => ({
+        courseId: task.courseId,
+        itemId: task.itemId,
+        courseName: courseById.get(task.courseId)?.name ?? "강의 정보 없음",
+        title: task.title,
+        owner: task.owner,
+        scheduledDate: task.scheduledDate,
+        timing: task.timing,
+      })));
+  } else {
+    errors.wbs = errorMessage("WBS");
+  }
+
+  const schedules: DashboardSchedule[] = [];
+  if (eventsResult.status === "fulfilled") {
+    schedules.push(...eventsResult.value.map((event) => ({
+      id: `event:${event.id}`,
+      title: event.title,
+      time: formatCalendarTime(event),
+      detail: event.course?.name ?? event.meeting_type.name,
+      location: formatLocation(event.location_kind, event.location_text),
+      href: "/calendar",
+      startMinutes: event.time_tbd ? 1440 : event.start_minutes,
+    })));
+  }
+  if (webinarsResult.status === "fulfilled") {
+    schedules.push(...webinarsResult.value.map((event) => ({
+      id: event.id,
+      title: event.title.replace(/^웨비나 · /u, ""),
+      time: event.time_label,
+      detail: "무료 웨비나",
+      location: "온라인",
+      href: event.href,
+      startMinutes: event.start_minutes,
+    })));
+  }
+  schedules.sort((left, right) => left.startMinutes - right.startMinutes || left.title.localeCompare(right.title, "ko"));
+  if (eventsResult.status === "rejected" && webinarsResult.status === "rejected") errors.schedules = errorMessage("오늘 일정");
+
+  const leaves: DashboardLeave[] = leavesResult.status === "fulfilled"
+    ? leavesResult.value.map((leave) => {
+      const [name, unit = "휴가"] = leave.title.split(" · ");
+      return { id: leave.id, name, unit, href: leave.href };
+    })
+    : [];
+  if (leavesResult.status === "rejected") errors.leaves = errorMessage("휴가자");
+
+  return (
+    <CourseDashboard
+      data={{
+        todayLabel: todayLabel(today),
+        courses,
+        wbsTasks,
+        schedules,
+        leaves,
+        errors,
+      }}
+    />
+  );
 }
