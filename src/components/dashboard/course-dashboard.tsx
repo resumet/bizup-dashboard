@@ -73,11 +73,11 @@ function SectionHeader({
   tone: string;
 }) {
   return (
-    <CardHeader className="flex-row items-center gap-3 border-b px-5 py-4 sm:px-6">
-      <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", tone)}>
-        <Icon className="size-5" strokeWidth={1.8} aria-hidden="true" />
+    <CardHeader className="flex flex-col items-start gap-5 border-b px-5 py-5 sm:px-6 sm:py-6">
+      <span className={cn("grid size-12 shrink-0 place-items-center rounded-2xl", tone)}>
+        <Icon className="size-6" strokeWidth={1.8} aria-hidden="true" />
       </span>
-      <CardTitle className="text-lg font-semibold tracking-tight">
+      <CardTitle className="text-xl font-semibold tracking-tight">
         <Link href={href} className="rounded-sm transition-colors hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2">
           {title}
         </Link>
@@ -128,8 +128,8 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
           </div>
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-12">
-          <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm xl:col-span-7">
+        <div className="grid gap-5 lg:grid-cols-2">
+          <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
             <SectionHeader icon={BookOpenCheck} title="현재 진행 중인 강의" href="/services/course-operations" tone="bg-blue-50 text-blue-700" />
             <CardContent className="p-4 sm:p-5">
               {data.errors.courses ? <ErrorState>{data.errors.courses}</ErrorState> : data.courses.length ? (
@@ -139,7 +139,6 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
                       <div className="min-w-0 flex-1">
                         <div className="flex min-w-0 items-center gap-2">
                           <span className="truncate font-semibold text-slate-900 group-hover:text-blue-700">{course.name}</span>
-                          {course.cohort ? <Badge variant="outline" className="shrink-0">{course.cohort}</Badge> : null}
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                           <span className="inline-flex items-center gap-1">
@@ -150,6 +149,7 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
                             <CalendarDays className="size-3.5" aria-hidden="true" />
                             웨비나 {course.webinarDate}
                           </span>
+                          {course.cohort ? <Badge variant="outline" className="shrink-0">{course.cohort}</Badge> : null}
                         </div>
                       </div>
                       {course.countdown ? <Badge variant="secondary" className="mt-0.5 shrink-0 bg-blue-50 text-blue-700">{course.countdown}</Badge> : null}
@@ -160,7 +160,7 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
             </CardContent>
           </Card>
 
-          <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm xl:col-span-5">
+          <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
             <SectionHeader icon={ChartGantt} title="지금 해야 할 WBS" href="/services/course-wbs" tone="bg-violet-50 text-violet-700" />
             <CardContent className="p-4 sm:p-5">
               {data.errors.wbs ? <ErrorState>{data.errors.wbs}</ErrorState> : data.wbsTasks.length ? (
@@ -186,7 +186,7 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
             </CardContent>
           </Card>
 
-          <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm xl:col-span-7">
+          <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
             <SectionHeader icon={CalendarClock} title="오늘 일정" href="/calendar" tone="bg-amber-50 text-amber-700" />
             <CardContent className="p-4 sm:p-5">
               {data.errors.schedules ? <ErrorState>{data.errors.schedules}</ErrorState> : data.schedules.length ? (
@@ -209,7 +209,7 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
             </CardContent>
           </Card>
 
-          <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm xl:col-span-5">
+          <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
             <SectionHeader icon={Palmtree} title="오늘 휴가자" href="/hr/leave" tone="bg-emerald-50 text-emerald-700" />
             <CardContent className="p-4 sm:p-5">
               {data.errors.leaves ? <ErrorState>{data.errors.leaves}</ErrorState> : data.leaves.length ? (
