@@ -142,11 +142,13 @@ function SidebarLink({
 
 function SidebarContent({
   email,
+  userName,
   isSuperAdmin,
   pathname,
   onNavigate,
 }: {
   email: string;
+  userName: string;
   isSuperAdmin: boolean;
   pathname: string;
   onNavigate: () => void;
@@ -201,7 +203,7 @@ function SidebarContent({
         </div>
       </nav>
       <div className="shrink-0 border-t border-white/10 p-3 [&_button]:text-slate-200 [&_button:hover]:bg-white/10 [&_button:hover]:text-white">
-        <UserAccountMenu email={email} />
+        <UserAccountMenu email={email} name={userName} showDetailLabel />
       </div>
     </div>
   );
@@ -210,10 +212,12 @@ function SidebarContent({
 export function AppShell({
   children,
   email,
+  userName,
   isSuperAdmin,
 }: {
   children: ReactNode;
   email: string | null;
+  userName: string;
   isSuperAdmin: boolean;
 }) {
   const pathname = usePathname();
@@ -224,7 +228,7 @@ export function AppShell({
   return (
     <div className="min-h-dvh bg-slate-50">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 lg:block">
-        <SidebarContent email={email} isSuperAdmin={isSuperAdmin} pathname={pathname} onNavigate={() => undefined} />
+        <SidebarContent email={email} userName={userName} isSuperAdmin={isSuperAdmin} pathname={pathname} onNavigate={() => undefined} />
       </aside>
 
       <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-white/95 px-4 backdrop-blur lg:hidden">
@@ -239,7 +243,7 @@ export function AppShell({
         </Button>
         <BrandHomeLink showName={false} />
         <span className="truncate text-sm font-semibold">BizUp 대시보드</span>
-        <div className="ml-auto"><UserAccountMenu email={email} /></div>
+        <div className="ml-auto"><UserAccountMenu email={email} name={userName} /></div>
       </header>
 
       {mobileMenuOpen ? (
@@ -263,6 +267,7 @@ export function AppShell({
             </Button>
             <SidebarContent
               email={email}
+              userName={userName}
               isSuperAdmin={isSuperAdmin}
               pathname={pathname}
               onNavigate={() => setMobileMenuOpen(false)}

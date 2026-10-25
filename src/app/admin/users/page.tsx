@@ -143,7 +143,7 @@ export default async function AdminUsersPage({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <UserAccountMenu email={currentUser.email ?? SUPER_ADMIN_EMAIL} />
+            <UserAccountMenu email={currentUser.email ?? SUPER_ADMIN_EMAIL} name={currentUser.displayName ?? "사용자"} />
           </div>
         </div>
       </header>

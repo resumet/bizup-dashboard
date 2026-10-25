@@ -68,7 +68,7 @@ export default async function DashboardPage() {
                 hiddenRoutes={cardSettings.hiddenRoutes}
               />
             ) : null}
-            <UserAccountMenu email={email} />
+            <UserAccountMenu email={email} name={currentUser.displayName ?? "사용자"} />
           </div>
         </div>
       </header>

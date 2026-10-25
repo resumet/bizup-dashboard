@@ -23,9 +23,11 @@ function getMenuName(pathname: string) {
 
 export function HrHeader({
   email,
+  name,
   isSuperAdmin,
 }: {
   email: string;
+  name: string;
   isSuperAdmin: boolean;
 }) {
   const pathname = usePathname();
@@ -49,7 +51,7 @@ export function HrHeader({
               </Link>
             </Button>
           ) : null}
-          <UserAccountMenu email={email} />
+          <UserAccountMenu email={email} name={name} />
         </div>
       </div>
     </header>

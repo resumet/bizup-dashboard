@@ -13,8 +13,10 @@ function matchesRoute(pathname: string, route: string) {
 
 export function ServiceQuickLinks({
   email,
+  name,
 }: {
   email: string;
+  name: string;
 }) {
   const pathname = usePathname();
   const isYoutubeChannels = matchesRoute(pathname, YOUTUBE_CHANNELS_ROUTE);
@@ -26,7 +28,7 @@ export function ServiceQuickLinks({
         {isYoutubeChannels ? (
           <><div className="h-5 w-px shrink-0 bg-border" /><span className="min-w-0 truncate font-semibold">유튜브 채널 관리</span></>
         ) : null}
-        <div className="ml-auto"><UserAccountMenu email={email} /></div>
+        <div className="ml-auto"><UserAccountMenu email={email} name={name} /></div>
       </div>
     </header>
   );

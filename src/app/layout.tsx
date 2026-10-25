@@ -26,6 +26,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const user = await getAuthenticatedUser(await createClient());
   const email = user?.email ?? null;
+  const userName = user?.displayName ?? "사용자";
 
   return (
     <html
@@ -34,7 +35,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full bg-background text-foreground">
         <Script id="supabase-invite-redirect" strategy="beforeInteractive">{inviteRedirectScript}</Script>
-        <AppShell email={email} isSuperAdmin={isSuperAdminEmail(email)}>
+        <AppShell email={email} userName={userName} isSuperAdmin={isSuperAdminEmail(email)}>
           {children}
         </AppShell>
       </body>
