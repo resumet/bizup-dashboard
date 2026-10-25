@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 
 import { SupplyRequestList } from "@/components/hr/supply-request-list";
@@ -6,7 +7,11 @@ import { Button } from "@/components/ui/button";
 import { loadSupplyRequests, requireSupplyRequestContext } from "@/lib/supply-requests/server";
 
 export default async function SupplyRequestsPage() {
-  const context = await requireSupplyRequestContext();
+  const context = await requireSupplyRequestContext().catch((error: unknown) => {
+    if (error instanceof Error && error.message === "UNAUTHORIZED") redirect("/login");
+    if (error instanceof Error && error.message === "PERSONNEL_INACTIVE") notFound();
+    throw error;
+  });
   const requests = await loadSupplyRequests(context);
 
   return (

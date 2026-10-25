@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { SupplyRequestForm } from "@/components/hr/supply-request-form";
@@ -6,7 +7,11 @@ import { Button } from "@/components/ui/button";
 import { requireSupplyRequestContext } from "@/lib/supply-requests/server";
 
 export default async function NewSupplyRequestPage() {
-  await requireSupplyRequestContext();
+  await requireSupplyRequestContext().catch((error: unknown) => {
+    if (error instanceof Error && error.message === "UNAUTHORIZED") redirect("/login");
+    if (error instanceof Error && error.message === "PERSONNEL_INACTIVE") notFound();
+    throw error;
+  });
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 p-5 sm:p-7 lg:p-9">
