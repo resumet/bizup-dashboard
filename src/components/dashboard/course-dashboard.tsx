@@ -36,6 +36,7 @@ export type DashboardCourse = {
 export type DashboardWbsTask = {
   courseId: string;
   itemId: string;
+  instructorName: string;
   courseName: string;
   title: string;
   owner: string;
@@ -154,7 +155,7 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
                         >
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold text-slate-900 group-hover:text-blue-700 group-data-[state=open]:text-blue-700">{course.name}</p>
-                            <p className="mt-1 truncate text-xs text-muted-foreground">
+                            <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
                               {course.instructor || "강사 미정"} | {course.webinarDate} | {course.cohort || "기수 미정"}
                             </p>
                           </div>
@@ -192,8 +193,8 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
                     <Link key={`${task.courseId}-${task.itemId}`} href={`/services/course-wbs?courseId=${task.courseId}`} className="group flex gap-3 rounded-xl border border-slate-200 p-3.5 transition-colors hover:border-violet-300 hover:bg-violet-50/40">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-slate-900 group-hover:text-violet-800">{task.title}</p>
-                        <p className="mt-1 truncate text-xs text-muted-foreground">
-                          {task.owner || "담당자 미정"} | {dateLabel(task.scheduledDate)} | {task.courseName}
+                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                          {task.instructorName || "강사 미정"} | {task.courseName} | {task.title} | {dateLabel(task.scheduledDate)} | {task.owner || "담당자 미정"}
                         </p>
                       </div>
                       <Badge variant={task.timing === "overdue" ? "destructive" : "secondary"} className="mt-0.5">

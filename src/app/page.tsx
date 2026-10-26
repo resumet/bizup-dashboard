@@ -8,8 +8,9 @@ import {
   type DashboardWbsTask,
 } from "@/components/dashboard/course-dashboard";
 import { getCachedCourseSummaries } from "@/lib/course-operations/list-cache";
-import { formatWebinarCountdown, formatWebinarDate } from "@/lib/course-operations/webinar-proximity";
+import { formatWebinarCountdown } from "@/lib/course-operations/webinar-proximity";
 import { loadCourseWbsBootstrap } from "@/lib/course-wbs/server";
+import { formatDashboardCohort, formatDashboardWebinarDate } from "@/lib/dashboard/course-metadata";
 import { activeExternalMarketingCourses } from "@/lib/dashboard/external-marketing";
 import { loadExternalMarketingProjects } from "@/lib/external-marketing/server";
 import { formatCalendarTime, formatLocation, koreaToday } from "@/lib/shared-calendar/calendar";
@@ -53,8 +54,8 @@ export default async function HomePage() {
         id: course.id,
         name: course.name,
         instructor: course.instructor_name,
-        cohort: course.cohort,
-        webinarDate: formatWebinarDate(course.free_webinar_at),
+        cohort: formatDashboardCohort(course.cohort),
+        webinarDate: formatDashboardWebinarDate(course.free_webinar_at),
         countdown: formatWebinarCountdown(course.free_webinar_at, today),
       }))
     : [];
@@ -73,15 +74,19 @@ export default async function HomePage() {
     ];
     wbsTasks.push(...tasks
       .filter((task) => ongoingCourseIds.has(task.courseId))
-      .map((task) => ({
-        courseId: task.courseId,
-        itemId: task.itemId,
-        courseName: courseById.get(task.courseId)?.name ?? "강의 정보 없음",
-        title: task.title,
-        owner: task.owner,
-        scheduledDate: task.scheduledDate,
-        timing: task.timing,
-      })));
+      .map((task) => {
+        const course = courseById.get(task.courseId);
+        return {
+          courseId: task.courseId,
+          itemId: task.itemId,
+          instructorName: course?.instructorName ?? "",
+          courseName: course?.name ?? "강의 정보 없음",
+          title: task.title,
+          owner: task.owner,
+          scheduledDate: task.scheduledDate,
+          timing: task.timing,
+        };
+      }));
   } else {
     errors.wbs = errorMessage("WBS");
   }
