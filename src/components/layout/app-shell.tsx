@@ -40,6 +40,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     icon: BookOpenCheck,
     items: [
       { label: "강의 운영 자동화", href: "/services/course-operations", exact: true },
+      { label: "컨텐츠 관리", href: "/services/content-management" },
       { label: "강의 WBS", href: "/services/course-wbs" },
       { label: "강의 일정 플래너", href: "/services/course-schedule-planner" },
       { label: "수강생 관리 및 정산", href: "/services/course-operations/students-settlements" },
