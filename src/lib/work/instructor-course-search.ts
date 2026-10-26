@@ -45,25 +45,40 @@ export function getOngoingInstructorNames(
   return [...names.values()];
 }
 
-export function getCourseDestinations(courseId: string): CourseDestination[] {
+function buildCourseDestinations(courseId: string) {
   const encodedCourseId = encodeURIComponent(courseId);
 
-  return [
-    {
+  return {
+    detail: {
       label: "강의 상세",
       href: `/services/course-operations/${encodedCourseId}`,
     },
-    {
+    content: {
       label: "콘텐츠 관리",
       href: `/services/content-management/${encodedCourseId}`,
     },
-    {
+    students: {
       label: "수강생 관리 및 정산",
       href: `/services/course-operations/students-settlements/${encodedCourseId}`,
     },
-    {
+    wbs: {
       label: "강의 WBS",
       href: `/services/course-wbs?courseId=${encodedCourseId}`,
     },
+  } satisfies Record<"detail" | "content" | "students" | "wbs", CourseDestination>;
+}
+
+export function getCourseDestinations(courseId: string): CourseDestination[] {
+  const destinations = buildCourseDestinations(courseId);
+  return [destinations.detail, destinations.content, destinations.students, destinations.wbs];
+}
+
+export function getDashboardCourseDestinations(courseId: string): CourseDestination[] {
+  const destinations = buildCourseDestinations(courseId);
+  return [
+    destinations.content,
+    destinations.students,
+    destinations.wbs,
+    { ...destinations.detail, label: "강의 상세보기" },
   ];
 }

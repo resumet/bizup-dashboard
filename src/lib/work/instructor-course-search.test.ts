@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   filterCoursesByInstructor,
   getCourseDestinations,
+  getDashboardCourseDestinations,
   getOngoingInstructorNames,
   type InstructorCourseSearchItem,
 } from "./instructor-course-search";
@@ -67,6 +68,27 @@ test("강의별 네 화면의 링크를 만든다", () => {
     {
       label: "강의 WBS",
       href: "/services/course-wbs?courseId=course%2F1",
+    },
+  ]);
+});
+
+test("대시보드 강의 메뉴는 콘텐츠·수강생·WBS·상세 순으로 만든다", () => {
+  assert.deepEqual(getDashboardCourseDestinations("course/1"), [
+    {
+      label: "콘텐츠 관리",
+      href: "/services/content-management/course%2F1",
+    },
+    {
+      label: "수강생 관리 및 정산",
+      href: "/services/course-operations/students-settlements/course%2F1",
+    },
+    {
+      label: "강의 WBS",
+      href: "/services/course-wbs?courseId=course%2F1",
+    },
+    {
+      label: "강의 상세보기",
+      href: "/services/course-operations/course%2F1",
     },
   ]);
 });
