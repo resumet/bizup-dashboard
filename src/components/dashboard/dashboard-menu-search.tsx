@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useDeferredValue, useId, useState } from "react";
-import { ArrowRight, BookOpenCheck, Search, X } from "lucide-react";
+import { ArrowRight, BookOpenCheck, ChevronDown, Search, X } from "lucide-react";
 
+import { DashboardCourseOptions } from "@/components/dashboard/dashboard-course-options";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { filterDashboardCourses, filterDashboardMenus, type DashboardCourseSearchItem, type DashboardMenuCustomKeywords } from "@/lib/dashboard/menu-search";
-import { getDashboardCourseDestinations } from "@/lib/work/instructor-course-search";
 
 const MENU_CHIP_COLORS = [
   "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100 hover:text-sky-950",
@@ -63,20 +64,19 @@ export function DashboardMenuSearch({
       {hasQuery && courseResults.length ? <div className="mt-5 border-t pt-4">
         <p className="mb-3 text-xs font-semibold tracking-wide text-slate-500">강사·강의 추천</p>
         <div className="grid gap-3 xl:grid-cols-2">
-          {courseResults.map((course) => <article key={course.id} className="rounded-xl border border-slate-200 p-3.5">
-            <div className="flex items-start gap-3">
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-700"><BookOpenCheck className="size-4" aria-hidden="true" /></span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-slate-900">{course.name}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{course.instructor || "강사 미정"} · {course.cohort || "기수 미정"} · {course.webinarDate}</p>
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {getDashboardCourseDestinations(course.id).map((destination) => <Button key={destination.href} variant="ghost" size="sm" className="h-8 px-2 text-xs" asChild>
-                <Link href={destination.href}>{destination.label}</Link>
-              </Button>)}
-            </div>
-          </article>)}
+          {courseResults.map((course) => <DropdownMenu key={course.id}>
+            <DropdownMenuTrigger asChild>
+              <button type="button" aria-label={`${course.name} 이동 메뉴 열기`} className="group flex w-full items-start gap-3 rounded-xl border border-slate-200 p-3.5 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 data-[state=open]:border-blue-300 data-[state=open]:bg-blue-50/60">
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-700"><BookOpenCheck className="size-4" aria-hidden="true" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-slate-900 group-hover:text-blue-700 group-data-[state=open]:text-blue-700">{course.name}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">{course.instructor || "강사 미정"} · {course.cohort || "기수 미정"} · {course.webinarDate}</span>
+                </span>
+                <ChevronDown className="mt-1 size-4 shrink-0 text-slate-400 transition-transform group-data-[state=open]:rotate-180 group-data-[state=open]:text-blue-600" aria-hidden="true" />
+              </button>
+            </DropdownMenuTrigger>
+            <DashboardCourseOptions courseId={course.id} />
+          </DropdownMenu>)}
         </div>
       </div> : hasQuery && !menus.length ? <p className="mt-4 text-sm text-muted-foreground">‘{query.trim()}’에 맞는 강사나 강의를 찾지 못했습니다.</p> : null}
     </section>

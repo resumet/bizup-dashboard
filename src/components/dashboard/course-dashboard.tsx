@@ -7,25 +7,19 @@ import {
   ChevronDown,
   CircleAlert,
   Clock3,
-  ClipboardList,
   MapPin,
-  Radio,
-  UsersRound,
-  Video,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { DashboardCourseOptions } from "@/components/dashboard/dashboard-course-options";
 import { DashboardMenuSearch } from "@/components/dashboard/dashboard-menu-search";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { DashboardExternalMarketingCourse } from "@/lib/dashboard/external-marketing";
 import type { DashboardCourseSearchItem, DashboardMenuCustomKeywords } from "@/lib/dashboard/menu-search";
-import { getDashboardCourseDestinations } from "@/lib/work/instructor-course-search";
 
 export type DashboardCourse = {
   id: string;
@@ -78,8 +72,6 @@ type DashboardData = {
 };
 
 const numberFormatter = new Intl.NumberFormat("ko-KR");
-const courseDestinationIcons = [Video, Radio, UsersRound, ClipboardList, BookOpenCheck];
-
 function won(value: number | null) {
   return value === null ? "-" : `${numberFormatter.format(Math.round(value))}원`;
 }
@@ -170,20 +162,7 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
                           <ChevronDown className="mt-1 size-4 shrink-0 text-slate-400 transition-transform group-data-[state=open]:rotate-180 group-data-[state=open]:text-blue-600" aria-hidden="true" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="min-w-64 p-1.5">
-                        {getDashboardCourseDestinations(course.id).map((destination, index) => {
-                          const DestinationIcon = courseDestinationIcons[index];
-                          return (
-                            <DropdownMenuItem key={destination.href} asChild className="px-2.5 py-2.5">
-                              <Link href={destination.href}>
-                                <DestinationIcon className="size-4 text-muted-foreground" aria-hidden="true" />
-                                <span>{destination.label}</span>
-                                <ArrowRight className="ml-auto size-4 text-muted-foreground" aria-hidden="true" />
-                              </Link>
-                            </DropdownMenuItem>
-                          );
-                        })}
-                      </DropdownMenuContent>
+                      <DashboardCourseOptions courseId={course.id} />
                     </DropdownMenu>
                   ))}
                 </div>

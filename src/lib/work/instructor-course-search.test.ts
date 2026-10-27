@@ -54,26 +54,32 @@ test("강사명만 부분 검색하고 공백을 무시한다", () => {
 test("강의별 여섯 화면의 링크를 만든다", () => {
   assert.deepEqual(getCourseDestinations("course/1"), [
     {
+      kind: "detail",
       label: "강의 상세",
       href: "/services/course-operations/course%2F1",
     },
     {
+      kind: "instagram",
       label: "강사 인스타그램 관리",
       href: "/services/instagram-management/course%2F1",
     },
     {
+      kind: "youtube",
       label: "유튜브 출연 관리",
       href: "/services/youtube-management/course%2F1",
     },
     {
+      kind: "webinar",
       label: "웨비나 정보",
       href: "/services/webinar-information/course%2F1",
     },
     {
+      kind: "students",
       label: "수강생 관리 및 정산",
       href: "/services/course-operations/students-settlements/course%2F1",
     },
     {
+      kind: "wbs",
       label: "강의별 해야할일",
       href: "/services/course-wbs?courseId=course%2F1",
     },
@@ -83,26 +89,32 @@ test("강의별 여섯 화면의 링크를 만든다", () => {
 test("대시보드 강의 메뉴는 인스타그램·유튜브·웨비나·수강생·WBS·상세 순으로 만든다", () => {
   assert.deepEqual(getDashboardCourseDestinations("course/1"), [
     {
+      kind: "instagram",
       label: "강사 인스타그램 관리",
       href: "/services/instagram-management/course%2F1",
     },
     {
+      kind: "youtube",
       label: "유튜브 출연 관리",
       href: "/services/youtube-management/course%2F1",
     },
     {
+      kind: "webinar",
       label: "웨비나 정보",
       href: "/services/webinar-information/course%2F1",
     },
     {
+      kind: "students",
       label: "수강생 관리 및 정산",
       href: "/services/course-operations/students-settlements/course%2F1",
     },
     {
+      kind: "wbs",
       label: "강의별 해야할일",
       href: "/services/course-wbs?courseId=course%2F1",
     },
     {
+      kind: "detail",
       label: "강의 상세보기",
       href: "/services/course-operations/course%2F1",
     },

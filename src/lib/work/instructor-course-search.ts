@@ -9,6 +9,7 @@ export type InstructorCourseSearchItem = {
 };
 
 export type CourseDestination = {
+  kind: "detail" | "instagram" | "youtube" | "webinar" | "students" | "wbs";
   label: string;
   href: string;
 };
@@ -50,26 +51,32 @@ function buildCourseDestinations(courseId: string) {
 
   return {
     detail: {
+      kind: "detail",
       label: "강의 상세",
       href: `/services/course-operations/${encodedCourseId}`,
     },
     instagram: {
+      kind: "instagram",
       label: "강사 인스타그램 관리",
       href: `/services/instagram-management/${encodedCourseId}`,
     },
     youtube: {
+      kind: "youtube",
       label: "유튜브 출연 관리",
       href: `/services/youtube-management/${encodedCourseId}`,
     },
     webinarInformation: {
+      kind: "webinar",
       label: "웨비나 정보",
       href: `/services/webinar-information/${encodedCourseId}`,
     },
     students: {
+      kind: "students",
       label: "수강생 관리 및 정산",
       href: `/services/course-operations/students-settlements/${encodedCourseId}`,
     },
     wbs: {
+      kind: "wbs",
       label: "강의별 해야할일",
       href: `/services/course-wbs?courseId=${encodedCourseId}`,
     },
