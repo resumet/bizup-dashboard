@@ -51,7 +51,7 @@ test("강사명만 부분 검색하고 공백을 무시한다", () => {
   assert.deepEqual(filterCoursesByInstructor(courses, "  "), []);
 });
 
-test("강의별 네 화면의 링크를 만든다", () => {
+test("강의별 다섯 화면의 링크를 만든다", () => {
   assert.deepEqual(getCourseDestinations("course/1"), [
     {
       label: "강의 상세",
@@ -60,6 +60,10 @@ test("강의별 네 화면의 링크를 만든다", () => {
     {
       label: "콘텐츠 관리",
       href: "/services/content-management/course%2F1",
+    },
+    {
+      label: "웨비나 정보",
+      href: "/services/webinar-information/course%2F1",
     },
     {
       label: "수강생 관리 및 정산",
@@ -72,11 +76,15 @@ test("강의별 네 화면의 링크를 만든다", () => {
   ]);
 });
 
-test("대시보드 강의 메뉴는 콘텐츠·수강생·WBS·상세 순으로 만든다", () => {
+test("대시보드 강의 메뉴는 콘텐츠·웨비나·수강생·WBS·상세 순으로 만든다", () => {
   assert.deepEqual(getDashboardCourseDestinations("course/1"), [
     {
       label: "콘텐츠 관리",
       href: "/services/content-management/course%2F1",
+    },
+    {
+      label: "웨비나 정보",
+      href: "/services/webinar-information/course%2F1",
     },
     {
       label: "수강생 관리 및 정산",

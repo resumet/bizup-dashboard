@@ -9,6 +9,7 @@ import {
   Clock3,
   ClipboardList,
   MapPin,
+  Radio,
   UsersRound,
   Video,
 } from "lucide-react";
@@ -73,7 +74,7 @@ type DashboardData = {
 };
 
 const numberFormatter = new Intl.NumberFormat("ko-KR");
-const courseDestinationIcons = [Video, UsersRound, ClipboardList, BookOpenCheck];
+const courseDestinationIcons = [Video, Radio, UsersRound, ClipboardList, BookOpenCheck];
 
 function won(value: number | null) {
   return value === null ? "-" : `${numberFormatter.format(Math.round(value))}원`;

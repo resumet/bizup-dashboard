@@ -196,6 +196,9 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
                 <Link href={`/services/content-management/${courseId}`}>콘텐츠 관리</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
+                <Link href={`/services/webinar-information/${courseId}`}>웨비나 정보</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
                 <Link
                   href={`/services/course-operations/students-settlements/${courseId}`}
                 >

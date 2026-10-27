@@ -135,7 +135,7 @@ const COURSE_LINKS: Array<{ field: CourseLinkFieldKey; label: string }> = [
   { field: "curriculumLink", label: "커리큘럼 보기 링크" },
   { field: "freeGiftLink", label: "무료강의 수강 선물받기 링크" },
   { field: "courseViewingLink", label: "강의 시청하기 링크" },
-  { field: "courseMaterialsLink", label: "강의자료 링크" },
+  { field: "courseMaterialsLink", label: "교안" },
 ];
 
 function getOpenableLink(value: string) {
@@ -1066,7 +1066,7 @@ export function CourseOperationsEditor({
                 />
               </div>
               <div className="hidden">
-                <Label htmlFor="course-materials-link">강의자료 링크</Label>
+                <Label htmlFor="course-materials-link">교안 링크</Label>
                 <div className="flex gap-2">
                   <Input
                     id="course-materials-link"

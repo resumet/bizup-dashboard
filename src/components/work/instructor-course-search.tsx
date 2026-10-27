@@ -6,6 +6,7 @@ import {
   ArrowRight,
   BookOpenText,
   ClipboardList,
+  Radio,
   Search,
   UsersRound,
   Video,
@@ -26,7 +27,7 @@ type InstructorCourseSearchProps = {
   loadError?: string;
 };
 
-const destinationIcons = [BookOpenText, Video, UsersRound, ClipboardList];
+const destinationIcons = [BookOpenText, Video, Radio, UsersRound, ClipboardList];
 
 const instructorColorClasses = [
   "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-300 dark:hover:bg-sky-950",

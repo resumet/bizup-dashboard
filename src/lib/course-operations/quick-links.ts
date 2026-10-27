@@ -39,7 +39,7 @@ export function buildCourseQuickLinks(course: QuickLinkCourseRow): CourseQuickLi
   const links: CourseQuickLink[] = [
     { label: "무료강의", url: course.landing_page_link ?? "" },
     { label: "유료결제", url: course.payment_link ?? "" },
-    { label: "강의자료", url: course.course_materials_link ?? "" },
+    { label: "교안", url: course.course_materials_link ?? "" },
     { label: "무료카톡방 1", url: course.free_kakao_room_1_link ?? "" },
     { label: "무료카톡방 2", url: course.free_kakao_room_2_link ?? "" },
     { label: "유료수강생단톡방", url: course.paid_kakao_room_link ?? "" },
