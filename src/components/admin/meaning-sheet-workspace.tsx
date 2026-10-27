@@ -1002,7 +1002,7 @@ export function MeaningSheetWorkspace({
           if (!open) setError("");
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <form className="grid gap-5" onSubmit={uploadTracking}>
             <DialogHeader>
               <DialogTitle>{trackingImportLabel}</DialogTitle>
@@ -1067,8 +1067,8 @@ export function MeaningSheetWorkspace({
               </div>
             </div>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            <DialogFooter className="sm:justify-between">
-              <div className="flex gap-2">
+            <DialogFooter className="gap-3 sm:flex-col-reverse sm:items-stretch md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-wrap gap-2">
                 {sheetState?.tracking?.sourceStoragePath ? (
                   <Button type="button" variant="outline" asChild>
                     <a
@@ -1101,7 +1101,7 @@ export function MeaningSheetWorkspace({
                   </Button>
                 ) : null}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 sm:justify-end">
                 <DialogClose asChild>
                   <Button type="button" variant="outline" disabled={busyAction !== null}>
                     취소

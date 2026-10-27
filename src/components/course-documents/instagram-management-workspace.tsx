@@ -569,6 +569,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h1 className="text-2xl font-semibold">{instagramCourseOptionLabel(selectedCourse)}</h1>
                   <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" asChild><Link href={`/services/course-operations/${selectedCourse.id}`}>강의 바로가기<ExternalLink /></Link></Button>
                     {selectedCourse.instagramAccountUrl ? <Button variant="outline" asChild><a href={selectedCourse.instagramAccountUrl} target="_blank" rel="noopener noreferrer"><ExternalLink />계정 열기</a></Button> : null}
                     <Button type="button" variant="outline" onClick={openSettingsDialog}><Settings />설정</Button>
                   </div>
