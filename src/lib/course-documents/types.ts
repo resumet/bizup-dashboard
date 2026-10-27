@@ -113,6 +113,7 @@ export type CourseDocumentMaterial = {
   uploadCompleted: boolean;
   uploadedUrl: string;
   dmMaterial: string;
+  dmNotRequired: boolean;
 };
 
 export type CourseDocumentCourse = {

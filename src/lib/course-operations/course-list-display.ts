@@ -21,7 +21,7 @@ export function getCourseManagementDestinations(
       href: `/services/instructor-intakes?courseId=${encodedCourseId}`,
     },
     {
-      label: "콘텐츠 관리",
+      label: "강사 인스타그램 / 유튜브 관리",
       href: `/services/content-management/${encodedCourseId}`,
     },
     {

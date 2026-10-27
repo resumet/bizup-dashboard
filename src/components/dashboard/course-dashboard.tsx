@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { DashboardMenuSearch } from "@/components/dashboard/dashboard-menu-search";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DropdownMenu,
@@ -23,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { DashboardExternalMarketingCourse } from "@/lib/dashboard/external-marketing";
+import type { DashboardCourseSearchItem } from "@/lib/dashboard/menu-search";
 import { getDashboardCourseDestinations } from "@/lib/work/instructor-course-search";
 
 export type DashboardCourse = {
@@ -66,6 +68,7 @@ type DashboardData = {
   userName: string;
   todayLabel: string;
   courses: DashboardCourse[];
+  searchCourses: DashboardCourseSearchItem[];
   wbsTasks: DashboardWbsTask[];
   schedules: DashboardSchedule[];
   leaves: DashboardLeave[];
@@ -139,6 +142,8 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
             {data.todayLabel}
           </div>
         </div>
+
+        <DashboardMenuSearch courses={data.searchCourses} />
 
         <div className="grid gap-5 lg:grid-cols-2">
           <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">

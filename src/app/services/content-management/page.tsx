@@ -23,7 +23,7 @@ export default async function ContentManagementPage({ searchParams }: { searchPa
   return <main className="min-h-screen">
     <header className="border-b bg-background"><div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
       <Button variant="ghost" size="icon" asChild><BackLink href="/work" aria-label="강의관리로 돌아가기"><ArrowLeft /></BackLink></Button>
-      <h1 className="ml-3 text-xl font-semibold">콘텐츠 관리</h1>
+      <h1 className="ml-3 text-xl font-semibold">강사 인스타그램 / 유튜브 관리</h1>
     </div></header>
     <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
       <MediaManagementTabs initialTab={tab} summary={<InstagramManagementSummary />} instagram={<InstagramManagementWorkspace />} youtube={

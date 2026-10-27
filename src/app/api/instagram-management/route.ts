@@ -31,6 +31,7 @@ const materialInputSchema = z.object({
   uploadCompleted: z.boolean(),
   uploadedUrl: courseDocumentInstagramUrlSchema,
   dmMaterial: courseDocumentDmMaterialSchema,
+  dmNotRequired: z.boolean(),
 }).superRefine((material, context) => {
   if (material.filmingCompleted && !material.planningCompleted) {
     context.addIssue({ code: "custom", message: "촬영 완료 항목은 기획 완료 상태여야 합니다." });
@@ -80,6 +81,7 @@ const requestSchema = z.discriminatedUnion("action", [
     position: courseDocumentMaterialPositionSchema,
     uploadedUrl: courseDocumentInstagramUrlSchema,
     dmMaterial: courseDocumentDmMaterialUrlSchema,
+    dmNotRequired: z.boolean(),
   }),
   z.object({ action: z.literal("save-planning-sheet"), courseId: z.uuid(), url: courseDocumentPlanningSheetUrlSchema }),
   z.object({ action: z.literal("save-document"), documentId: z.uuid(), document: adminCourseDocumentSchema }),
@@ -101,6 +103,7 @@ function toMaterial(row: {
   upload_completed: boolean;
   uploaded_url: string;
   dm_material: string;
+  dm_not_required: boolean;
 }): CourseDocumentMaterial {
   return {
     position: row.position,
@@ -115,6 +118,7 @@ function toMaterial(row: {
     uploadCompleted: row.upload_completed,
     uploadedUrl: row.uploaded_url,
     dmMaterial: row.dm_material,
+    dmNotRequired: row.dm_not_required,
   };
 }
 
@@ -155,7 +159,7 @@ export async function GET(request: Request) {
     const [settingsResult, documentsResult, materialsResult, leadsResult, blockedResult] = await Promise.all([
       admin.from("course_document_settings").select("course_id,external_edit_enabled,external_access_token,planning_sheet_url,instagram_account_url,instagram_total_count").eq("workspace_id", membership.workspace_id),
       admin.from("course_documents").select("id,course_id,instructor_name,title,slug,status,lead_gate_enabled,lead_gate_after_block_id,created_at,updated_at,published_at,course_document_leads(count)").eq("workspace_id", membership.workspace_id).in("course_id", materialCourseIds).is("deleted_at", null).order("updated_at", { ascending: false }),
-      admin.from("course_instagram_materials").select("course_id,position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material").in("course_id", materialCourseIds).order("position"),
+      admin.from("course_instagram_materials").select("course_id,position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material,dm_not_required").in("course_id", materialCourseIds).order("position"),
       includeLeads ? admin.from("course_document_leads").select("id,document_id,course_id,instructor_name,name,phone,utm_source,utm_medium,utm_campaign,utm_content,referrer,created_at,course_documents!inner(title),courses!inner(name)").eq("workspace_id", membership.workspace_id).order("created_at", { ascending: false }).limit(10_000) : Promise.resolve({ data: [], error: null }),
       !courseId ? admin.from("course_document_blocked_phones").select("id,phone_normalized,memo,created_at").eq("workspace_id", membership.workspace_id).order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
     ]);
@@ -271,7 +275,7 @@ export async function POST(request: Request) {
           .eq("workspace_id", membership.workspace_id)
           .single(),
         admin.from("course_instagram_materials")
-          .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material")
+          .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material,dm_not_required")
           .eq("course_id", input.courseId)
           .order("position"),
       ]);
@@ -349,7 +353,7 @@ export async function POST(request: Request) {
           title,
           updated_at: new Date().toISOString(),
         })), { onConflict: "course_id,position" })
-        .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material")
+        .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material,dm_not_required")
         .order("position");
       if (error) throw new Error(`인스타 제목 일괄 저장 실패: ${error.code}`);
       return Response.json({ materials: (data ?? []).map(toMaterial) });
@@ -369,11 +373,12 @@ export async function POST(request: Request) {
         .update({
           uploaded_url: input.uploadedUrl,
           dm_material: input.dmMaterial,
+          dm_not_required: input.dmNotRequired,
           updated_at: new Date().toISOString(),
         })
         .eq("course_id", course.id)
         .eq("position", input.position)
-        .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material")
+        .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material,dm_not_required")
         .single();
       if (error?.code === "PGRST116") throw new Error("NOT_FOUND");
       if (error) throw new Error(`인스타 업로드 링크 저장 실패: ${error.code}`);
@@ -409,7 +414,7 @@ export async function POST(request: Request) {
         .eq("course_id", course.id)
         .eq("upload_completed", false)
         .in("position", input.positions)
-        .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material")
+        .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material,dm_not_required")
         .order("position");
       if (error) throw new Error(`촬영 일정 일괄 저장 실패: ${error.code}`);
       if ((data ?? []).length !== input.positions.length) throw new Error("변경된 촬영 일정을 모두 확인하지 못했습니다.");
@@ -455,9 +460,10 @@ export async function POST(request: Request) {
           upload_completed: material.uploadCompleted,
           uploaded_url: material.uploadedUrl,
           dm_material: material.dmMaterial,
+          dm_not_required: material.dmNotRequired,
           updated_at: new Date().toISOString(),
         })), { onConflict: "course_id,position" })
-        .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material")
+        .select("position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material,dm_not_required")
         .order("position");
       if (error?.code === "23505") throw new Error("이 글은 이미 다른 인스타 자료에 연결되어 있습니다.");
       if (error) throw new Error(`인스타 자료 저장 실패: ${error.code}`);

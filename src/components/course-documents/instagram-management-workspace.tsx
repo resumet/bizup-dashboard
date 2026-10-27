@@ -54,6 +54,7 @@ type InstagramUploadDraft = {
   position: number;
   uploadedUrl: string;
   dmMaterial: string;
+  dmNotRequired: boolean;
   externalDmUrl: string;
 };
 
@@ -76,7 +77,8 @@ function materialHasChanges(current: CourseDocumentMaterial, saved?: CourseDocum
     || current.uploadDate !== (saved?.uploadDate ?? "")
     || current.uploadCompleted !== (saved?.uploadCompleted ?? false)
     || current.uploadedUrl !== (saved?.uploadedUrl ?? "")
-    || current.dmMaterial !== (saved?.dmMaterial ?? "");
+    || current.dmMaterial !== (saved?.dmMaterial ?? "")
+    || current.dmNotRequired !== (saved?.dmNotRequired ?? false);
 }
 
 function StatusBadge({ label, color }: { label: string; color: "blue" | "yellow" }) {
@@ -234,6 +236,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
       position: material.position,
       uploadedUrl: material.uploadedUrl,
       dmMaterial: dmMaterial.startsWith("/") ? new URL(dmMaterial, window.location.origin).toString() : dmMaterial,
+      dmNotRequired: material.dmNotRequired,
       externalDmUrl,
     });
   }
@@ -248,6 +251,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
         position: uploadDraft.position,
         uploadedUrl: uploadDraft.uploadedUrl,
         dmMaterial: uploadDraft.dmMaterial,
+        dmNotRequired: uploadDraft.dmNotRequired,
       });
       if (!body.material) throw new Error("저장된 업로드 정보를 확인하지 못했습니다.");
       const savedMaterial = body.material;
@@ -259,6 +263,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
         uploadCompleted: savedMaterial.uploadCompleted,
         uploadedUrl: savedMaterial.uploadedUrl,
         dmMaterial: savedMaterial.dmMaterial,
+        dmNotRequired: savedMaterial.dmNotRequired,
       });
       setCourses((current) => current.map((course) => course.id === selectedCourse.id ? {
         ...course,
@@ -269,7 +274,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
         [selectedCourse.id]: (current[selectedCourse.id] ?? []).map((material) => material.position === savedMaterial.position ? mergeUploadDetails(material) : material),
       }));
       setUploadDraft(null);
-      setNotice(`${savedMaterial.position}번 콘텐츠의 업로드 정보를 저장했습니다.${savedMaterial.uploadCompleted ? " 두 링크가 모두 입력되어 업로드 완료로 처리했습니다." : ""}`);
+      setNotice(`${savedMaterial.position}번 콘텐츠의 업로드 정보를 저장했습니다.${savedMaterial.uploadCompleted ? " 업로드 완료로 처리했습니다." : ""}`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "업로드 정보를 저장하지 못했습니다.");
     } finally {
@@ -337,7 +342,12 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
     try {
       const body = await post({ action: "bulk-update-filming-date", courseId: selectedCourse.id, positions, filmingDate });
       if (!body.materials || body.materials.length !== positions.length) throw new Error("변경된 촬영 일정을 확인하지 못했습니다.");
-      const updates = body.materials.map((material) => ({ position: material.position, filmingDate: material.filmingDate }));
+      const updates = body.materials.map((material) => ({
+        position: material.position,
+        filmingDate: material.filmingDate,
+        planningCompleted: material.planningCompleted,
+        filmingCompleted: material.filmingCompleted,
+      }));
       setCourses((current) => current.map((course) => course.id === selectedCourse.id
         ? { ...course, materials: mergeInstagramFilmingDates(course.materials, updates) }
         : course));
@@ -431,6 +441,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
           uploadCompleted: material.uploadCompleted,
           uploadedUrl: material.uploadedUrl,
           dmMaterial: material.dmMaterial,
+          dmNotRequired: material.dmNotRequired,
         })),
       });
       if (!body.materials || body.materials.length !== changedMaterials.length) throw new Error("저장된 인스타 자료를 확인하지 못했습니다.");
@@ -590,7 +601,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                       </Button>
                     </div>
                 </div>
-                <div className="rounded-lg border"><Table className="w-full table-fixed text-xs [&_th]:h-8 [&_th]:px-1 [&_td]:overflow-hidden [&_td]:px-1 [&_td]:py-1"><TableHeader className="sticky top-0 z-10 bg-background"><TableRow className="hover:bg-background"><TableHead className="w-[2.5%] text-center"><div className="flex justify-center"><Checkbox aria-label="촬영 일정 변경 가능한 항목 전체 선택" checked={allFilmingRowsSelected ? true : activeSelectedFilmingPositions.length ? "indeterminate" : false} disabled={savingMaterials || savingBulkFilmingDate || selectableFilmingPositions.length === 0} onCheckedChange={(checked) => setSelectedFilmingPositions(checked === true ? new Set(selectableFilmingPositions) : new Set())} /></div></TableHead><TableHead className="w-[2.5%] text-center">번호</TableHead><TableHead className="w-[4%] text-center">기획번호</TableHead><TableHead className="w-[22%]">제목</TableHead><TableHead className="w-[3%] text-center">기획</TableHead><TableHead className="w-[3%] text-center">촬영</TableHead><TableHead className="w-[9%]">촬영 일정</TableHead><TableHead className="w-[3%] text-center">편집</TableHead><TableHead className="w-[4%] text-center">업로드</TableHead><TableHead className="w-[6%] text-center">업로드 완료</TableHead><TableHead className="w-[9%]">업로드 일정</TableHead><TableHead className="w-[6%] text-center">링크</TableHead><TableHead className="w-[4%] text-center">DM 자료</TableHead><TableHead className="w-[6%]">작성 상태</TableHead><TableHead className="w-[6%]">공개 상태</TableHead><TableHead className="w-[10%] text-right">작업</TableHead></TableRow></TableHeader><TableBody>{selectedCourse.materials.map((material) => {
+                <div className="rounded-lg border"><Table className="w-full table-fixed text-xs [&_th]:h-8 [&_th]:px-1 [&_td]:overflow-hidden [&_td]:px-1 [&_td]:py-1"><TableHeader className="sticky top-0 z-10 bg-background"><TableRow className="hover:bg-background"><TableHead className="w-[2.5%] text-center"><div className="flex justify-center"><Checkbox aria-label="촬영 일정 변경 가능한 항목 전체 선택" checked={allFilmingRowsSelected ? true : activeSelectedFilmingPositions.length ? "indeterminate" : false} disabled={savingMaterials || savingBulkFilmingDate || selectableFilmingPositions.length === 0} onCheckedChange={(checked) => setSelectedFilmingPositions(checked === true ? new Set(selectableFilmingPositions) : new Set())} /></div></TableHead><TableHead className="w-[2.5%] text-center">번호</TableHead><TableHead className="w-[4%] text-center">기획번호</TableHead><TableHead className="w-[22%]">제목</TableHead><TableHead className="w-[3%] text-center">기획</TableHead><TableHead className="w-[9%]">촬영 일정</TableHead><TableHead className="w-[3%] text-center">촬영</TableHead><TableHead className="w-[3%] text-center">편집</TableHead><TableHead className="w-[4%] text-center">업로드</TableHead><TableHead className="w-[6%] text-center">업로드 완료</TableHead><TableHead className="w-[9%]">업로드 일정</TableHead><TableHead className="w-[6%] text-center">링크</TableHead><TableHead className="w-[4%] text-center">DM 자료</TableHead><TableHead className="w-[6%]">작성 상태</TableHead><TableHead className="w-[6%]">공개 상태</TableHead><TableHead className="w-[10%] text-right">작업</TableHead></TableRow></TableHeader><TableBody>{selectedCourse.materials.map((material) => {
                   const document = material.documentId ? selectedDocumentsById.get(material.documentId) : undefined;
                   const displayedDmMaterial = instagramDmMaterialValue(material.dmMaterial, document);
                   const dmMaterialHref = instagramDmMaterialHref(displayedDmMaterial);
@@ -598,13 +609,13 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                     <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 촬영 일정 변경 선택`} checked={selectedFilmingPositions.has(material.position)} disabled={savingMaterials || savingBulkFilmingDate || material.uploadCompleted} onCheckedChange={(checked) => toggleFilmingSelection(material.position, checked === true)} /></div></TableCell>
                     <TableCell className="text-center font-mono text-sm text-muted-foreground">{String(material.position).padStart(2, "0")}</TableCell>
                     <TableCell><Input className="h-8 px-1 text-center font-mono text-xs" aria-label={`${material.position}번 기획번호`} value={material.referencePlanningNumber} inputMode="numeric" maxLength={2} placeholder="00" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { referencePlanningNumber: event.target.value.replace(/\D/g, "").slice(0, 2) })} /></TableCell>
-                    <TableCell><Input className="h-8 px-2 text-xs" aria-label={`${material.position}번 자료 제목`} value={material.title} maxLength={200} placeholder="강사가 작성할 글의 제목" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { title: event.target.value })} /></TableCell>
+                    <TableCell><Input className="h-8 px-2 text-xs" aria-label={`${material.position}번 자료 제목`} value={material.title} maxLength={200} placeholder="강사가 작성할 글의 제목" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { title: event.target.value, ...(event.target.value.trim() ? { planningCompleted: true } : {}) })} /></TableCell>
                     <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 기획 완료`} checked={material.planningCompleted} disabled={savingMaterials || material.uploadCompleted} onCheckedChange={(checked) => updateProgress(material.position, "planning", checked === true)} /></div></TableCell>
+                    <TableCell><Input className="h-8 px-1 text-xs" type="date" aria-label={`${material.position}번 촬영 일정`} value={material.filmingDate} disabled={savingMaterials || savingBulkFilmingDate} onChange={(event) => updateMaterial(material.position, { filmingDate: event.target.value, ...(event.target.value ? { planningCompleted: true, filmingCompleted: true } : {}) })} /></TableCell>
                     <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 촬영 완료`} checked={material.filmingCompleted} disabled={savingMaterials || material.uploadCompleted} onCheckedChange={(checked) => updateProgress(material.position, "filming", checked === true)} /></div></TableCell>
-                    <TableCell><Input className="h-8 px-1 text-xs" type="date" aria-label={`${material.position}번 촬영 일정`} value={material.filmingDate} disabled={savingMaterials || savingBulkFilmingDate} onChange={(event) => updateMaterial(material.position, { filmingDate: event.target.value })} /></TableCell>
                     <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 편집 완료`} checked={material.editingCompleted} disabled={savingMaterials || material.uploadCompleted} onCheckedChange={(checked) => updateProgress(material.position, "editing", checked === true)} /></div></TableCell>
                     <TableCell><div className="flex justify-center"><Button type="button" size="icon-xs" variant="outline" aria-label={`${material.position}번 업로드 정보 입력`} disabled={savingMaterials || savingUpload} onClick={() => openUploadDialog(material)}><Upload /></Button></div></TableCell>
-                    <TableCell><div className="flex justify-center"><button type="button" className="rounded p-1" aria-label={`${material.position}번 업로드 완료 상태. 자동으로 관리됩니다.`} onClick={() => notify("업로드 완료는 콘텐츠 링크와 DM 자료 링크가 모두 저장되면 자동으로 체크됩니다.")}><Checkbox checked={material.uploadCompleted} tabIndex={-1} aria-hidden="true" className="pointer-events-none" /></button></div></TableCell>
+                    <TableCell><div className="flex justify-center"><button type="button" className="rounded p-1" aria-label={`${material.position}번 업로드 완료 상태. 자동으로 관리됩니다.`} onClick={() => notify("업로드 완료는 콘텐츠 링크와 DM 자료 링크가 저장되면 자동으로 체크됩니다. DM 없음인 경우 콘텐츠 링크만 필요합니다.")}><Checkbox checked={material.uploadCompleted} tabIndex={-1} aria-hidden="true" className="pointer-events-none" /></button></div></TableCell>
                     <TableCell><Input className="h-8 px-1 text-xs" type="date" aria-label={`${material.position}번 업로드 일정`} value={material.uploadDate} disabled /></TableCell>
                     <TableCell className="text-center">{material.uploadedUrl ? <Button type="button" size="xs" variant="outline" asChild><a href={material.uploadedUrl} target="_blank" rel="noopener noreferrer"><ExternalLink />바로가기</a></Button> : <span className="text-muted-foreground">-</span>}</TableCell>
                     <TableCell className="text-center">{dmMaterialHref ? <Button type="button" size="icon-xs" variant="outline" asChild><a aria-label={`${material.position}번 DM 자료 열기`} href={dmMaterialHref} target="_blank" rel="noopener noreferrer"><ExternalLink /></a></Button> : <span className="text-muted-foreground">-</span>}</TableCell>
@@ -710,9 +721,16 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
               <Input id="instagram-uploaded-url" type="url" maxLength={2048} placeholder="https://www.instagram.com/..." value={uploadDraft.uploadedUrl} disabled={savingUpload} onChange={(event) => setUploadDraft((current) => current ? { ...current, uploadedUrl: event.target.value } : current)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="instagram-dm-material">DM 자료 링크</Label>
-              <Input id="instagram-dm-material" type="url" maxLength={2048} placeholder="https://..." value={uploadDraft.dmMaterial} disabled={savingUpload} onChange={(event) => setUploadDraft((current) => current ? { ...current, dmMaterial: event.target.value } : current)} />
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="instagram-dm-material">DM 자료 링크</Label>
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <Checkbox checked={uploadDraft.dmNotRequired} disabled={savingUpload} onCheckedChange={(checked) => setUploadDraft((current) => current ? { ...current, dmNotRequired: checked === true } : current)} />
+                  DM 없음
+                </label>
+              </div>
+              <Input id="instagram-dm-material" type="url" maxLength={2048} placeholder="https://..." value={uploadDraft.dmMaterial} disabled={savingUpload || uploadDraft.dmNotRequired} onChange={(event) => setUploadDraft((current) => current ? { ...current, dmMaterial: event.target.value } : current)} />
               {uploadDraft.externalDmUrl && uploadDraft.dmMaterial === uploadDraft.externalDmUrl ? <p className="text-xs text-muted-foreground">외부에서 작성된 공개 링크를 자동으로 입력했습니다.</p> : null}
+              {uploadDraft.dmNotRequired ? <p className="text-xs text-muted-foreground">DM 자료 없이 콘텐츠 링크만 저장해도 업로드 완료로 처리됩니다.</p> : null}
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" disabled={savingUpload} onClick={() => setUploadDraft(null)}>취소</Button>

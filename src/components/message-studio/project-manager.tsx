@@ -131,7 +131,7 @@ export function MessageStudioProjectManager({
                 </Select>
                 {!courses.some(isSelectableCourse) ? (
                   <p className="text-sm text-muted-foreground">
-                    먼저 강의 운영 자동화에서 강의를 만들어 주세요.
+                    먼저 진행중 강의 보기에서 강의를 만들어 주세요.
                   </p>
                 ) : null}
               </div>

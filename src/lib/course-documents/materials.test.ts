@@ -32,6 +32,7 @@ test("강의별 인스타 자료 슬롯을 설정한 전체 진행 건수만큼 
     uploadCompleted: false,
     uploadedUrl: "",
     dmMaterial: "",
+    dmNotRequired: false,
   });
   assert.deepEqual(materials[1], {
     position: 2,
@@ -46,6 +47,7 @@ test("강의별 인스타 자료 슬롯을 설정한 전체 진행 건수만큼 
     uploadCompleted: false,
     uploadedUrl: "",
     dmMaterial: "",
+    dmNotRequired: false,
   });
   assert.equal(materials.at(-1)?.position, 40);
 });

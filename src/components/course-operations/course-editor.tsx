@@ -1272,7 +1272,7 @@ export function CourseOperationsEditor({
 
         {courseId ? <CourseLandingUtms key={courseId} courseId={courseId} instructorName={draft.instructorName} /> : null}
         {courseId && <div className="grid gap-4">
-          <Link href={`/services/content-management/${courseId}`} className="rounded-xl border bg-card p-6 text-lg font-semibold hover:bg-muted/50">콘텐츠 관리</Link>
+          <Link href={`/services/content-management/${courseId}`} className="rounded-xl border bg-card p-6 text-lg font-semibold hover:bg-muted/50">강사 인스타그램 / 유튜브 관리</Link>
         </div>}
 
         {courseId ? (

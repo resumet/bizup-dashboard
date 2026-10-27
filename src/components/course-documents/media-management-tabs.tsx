@@ -19,7 +19,7 @@ export function MediaManagementTabs({ summary, instagram, youtube, initialTab }:
         : defaultTab;
 
   return <Tabs defaultValue={selectedTab}>
-    <TabsList aria-label="콘텐츠 관리" className="mb-5">
+    <TabsList aria-label="강사 인스타그램 / 유튜브 관리" className="mb-5">
       {summary ? <TabsTrigger value="summary" className="px-4">요약</TabsTrigger> : null}
       <TabsTrigger value="instagram" className="px-4">인스타그램 관리</TabsTrigger>
       <TabsTrigger value="youtube" className="px-4">유튜브 출연 관리</TabsTrigger>

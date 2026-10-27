@@ -86,12 +86,22 @@ export function instagramBulkFilmingSelectablePositions(
 
 export function mergeInstagramFilmingDates(
   materials: CourseDocumentMaterial[],
-  updates: Pick<CourseDocumentMaterial, "position" | "filmingDate">[],
+  updates: Array<
+    Pick<CourseDocumentMaterial, "position" | "filmingDate">
+    & Partial<Pick<CourseDocumentMaterial, "planningCompleted" | "filmingCompleted">>
+  >,
 ) {
-  const filmingDateByPosition = new Map(updates.map((material) => [material.position, material.filmingDate]));
-  return materials.map((material) => filmingDateByPosition.has(material.position)
-    ? { ...material, filmingDate: filmingDateByPosition.get(material.position)! }
-    : material);
+  const updateByPosition = new Map(updates.map((material) => [material.position, material]));
+  return materials.map((material) => {
+    const update = updateByPosition.get(material.position);
+    if (!update) return material;
+    return {
+      ...material,
+      filmingDate: update.filmingDate,
+      ...(update.planningCompleted === undefined ? {} : { planningCompleted: update.planningCompleted }),
+      ...(update.filmingCompleted === undefined ? {} : { filmingCompleted: update.filmingCompleted }),
+    };
+  });
 }
 
 export function courseDocumentMaterials(
@@ -108,6 +118,7 @@ export function courseDocumentMaterials(
     uploadCompleted?: boolean;
     uploadedUrl?: string;
     dmMaterial?: string;
+    dmNotRequired?: boolean;
   }>,
   totalCount: number,
 ): CourseDocumentMaterial[] {
@@ -131,6 +142,7 @@ export function courseDocumentMaterials(
       uploadCompleted: material?.uploadCompleted ?? false,
       uploadedUrl: material?.uploadedUrl ?? "",
       dmMaterial: material?.dmMaterial ?? "",
+      dmNotRequired: material?.dmNotRequired ?? false,
     };
   });
 }

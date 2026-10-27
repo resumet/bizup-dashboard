@@ -50,7 +50,7 @@ export default async function CourseOperationsPage() {
             </BackLink>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
-          <span className="font-semibold">강의 운영 자동화</span>
+          <span className="font-semibold">진행중 강의 보기</span>
           <Button variant="outline" size="sm" asChild className="ml-auto">
             <Link href="/services/instructor-intakes">강사 정보 받기</Link>
           </Button>

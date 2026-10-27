@@ -193,7 +193,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href={`/services/content-management/${courseId}`}>콘텐츠 관리</Link>
+                <Link href={`/services/content-management/${courseId}`}>강사 인스타그램 / 유튜브 관리</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href={`/services/webinar-information/${courseId}`}>웨비나 정보</Link>
@@ -207,7 +207,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href={`/services/course-wbs?courseId=${courseId}`}>
-                  강의 WBS
+                  강의별 해야할일
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>

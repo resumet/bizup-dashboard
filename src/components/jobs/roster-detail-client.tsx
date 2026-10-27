@@ -1099,7 +1099,7 @@ export function MessageDialog({
           disabled={disabled}
           title={
             disabled
-              ? "먼저 강의 운영 자동화에서 수강생 명단을 강의에 연결해 주세요."
+              ? "먼저 진행중 강의 보기에서 수강생 명단을 강의에 연결해 주세요."
               : undefined
           }
         >

@@ -54,7 +54,7 @@ function buildCourseDestinations(courseId: string) {
       href: `/services/course-operations/${encodedCourseId}`,
     },
     content: {
-      label: "콘텐츠 관리",
+      label: "강사 인스타그램 / 유튜브 관리",
       href: `/services/content-management/${encodedCourseId}`,
     },
     webinarInformation: {
@@ -66,7 +66,7 @@ function buildCourseDestinations(courseId: string) {
       href: `/services/course-operations/students-settlements/${encodedCourseId}`,
     },
     wbs: {
-      label: "강의 WBS",
+      label: "강의별 해야할일",
       href: `/services/course-wbs?courseId=${encodedCourseId}`,
     },
   } satisfies Record<"detail" | "content" | "webinarInformation" | "students" | "wbs", CourseDestination>;

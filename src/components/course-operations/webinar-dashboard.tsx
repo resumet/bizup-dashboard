@@ -77,7 +77,7 @@ export function WebinarDashboard() {
                   {webinarFields.map(field => <TableCell key={field.key} className={metricCellClass}><span className="text-xs text-muted-foreground xl:hidden" aria-hidden="true">{field.label} ({field.unit})</span>{formatMetric(course.metrics?.[field.key])}</TableCell>)}
                   {ratioDefinitions.map(definition => <TableCell key={definition.key} className={metricCellClass}><span className="text-xs text-muted-foreground xl:hidden" aria-hidden="true">{definition.label}</span>{formatMetric(ratio(course.metrics?.[definition.numerator] ?? null, course.metrics?.[definition.denominator] ?? null), "%")}</TableCell>)}
                 </TableRow>)}
-                {!courses.length && <TableRow className="block xl:table-row"><TableCell colSpan={15} className="block h-auto py-10 text-center whitespace-normal text-muted-foreground xl:table-cell">등록된 강의가 없습니다. 강의 운영 자동화에서 강의를 만들어 주세요.</TableCell></TableRow>}
+                {!courses.length && <TableRow className="block xl:table-row"><TableCell colSpan={15} className="block h-auto py-10 text-center whitespace-normal text-muted-foreground xl:table-cell">등록된 강의가 없습니다. 진행중 강의 보기에서 강의를 만들어 주세요.</TableCell></TableRow>}
               </TableBody>
             </table>
           </div>

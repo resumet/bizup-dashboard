@@ -58,7 +58,7 @@ test("강의별 다섯 화면의 링크를 만든다", () => {
       href: "/services/course-operations/course%2F1",
     },
     {
-      label: "콘텐츠 관리",
+      label: "강사 인스타그램 / 유튜브 관리",
       href: "/services/content-management/course%2F1",
     },
     {
@@ -70,7 +70,7 @@ test("강의별 다섯 화면의 링크를 만든다", () => {
       href: "/services/course-operations/students-settlements/course%2F1",
     },
     {
-      label: "강의 WBS",
+      label: "강의별 해야할일",
       href: "/services/course-wbs?courseId=course%2F1",
     },
   ]);
@@ -79,7 +79,7 @@ test("강의별 다섯 화면의 링크를 만든다", () => {
 test("대시보드 강의 메뉴는 콘텐츠·웨비나·수강생·WBS·상세 순으로 만든다", () => {
   assert.deepEqual(getDashboardCourseDestinations("course/1"), [
     {
-      label: "콘텐츠 관리",
+      label: "강사 인스타그램 / 유튜브 관리",
       href: "/services/content-management/course%2F1",
     },
     {
@@ -91,7 +91,7 @@ test("대시보드 강의 메뉴는 콘텐츠·웨비나·수강생·WBS·상세
       href: "/services/course-operations/students-settlements/course%2F1",
     },
     {
-      label: "강의 WBS",
+      label: "강의별 해야할일",
       href: "/services/course-wbs?courseId=course%2F1",
     },
     {

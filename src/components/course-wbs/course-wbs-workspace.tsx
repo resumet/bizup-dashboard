@@ -476,7 +476,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
       setSchedules((current) => current.filter((entry) => entry.courseId !== target.id));
       setDeleteTarget(null);
       clearFeedback();
-      setNotice("강의 WBS를 삭제했습니다.");
+      setNotice("강의별 해야할일을 삭제했습니다.");
       const overview = await responseJson<CourseWbsBootstrap>(await fetch("/api/course-wbs", { cache: "no-store" }));
       setCourses(overview.courses);
       setWbsSummaries(overview.wbsSummaries);
@@ -500,7 +500,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
     setItems(ordered(mergeTemplateItems(items, template.items, webinarDate)));
     setDirty(true);
     setView("list");
-    setNotice("최신 템플릿과 동기화했습니다. 완료 체크는 유지했습니다. 강의 WBS 저장을 눌러 반영하세요.");
+    setNotice("최신 템플릿과 동기화했습니다. 완료 체크는 유지했습니다. 강의별 해야할일 저장을 눌러 반영하세요.");
     setError("");
   }
 
@@ -550,12 +550,12 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   }
 
   return <>
-    <header className="border-b bg-background" aria-label="강의 WBS 상단">
+    <header className="border-b bg-background" aria-label="강의별 해야할일 상단">
       <div className="mx-auto flex min-h-18 max-w-[1900px] items-center gap-3 px-5 py-3 lg:px-8">
         <Button variant="ghost" size="sm" asChild><BackLink href="/work">뒤로가기</BackLink></Button>
         <div className="h-5 w-px shrink-0 bg-border" />
         <span className="min-w-0 line-clamp-2 text-sm font-semibold leading-5 sm:text-base">
-          {courseId ? courseWbsHeading(course) : "강의 WBS"}
+          {courseId ? courseWbsHeading(course) : "강의별 해야할일"}
         </span>
       </div>
     </header>
@@ -578,7 +578,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
       </div>
     ) : !courseId ? <Tabs value={overviewTab} onValueChange={(value) => setOverviewTab(value as "manage" | "analysis" | "summary")}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-      <TabsList aria-label="강의 WBS 화면">
+      <TabsList aria-label="강의별 해야할일 화면">
         <TabsTrigger value="manage"><ClipboardList /> WBS 관리</TabsTrigger>
         <TabsTrigger value="summary">업무 요약</TabsTrigger>
         <TabsTrigger value="analysis"><CalendarDays /> 업무 현황</TabsTrigger>
@@ -620,8 +620,8 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
       </TabsContent>
 
       <TabsContent value="manage" className="mt-6">
-      <section aria-label="저장된 강의 WBS">
-        {savedWbsCards.length ? <div className="overflow-x-auto rounded-xl border bg-background"><table className="w-full min-w-[1000px] text-sm" aria-label="강의 WBS 목록">
+      <section aria-label="저장된 강의별 해야할일">
+        {savedWbsCards.length ? <div className="overflow-x-auto rounded-xl border bg-background"><table className="w-full min-w-[1000px] text-sm" aria-label="강의별 해야할일 목록">
           <thead className="bg-muted/50 text-left"><tr>{["강의", "강사", "기수", "웨비나 날짜", "상태", "업무", "진행", "완료", "진행률", "미진행", ""].map((label, index) => <th key={index} className="whitespace-nowrap px-4 py-3" title={label === "진행" ? "완료되지 않은 전체 업무 수" : label === "미진행" ? "기한이 지났지만 완료되지 않은 업무 수" : undefined}>{label}</th>)}</tr></thead><tbody>
           {savedWbsCards.map(({ summary, course: linkedCourse }) => {
             const counts = wbsProgress(schedules.find((entry) => entry.courseId === summary.courseId)?.items ?? [], today);
@@ -649,7 +649,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
         <div className="flex shrink-0 items-center gap-2">
           {course ? <Button variant="outline" size="sm" asChild><Link href={`/services/course-operations/${course.id}`}>강의 상세 <ExternalLink /></Link></Button> : null}
           <Button size="sm" onClick={() => void saveWbs()} disabled={saving || loadingWbs || !courseReady || !courseId || (!dirty && hasWbs)}>
-            {saving ? <LoaderCircle className="animate-spin" /> : <Save />} 강의 WBS 저장
+            {saving ? <LoaderCircle className="animate-spin" /> : <Save />} 강의별 해야할일 저장
           </Button>
         </div>
       </div>
@@ -664,14 +664,14 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
         ].map((stat) => <div key={stat.label} className="rounded-xl border bg-background p-4 shadow-sm" title={stat.help}><p className="text-xs text-muted-foreground">{stat.label}</p><p className={`mt-2 text-2xl font-semibold tabular-nums ${stat.label === "미진행" && itemProgress.overdue ? "text-destructive" : ""}`}>{courseReady ? stat.value : "—"}</p></div>)}
       </section>
 
-      <section className="min-w-0" aria-label="강의 WBS 항목">
+      <section className="min-w-0" aria-label="강의별 해야할일 항목">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex rounded-lg border bg-background p-1" role="group" aria-label="보기 방식">
               <Button size="sm" variant={view === "list" ? "secondary" : "ghost"} onClick={() => setView("list")} aria-pressed={view === "list"}><ClipboardList /> 목록</Button>
               <Button size="sm" variant={view === "compact" ? "secondary" : "ghost"} onClick={() => setView("compact")} aria-pressed={view === "compact"}><ClipboardList /> 간소화목록</Button>
               <Button size="sm" variant={view === "gantt" ? "secondary" : "ghost"} onClick={() => setView("gantt")} aria-pressed={view === "gantt"}><CalendarDays /> 간트 차트</Button>
             </div>
-            {view === "compact" ? <p className="text-xs text-muted-foreground">완료 여부를 변경한 뒤 강의 WBS 저장을 눌러 주세요.</p> : null}
+            {view === "compact" ? <p className="text-xs text-muted-foreground">완료 여부를 변경한 뒤 강의별 해야할일 저장을 눌러 주세요.</p> : null}
             {view !== "compact" ? <Button size="sm" variant="outline" onClick={addItem} disabled={loadingWbs || !courseReady || saving}><Plus /> 항목 추가</Button> : null}
           </div>
           {loadingWbs ? <div className="flex min-h-72 items-center justify-center rounded-xl border bg-background text-sm text-muted-foreground"><LoaderCircle className="mr-2 size-4 animate-spin" /> WBS를 불러오는 중...</div> : !courseReady ? <div className="rounded-xl border border-dashed bg-background px-6 py-16 text-center text-sm text-muted-foreground">이 강의의 WBS를 불러오지 못했습니다.<div><Button className="mt-4" variant="outline" onClick={() => void loadCourse(courseId)}>다시 시도</Button></div></div> : view === "gantt" ? <WbsGantt key={courseId} items={sortedItems} webinarDate={webinarDate} todayDate={today} onSelectItem={setSelectedScheduleItem} selectedItemId={selectedScheduleItem?.id} /> : view === "compact" ? (
@@ -784,7 +784,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
             <option value="">강의를 선택하세요</option>
             {coursesWithoutWbs.map((entry) => <option value={entry.id} key={entry.id}>{courseLabel(entry)}</option>)}
           </select>
-          <p className="mt-2 text-xs text-muted-foreground">WBS가 없는 강의만 선택할 수 있습니다. 항목을 편집한 뒤 강의 WBS 저장을 눌러 주세요.</p>
+          <p className="mt-2 text-xs text-muted-foreground">해야할일이 없는 강의만 선택할 수 있습니다. 항목을 편집한 뒤 강의별 해야할일 저장을 눌러 주세요.</p>
           <DialogFooter className="mt-5"><Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>취소</Button><Button type="submit" disabled={!newCourseId}><Plus /> WBS 만들기</Button></DialogFooter>
         </form> : <div className="py-4 text-sm text-muted-foreground"><p>모든 강의에 WBS가 연결되어 있습니다.</p><Button className="mt-4" variant="outline" asChild><Link href="/services/course-operations/new"><Plus /> 강의 만들기</Link></Button></div>}
       </DialogContent>

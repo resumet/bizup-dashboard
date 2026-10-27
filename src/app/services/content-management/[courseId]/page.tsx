@@ -19,7 +19,7 @@ export default async function CourseContentPage({ params, searchParams }: {
   });
   const { tab, youtubeTab } = await searchParams;
   return <main className="mx-auto max-w-[1900px] space-y-6 px-5 py-8 lg:px-8">
-    <Link href="/services/content-management" className="text-sm hover:underline">← 콘텐츠 관리</Link>
+    <Link href="/services/content-management" className="text-sm hover:underline">← 강사 인스타그램 / 유튜브 관리</Link>
     <MediaManagementTabs initialTab={tab} instagram={<InstagramManagementWorkspace courseId={courseId} />}
       youtube={<YoutubeWorkspace embedded initial={initial} initialTab={youtubeTab === "brief" ? "brief" : "schedule"} />} />
   </main>;

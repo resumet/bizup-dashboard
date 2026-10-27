@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { InstagramChecklist } from "@/components/course-documents/instagram-checklist";
 import { instagramProgressSummary, progressPercentage } from "@/lib/course-documents/instagram-progress";
 import type { CourseDocumentCourse } from "@/lib/course-documents/types";
 import { formatWebinarDate } from "@/lib/course-operations/webinar-proximity";
@@ -69,6 +70,7 @@ export function InstagramManagementSummary() {
       <Card><CardContent className="space-y-1 pt-5"><p className="text-sm text-muted-foreground">촬영 완료</p><p className="text-2xl font-semibold">{totals.filmed}건 ({progressPercentage(totals.filmed, totals.planned)}%)</p></CardContent></Card>
       <Card><CardContent className="space-y-1 pt-5"><p className="text-sm text-muted-foreground">업로드 완료</p><p className="text-2xl font-semibold">{totals.uploaded}건 ({progressPercentage(totals.uploaded, totals.planned)}%)</p></CardContent></Card>
     </div>
+    <InstagramChecklist />
     <div className="overflow-x-auto rounded-lg border">
       <Table className="min-w-[1120px]">
         <TableHeader><TableRow><TableHead>강의</TableHead><TableHead>강사</TableHead><TableHead>기수</TableHead><TableHead>웨비나 날짜</TableHead><TableHead className="text-right">전체 계획</TableHead><TableHead className="text-right">촬영 완료</TableHead><TableHead className="text-right">업로드 완료</TableHead><TableHead className="min-w-72">오늘 기준 업로드</TableHead></TableRow></TableHeader>

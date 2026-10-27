@@ -42,7 +42,7 @@ const services: Service[] = [
     iconClass: "bg-sky-500/12 text-sky-700 ring-sky-500/15 dark:text-sky-300",
   },
   {
-    title: "강의 WBS",
+    title: "강의별 해야할일",
     description:
       "강의 준비와 웨비나 업무를 체크리스트와 간트 차트로 관리하고 템플릿으로 재사용합니다.",
     route: "/services/course-wbs",
@@ -51,7 +51,7 @@ const services: Service[] = [
       "bg-violet-500/12 text-violet-700 ring-violet-500/15 dark:text-violet-300",
   },
   {
-    title: "강의 운영 자동화",
+    title: "진행중 강의 보기",
     description:
       "강의 ID를 기준으로 일정, 옵션, 수강생 명단과 문자 제작물을 연결합니다.",
     route: "/services/course-operations",
@@ -69,7 +69,7 @@ const services: Service[] = [
       "bg-emerald-500/12 text-emerald-700 ring-emerald-500/15 dark:text-emerald-300",
   },
   {
-    title: "콘텐츠 관리",
+    title: "강사 인스타그램 / 유튜브 관리",
     route: "/services/content-management",
     icon: Camera,
     iconClass:

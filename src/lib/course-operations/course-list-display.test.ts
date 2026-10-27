@@ -22,7 +22,7 @@ test("강의 운영 목록 관리 메뉴가 강의별 서비스로 연결된다"
       href: "/services/instructor-intakes?courseId=course%2F1",
     },
     {
-      label: "콘텐츠 관리",
+      label: "강사 인스타그램 / 유튜브 관리",
       href: "/services/content-management/course%2F1",
     },
     {

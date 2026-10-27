@@ -6,11 +6,11 @@ export const WORK_SERVICE_CARD_GROUPS = [
   {
     title:"강의운영",
     items:[
-      {route:"/services/course-operations",title:"강의 운영 자동화"},
+      {route:"/services/course-operations",title:"진행중 강의 보기"},
       {route:"/services/instructor-intakes",title:"강사 정보 받기"},
-      {route:"/services/content-management",title:"콘텐츠 관리"},
+      {route:"/services/content-management",title:"강사 인스타그램 / 유튜브 관리"},
       {route:"/services/course-operations/students-settlements",title:"수강생관리 및 정산"},
-      {route:"/services/course-wbs",title:"강의 WBS"},
+      {route:"/services/course-wbs",title:"강의별 해야할일"},
       {route:"/services/course-webinars",title:"라이브 웨비나 대시보드"},
       {route:"/services/settlement-analysis",title:"강의별 정산"},
       {route:"/services/cash-flow",title:"자금 흐름"},
