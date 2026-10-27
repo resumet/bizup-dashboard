@@ -6,7 +6,7 @@ import { ArrowRight, BookOpenCheck, Search, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { filterDashboardCourses, filterDashboardMenus, type DashboardCourseSearchItem } from "@/lib/dashboard/menu-search";
+import { filterDashboardCourses, filterDashboardMenus, type DashboardCourseSearchItem, type DashboardMenuCustomKeywords } from "@/lib/dashboard/menu-search";
 import { getDashboardCourseDestinations } from "@/lib/work/instructor-course-search";
 
 const MENU_CHIP_COLORS = [
@@ -20,11 +20,17 @@ const MENU_CHIP_COLORS = [
   "border-lime-200 bg-lime-50 text-lime-900 hover:bg-lime-100 hover:text-lime-950",
 ] as const;
 
-export function DashboardMenuSearch({ courses }: { courses: DashboardCourseSearchItem[] }) {
+export function DashboardMenuSearch({
+  courses,
+  customKeywords,
+}: {
+  courses: DashboardCourseSearchItem[];
+  customKeywords: DashboardMenuCustomKeywords;
+}) {
   const inputId = useId();
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
-  const menus = filterDashboardMenus(deferredQuery).slice(0, 8);
+  const menus = filterDashboardMenus(deferredQuery, customKeywords).slice(0, 8);
   const courseResults = filterDashboardCourses(courses, deferredQuery).slice(0, 4);
   const hasQuery = query.trim().length > 0;
 

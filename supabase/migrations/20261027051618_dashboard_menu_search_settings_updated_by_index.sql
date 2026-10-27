@@ -1,0 +1,2 @@
+create index dashboard_menu_search_settings_updated_by_idx
+on public.dashboard_menu_search_settings (updated_by);

@@ -62,7 +62,6 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
       { label: "진행중 강의 보기", href: "/services/course-operations", exact: true },
       { label: "강사 인스타그램 / 유튜브 관리", href: "/services/content-management" },
       { label: "강의별 해야할일", href: "/services/course-wbs" },
-      { label: "수강생 관리 및 정산", href: "/services/course-operations/students-settlements" },
       { label: "라이브 웨비나", href: "/services/course-webinars" },
       { label: "유튜브 채널 관리", href: "/services/youtube-channels" },
     ],
@@ -79,6 +78,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     label: "명단 · 메시지",
     icon: Users,
     items: [
+      { label: "수강생 관리 및 정산", href: "/services/course-operations/students-settlements" },
       { label: "수강생 명단 분석", href: "/services/course-roster" },
       { label: "주소록 매니저", href: "/services/address-books" },
       { label: "전화 세일즈 명단", href: "/services/phone-sales-list" },

@@ -16,6 +16,21 @@ test("강의 일정 플래너를 도구 메뉴로 추천한다", () => {
   assert.equal(result?.group, "도구");
 });
 
+test("수강생 관리 및 정산을 명단 · 메시지 메뉴로 추천한다", () => {
+  const result = filterDashboardMenus("수강생 관리 및 정산")[0];
+
+  assert.equal(result?.href, "/services/course-operations/students-settlements");
+  assert.equal(result?.group, "명단 · 메시지");
+});
+
+test("관리자가 추가한 검색어로 메뉴를 추천한다", () => {
+  const result = filterDashboardMenus("결제 확인", {
+    "/services/course-operations/students-settlements": ["결제 확인", "정산 대상"],
+  });
+
+  assert.deepEqual(result.map(({ href }) => href), ["/services/course-operations/students-settlements"]);
+});
+
 test("강사명과 강의명으로 강의를 검색한다", () => {
   const courses = [
     { id: "a", name: "마케팅 실전", instructor: "김선아", cohort: "1기", webinarDate: "2026년 11월 1일" },

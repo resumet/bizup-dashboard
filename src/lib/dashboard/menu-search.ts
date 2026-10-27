@@ -5,6 +5,8 @@ export type DashboardMenuSearchItem = {
   keywords?: readonly string[];
 };
 
+export type DashboardMenuCustomKeywords = Record<string, string[]>;
+
 export type DashboardCourseSearchItem = {
   id: string;
   name: string;
@@ -19,7 +21,7 @@ export const DASHBOARD_MENU_SEARCH_ITEMS: readonly DashboardMenuSearchItem[] = [
   { label: "강의별 해야할일", href: "/services/course-wbs", group: "강의 운영", keywords: ["강의 WBS", "할 일", "해야 할 일"] },
   { label: "강사 정보 받기", href: "/services/instructor-intakes", group: "강의 운영" },
   { label: "강의 일정 플래너", href: "/services/course-schedule-planner", group: "도구" },
-  { label: "수강생 관리 및 정산", href: "/services/course-operations/students-settlements", group: "강의 운영" },
+  { label: "수강생 관리 및 정산", href: "/services/course-operations/students-settlements", group: "명단 · 메시지" },
   { label: "라이브 웨비나", href: "/services/course-webinars", group: "강의 운영" },
   { label: "유튜브 채널 관리", href: "/services/youtube-channels", group: "강의 운영" },
   { label: "광고성과", href: "/services/ad-performance", group: "성과 · 재무" },
@@ -41,23 +43,27 @@ export const DASHBOARD_MENU_SEARCH_ITEMS: readonly DashboardMenuSearchItem[] = [
   { label: "노바 정산서 검증", href: "/services/nova-settlement-validator", group: "도구" },
 ];
 
-function normalize(value: string) {
+export function normalizeDashboardSearchText(value: string) {
   return value.normalize("NFKC").replace(/\s+/gu, "").toLocaleLowerCase("ko-KR");
 }
 
-export function filterDashboardMenus(query: string) {
-  const normalizedQuery = normalize(query);
+export function filterDashboardMenus(
+  query: string,
+  customKeywords: DashboardMenuCustomKeywords = {},
+) {
+  const normalizedQuery = normalizeDashboardSearchText(query);
   if (!normalizedQuery) return DASHBOARD_MENU_SEARCH_ITEMS.slice(0, 6);
   return DASHBOARD_MENU_SEARCH_ITEMS.filter((item) =>
-    [item.label, item.group, ...(item.keywords ?? [])].some((value) => normalize(value).includes(normalizedQuery)),
+    [item.label, item.group, ...(item.keywords ?? []), ...(customKeywords[item.href] ?? [])]
+      .some((value) => normalizeDashboardSearchText(value).includes(normalizedQuery)),
   );
 }
 
 export function filterDashboardCourses(courses: readonly DashboardCourseSearchItem[], query: string) {
-  const normalizedQuery = normalize(query);
+  const normalizedQuery = normalizeDashboardSearchText(query);
   if (!normalizedQuery) return [];
   return courses.filter((course) =>
-    normalize(course.instructor).includes(normalizedQuery)
-    || normalize(course.name).includes(normalizedQuery),
+    normalizeDashboardSearchText(course.instructor).includes(normalizedQuery)
+    || normalizeDashboardSearchText(course.name).includes(normalizedQuery),
   );
 }

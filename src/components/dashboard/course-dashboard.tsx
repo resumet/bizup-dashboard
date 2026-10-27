@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { DashboardExternalMarketingCourse } from "@/lib/dashboard/external-marketing";
-import type { DashboardCourseSearchItem } from "@/lib/dashboard/menu-search";
+import type { DashboardCourseSearchItem, DashboardMenuCustomKeywords } from "@/lib/dashboard/menu-search";
 import { getDashboardCourseDestinations } from "@/lib/work/instructor-course-search";
 
 export type DashboardCourse = {
@@ -69,6 +69,7 @@ type DashboardData = {
   todayLabel: string;
   courses: DashboardCourse[];
   searchCourses: DashboardCourseSearchItem[];
+  menuSearchKeywords: DashboardMenuCustomKeywords;
   wbsTasks: DashboardWbsTask[];
   schedules: DashboardSchedule[];
   leaves: DashboardLeave[];
@@ -143,7 +144,7 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
           </div>
         </div>
 
-        <DashboardMenuSearch courses={data.searchCourses} />
+        <DashboardMenuSearch courses={data.searchCourses} customKeywords={data.menuSearchKeywords} />
 
         <div className="grid gap-5 lg:grid-cols-2">
           <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">

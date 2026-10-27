@@ -13,6 +13,7 @@ import { formatWebinarCountdown } from "@/lib/course-operations/webinar-proximit
 import { loadCourseWbsBootstrap } from "@/lib/course-wbs/server";
 import { formatDashboardCohort, formatDashboardWebinarDate } from "@/lib/dashboard/course-metadata";
 import { activeExternalMarketingCourses } from "@/lib/dashboard/external-marketing";
+import { loadDashboardMenuSearchKeywordSettings } from "@/lib/admin/menu-search-keywords-storage";
 import { loadExternalMarketingProjects } from "@/lib/external-marketing/server";
 import { formatCalendarTime, formatLocation, koreaToday } from "@/lib/shared-calendar/calendar";
 import { calendarContext, loadCalendarEvents } from "@/lib/shared-calendar/server";
@@ -37,13 +38,14 @@ export default async function HomePage() {
 
   const today = koreaToday();
   const range = { from: today, to: today };
-  const [coursesResult, wbsResult, eventsResult, webinarsResult, leavesResult, externalMarketingResult] = await Promise.allSettled([
+  const [coursesResult, wbsResult, eventsResult, webinarsResult, leavesResult, externalMarketingResult, menuSearchResult] = await Promise.allSettled([
     getCachedCourseSummaries(context.workspaceId),
     loadCourseWbsBootstrap(context.workspaceId),
     loadCalendarEvents(context.supabase, context.workspaceId, range),
     loadCalendarWebinars(context.supabase, context.workspaceId, range),
     loadCalendarLeaves(context, range),
     loadExternalMarketingProjects(context.workspaceId),
+    loadDashboardMenuSearchKeywordSettings(context.workspaceId),
   ]);
 
   const errors: Partial<Record<"courses" | "wbs" | "schedules" | "leaves" | "externalMarketing", string>> = {};
@@ -146,6 +148,7 @@ export default async function HomePage() {
         todayLabel: todayLabel(today),
         courses,
         searchCourses,
+        menuSearchKeywords: menuSearchResult.status === "fulfilled" ? menuSearchResult.value.keywords : {},
         wbsTasks,
         schedules,
         leaves,
