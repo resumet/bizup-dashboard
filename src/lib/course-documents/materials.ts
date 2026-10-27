@@ -72,6 +72,11 @@ export const courseDocumentDmMaterialSchema = z
   .trim()
   .max(5000, "DM 자료는 5,000자까지 입력할 수 있습니다.");
 
+export const courseDocumentMaterialDescriptionSchema = z
+  .string()
+  .trim()
+  .max(5000, "자료 설명은 5,000자까지 입력할 수 있습니다.");
+
 export function parseInstagramBulkTitles(value: string) {
   const lines = value.replace(/\r/g, "").split("\n");
   while (lines.length && !lines.at(-1)?.trim()) lines.pop();
@@ -82,6 +87,10 @@ export function instagramBulkFilmingSelectablePositions(
   materials: Pick<CourseDocumentMaterial, "position" | "uploadCompleted">[],
 ) {
   return materials.filter((material) => !material.uploadCompleted).map((material) => material.position);
+}
+
+export function visibleExternalInstagramMaterials(materials: CourseDocumentMaterial[]) {
+  return materials.filter((material) => !material.dmNotRequired && material.title.trim());
 }
 
 export function mergeInstagramFilmingDates(
@@ -119,6 +128,8 @@ export function courseDocumentMaterials(
     uploadedUrl?: string;
     dmMaterial?: string;
     dmNotRequired?: boolean;
+    dmMaterialDescription?: string;
+    additionalDescription?: string;
   }>,
   totalCount: number,
 ): CourseDocumentMaterial[] {
@@ -143,6 +154,8 @@ export function courseDocumentMaterials(
       uploadedUrl: material?.uploadedUrl ?? "",
       dmMaterial: material?.dmMaterial ?? "",
       dmNotRequired: material?.dmNotRequired ?? false,
+      dmMaterialDescription: material?.dmMaterialDescription ?? "",
+      additionalDescription: material?.additionalDescription ?? "",
     };
   });
 }

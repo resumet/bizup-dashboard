@@ -77,7 +77,9 @@ function materialHasChanges(current: CourseDocumentMaterial, saved?: CourseDocum
     || current.uploadCompleted !== (saved?.uploadCompleted ?? false)
     || current.uploadedUrl !== (saved?.uploadedUrl ?? "")
     || current.dmMaterial !== (saved?.dmMaterial ?? "")
-    || current.dmNotRequired !== (saved?.dmNotRequired ?? false);
+    || current.dmNotRequired !== (saved?.dmNotRequired ?? false)
+    || current.dmMaterialDescription !== (saved?.dmMaterialDescription ?? "")
+    || current.additionalDescription !== (saved?.additionalDescription ?? "");
 }
 
 function StatusBadge({ label, color }: { label: string; color: "blue" | "yellow" }) {
@@ -447,6 +449,8 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
           uploadedUrl: material.uploadedUrl,
           dmMaterial: material.dmMaterial,
           dmNotRequired: material.dmNotRequired,
+          dmMaterialDescription: material.dmMaterialDescription,
+          additionalDescription: material.additionalDescription,
         })),
       });
       if (!body.materials || body.materials.length !== changedMaterials.length) throw new Error("저장된 인스타 자료를 확인하지 못했습니다.");
@@ -618,7 +622,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                     <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 촬영 일정 변경 선택`} checked={selectedFilmingPositions.has(material.position)} disabled={savingMaterials || savingBulkFilmingDate || material.uploadCompleted} onCheckedChange={(checked) => toggleFilmingSelection(material.position, checked === true)} /></div></TableCell>
                     <TableCell className="text-center font-mono text-sm text-muted-foreground">{String(material.position).padStart(2, "0")}</TableCell>
                     <TableCell><Input className="h-8 px-1 text-center font-mono text-xs" aria-label={`${material.position}번 기획번호`} value={material.referencePlanningNumber} inputMode="numeric" maxLength={2} placeholder="00" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { referencePlanningNumber: event.target.value.replace(/\D/g, "").slice(0, 2) })} /></TableCell>
-                    <TableCell><Input className="h-8 px-2 text-xs" aria-label={`${material.position}번 자료 제목`} value={material.title} maxLength={200} placeholder="강사가 작성할 글의 제목" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { title: event.target.value, ...(event.target.value.trim() ? { planningCompleted: true } : {}) })} /></TableCell>
+                    <TableCell><div className="space-y-1.5 py-1"><Input className="h-8 px-2 text-xs" aria-label={`${material.position}번 자료 제목`} value={material.title} maxLength={200} placeholder="제목" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { title: event.target.value, ...(event.target.value.trim() ? { planningCompleted: true } : {}) })} /><Input className="h-8 px-2 text-xs" aria-label={`${material.position}번 DM 자료 설명`} value={material.dmMaterialDescription} maxLength={5000} placeholder="DM 자료" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { dmMaterialDescription: event.target.value })} /><Input className="h-8 px-2 text-xs" aria-label={`${material.position}번 부가설명`} value={material.additionalDescription} maxLength={5000} placeholder="설명" disabled={savingMaterials} onChange={(event) => updateMaterial(material.position, { additionalDescription: event.target.value })} /></div></TableCell>
                     <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 기획 완료`} checked={material.planningCompleted} disabled={savingMaterials || material.uploadCompleted} onCheckedChange={(checked) => updateProgress(material.position, "planning", checked === true)} /></div></TableCell>
                     <TableCell><Input className="h-8 px-1 text-xs" type="date" aria-label={`${material.position}번 촬영 일정`} value={material.filmingDate} disabled={savingMaterials || savingBulkFilmingDate} onChange={(event) => updateMaterial(material.position, { filmingDate: event.target.value, ...(event.target.value ? { planningCompleted: true, filmingCompleted: true } : {}) })} /></TableCell>
                     <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 촬영 완료`} checked={material.filmingCompleted} disabled={savingMaterials || material.uploadCompleted} onCheckedChange={(checked) => updateProgress(material.position, "filming", checked === true)} /></div></TableCell>

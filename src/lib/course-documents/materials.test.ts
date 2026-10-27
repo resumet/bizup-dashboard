@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   COURSE_DOCUMENT_MATERIAL_LIMIT,
   courseDocumentDmMaterialUrlSchema,
+  courseDocumentMaterialDescriptionSchema,
   courseDocumentMaterialPositionSchema,
   courseDocumentPlanningSheetUrlSchema,
   courseDocumentReferencePlanningNumberSchema,
@@ -11,6 +12,7 @@ import {
   instagramBulkFilmingSelectablePositions,
   mergeInstagramFilmingDates,
   parseInstagramBulkTitles,
+  visibleExternalInstagramMaterials,
 } from "./materials";
 
 test("강의별 인스타 자료 슬롯을 설정한 전체 진행 건수만큼 만든다", () => {
@@ -33,6 +35,8 @@ test("강의별 인스타 자료 슬롯을 설정한 전체 진행 건수만큼 
     uploadedUrl: "",
     dmMaterial: "",
     dmNotRequired: false,
+    dmMaterialDescription: "",
+    additionalDescription: "",
   });
   assert.deepEqual(materials[1], {
     position: 2,
@@ -48,6 +52,8 @@ test("강의별 인스타 자료 슬롯을 설정한 전체 진행 건수만큼 
     uploadedUrl: "",
     dmMaterial: "",
     dmNotRequired: false,
+    dmMaterialDescription: "",
+    additionalDescription: "",
   });
   assert.equal(materials.at(-1)?.position, 40);
 });
@@ -80,6 +86,22 @@ test("DM 자료 링크는 HTTP 또는 HTTPS 주소만 허용한다", () => {
   assert.equal(courseDocumentDmMaterialUrlSchema.parse(""), "");
   assert.equal(courseDocumentDmMaterialUrlSchema.safeParse("javascript:alert(1)").success, false);
   assert.equal(courseDocumentDmMaterialUrlSchema.safeParse("DM 자료").success, false);
+});
+
+test("공개용 자료 설명은 공백을 정리하고 5,000자까지 저장한다", () => {
+  assert.equal(courseDocumentMaterialDescriptionSchema.parse(" DM 안내 "), "DM 안내");
+  assert.equal(courseDocumentMaterialDescriptionSchema.safeParse("가".repeat(5000)).success, true);
+  assert.equal(courseDocumentMaterialDescriptionSchema.safeParse("가".repeat(5001)).success, false);
+});
+
+test("외부 공개 목록은 제목이 있고 DM 자료가 필요한 항목만 표시한다", () => {
+  const materials = courseDocumentMaterials([
+    { position: 1, title: "공개 항목", documentId: null, dmMaterialDescription: "댓글 작성", additionalDescription: "확인 후 전송" },
+    { position: 2, title: "숨김 항목", documentId: null, dmNotRequired: true },
+    { position: 3, title: "", documentId: null },
+  ], 3);
+
+  assert.deepEqual(visibleExternalInstagramMaterials(materials).map((material) => material.position), [1]);
 });
 
 test("일괄 제목은 줄 순서를 유지하고 끝의 빈 줄만 제거한다", () => {

@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { visibleExternalInstagramMaterials } from "@/lib/course-documents/materials";
 import type { CourseDocumentMaterial, CourseDocumentSummary } from "@/lib/course-documents/types";
 
 type Props = {
@@ -21,7 +22,7 @@ export function ExternalDocumentList({ accessToken, initialMaterials, initialDoc
   const router = useRouter();
   const [startingPosition, setStartingPosition] = useState<number | null>(null);
   const [error, setError] = useState("");
-  const materials = initialMaterials.filter((material) => material.title.trim());
+  const materials = visibleExternalInstagramMaterials(initialMaterials);
   const documentsById = new Map(initialDocuments.map((document) => [document.id, document]));
 
   async function startWriting(position: number) {
@@ -63,12 +64,11 @@ export function ExternalDocumentList({ accessToken, initialMaterials, initialDoc
                     </p>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="font-semibold">{material.title}</h2>
-                      <Badge variant={document ? (document.status === "published" ? "default" : "secondary") : "outline"}>
-                        {document ? (document.status === "published" ? "공개" : "검수 중") : "작성 전"}
-                      </Badge>
-                    </div>
+                    <dl className="space-y-2 text-sm">
+                      <div className="grid gap-1 sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:items-start"><dt className="font-medium text-muted-foreground">제목</dt><dd className="flex min-w-0 flex-wrap items-center gap-2"><h2 className="font-semibold">{material.title}</h2><Badge variant={document ? (document.status === "published" ? "default" : "secondary") : "outline"}>{document ? (document.status === "published" ? "공개" : "검수 중") : "작성 전"}</Badge></dd></div>
+                      <div className="grid gap-1 sm:grid-cols-[4.5rem_minmax(0,1fr)]"><dt className="font-medium text-muted-foreground">DM자료</dt><dd className="whitespace-pre-wrap break-words">{material.dmMaterialDescription || "-"}</dd></div>
+                      <div className="grid gap-1 sm:grid-cols-[4.5rem_minmax(0,1fr)]"><dt className="font-medium text-muted-foreground">설명</dt><dd className="whitespace-pre-wrap break-words">{material.additionalDescription || "-"}</dd></div>
+                    </dl>
                     {document ? (
                       <p className="mt-1 text-sm text-muted-foreground">
                         최근 수정 {new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Seoul" }).format(new Date(document.updatedAt))}
@@ -93,7 +93,7 @@ export function ExternalDocumentList({ accessToken, initialMaterials, initialDoc
           })}
         </div>
       ) : (
-        <Card><CardContent className="flex min-h-64 flex-col items-center justify-center text-center text-muted-foreground"><FileText className="mb-3 size-7" /><p>등록된 인스타 자료 제목이 없습니다.</p></CardContent></Card>
+        <Card><CardContent className="flex min-h-64 flex-col items-center justify-center text-center text-muted-foreground"><FileText className="mb-3 size-7" /><p>공개할 인스타 자료가 없습니다.</p></CardContent></Card>
       )}
     </div>
   );

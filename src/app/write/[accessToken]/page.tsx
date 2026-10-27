@@ -18,7 +18,7 @@ export default async function ExternalWriterPage({ params }: Props) {
   try {
     result = await getExternalCourse(accessToken);
     const [materialsResult, documentsResult] = await Promise.all([
-      result.admin.from("course_instagram_materials").select("position,title,reference_planning_number,document_id").eq("course_id", result.course.id).order("position"),
+      result.admin.from("course_instagram_materials").select("position,title,reference_planning_number,document_id,dm_not_required,dm_material_description,additional_description").eq("course_id", result.course.id).eq("dm_not_required", false).order("position"),
       result.admin.from("course_documents").select("id,course_id,instructor_name,title,slug,status,lead_gate_enabled,lead_gate_after_block_id,created_at,updated_at,published_at").eq("course_id", result.course.id).is("deleted_at", null),
     ]);
     const queryError = materialsResult.error ?? documentsResult.error;
@@ -28,8 +28,12 @@ export default async function ExternalWriterPage({ params }: Props) {
       title: row.title,
       referencePlanningNumber: row.reference_planning_number,
       documentId: row.document_id,
+      dmNotRequired: row.dm_not_required,
+      dmMaterialDescription: row.dm_material_description,
+      additionalDescription: row.additional_description,
     })), result.settings.instagram_total_count);
-    documents = (documentsResult.data ?? []).map((row) => toDocumentSummary(row));
+    const visibleDocumentIds = new Set((materialsResult.data ?? []).flatMap((material) => material.document_id ? [material.document_id] : []));
+    documents = (documentsResult.data ?? []).filter((document) => visibleDocumentIds.has(document.id)).map((row) => toDocumentSummary(row));
   } catch (error) {
     message = error instanceof Error && error.message === "EXTERNAL_DISABLED" ? "현재 외부 문서 작성이 비활성화되어 있습니다." : "외부 작성 페이지를 찾을 수 없습니다.";
   }

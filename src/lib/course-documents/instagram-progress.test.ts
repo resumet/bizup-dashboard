@@ -19,6 +19,8 @@ function material(position: number, progress: Partial<CourseDocumentMaterial> = 
     uploadedUrl: "",
     dmMaterial: "",
     dmNotRequired: false,
+    dmMaterialDescription: "",
+    additionalDescription: "",
     ...progress,
   };
 }

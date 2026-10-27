@@ -114,6 +114,8 @@ export type CourseDocumentMaterial = {
   uploadedUrl: string;
   dmMaterial: string;
   dmNotRequired: boolean;
+  dmMaterialDescription: string;
+  additionalDescription: string;
 };
 
 export type CourseDocumentCourse = {

@@ -20,7 +20,7 @@ export async function GET(request: Request, { params }: Context) {
     const documentId = new URL(request.url).searchParams.get("documentId");
     if (documentId) {
       const id = documentIdSchema.parse(documentId);
-      const { data: material, error: materialError } = await admin.from("course_instagram_materials").select("position").eq("course_id", course.id).eq("document_id", id).maybeSingle();
+      const { data: material, error: materialError } = await admin.from("course_instagram_materials").select("position").eq("course_id", course.id).eq("document_id", id).eq("dm_not_required", false).maybeSingle();
       if (materialError) throw new Error(`인스타 자료 조회 실패: ${materialError.code}`);
       if (!material) throw new Error("NOT_FOUND");
       const { data, error } = await admin.from("course_documents").select("id,course_id,instructor_name,title,slug,content,status,lead_gate_enabled,lead_gate_after_block_id,created_at,updated_at,published_at").eq("id", id).eq("course_id", course.id).is("deleted_at", null).maybeSingle();
@@ -29,15 +29,16 @@ export async function GET(request: Request, { params }: Context) {
       return Response.json({ course, document: toDocumentDetail(data) }, { headers: { "Cache-Control": "private, no-store" } });
     }
     const [materialsResult, documentsResult] = await Promise.all([
-      admin.from("course_instagram_materials").select("position,title,document_id").eq("course_id", course.id).order("position"),
+      admin.from("course_instagram_materials").select("position,title,document_id,dm_not_required,dm_material_description,additional_description").eq("course_id", course.id).eq("dm_not_required", false).order("position"),
       admin.from("course_documents").select("id,course_id,instructor_name,title,slug,status,lead_gate_enabled,lead_gate_after_block_id,created_at,updated_at,published_at").eq("course_id", course.id).is("deleted_at", null),
     ]);
     const queryError = materialsResult.error ?? documentsResult.error;
     if (queryError) throw new Error(`인스타 자료 목록 조회 실패: ${queryError.code}`);
+    const visibleDocumentIds = new Set((materialsResult.data ?? []).flatMap((material) => material.document_id ? [material.document_id] : []));
     return Response.json({
       course,
       materials: materialsResult.data ?? [],
-      documents: (documentsResult.data ?? []).map((row) => toDocumentSummary(row)),
+      documents: (documentsResult.data ?? []).filter((document) => visibleDocumentIds.has(document.id)).map((row) => toDocumentSummary(row)),
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return courseDocumentErrorResponse(error);
@@ -54,9 +55,11 @@ export async function POST(request: Request, { params }: Context) {
       .select("title,document_id")
       .eq("course_id", course.id)
       .eq("position", input.position)
+      .eq("dm_not_required", false)
       .maybeSingle();
     if (materialError) throw new Error(`인스타 자료 조회 실패: ${materialError.code}`);
-    if (!material?.title.trim()) throw new Error("작성할 인스타 자료 제목이 없습니다.");
+    if (!material) throw new Error("NOT_FOUND");
+    if (!material.title.trim()) throw new Error("작성할 인스타 자료 제목이 없습니다.");
     const slug = await createUniqueDocumentSlug(material.title);
     const { data, error } = await admin.rpc("start_instagram_material_document", {
       p_course_id: course.id,
@@ -74,10 +77,13 @@ export async function POST(request: Request, { params }: Context) {
 export async function PATCH(request: Request, { params }: Context) {
   try {
     const { accessToken } = await params;
-    const { admin } = await getExternalCourse(accessToken);
+    const { admin, course } = await getExternalCourse(accessToken);
     const body = await request.json() as Record<string, unknown>;
     const documentId = documentIdSchema.parse(body.documentId);
     const input = saveCourseDocumentSchema.parse(body);
+    const { data: material, error: materialError } = await admin.from("course_instagram_materials").select("position").eq("course_id", course.id).eq("document_id", documentId).eq("dm_not_required", false).maybeSingle();
+    if (materialError) throw new Error(`인스타 자료 조회 실패: ${materialError.code}`);
+    if (!material) throw new Error("NOT_FOUND");
     const { error } = await admin.rpc("save_external_instagram_document", {
       p_token: accessToken, p_document_id: documentId, p_content: input.content,
     });

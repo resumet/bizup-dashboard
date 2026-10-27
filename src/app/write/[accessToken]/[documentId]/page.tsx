@@ -21,7 +21,7 @@ export default async function ExternalDocumentPage({ params }: Props) {
     course = context.course;
     const [documentResult, materialResult] = await Promise.all([
       context.admin.from("course_documents").select("id,course_id,instructor_name,title,slug,content,status,lead_gate_enabled,lead_gate_after_block_id,created_at,updated_at,published_at").eq("id", documentId).eq("course_id", context.course.id).is("deleted_at", null).maybeSingle(),
-      context.admin.from("course_instagram_materials").select("position").eq("course_id", context.course.id).eq("document_id", documentId).maybeSingle(),
+      context.admin.from("course_instagram_materials").select("position").eq("course_id", context.course.id).eq("document_id", documentId).eq("dm_not_required", false).maybeSingle(),
     ]);
     const queryError = documentResult.error ?? materialResult.error;
     if (queryError) throw new Error(`문서 조회 실패: ${queryError.code}`);
