@@ -1,6 +1,7 @@
 import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 import "server-only";
 
+import { invalidateCourseOperationsList } from "@/lib/course-operations/list-cache";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { isCourseStatus } from "@/lib/course-operations/course-status";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -366,6 +367,7 @@ export async function saveCourseWbs(
       .single();
     if (error?.code === "23505") throw new WbsConflictError();
     if (error || !data) throw databaseError("저장", error?.code);
+    invalidateCourseOperationsList();
     return { wbs: toWbs(data as WbsRow), webinarAt };
   }
   const { data, error } = await admin
@@ -378,6 +380,7 @@ export async function saveCourseWbs(
     .maybeSingle();
   if (error) throw databaseError("저장", error.code);
   if (!data) throw new WbsConflictError();
+  invalidateCourseOperationsList();
   return { wbs: toWbs(data as WbsRow), webinarAt };
 }
 
@@ -389,6 +392,7 @@ export async function deleteCourseWbs(workspaceId: string, courseId: string): Pr
     .eq("workspace_id", workspaceId)
     .eq("course_id", courseId);
   if (error) throw databaseError("삭제", error.code);
+  invalidateCourseOperationsList();
 }
 
 export async function updateWbsTemplate(

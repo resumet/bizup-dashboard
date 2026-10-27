@@ -109,6 +109,8 @@ export type CourseSummary = {
   payment_link: string;
   curriculum_link: string;
   course_materials_link: string;
+  wbs_total_item_count: number;
+  wbs_overdue_item_count: number;
 };
 
 export type LinkableRosterJob = {

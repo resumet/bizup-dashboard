@@ -24,11 +24,15 @@ export default async function CourseOperationsPage() {
   const user = await getAuthenticatedUser(supabase);
   if (!user) redirect("/login");
   const membership = await requireCourseOperationsMembership(user.id);
+  const todayKoreaDate = toKoreaDate(new Date().toISOString());
 
   let courses: CourseSummary[] = [];
   let loadError = "";
   try {
-    courses = await getCachedCourseSummaries(membership.workspace_id);
+    courses = await getCachedCourseSummaries(
+      membership.workspace_id,
+      todayKoreaDate,
+    );
   } catch (caught) {
     loadError =
       caught instanceof Error
@@ -89,7 +93,7 @@ export default async function CourseOperationsPage() {
             <CourseOperationsList
               courses={courses}
               canDelete={hasAdminAccess(user.email, membership.role)}
-              todayKoreaDate={toKoreaDate(new Date().toISOString())}
+              todayKoreaDate={todayKoreaDate}
             />
           </div>
         ) : null}

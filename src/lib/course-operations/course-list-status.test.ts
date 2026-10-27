@@ -32,6 +32,8 @@ function course(overrides: Partial<CourseSummary> = {}): CourseSummary {
     payment_link: "https://example.com/payment",
     curriculum_link: "https://example.com/curriculum",
     course_materials_link: "https://example.com/materials",
+    wbs_total_item_count: 0,
+    wbs_overdue_item_count: 0,
     ...overrides,
   };
 }
