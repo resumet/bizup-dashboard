@@ -5,9 +5,10 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Toast } from "radix-ui";
-import { AlertTriangle, Ban, CalendarDays, Check, Circle, Copy, ExternalLink, FileSpreadsheet, ListPlus, Loader2, Pencil, RefreshCw, Save, Settings, Trash2, Upload, Users, X } from "lucide-react";
+import { AlertTriangle, Ban, CalendarDays, Check, Circle, ClipboardList, Copy, ExternalLink, FileSpreadsheet, ListPlus, Loader2, Pencil, RefreshCw, Save, Settings, Trash2, Upload, Users, X } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { InstagramChecklist } from "@/components/course-documents/instagram-checklist";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -546,6 +547,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
       {loading ? <div className="flex min-h-80 items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground"><Loader2 className="animate-spin" />불러오는 중</div> : (
         <>
           {!courseId && <div className="flex flex-wrap justify-end gap-2">
+            <Button className="bg-blue-600 text-white hover:bg-blue-700" asChild><Link href="/services/instagram-management/checklist-template"><ClipboardList />템플릿 수정</Link></Button>
             <Button variant="outline" asChild><Link href="/services/instagram-management/leads"><Users />리드 보기</Link></Button>
             <Button variant="outline" onClick={() => setBlockedDialogOpen(true)}><Ban />차단 전화번호</Button>
           </div>}
@@ -582,6 +584,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                       { label: "남은 업로드 가능일", value: progressSummary.remainingWeekdays === null ? "-" : `${progressSummary.remainingWeekdays}일`, detail: "웨비나 당일까지" },
                     ].map((item) => <Card key={item.label}><CardContent className="space-y-1 pt-5"><p className="text-sm text-muted-foreground">{item.label}</p><p className="text-2xl font-semibold">{item.value}</p><p className="text-xs text-muted-foreground">{item.detail}</p></CardContent></Card>)}
                   </div>
+                  <InstagramChecklist courseId={selectedCourse.id} />
                   {progressSummary.isAtRisk ? <Alert variant="destructive"><AlertTriangle /><AlertDescription>오늘 기준 최소 {progressSummary.requiredUploadCount}건이 업로드되어야 하지만 현재 {progressSummary.uploadCompletedCount}건으로 {progressSummary.uploadShortfallCount}건 부족합니다. 남은 업로드 가능일 {progressSummary.remainingWeekdays}일 안에 업로드 {progressSummary.remainingUploadCount}건을 완료해야 하므로 이대로 진행하면 기획된 콘텐츠를 모두 올리지 못할 수도 있습니다.</AlertDescription></Alert> : null}
                 </section> : null}
                 <div className="space-y-3">

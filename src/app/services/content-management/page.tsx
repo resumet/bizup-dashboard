@@ -3,7 +3,6 @@ import { ArrowLeft } from "lucide-react";
 import { BackLink } from "@/components/layout/back-link";
 import { Button } from "@/components/ui/button";
 import { InstagramManagementWorkspace } from "@/components/course-documents/instagram-management-workspace";
-import { InstagramManagementSummary } from "@/components/course-documents/instagram-management-summary";
 import { MediaManagementTabs } from "@/components/course-documents/media-management-tabs";
 import { YoutubeCourseList } from "@/components/youtube-management/course-list";
 import { requireCourseDocumentMember } from "@/lib/course-documents/server";
@@ -26,7 +25,7 @@ export default async function ContentManagementPage({ searchParams }: { searchPa
       <h1 className="ml-3 text-xl font-semibold">강사 인스타그램 / 유튜브 관리</h1>
     </div></header>
     <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
-      <MediaManagementTabs initialTab={tab} summary={<InstagramManagementSummary />} instagram={<InstagramManagementWorkspace />} youtube={
+      <MediaManagementTabs initialTab={tab} instagram={<InstagramManagementWorkspace />} youtube={
         <YoutubeCourseList embedded courses={sortByNearestWebinar(data ?? []).map((course) => ({ ...course, ...countYoutubeAppearances(course.course_youtube_appearances ?? []) }))} />
       } />
     </div>

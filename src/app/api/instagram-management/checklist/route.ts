@@ -1,4 +1,7 @@
-import { instagramChecklistItemsSchema, defaultInstagramChecklistItems } from "@/lib/course-documents/instagram-checklist";
+import {
+  defaultInstagramChecklistTemplateItems,
+  instagramChecklistTemplateItemsSchema,
+} from "@/lib/course-documents/instagram-checklist";
 import { courseDocumentErrorResponse, requireCourseDocumentMember } from "@/lib/course-documents/server";
 
 export const runtime = "nodejs";
@@ -14,10 +17,10 @@ export async function GET() {
     if (error) throw new Error(`인스타그램 할 일 조회 실패: ${error.code}`);
 
     if (data) {
-      return Response.json({ items: instagramChecklistItemsSchema.parse(data.items) });
+      return Response.json({ items: instagramChecklistTemplateItemsSchema.parse(data.items) });
     }
 
-    const items = defaultInstagramChecklistItems();
+    const items = defaultInstagramChecklistTemplateItems();
     const { data: created, error: createError } = await admin
       .from("instagram_management_checklists")
       .insert({ workspace_id: membership.workspace_id, items })
@@ -30,10 +33,10 @@ export async function GET() {
         .eq("workspace_id", membership.workspace_id)
         .single();
       if (existingError) throw new Error(`인스타그램 할 일 조회 실패: ${existingError.code}`);
-      return Response.json({ items: instagramChecklistItemsSchema.parse(existing.items) });
+      return Response.json({ items: instagramChecklistTemplateItemsSchema.parse(existing.items) });
     }
     if (createError) throw new Error(`인스타그램 할 일 생성 실패: ${createError.code}`);
-    return Response.json({ items: instagramChecklistItemsSchema.parse(created.items) });
+    return Response.json({ items: instagramChecklistTemplateItemsSchema.parse(created.items) });
   } catch (error) {
     return courseDocumentErrorResponse(error);
   }
@@ -43,7 +46,7 @@ export async function PUT(request: Request) {
   try {
     const { user, membership, admin } = await requireCourseDocumentMember();
     const body = await request.json();
-    const items = instagramChecklistItemsSchema.parse(body.items);
+    const items = instagramChecklistTemplateItemsSchema.parse(body.items);
     const { data, error } = await admin
       .from("instagram_management_checklists")
       .upsert({
@@ -55,7 +58,7 @@ export async function PUT(request: Request) {
       .select("items")
       .single();
     if (error) throw new Error(`인스타그램 할 일 저장 실패: ${error.code}`);
-    return Response.json({ items: instagramChecklistItemsSchema.parse(data.items) });
+    return Response.json({ items: instagramChecklistTemplateItemsSchema.parse(data.items) });
   } catch (error) {
     return courseDocumentErrorResponse(error);
   }
