@@ -39,6 +39,15 @@ export const instagramChecklistCompletedItemIdsSchema = z.array(instagramCheckli
 export type InstagramChecklistTemplateItem = z.infer<typeof instagramChecklistTemplateItemSchema>;
 export type InstagramChecklistItem = InstagramChecklistTemplateItem & { completed: boolean };
 
+export function instagramChecklistSummary(items: readonly InstagramChecklistItem[]) {
+  const totalCount = items.length;
+  const completedCount = items.filter((item) => item.completed).length;
+  const incompleteCount = totalCount - completedCount;
+  const progressPercentage = totalCount ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  return { totalCount, completedCount, incompleteCount, progressPercentage };
+}
+
 export function defaultInstagramChecklistTemplateItems(): InstagramChecklistTemplateItem[] {
   return DEFAULT_INSTAGRAM_CHECKLIST_TEMPLATE_ITEMS.map((item) => ({ ...item }));
 }

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   defaultInstagramChecklistTemplateItems,
+  instagramChecklistSummary,
   instagramChecklistTemplateItemsSchema,
   mergeInstagramChecklistState,
 } from "./instagram-checklist";
@@ -26,6 +27,26 @@ test("공용 템플릿과 강의별 완료 상태를 병합한다", () => {
   assert.equal(items.find((item) => item.id === "filming-date-2")?.completed, true);
   assert.equal(items.find((item) => item.id === "account-login")?.completed, false);
   assert.equal(items.some((item) => item.id === "deleted-item"), false);
+});
+
+test("전체·완료·미완료 수와 진행률을 계산한다", () => {
+  const items = mergeInstagramChecklistState(defaultInstagramChecklistTemplateItems(), [
+    "account-login",
+    "blue-badge",
+  ]);
+
+  assert.deepEqual(instagramChecklistSummary(items), {
+    totalCount: 7,
+    completedCount: 2,
+    incompleteCount: 5,
+    progressPercentage: 29,
+  });
+  assert.deepEqual(instagramChecklistSummary([]), {
+    totalCount: 0,
+    completedCount: 0,
+    incompleteCount: 0,
+    progressPercentage: 0,
+  });
 });
 
 test("템플릿은 빈 제목과 중복 ID를 거부한다", () => {
