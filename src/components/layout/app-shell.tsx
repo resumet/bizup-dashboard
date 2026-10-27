@@ -2,14 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 import {
   BarChart3,
   BookOpenCheck,
   BriefcaseBusiness,
   ChevronRight,
+  GripVertical,
   Menu,
   MonitorPlay,
+  PanelLeftClose,
+  PanelLeftOpen,
   Puzzle,
   ShieldCheck,
   Users,
@@ -20,7 +31,16 @@ import {
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { Button } from "@/components/ui/button";
+import {
+  DEFAULT_SIDEBAR_WIDTH,
+  MAX_SIDEBAR_WIDTH,
+  MIN_SIDEBAR_WIDTH,
+  clampSidebarWidth,
+} from "@/lib/layout/sidebar-preferences";
 import { cn } from "@/lib/utils";
+
+const SIDEBAR_WIDTH_STORAGE_KEY = "bizup:sidebar-width";
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "bizup:sidebar-collapsed";
 
 type NavigationItem = {
   label: string;
@@ -224,14 +244,130 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarPreferencesLoaded, setSidebarPreferencesLoaded] = useState(false);
+  const [resizingSidebar, setResizingSidebar] = useState(false);
+  const resizeStart = useRef({ pointerX: 0, width: DEFAULT_SIDEBAR_WIDTH });
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      try {
+        const storedWidth = Number(window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
+        const storedCollapsed = window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
+
+        if (storedWidth) setSidebarWidth(clampSidebarWidth(storedWidth));
+        if (storedCollapsed !== null) setSidebarCollapsed(storedCollapsed === "true");
+      } catch {
+        // Fall back to the default state when browser storage is unavailable.
+      } finally {
+        setSidebarPreferencesLoaded(true);
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    if (!sidebarPreferencesLoaded) return;
+    try {
+      window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidth));
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(sidebarCollapsed));
+    } catch {
+      // The controls still work for this visit when browser storage is unavailable.
+    }
+  }, [sidebarCollapsed, sidebarPreferencesLoaded, sidebarWidth]);
+
+  function toggleSidebar() {
+    setSidebarCollapsed((collapsed) => !collapsed);
+  }
+
+  function startSidebarResize(event: PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    resizeStart.current = { pointerX: event.clientX, width: sidebarWidth };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setResizingSidebar(true);
+  }
+
+  function resizeSidebar(event: PointerEvent<HTMLDivElement>) {
+    if (!resizingSidebar) return;
+    const nextWidth = resizeStart.current.width + event.clientX - resizeStart.current.pointerX;
+    setSidebarWidth(clampSidebarWidth(nextWidth));
+  }
+
+  function finishSidebarResize(event: PointerEvent<HTMLDivElement>) {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    setResizingSidebar(false);
+  }
+
+  function resizeSidebarWithKeyboard(event: KeyboardEvent<HTMLDivElement>) {
+    const step = event.shiftKey ? 32 : 12;
+    let nextWidth: number | null = null;
+    if (event.key === "ArrowLeft") nextWidth = sidebarWidth - step;
+    if (event.key === "ArrowRight") nextWidth = sidebarWidth + step;
+    if (event.key === "Home") nextWidth = MIN_SIDEBAR_WIDTH;
+    if (event.key === "End") nextWidth = MAX_SIDEBAR_WIDTH;
+    if (nextWidth === null) return;
+    event.preventDefault();
+    setSidebarWidth(clampSidebarWidth(nextWidth));
+  }
 
   if (!email || !isPrivateRoute(pathname)) return children;
 
+  const shellStyle = { "--app-sidebar-width": `${sidebarWidth}px` } as CSSProperties;
+
   return (
-    <div className="min-h-dvh bg-slate-50">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 lg:block">
+    <div className={cn("min-h-dvh bg-slate-50", resizingSidebar && "cursor-col-resize select-none")} style={shellStyle}>
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 hidden w-(--app-sidebar-width) lg:block",
+          !resizingSidebar && "transition-transform duration-200 ease-out",
+          sidebarCollapsed && "pointer-events-none -translate-x-full",
+        )}
+        aria-hidden={sidebarCollapsed}
+        inert={sidebarCollapsed}
+      >
         <SidebarContent email={email} userName={userName} isSuperAdmin={isSuperAdmin} pathname={pathname} onNavigate={() => undefined} />
+        <div
+          role="separator"
+          aria-label="사이드바 너비 조절"
+          aria-orientation="vertical"
+          aria-valuemin={MIN_SIDEBAR_WIDTH}
+          aria-valuemax={MAX_SIDEBAR_WIDTH}
+          aria-valuenow={sidebarWidth}
+          tabIndex={sidebarCollapsed ? -1 : 0}
+          title="드래그하여 폭 조절 · 더블클릭하여 기본 폭"
+          className="group absolute inset-y-0 -right-2 z-10 flex w-4 cursor-col-resize touch-none items-center justify-center outline-none"
+          onPointerDown={startSidebarResize}
+          onPointerMove={resizeSidebar}
+          onPointerUp={finishSidebarResize}
+          onPointerCancel={finishSidebarResize}
+          onDoubleClick={() => setSidebarWidth(DEFAULT_SIDEBAR_WIDTH)}
+          onKeyDown={resizeSidebarWithKeyboard}
+        >
+          <span className="grid h-12 w-3 place-items-center rounded-full border border-slate-700 bg-slate-900 text-slate-500 shadow-sm transition-colors group-hover:border-slate-500 group-hover:text-slate-200 group-focus-visible:ring-2 group-focus-visible:ring-blue-500 group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-slate-950">
+            <GripVertical className="size-3" aria-hidden="true" />
+          </span>
+        </div>
       </aside>
+
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        className={cn(
+          "fixed top-5 z-50 hidden size-9 rounded-lg border-slate-300 bg-white text-slate-700 shadow-md transition-[left,transform,background-color] duration-200 hover:bg-slate-100 lg:inline-flex",
+          sidebarCollapsed ? "left-3" : "left-[calc(var(--app-sidebar-width)-2.75rem)] border-white/15 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white",
+        )}
+        onClick={toggleSidebar}
+        aria-label={sidebarCollapsed ? "사이드바 펼치기" : "사이드바 접기"}
+        aria-expanded={!sidebarCollapsed}
+        title={sidebarCollapsed ? "사이드바 펼치기" : "사이드바 접기"}
+      >
+        {sidebarCollapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
+      </Button>
 
       <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-white/95 px-4 backdrop-blur lg:hidden">
         <Button
@@ -278,7 +414,15 @@ export function AppShell({
         </div>
       ) : null}
 
-      <div className="min-w-0 lg:pl-72">{children}</div>
+      <div
+        className={cn(
+          "min-w-0",
+          !resizingSidebar && "transition-[padding] duration-200 ease-out",
+          sidebarCollapsed ? "lg:pl-0" : "lg:pl-(--app-sidebar-width)",
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }
