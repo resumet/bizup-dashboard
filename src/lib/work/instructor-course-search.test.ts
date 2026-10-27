@@ -51,15 +51,19 @@ test("강사명만 부분 검색하고 공백을 무시한다", () => {
   assert.deepEqual(filterCoursesByInstructor(courses, "  "), []);
 });
 
-test("강의별 다섯 화면의 링크를 만든다", () => {
+test("강의별 여섯 화면의 링크를 만든다", () => {
   assert.deepEqual(getCourseDestinations("course/1"), [
     {
       label: "강의 상세",
       href: "/services/course-operations/course%2F1",
     },
     {
-      label: "강사 인스타그램 / 유튜브 관리",
-      href: "/services/content-management/course%2F1",
+      label: "강사 인스타그램 관리",
+      href: "/services/instagram-management/course%2F1",
+    },
+    {
+      label: "유튜브 출연 관리",
+      href: "/services/youtube-management/course%2F1",
     },
     {
       label: "웨비나 정보",
@@ -76,11 +80,15 @@ test("강의별 다섯 화면의 링크를 만든다", () => {
   ]);
 });
 
-test("대시보드 강의 메뉴는 콘텐츠·웨비나·수강생·WBS·상세 순으로 만든다", () => {
+test("대시보드 강의 메뉴는 인스타그램·유튜브·웨비나·수강생·WBS·상세 순으로 만든다", () => {
   assert.deepEqual(getDashboardCourseDestinations("course/1"), [
     {
-      label: "강사 인스타그램 / 유튜브 관리",
-      href: "/services/content-management/course%2F1",
+      label: "강사 인스타그램 관리",
+      href: "/services/instagram-management/course%2F1",
+    },
+    {
+      label: "유튜브 출연 관리",
+      href: "/services/youtube-management/course%2F1",
     },
     {
       label: "웨비나 정보",

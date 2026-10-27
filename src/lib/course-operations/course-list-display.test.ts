@@ -22,8 +22,12 @@ test("강의 운영 목록 관리 메뉴가 강의별 서비스로 연결된다"
       href: "/services/instructor-intakes?courseId=course%2F1",
     },
     {
-      label: "강사 인스타그램 / 유튜브 관리",
-      href: "/services/content-management/course%2F1",
+      label: "강사 인스타그램 관리",
+      href: "/services/instagram-management/course%2F1",
+    },
+    {
+      label: "유튜브 출연 관리",
+      href: "/services/youtube-management/course%2F1",
     },
     {
       label: "웨비나 정보",
@@ -34,7 +38,7 @@ test("강의 운영 목록 관리 메뉴가 강의별 서비스로 연결된다"
       href: "/services/course-operations/students-settlements/course%2F1",
     },
     {
-      label: "WBS 관리",
+      label: "강의별 해야할일",
       href: "/services/course-wbs?courseId=course%2F1",
     },
   ]);

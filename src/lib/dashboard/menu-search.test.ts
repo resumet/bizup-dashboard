@@ -4,8 +4,12 @@ import test from "node:test";
 import { filterDashboardCourses, filterDashboardMenus } from "./menu-search";
 
 test("새 메뉴명과 기존 메뉴명 모두 같은 메뉴를 추천한다", () => {
-  assert.equal(filterDashboardMenus("인스타그램")[0]?.href, "/services/content-management");
-  assert.equal(filterDashboardMenus("콘텐츠 관리")[0]?.href, "/services/content-management");
+  assert.equal(filterDashboardMenus("인스타그램")[0]?.href, "/services/instagram-management");
+  assert.equal(filterDashboardMenus("유튜브 출연")[0]?.href, "/services/youtube-management");
+  assert.deepEqual(filterDashboardMenus("콘텐츠 관리").map(({ href }) => href), [
+    "/services/instagram-management",
+    "/services/youtube-management",
+  ]);
   assert.equal(filterDashboardMenus("강의 WBS")[0]?.href, "/services/course-wbs");
 });
 

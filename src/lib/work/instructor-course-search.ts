@@ -53,9 +53,13 @@ function buildCourseDestinations(courseId: string) {
       label: "강의 상세",
       href: `/services/course-operations/${encodedCourseId}`,
     },
-    content: {
-      label: "강사 인스타그램 / 유튜브 관리",
-      href: `/services/content-management/${encodedCourseId}`,
+    instagram: {
+      label: "강사 인스타그램 관리",
+      href: `/services/instagram-management/${encodedCourseId}`,
+    },
+    youtube: {
+      label: "유튜브 출연 관리",
+      href: `/services/youtube-management/${encodedCourseId}`,
     },
     webinarInformation: {
       label: "웨비나 정보",
@@ -69,14 +73,15 @@ function buildCourseDestinations(courseId: string) {
       label: "강의별 해야할일",
       href: `/services/course-wbs?courseId=${encodedCourseId}`,
     },
-  } satisfies Record<"detail" | "content" | "webinarInformation" | "students" | "wbs", CourseDestination>;
+  } satisfies Record<"detail" | "instagram" | "youtube" | "webinarInformation" | "students" | "wbs", CourseDestination>;
 }
 
 export function getCourseDestinations(courseId: string): CourseDestination[] {
   const destinations = buildCourseDestinations(courseId);
   return [
     destinations.detail,
-    destinations.content,
+    destinations.instagram,
+    destinations.youtube,
     destinations.webinarInformation,
     destinations.students,
     destinations.wbs,
@@ -86,7 +91,8 @@ export function getCourseDestinations(courseId: string): CourseDestination[] {
 export function getDashboardCourseDestinations(courseId: string): CourseDestination[] {
   const destinations = buildCourseDestinations(courseId);
   return [
-    destinations.content,
+    destinations.instagram,
+    destinations.youtube,
     destinations.webinarInformation,
     destinations.students,
     destinations.wbs,

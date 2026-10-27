@@ -17,7 +17,8 @@ export type DashboardCourseSearchItem = {
 
 export const DASHBOARD_MENU_SEARCH_ITEMS: readonly DashboardMenuSearchItem[] = [
   { label: "진행중 강의 보기", href: "/services/course-operations", group: "강의 운영", keywords: ["강의 운영 자동화", "강의"] },
-  { label: "강사 인스타그램 / 유튜브 관리", href: "/services/content-management", group: "강의 운영", keywords: ["콘텐츠 관리", "컨텐츠 관리", "인스타그램", "유튜브"] },
+  { label: "강사 인스타그램 관리", href: "/services/instagram-management", group: "강의 운영", keywords: ["콘텐츠 관리", "컨텐츠 관리", "인스타그램"] },
+  { label: "유튜브 출연 관리", href: "/services/youtube-management", group: "강의 운영", keywords: ["콘텐츠 관리", "컨텐츠 관리", "유튜브"] },
   { label: "강의별 해야할일", href: "/services/course-wbs", group: "강의 운영", keywords: ["강의 WBS", "할 일", "해야 할 일"] },
   { label: "강사 정보 받기", href: "/services/instructor-intakes", group: "강의 운영" },
   { label: "강의 일정 플래너", href: "/services/course-schedule-planner", group: "도구" },

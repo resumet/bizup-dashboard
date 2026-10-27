@@ -579,7 +579,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
     ) : !courseId ? <Tabs value={overviewTab} onValueChange={(value) => setOverviewTab(value as "manage" | "analysis" | "summary")}>
       <div className="flex flex-wrap items-center justify-between gap-3">
       <TabsList aria-label="강의별 해야할일 화면">
-        <TabsTrigger value="manage"><ClipboardList /> WBS 관리</TabsTrigger>
+        <TabsTrigger value="manage"><ClipboardList /> 강의별 해야할일</TabsTrigger>
         <TabsTrigger value="summary">업무 요약</TabsTrigger>
         <TabsTrigger value="analysis"><CalendarDays /> 업무 현황</TabsTrigger>
       </TabsList>

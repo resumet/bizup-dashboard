@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { instagramCourseOptionLabel } from "@/lib/course-documents/course-options";
@@ -572,6 +573,15 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                     <Button type="button" variant="outline" onClick={openSettingsDialog}><Settings />설정</Button>
                   </div>
                 </div>
+                <Tabs defaultValue="checklist" className="space-y-5">
+                  <TabsList aria-label="인스타그램 강의 관리 항목">
+                    <TabsTrigger value="checklist">기본 할일목록 체크</TabsTrigger>
+                    <TabsTrigger value="reels">릴스 진행도 확인</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="checklist" className="mt-0">
+                    <InstagramChecklist courseId={selectedCourse.id} />
+                  </TabsContent>
+                  <TabsContent value="reels" className="mt-0 space-y-5">
                 {progressSummary ? <section className="space-y-3">
                   <h2 className="text-xl font-semibold">진행 요약</h2>
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
@@ -584,7 +594,6 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                       { label: "남은 업로드 가능일", value: progressSummary.remainingWeekdays === null ? "-" : `${progressSummary.remainingWeekdays}일`, detail: "웨비나 당일까지" },
                     ].map((item) => <Card key={item.label}><CardContent className="space-y-1 pt-5"><p className="text-sm text-muted-foreground">{item.label}</p><p className="text-2xl font-semibold">{item.value}</p><p className="text-xs text-muted-foreground">{item.detail}</p></CardContent></Card>)}
                   </div>
-                  <InstagramChecklist courseId={selectedCourse.id} />
                   {progressSummary.isAtRisk ? <Alert variant="destructive"><AlertTriangle /><AlertDescription>오늘 기준 최소 {progressSummary.requiredUploadCount}건이 업로드되어야 하지만 현재 {progressSummary.uploadCompletedCount}건으로 {progressSummary.uploadShortfallCount}건 부족합니다. 남은 업로드 가능일 {progressSummary.remainingWeekdays}일 안에 업로드 {progressSummary.remainingUploadCount}건을 완료해야 하므로 이대로 진행하면 기획된 콘텐츠를 모두 올리지 못할 수도 있습니다.</AlertDescription></Alert> : null}
                 </section> : null}
                 <div className="space-y-3">
@@ -628,6 +637,8 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                   </TableRow>;
                 })}</TableBody></Table>{!selectedCourse.materials.length ? <div className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">전체 진행 건수를 입력하고 설정을 저장해 주세요.</div> : null}</div>
                 {legacyDocuments.length ? <Card><CardHeader><CardTitle>이전 방식 미연결 글 {legacyDocuments.length}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>제목</TableHead><TableHead>상태</TableHead><TableHead>수정일</TableHead><TableHead className="text-right">작업</TableHead></TableRow></TableHeader><TableBody>{legacyDocuments.map((document) => <TableRow key={document.id}><TableCell className="font-medium">{document.title}</TableCell><TableCell><Badge variant={document.status === "published" ? "default" : "secondary"}>{document.status === "published" ? "공개" : "비공개"}</Badge></TableCell><TableCell className="text-muted-foreground">{dateTime(document.updatedAt)}</TableCell><TableCell><div className="flex justify-end gap-1"><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon-sm" aria-label="문서 수정 및 리드게이트 설정" onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}><Pencil /></Button></TooltipTrigger><TooltipContent>문서 수정 및 리드게이트 설정</TooltipContent></Tooltip>{document.status === "published" ? <Button variant="ghost" size="icon-sm" asChild><a aria-label="이전 공개 글 열기" href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink /></a></Button> : null}<Button variant="ghost" size="icon-sm" aria-label="이전 글 삭제" disabled={busy} onClick={() => void deleteDocument(document.id)}><Trash2 /></Button></div></TableCell></TableRow>)}</TableBody></Table></CardContent></Card> : null}
+                  </TabsContent>
+                </Tabs>
               </div> : <Card><CardContent className="flex min-h-80 items-center justify-center text-muted-foreground">강의를 찾을 수 없습니다.</CardContent></Card>}
         </>
       )}

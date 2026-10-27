@@ -11,7 +11,7 @@ export default async function InstagramChecklistTemplatePage() {
   });
 
   return <main className="mx-auto max-w-4xl space-y-6 px-5 py-8 lg:px-8">
-    <BackLink href="/services/content-management?tab=instagram" className="text-sm hover:underline">← 인스타그램 관리</BackLink>
+    <BackLink href="/services/instagram-management" className="text-sm hover:underline">← 강사 인스타그램 관리</BackLink>
     <h1 className="text-2xl font-semibold">인스타그램 체크리스트 템플릿</h1>
     <InstagramChecklistTemplateManager />
   </main>;

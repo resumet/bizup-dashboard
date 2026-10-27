@@ -9,6 +9,7 @@ import {
   FileSpreadsheet,
   HandCoins,
   MessageSquareText,
+  MonitorPlay,
   PhoneCall,
   ShoppingCart,
   Users,
@@ -69,11 +70,18 @@ const services: Service[] = [
       "bg-emerald-500/12 text-emerald-700 ring-emerald-500/15 dark:text-emerald-300",
   },
   {
-    title: "강사 인스타그램 / 유튜브 관리",
-    route: "/services/content-management",
+    title: "강사 인스타그램 관리",
+    route: "/services/instagram-management",
     icon: Camera,
     iconClass:
       "bg-pink-500/12 text-pink-700 ring-pink-500/15 dark:text-pink-300",
+  },
+  {
+    title: "유튜브 출연 관리",
+    route: "/services/youtube-management",
+    icon: MonitorPlay,
+    iconClass:
+      "bg-red-500/12 text-red-700 ring-red-500/15 dark:text-red-300",
   },
   {
     title: "라이브 웨비나 대시보드",

@@ -60,7 +60,8 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     icon: BookOpenCheck,
     items: [
       { label: "진행중 강의 보기", href: "/services/course-operations", exact: true },
-      { label: "강사 인스타그램 / 유튜브 관리", href: "/services/content-management" },
+      { label: "강사 인스타그램 관리", href: "/services/instagram-management" },
+      { label: "유튜브 출연 관리", href: "/services/youtube-management" },
       { label: "강의별 해야할일", href: "/services/course-wbs" },
       { label: "라이브 웨비나", href: "/services/course-webinars" },
       { label: "유튜브 채널 관리", href: "/services/youtube-channels" },

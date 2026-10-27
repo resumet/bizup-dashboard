@@ -2,8 +2,7 @@ import type { WbsItem, WbsTaskLink } from "./types";
 
 export const WBS_INTERNAL_PAGES = [
   { label: "유튜브 출연 관리", url: "/services/youtube-management/{courseId}" },
-  { label: "인스타그램 관리", url: "/services/instagram-management/{courseId}" },
-  { label: "강사 인스타그램 / 유튜브 관리", url: "/services/content-management" },
+  { label: "강사 인스타그램 관리", url: "/services/instagram-management/{courseId}" },
   { label: "강의 상세", url: "/services/course-operations/{courseId}" },
   { label: "강의 광고성과", url: "/services/ad-performance" },
 ] as const;

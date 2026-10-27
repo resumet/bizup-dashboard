@@ -21,8 +21,12 @@ export function getCourseManagementDestinations(
       href: `/services/instructor-intakes?courseId=${encodedCourseId}`,
     },
     {
-      label: "강사 인스타그램 / 유튜브 관리",
-      href: `/services/content-management/${encodedCourseId}`,
+      label: "강사 인스타그램 관리",
+      href: `/services/instagram-management/${encodedCourseId}`,
+    },
+    {
+      label: "유튜브 출연 관리",
+      href: `/services/youtube-management/${encodedCourseId}`,
     },
     {
       label: "웨비나 정보",
@@ -33,7 +37,7 @@ export function getCourseManagementDestinations(
       href: `/services/course-operations/students-settlements/${encodedCourseId}`,
     },
     {
-      label: "WBS 관리",
+      label: "강의별 해야할일",
       href: `/services/course-wbs?courseId=${encodedCourseId}`,
     },
   ];

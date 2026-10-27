@@ -32,13 +32,21 @@ test("메뉴 검색어 설정 DB는 워크스페이스별 JSON과 서버 전용 
     await db.query(
       `insert into public.dashboard_menu_search_settings (workspace_id, keywords, updated_by)
        values ($1, $2::jsonb, $3)`,
-      [WORKSPACE, JSON.stringify({ "/services/course-wbs": ["오늘 업무"] }), USER],
+      [WORKSPACE, JSON.stringify({
+        "/services/course-wbs": ["오늘 업무"],
+        "/services/content-management": ["콘텐츠 요청"],
+      }), USER],
     );
+    await db.exec(await readFile("supabase/migrations/20261027060118_split_content_management_menu_keywords.sql", "utf8"));
     const saved = await db.query<{ keywords: Record<string, string[]> }>(
       "select keywords from public.dashboard_menu_search_settings where workspace_id = $1",
       [WORKSPACE],
     );
-    assert.deepEqual(saved.rows[0]?.keywords, { "/services/course-wbs": ["오늘 업무"] });
+    assert.deepEqual(saved.rows[0]?.keywords, {
+      "/services/course-wbs": ["오늘 업무"],
+      "/services/instagram-management": ["콘텐츠 요청"],
+      "/services/youtube-management": ["콘텐츠 요청"],
+    });
     const indexes = await db.query<{ indexname: string }>(
       "select indexname from pg_indexes where schemaname = 'public' and tablename = 'dashboard_menu_search_settings'",
     );
