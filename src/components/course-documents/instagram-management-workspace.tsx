@@ -5,10 +5,11 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Toast } from "radix-ui";
-import { AlertTriangle, Ban, CalendarDays, Check, Circle, ClipboardList, Copy, ExternalLink, FileSpreadsheet, ListPlus, Loader2, Pencil, RefreshCw, Save, Settings, Trash2, Upload, Users, X } from "lucide-react";
+import { AlertTriangle, Ban, CalendarDays, Check, Circle, ClipboardList, ExternalLink, FileSpreadsheet, ListPlus, Loader2, Pencil, Save, Settings, Trash2, Upload, Users, X } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InstagramChecklist } from "@/components/course-documents/instagram-checklist";
+import { InstagramPublicPageDialog } from "@/components/course-documents/instagram-public-page-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,11 +32,6 @@ type LoadResponse = { courses?: CourseDocumentCourse[]; blockedPhones?: BlockedP
 
 function dateTime(value: string) {
   return new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Seoul" }).format(new Date(value));
-}
-
-async function copyText(value: string) {
-  if (!navigator.clipboard?.writeText) throw new Error("클립보드 복사를 지원하지 않는 브라우저입니다.");
-  await navigator.clipboard.writeText(value);
 }
 
 function materialSnapshots(courses: CourseDocumentCourse[]) {
@@ -186,14 +182,20 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
   }
 
   async function updateAccess(enabled: boolean, regenerateToken = false) {
-    if (!selectedCourse) return;
+    if (!selectedCourse) throw new Error("강의 정보를 찾을 수 없습니다.");
     setBusy(true); setError(""); setNotice("");
     try {
       const body = await post({ action: "update-course-access", courseId: selectedCourse.id, enabled, regenerateToken });
       if (!body.setting) throw new Error("외부 작성 설정 응답이 올바르지 않습니다.");
       setCourses((current) => current.map((course) => course.id === selectedCourse.id ? { ...course, externalEditEnabled: body.setting!.enabled, externalAccessToken: body.setting!.accessToken } : course));
-      setNotice(regenerateToken ? "외부 작성 주소를 재발급했습니다." : enabled ? "외부 작성을 활성화했습니다." : "외부 작성을 비활성화했습니다.");
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "외부 작성 설정을 저장하지 못했습니다."); }
+      const message = regenerateToken ? "공개페이지 주소를 재발급했습니다." : enabled ? "공개페이지를 만들었습니다." : "공개페이지를 비공개로 변경했습니다.";
+      setNotice(message);
+      return message;
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "공개페이지 설정을 저장하지 못했습니다.";
+      setError(message);
+      throw new Error(message);
+    }
     finally { setBusy(false); }
   }
 
@@ -598,16 +600,11 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                   {progressSummary.isAtRisk ? <Alert variant="destructive"><AlertTriangle /><AlertDescription>오늘 기준 최소 {progressSummary.requiredUploadCount}건이 업로드되어야 하지만 현재 {progressSummary.uploadCompletedCount}건으로 {progressSummary.uploadShortfallCount}건 부족합니다. 남은 업로드 가능일 {progressSummary.remainingWeekdays}일 안에 업로드 {progressSummary.remainingUploadCount}건을 완료해야 하므로 이대로 진행하면 기획된 콘텐츠를 모두 올리지 못할 수도 있습니다.</AlertDescription></Alert> : null}
                 </section> : null}
                 <div className="space-y-3">
-                    <div className="flex justify-end xl:col-start-2 xl:row-start-1">
-                      <Badge variant={selectedCourse.externalEditEnabled ? "default" : "secondary"}>{selectedCourse.externalEditEnabled ? "외부 작성 허용" : "비활성화"}</Badge>
-                    </div>
                     <div className="flex flex-wrap justify-end gap-2 xl:col-start-2 xl:row-start-2">
                       <Button variant="outline" disabled={busy} onClick={openPlanningSheet}><FileSpreadsheet />기획시트</Button>
                       <Button variant="outline" disabled={savingBulkTitles || !selectedCourse.materials.length} onClick={openBulkTitleDialog}><ListPlus />제목 일괄입력</Button>
                       <Button variant="outline" disabled={savingMaterials || savingBulkFilmingDate || activeSelectedFilmingPositions.length === 0} onClick={openBulkFilmingDateDialog}><CalendarDays />촬영 일정 일괄 변경{activeSelectedFilmingPositions.length ? ` (${activeSelectedFilmingPositions.length})` : ""}</Button>
-                      <Button variant="outline" disabled={!externalUrl} onClick={() => void copyText(new URL(externalUrl, window.location.origin).toString()).then(() => setNotice("외부 작성 주소를 복사했습니다.")).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "주소를 복사하지 못했습니다."))}><Copy />주소 복사</Button>
-                      <Button variant="outline" disabled={busy} onClick={() => void updateAccess(selectedCourse.externalEditEnabled, true)}><RefreshCw />재발급</Button>
-                      <Button variant={selectedCourse.externalEditEnabled ? "outline" : "default"} disabled={busy} onClick={() => void updateAccess(!selectedCourse.externalEditEnabled)}>{selectedCourse.externalEditEnabled ? "비활성화" : "외부 작성 활성화"}</Button>
+                      <InstagramPublicPageDialog path={externalUrl} enabled={selectedCourse.externalEditEnabled} busy={busy} onChangeAccess={updateAccess} />
                       <Button disabled={savingMaterials || savingBulkFilmingDate || materialChangeCount === 0} onClick={() => void saveMaterials()}>
                         {savingMaterials ? <Loader2 className="animate-spin" /> : <Save />}
                         {savingMaterials ? "저장 중" : materialChangeCount ? `저장하기 (${materialChangeCount})` : "저장됨"}
