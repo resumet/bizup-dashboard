@@ -25,7 +25,13 @@ test("강사 수집 DB는 워크스페이스 접근, 익명 접근 차단, 저�
     );
     await db.exec(
       await readFile(
-        "supabase/migrations/20261005050000_instructor_intake_course.sql",
+        "supabase/migrations/20261005043101_instructor_intake_course.sql",
+        "utf8",
+      ),
+    );
+    await db.exec(
+      await readFile(
+        "supabase/migrations/20261027054602_instructor_intake_account_items.sql",
         "utf8",
       ),
     );
@@ -48,6 +54,14 @@ test("강사 수집 DB는 워크스페이스 접근, 익명 접근 차단, 저�
       "insert into public.instructor_intakes(workspace_id,title,access_token,access_token_hash) values ($1,'다른 강사',$2,$3)",
       [w2, "b".repeat(48), "b".repeat(64)],
     );
+    const migratedAnswers = (
+      await db.query<{ answers: Record<string, unknown> }>(
+        "select answers from public.instructor_intakes where id=$1",
+        [row.id],
+      )
+    ).rows[0].answers;
+    assert.equal(migratedAnswers.instagramAccountId, "");
+    assert.equal(migratedAnswers.infokLinkPassword, "");
     assert.equal(
       (
         await db.query(

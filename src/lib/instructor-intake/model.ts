@@ -65,6 +65,12 @@ export const answersSchema = z
       .min(3, "출연 가능한 수강생은 최소 3명이어야 합니다.")
       .max(100_000)
       .nullable(),
+    instagramAccountId: text(200),
+    instagramAccountPassword: text(500),
+    blueBadge: text(1000),
+    twoFactorSecurity: text(1000),
+    infokLinkId: text(200),
+    infokLinkPassword: text(500),
   })
   .superRefine((value, context) => {
     if (value.materialsUnavailable && value.materialsUrls.length)
@@ -104,6 +110,12 @@ export const EMPTY_ANSWERS: Answers = {
   expectedRevenue: null,
   expectedProfit: null,
   availableStudents: null,
+  instagramAccountId: "",
+  instagramAccountPassword: "",
+  blueBadge: "",
+  twoFactorSecurity: "",
+  infokLinkId: "",
+  infokLinkPassword: "",
 };
 export const FIELD_LABELS = [
   "본명",
@@ -117,7 +129,17 @@ export const FIELD_LABELS = [
   "월 순이익",
   "수강 후 3개월 내 예상 매출·순이익",
   "무료강의 출연 가능 수강생",
+  "인스타 신규계정 생성후 아이디, 비밀번호",
+  "블루뱃지",
+  "2차 보안",
+  "인포크 링크 아이디, 비밀번호",
 ];
+export const FIELD_DESCRIPTION_LINKS: Record<number, string> = {
+  11: "https://possible-louse-74d.notion.site/3a1119af8a6780269985c82c7858b6d0?source=copy_link",
+  12: "https://possible-louse-74d.notion.site/351119af8a67816e8541d52127fef714?source=copy_link",
+  13: "https://possible-louse-74d.notion.site/2-11f119af8a67801da281cae674857bab?source=copy_link",
+  14: "https://possible-louse-74d.notion.site/351119af8a6781a49e9ec97fd1b073e5?source=copy_link",
+};
 export function intakeProgress(answers: Answers, photoCount: number) {
   const completed = [
     !!answers.realName,
@@ -134,6 +156,10 @@ export function intakeProgress(answers: Answers, photoCount: number) {
     answers.monthlyProfit !== null,
     answers.expectedRevenue !== null && answers.expectedProfit !== null,
     answers.availableStudents !== null && answers.availableStudents >= 3,
+    !!answers.instagramAccountId && !!answers.instagramAccountPassword,
+    !!answers.blueBadge,
+    !!answers.twoFactorSecurity,
+    !!answers.infokLinkId && !!answers.infokLinkPassword,
   ];
   const received = completed.filter(Boolean).length;
   return {

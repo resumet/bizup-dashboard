@@ -11,7 +11,11 @@ import {
   memberIntake,
   signedPhotos,
 } from "@/lib/instructor-intake/server";
-import { FIELD_LABELS, intakeProgress } from "@/lib/instructor-intake/model";
+import {
+  FIELD_DESCRIPTION_LINKS,
+  FIELD_LABELS,
+  intakeProgress,
+} from "@/lib/instructor-intake/model";
 
 function Urls({
   values,
@@ -106,6 +110,10 @@ export default async function InstructorIntakeDetail({
     a.availableStudents === null
       ? "미입력"
       : `${a.availableStudents.toLocaleString("ko-KR")}명`,
+    `아이디: ${a.instagramAccountId || "미입력"}\n비밀번호: ${a.instagramAccountPassword || "미입력"}`,
+    a.blueBadge || "미입력",
+    a.twoFactorSecurity || "미입력",
+    `아이디: ${a.infokLinkId || "미입력"}\n비밀번호: ${a.infokLinkPassword || "미입력"}`,
   ];
   return (
     <main className="mx-auto max-w-4xl space-y-7 px-5 py-8">
@@ -138,8 +146,20 @@ export default async function InstructorIntakeDetail({
         {FIELD_LABELS.map((label, index) => (
           <div key={label} className="space-y-3 p-5 sm:p-6">
             <dt className="flex items-center justify-between gap-3 font-semibold">
-              <span>
-                {index + 1}. {label}
+              <span className="flex flex-wrap items-center gap-2">
+                <span>
+                  {index + 1}. {label}
+                </span>
+                {FIELD_DESCRIPTION_LINKS[index] ? (
+                  <a
+                    href={FIELD_DESCRIPTION_LINKS[index]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-primary underline underline-offset-4"
+                  >
+                    (설명보기)
+                  </a>
+                ) : null}
               </span>
               <span
                 className={

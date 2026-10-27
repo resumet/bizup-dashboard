@@ -11,6 +11,7 @@ import {
   MAX_PHOTO_BYTES,
   saveSchema,
   formatWonWithKorean,
+  FIELD_DESCRIPTION_LINKS,
   type Answers,
   type Photo,
 } from "@/lib/instructor-intake/model";
@@ -45,7 +46,26 @@ function readAnswers(form: HTMLFormElement): Answers {
     expectedRevenue: number("expectedRevenue"),
     expectedProfit: number("expectedProfit"),
     availableStudents: number("availableStudents"),
+    instagramAccountId: text("instagramAccountId"),
+    instagramAccountPassword: text("instagramAccountPassword"),
+    blueBadge: text("blueBadge"),
+    twoFactorSecurity: text("twoFactorSecurity"),
+    infokLinkId: text("infokLinkId"),
+    infokLinkPassword: text("infokLinkPassword"),
   };
+}
+
+function DescriptionLink({ fieldIndex }: { fieldIndex: number }) {
+  return (
+    <a
+      href={FIELD_DESCRIPTION_LINKS[fieldIndex]}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-sm font-medium text-primary underline underline-offset-4"
+    >
+      (설명보기)
+    </a>
+  );
 }
 
 function NumericField({
@@ -479,6 +499,99 @@ export function IntakeForm({
             min={3}
             help="무료강의에 출연 가능한 수강생은 최소 3명부터 입력해 주세요."
           />
+        </section>
+        <section className={sectionClass}>
+          <h2 className="text-lg font-semibold">계정 설정 정보</h2>
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-medium">
+                12. 인스타 신규계정 생성후 아이디, 비밀번호
+              </p>
+              <DescriptionLink fieldIndex={11} />
+            </div>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="instagramAccountId">아이디</Label>
+                <Input
+                  id="instagramAccountId"
+                  name="instagramAccountId"
+                  maxLength={200}
+                  autoComplete="username"
+                  defaultValue={initialAnswers.instagramAccountId}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="instagramAccountPassword">비밀번호</Label>
+                <Input
+                  id="instagramAccountPassword"
+                  name="instagramAccountPassword"
+                  type="password"
+                  maxLength={500}
+                  autoComplete="new-password"
+                  defaultValue={initialAnswers.instagramAccountPassword}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Label htmlFor="blueBadge">13. 블루뱃지</Label>
+              <DescriptionLink fieldIndex={12} />
+            </div>
+            <Textarea
+              id="blueBadge"
+              name="blueBadge"
+              rows={3}
+              maxLength={1000}
+              defaultValue={initialAnswers.blueBadge}
+              placeholder="진행 상태 또는 관련 정보를 입력해 주세요."
+            />
+          </div>
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Label htmlFor="twoFactorSecurity">14. 2차 보안</Label>
+              <DescriptionLink fieldIndex={13} />
+            </div>
+            <Textarea
+              id="twoFactorSecurity"
+              name="twoFactorSecurity"
+              rows={3}
+              maxLength={1000}
+              defaultValue={initialAnswers.twoFactorSecurity}
+              placeholder="설정 상태 또는 전달할 정보를 입력해 주세요."
+            />
+          </div>
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-medium">
+                15. 인포크 링크 아이디, 비밀번호
+              </p>
+              <DescriptionLink fieldIndex={14} />
+            </div>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="infokLinkId">아이디</Label>
+                <Input
+                  id="infokLinkId"
+                  name="infokLinkId"
+                  maxLength={200}
+                  autoComplete="off"
+                  defaultValue={initialAnswers.infokLinkId}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="infokLinkPassword">비밀번호</Label>
+                <Input
+                  id="infokLinkPassword"
+                  name="infokLinkPassword"
+                  type="password"
+                  maxLength={500}
+                  autoComplete="new-password"
+                  defaultValue={initialAnswers.infokLinkPassword}
+                />
+              </div>
+            </div>
+          </div>
         </section>
       </fieldset>
       <div className="sticky bottom-0 space-y-3 rounded-xl border bg-background/95 p-4 backdrop-blur">

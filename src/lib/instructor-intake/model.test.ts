@@ -27,18 +27,24 @@ const complete = {
   expectedRevenue: 3000000,
   expectedProfit: 1000000,
   availableStudents: 3,
+  instagramAccountId: "instagram-id",
+  instagramAccountPassword: "instagram-password",
+  blueBadge: "신청 완료",
+  twoFactorSecurity: "설정 완료",
+  infokLinkId: "infok-id",
+  infokLinkPassword: "infok-password",
 };
-test("수집률은 11개 항목을 기준으로 하며 0원·적자·없음 응답을 인정한다", () => {
+test("수집률은 15개 항목을 기준으로 하며 0원·적자·없음 응답을 인정한다", () => {
   assert.equal(intakeProgress(EMPTY_ANSWERS, 0).received, 0);
   assert.deepEqual(intakeProgress(complete, 1), {
-    completed: Array(11).fill(true),
-    received: 11,
-    total: 11,
+    completed: Array(15).fill(true),
+    received: 15,
+    total: 15,
     percent: 100,
   });
   assert.equal(
     intakeProgress({ ...complete, expectedProfit: null }, 1).received,
-    10,
+    14,
   );
   assert.equal(
     intakeProgress(
@@ -50,9 +56,13 @@ test("수집률은 11개 항목을 기준으로 하며 0원·적자·없음 응�
       },
       1,
     ).received,
-    10,
+    14,
   );
-  assert.equal(intakeProgress({ ...complete, realName: "" }, 1).percent, 91);
+  assert.equal(intakeProgress({ ...complete, realName: "" }, 1).percent, 93);
+  assert.equal(
+    intakeProgress({ ...complete, instagramAccountPassword: "" }, 1).received,
+    14,
+  );
 });
 test("중간 저장은 허용하고 최종 제출은 사진과 모든 정보를 요구한다", () => {
   assert.ok(

@@ -1,5 +1,6 @@
 import { DEFAULT_SELECTABLE_COURSE_STATUS } from "@/lib/course-operations/course-status";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   CreateIntake,
   RefreshIntakes,
@@ -36,6 +37,10 @@ export default async function InstructorIntakesPage({ searchParams }: Props) {
         .order("updated_at", { ascending: false }),
     ]);
   const rows = error ? [] : (data as IntakeRow[]).map(normalizeIntake);
+  const existingIntake = requestedCourseId
+    ? rows.find((row) => row.course_id === requestedCourseId)
+    : undefined;
+  if (existingIntake) redirect(`/services/instructor-intakes/${existingIntake.id}`);
   const todayKoreaDate = toKoreaDate(new Date().toISOString());
   const activeCourses = sortByNearestWebinar(courses ?? [], todayKoreaDate).filter((course) => {
     const days = getWebinarDayDifference(

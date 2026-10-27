@@ -69,6 +69,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
     linkedJobsResult,
     linkedProjectsResult,
     notesResult,
+    instructorIntakeResult,
   ] =
     await Promise.all([
       supabase
@@ -86,6 +87,14 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
         .select("id,content,created_by,author_email,created_at,updated_at")
         .eq("course_id", courseId)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("instructor_intakes")
+        .select("id")
+        .eq("workspace_id", membership.workspace_id)
+        .eq("course_id", courseId)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
   const loadError =
@@ -143,7 +152,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
       courseId,
       // eslint-disable-next-line react-hooks/purity -- Server request timing only; does not affect rendered content.
       durationMs: Math.round(performance.now() - renderStartedAt),
-      initialQueries: 4,
+      initialQueries: 5,
     }),
   );
 
@@ -187,7 +196,11 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
             <DropdownMenuContent align="end" className="min-w-48">
               <DropdownMenuItem asChild>
                 <Link
-                  href={`/services/instructor-intakes?courseId=${encodeURIComponent(courseId)}`}
+                  href={
+                    instructorIntakeResult.data
+                      ? `/services/instructor-intakes/${instructorIntakeResult.data.id}`
+                      : `/services/instructor-intakes?courseId=${encodeURIComponent(courseId)}`
+                  }
                 >
                   강사 정보 받기
                 </Link>
