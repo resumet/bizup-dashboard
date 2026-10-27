@@ -62,7 +62,6 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
       { label: "진행중 강의 보기", href: "/services/course-operations", exact: true },
       { label: "강사 인스타그램 / 유튜브 관리", href: "/services/content-management" },
       { label: "강의별 해야할일", href: "/services/course-wbs" },
-      { label: "강의 일정 플래너", href: "/services/course-schedule-planner" },
       { label: "수강생 관리 및 정산", href: "/services/course-operations/students-settlements" },
       { label: "라이브 웨비나", href: "/services/course-webinars" },
       { label: "유튜브 채널 관리", href: "/services/youtube-channels" },
@@ -105,6 +104,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     label: "도구",
     icon: Puzzle,
     items: [
+      { label: "강의 일정 플래너", href: "/services/course-schedule-planner" },
       { label: "수강생 명단 중복 검사", href: "/services/roster-duplicates" },
       { label: "결제자 · 수강생 비교", href: "/services/roster-comparison" },
       { label: "강의 정산 계산기", href: "/tools/settlement-calculator" },

@@ -191,7 +191,7 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
           </Card>
 
           <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
-            <SectionHeader title="지금 해야 할 WBS" href="/services/course-wbs" />
+            <SectionHeader title="강의별 해야할 일" href="/services/course-wbs" />
             <CardContent className="p-4 sm:p-5">
               {data.errors.wbs ? <ErrorState>{data.errors.wbs}</ErrorState> : data.wbsTasks.length ? (
                 <div className="space-y-2.5">

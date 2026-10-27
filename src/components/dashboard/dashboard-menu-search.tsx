@@ -9,6 +9,17 @@ import { Input } from "@/components/ui/input";
 import { filterDashboardCourses, filterDashboardMenus, type DashboardCourseSearchItem } from "@/lib/dashboard/menu-search";
 import { getDashboardCourseDestinations } from "@/lib/work/instructor-course-search";
 
+const MENU_CHIP_COLORS = [
+  "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100 hover:text-sky-950",
+  "border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100 hover:text-violet-950",
+  "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-950",
+  "border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100 hover:text-amber-950",
+  "border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 hover:text-rose-950",
+  "border-cyan-200 bg-cyan-50 text-cyan-800 hover:bg-cyan-100 hover:text-cyan-950",
+  "border-indigo-200 bg-indigo-50 text-indigo-800 hover:bg-indigo-100 hover:text-indigo-950",
+  "border-lime-200 bg-lime-50 text-lime-900 hover:bg-lime-100 hover:text-lime-950",
+] as const;
+
 export function DashboardMenuSearch({ courses }: { courses: DashboardCourseSearchItem[] }) {
   const inputId = useId();
   const [query, setQuery] = useState("");
@@ -37,8 +48,8 @@ export function DashboardMenuSearch({ courses }: { courses: DashboardCourseSearc
       <div className="mt-4" aria-live="polite">
         <p className="mb-2 text-xs font-semibold tracking-wide text-slate-500">{hasQuery ? "추천 메뉴" : "자주 찾는 메뉴"}</p>
         {menus.length ? <div className="flex flex-wrap gap-2">
-          {menus.map((menu) => <Button key={menu.href} variant="outline" size="sm" className="h-auto min-h-9 bg-white" asChild>
-            <Link href={menu.href}><span>{menu.label}</span><ArrowRight className="size-3.5 text-slate-400" /></Link>
+          {menus.map((menu, index) => <Button key={menu.href} variant="outline" size="sm" className={`h-auto min-h-9 ${MENU_CHIP_COLORS[index % MENU_CHIP_COLORS.length]}`} asChild>
+            <Link href={menu.href}><span>{menu.label}</span><ArrowRight className="size-3.5 opacity-60" /></Link>
           </Button>)}
         </div> : <p className="text-sm text-muted-foreground">일치하는 메뉴가 없습니다.</p>}
       </div>

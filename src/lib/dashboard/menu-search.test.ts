@@ -9,6 +9,13 @@ test("새 메뉴명과 기존 메뉴명 모두 같은 메뉴를 추천한다", (
   assert.equal(filterDashboardMenus("강의 WBS")[0]?.href, "/services/course-wbs");
 });
 
+test("강의 일정 플래너를 도구 메뉴로 추천한다", () => {
+  const result = filterDashboardMenus("강의 일정 플래너")[0];
+
+  assert.equal(result?.href, "/services/course-schedule-planner");
+  assert.equal(result?.group, "도구");
+});
+
 test("강사명과 강의명으로 강의를 검색한다", () => {
   const courses = [
     { id: "a", name: "마케팅 실전", instructor: "김선아", cohort: "1기", webinarDate: "2026년 11월 1일" },
