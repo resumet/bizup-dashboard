@@ -61,7 +61,8 @@ export async function DELETE(
       .maybeSingle();
     if (error) throw error;
     if (!data) throw new Error("NOT_FOUND");
-    await removePhotos(data.photo_paths ?? []);
+    const imagePaths = Object.values(row.image_paths).flat();
+    await removePhotos([...(data.photo_paths ?? []), ...imagePaths]);
     return Response.json({ ok: true });
   } catch (error) {
     return intakeApiError(error);

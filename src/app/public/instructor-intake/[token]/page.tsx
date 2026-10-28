@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { IntakeForm } from "@/components/instructor-intake/intake-form";
-import { publicIntake, signedPhotos } from "@/lib/instructor-intake/server";
+import {
+  intakeSettings,
+  publicIntake,
+  signedImageGroups,
+  signedPhotos,
+} from "@/lib/instructor-intake/server";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -20,7 +25,12 @@ export default async function PublicInstructorIntake({
     if (error instanceof Error && error.message === "NOT_FOUND") notFound();
     throw error;
   });
-  const photos = await signedPhotos(row.photo_paths);
+  const settings = await intakeSettings(row.workspace_id);
+  const [photos, images, exampleImages] = await Promise.all([
+    signedPhotos(row.photo_paths),
+    signedImageGroups(row.image_paths),
+    signedImageGroups(settings.exampleImagePaths),
+  ]);
   return (
     <main className="mx-auto max-w-3xl space-y-7 px-4 py-8 sm:px-6">
       <h1 className="text-2xl font-semibold">강사 정보 입력</h1>
@@ -28,6 +38,9 @@ export default async function PublicInstructorIntake({
         token={token}
         initialAnswers={row.answers}
         initialPhotos={photos}
+        initialImages={images}
+        exampleImages={exampleImages}
+        examples={settings.examples}
         initialRevision={row.revision}
         submittedAt={row.submitted_at}
       />

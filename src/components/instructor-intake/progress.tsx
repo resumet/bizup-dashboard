@@ -1,13 +1,15 @@
-import { intakeProgress, type Answers } from "@/lib/instructor-intake/model";
+import { intakeProgress, type Answers, type ImagePaths } from "@/lib/instructor-intake/model";
 
 export function IntakeProgress({
   answers,
   photoCount,
+  imagePaths,
 }: {
   answers: Answers;
   photoCount: number;
+  imagePaths?: ImagePaths;
 }) {
-  const { received, total, percent } = intakeProgress(answers, photoCount);
+  const { received, total, percent } = intakeProgress(answers, photoCount, imagePaths);
   return (
     <div className="space-y-2">
       <div className="flex justify-between gap-4 text-sm">

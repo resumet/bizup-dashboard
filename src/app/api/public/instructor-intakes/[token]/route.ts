@@ -16,13 +16,21 @@ export async function PUT(
     const input = saveSchema.parse(await request.json());
     if (input.photoPaths.some((path) => !row.photo_paths.includes(path)))
       throw new Error("저장되지 않은 사진이 포함되어 있습니다.");
+    const savedMaterialPaths = Object.values(row.image_paths).flat();
+    const nextMaterialPaths = Object.values(input.imagePaths).flat();
+    if (nextMaterialPaths.some((path) => !savedMaterialPaths.includes(path)))
+      throw new Error("저장되지 않은 자료 이미지가 포함되어 있습니다.");
     const updated = await updatePublicIntake(row, input.revision, {
       answers: input.answers,
       photo_paths: input.photoPaths,
+      image_paths: input.imagePaths,
       submitted_at: input.submit ? new Date().toISOString() : null,
     });
     await removePhotos(
-      row.photo_paths.filter((path) => !input.photoPaths.includes(path)),
+      [
+        ...row.photo_paths.filter((path) => !input.photoPaths.includes(path)),
+        ...savedMaterialPaths.filter((path) => !nextMaterialPaths.includes(path)),
+      ],
     );
     return Response.json(updated, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

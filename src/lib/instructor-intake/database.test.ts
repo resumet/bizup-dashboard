@@ -35,6 +35,12 @@ test("강사 수집 DB는 워크스페이스 접근, 익명 접근 차단, 저�
         "utf8",
       ),
     );
+    await db.exec(
+      await readFile(
+        "supabase/migrations/20261028125252_expand_instructor_intake_marketing_materials.sql",
+        "utf8",
+      ),
+    );
     const w1 = "00000000-0000-4000-8000-000000000001",
       w2 = "00000000-0000-4000-8000-000000000002",
       u1 = "00000000-0000-4000-8000-000000000003";
@@ -62,6 +68,8 @@ test("강사 수집 DB는 워크스페이스 접근, 익명 접근 차단, 저�
     ).rows[0].answers;
     assert.equal(migratedAnswers.instagramAccountId, "");
     assert.equal(migratedAnswers.infokLinkPassword, "");
+    assert.equal(migratedAnswers.courseContentIntroduction, "");
+    assert.deepEqual(migratedAnswers.webinarCoreContents, ["", "", "", "", ""]);
     assert.equal(
       (
         await db.query(
@@ -100,6 +108,17 @@ test("강사 수집 DB는 워크스페이스 접근, 익명 접근 차단, 저�
       ),
       /check constraint/,
     );
+    await assert.rejects(
+      db.query(
+        "update public.instructor_intakes set image_paths=$1 where id=$2",
+        [JSON.stringify({ evidence: Array(11).fill("photo"), studentResults: [], reviews: [], opportunity: [] }), row.id],
+      ),
+      /check constraint/,
+    );
+    await db.query(
+      "insert into public.instructor_intake_settings(workspace_id,examples) values ($1,$2)",
+      [w1, JSON.stringify({ lectureItemExamples: ["예시"], courseContentIntroduction: "소개", instructorCareer: "이력", differentiators: "차별점" })],
+    );
     await db.query("select set_config('request.jwt.claim.sub',$1,false)", [u1]);
     await db.exec("set role authenticated");
     assert.deepEqual(
@@ -110,6 +129,7 @@ test("강사 수집 DB는 워크스페이스 접근, 익명 접근 차단, 저�
       ).rows.map((row) => row.title),
       ["강사"],
     );
+    assert.equal((await db.query("select * from public.instructor_intake_settings")).rows.length, 1);
     await assert.rejects(
       db.query("update public.instructor_intakes set title='변경'"),
       /permission denied/,

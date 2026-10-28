@@ -66,6 +66,9 @@ export default async function InstructorIntakesPage({ searchParams }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">강사 정보 받기</h1>
         <div className="flex items-center gap-2">
+          <Link href="/services/instructor-intakes/settings" className="inline-flex h-9 items-center rounded-md border px-4 text-sm font-medium hover:bg-accent">
+            예시 설정
+          </Link>
           <RefreshIntakes />
           <CreateIntake
             key={initialCourseId ?? "new-intake"}
@@ -94,6 +97,7 @@ export default async function InstructorIntakesPage({ searchParams }: Props) {
               title={row.title}
               answers={row.answers}
               photoCount={row.photo_paths.length}
+              imagePaths={row.image_paths}
               shareEnabled={row.share_enabled}
               submittedAt={row.submitted_at}
             />

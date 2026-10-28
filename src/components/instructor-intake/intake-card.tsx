@@ -24,6 +24,7 @@ import {
 import {
   intakeProgress,
   type Answers,
+  type ImagePaths,
 } from "@/lib/instructor-intake/model";
 import { IntakeProgress } from "./progress";
 
@@ -32,6 +33,7 @@ type IntakeCardProps = {
   title: string;
   answers: Answers;
   photoCount: number;
+  imagePaths: ImagePaths;
   shareEnabled: boolean;
   submittedAt: string | null;
 };
@@ -41,6 +43,7 @@ export function IntakeCard({
   title,
   answers,
   photoCount,
+  imagePaths,
   shareEnabled,
   submittedAt,
 }: IntakeCardProps) {
@@ -52,7 +55,7 @@ export function IntakeCard({
     ? "수집 마감"
     : submittedAt
       ? "제출 완료"
-      : intakeProgress(answers, photoCount).received > 0
+      : intakeProgress(answers, photoCount, imagePaths).received > 0
         ? "작성 중"
         : "입력 대기";
 
@@ -87,7 +90,7 @@ export function IntakeCard({
           className="block space-y-5 rounded-xl p-5 pr-14 focus-visible:outline-2 focus-visible:outline-primary"
         >
           <h2 className="truncate text-lg font-semibold">{title}</h2>
-          <IntakeProgress answers={answers} photoCount={photoCount} />
+          <IntakeProgress answers={answers} photoCount={photoCount} imagePaths={imagePaths} />
           <div className="flex justify-between gap-3 text-sm text-muted-foreground">
             <span>{status}</span>
             <span>사진 {photoCount}장</span>
