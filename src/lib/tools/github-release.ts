@@ -1,30 +1,30 @@
-const LATEST_RELEASE_API_URL =
-  "https://api.github.com/repos/resumet/Youtube_live_webinar_recorder/releases/latest";
+export type GitHubReleaseRepository = {
+  owner: string;
+  repository: string;
+  cacheTag: string;
+};
 
-export const YOUTUBE_LIVE_RECORDER_RELEASES_URL =
-  "https://github.com/resumet/Youtube_live_webinar_recorder/releases";
-
-export type YouTubeLiveRecorderAsset = {
+export type GitHubReleaseAsset = {
   name: string;
   downloadUrl: string;
   size: number;
 };
 
-export type YouTubeLiveRecorderRelease = {
+export type GitHubLatestRelease = {
   name: string;
   version: string;
   publishedAt: string;
   releaseUrl: string;
-  assets: YouTubeLiveRecorderAsset[];
+  assets: GitHubReleaseAsset[];
 };
 
-type GitHubReleaseAsset = {
+type GitHubReleaseAssetResponse = {
   name?: unknown;
   browser_download_url?: unknown;
   size?: unknown;
 };
 
-type GitHubRelease = {
+type GitHubReleaseResponse = {
   name?: unknown;
   tag_name?: unknown;
   published_at?: unknown;
@@ -32,14 +32,15 @@ type GitHubRelease = {
   assets?: unknown;
 };
 
-const METADATA_FILE_PATTERN = /(?:\.blockmap|\.sha256|\.sig|\.json|\.ya?ml)$/iu;
+const METADATA_FILE_PATTERN =
+  /(?:\.blockmap|\.sha(?:256|512)(?:\.txt)?|\.sig|\.json|\.ya?ml)$/iu;
 
-export function parseYouTubeLiveRecorderRelease(
+export function parseGitHubLatestRelease(
   value: unknown,
-): YouTubeLiveRecorderRelease | null {
+): GitHubLatestRelease | null {
   if (!value || typeof value !== "object") return null;
 
-  const release = value as GitHubRelease;
+  const release = value as GitHubReleaseResponse;
   if (
     typeof release.tag_name !== "string" ||
     typeof release.html_url !== "string" ||
@@ -49,9 +50,9 @@ export function parseYouTubeLiveRecorderRelease(
   }
 
   const assets = Array.isArray(release.assets)
-    ? release.assets.flatMap((rawAsset): YouTubeLiveRecorderAsset[] => {
+    ? release.assets.flatMap((rawAsset): GitHubReleaseAsset[] => {
         if (!rawAsset || typeof rawAsset !== "object") return [];
-        const asset = rawAsset as GitHubReleaseAsset;
+        const asset = rawAsset as GitHubReleaseAssetResponse;
         if (
           typeof asset.name !== "string" ||
           typeof asset.browser_download_url !== "string" ||
@@ -82,22 +83,36 @@ export function parseYouTubeLiveRecorderRelease(
   };
 }
 
-export async function getLatestYouTubeLiveRecorderRelease() {
+export function getGitHubReleasesUrl({
+  owner,
+  repository,
+}: GitHubReleaseRepository) {
+  return `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}/releases`;
+}
+
+export async function getLatestGitHubRelease(
+  config: GitHubReleaseRepository,
+) {
   try {
-    const response = await fetch(LATEST_RELEASE_API_URL, {
-      cache: "force-cache",
-      headers: {
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
+    const owner = encodeURIComponent(config.owner);
+    const repository = encodeURIComponent(config.repository);
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repository}/releases/latest`,
+      {
+        cache: "force-cache",
+        headers: {
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+        next: {
+          revalidate: 60 * 60,
+          tags: [config.cacheTag],
+        },
       },
-      next: {
-        revalidate: 60 * 60,
-        tags: ["youtube-live-recorder-release"],
-      },
-    });
+    );
 
     if (!response.ok) return null;
-    return parseYouTubeLiveRecorderRelease(await response.json());
+    return parseGitHubLatestRelease(await response.json());
   } catch {
     return null;
   }

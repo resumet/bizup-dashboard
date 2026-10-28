@@ -72,6 +72,8 @@ test("유튜브 채널 관리와 유용한 도구들은 기타로 분류한다",
   assert.equal(filterDashboardMenus("유튜브 채널 관리")[0]?.group, "유용한 도구들");
   assert.equal(filterDashboardMenus("유튜브 라이브 레코더")[0]?.href, "/services/tools");
   assert.equal(filterDashboardMenus("웨비나 녹화")[0]?.group, "유용한 도구들");
+  assert.equal(filterDashboardMenus("카카오톡 태그 자동 관리자")[0]?.href, "/services/tools");
+  assert.equal(filterDashboardMenus("카카오 오픈채팅")[0]?.group, "유용한 도구들");
   assert.equal(filterDashboardMenus("업무 도구")[0]?.group, "기타");
   assert.equal(filterDashboardMenus("유용한 도구들")[0]?.href, "/services/tools");
 });

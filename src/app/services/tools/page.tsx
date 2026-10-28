@@ -9,6 +9,7 @@ import {
   Download,
   ExternalLink,
   FileSpreadsheet,
+  MessageCircleMore,
   MonitorPlay,
   RadioTower,
   UsersRound,
@@ -25,9 +26,94 @@ import { TOOL_HUB_ITEMS } from "@/lib/tools/hub";
 import {
   formatReleaseAssetLabel,
   formatReleaseAssetSize,
-  getLatestYouTubeLiveRecorderRelease,
-  YOUTUBE_LIVE_RECORDER_RELEASES_URL,
-} from "@/lib/tools/youtube-live-recorder-release";
+  getGitHubReleasesUrl,
+  getLatestGitHubRelease,
+  type GitHubLatestRelease,
+  type GitHubReleaseRepository,
+} from "@/lib/tools/github-release";
+
+const YOUTUBE_LIVE_RECORDER_REPOSITORY = {
+  owner: "resumet",
+  repository: "Youtube_live_webinar_recorder",
+  cacheTag: "youtube-live-recorder-release",
+} satisfies GitHubReleaseRepository;
+
+const KAKAO_TAG_MANAGER_REPOSITORY = {
+  owner: "resumet",
+  repository: "kakao-opentalk-manager",
+  cacheTag: "kakao-opentalk-manager-release",
+} satisfies GitHubReleaseRepository;
+
+function ReleaseDownloadCard({
+  title,
+  description,
+  icon: Icon,
+  iconClassName,
+  release,
+  repository,
+}: {
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  iconClassName: string;
+  release: GitHubLatestRelease | null;
+  repository: GitHubReleaseRepository;
+}) {
+  return (
+    <Card className="h-full">
+      <CardContent className="flex min-h-36 flex-col gap-5 p-6">
+        <div className="flex items-start gap-4">
+          <span
+            className={`grid size-12 shrink-0 place-items-center rounded-xl ${iconClassName}`}
+          >
+            <Icon className="size-6" aria-hidden="true" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+              {release ? (
+                <Badge variant="secondary">{release.version}</Badge>
+              ) : null}
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+          </div>
+        </div>
+
+        <div className="mt-auto flex flex-wrap gap-2">
+          {release?.assets.map((asset) => {
+            const fileSize = formatReleaseAssetSize(asset.size);
+            return (
+              <Button key={asset.downloadUrl} size="sm" asChild>
+                <a
+                  href={asset.downloadUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={asset.name}
+                >
+                  <Download />
+                  {formatReleaseAssetLabel(asset.name)}
+                  {fileSize ? (
+                    <span className="opacity-70">{fileSize}</span>
+                  ) : null}
+                </a>
+              </Button>
+            );
+          })}
+          <Button variant="outline" size="sm" asChild>
+            <a
+              href={release?.releaseUrl ?? getGitHubReleasesUrl(repository)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ExternalLink />
+              릴리즈 보기
+            </a>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 const toolAppearance: Record<
   (typeof TOOL_HUB_ITEMS)[number]["href"],
@@ -70,7 +156,10 @@ const toolAppearance: Record<
 export default async function ToolsPage() {
   const user = await getAuthenticatedUser(await createClient());
   if (!user) redirect("/login");
-  const recorderRelease = await getLatestYouTubeLiveRecorderRelease();
+  const [recorderRelease, kakaoTagManagerRelease] = await Promise.all([
+    getLatestGitHubRelease(YOUTUBE_LIVE_RECORDER_REPOSITORY),
+    getLatestGitHubRelease(KAKAO_TAG_MANAGER_REPOSITORY),
+  ]);
 
   return (
     <main className="min-h-screen">
@@ -113,60 +202,22 @@ export default async function ToolsPage() {
             );
           })}
 
-          <Card className="h-full">
-            <CardContent className="flex min-h-36 flex-col gap-5 p-6">
-              <div className="flex items-start gap-4">
-                <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-red-500/10 text-red-700">
-                  <RadioTower className="size-6" aria-hidden="true" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-lg font-semibold tracking-tight">
-                      유튜브 라이브 레코더
-                    </h2>
-                    {recorderRelease ? (
-                      <Badge variant="secondary">{recorderRelease.version}</Badge>
-                    ) : null}
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    최신 GitHub 릴리즈의 설치 파일을 내려받습니다.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-auto flex flex-wrap gap-2">
-                {recorderRelease?.assets.map((asset) => {
-                  const fileSize = formatReleaseAssetSize(asset.size);
-                  return (
-                    <Button key={asset.downloadUrl} size="sm" asChild>
-                      <a
-                        href={asset.downloadUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        title={asset.name}
-                      >
-                        <Download />
-                        {formatReleaseAssetLabel(asset.name)}
-                        {fileSize ? (
-                          <span className="opacity-70">{fileSize}</span>
-                        ) : null}
-                      </a>
-                    </Button>
-                  );
-                })}
-                <Button variant="outline" size="sm" asChild>
-                  <a
-                    href={recorderRelease?.releaseUrl ?? YOUTUBE_LIVE_RECORDER_RELEASES_URL}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <ExternalLink />
-                    릴리즈 보기
-                  </a>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <ReleaseDownloadCard
+            title="유튜브 라이브 레코더"
+            description="최신 GitHub 릴리즈의 설치 파일을 내려받습니다."
+            icon={RadioTower}
+            iconClassName="bg-red-500/10 text-red-700"
+            release={recorderRelease}
+            repository={YOUTUBE_LIVE_RECORDER_REPOSITORY}
+          />
+          <ReleaseDownloadCard
+            title="카카오톡 태그 자동 관리자"
+            description="카카오톡 오픈채팅 태그 관리 도구를 내려받습니다."
+            icon={MessageCircleMore}
+            iconClassName="bg-yellow-400/15 text-yellow-700"
+            release={kakaoTagManagerRelease}
+            repository={KAKAO_TAG_MANAGER_REPOSITORY}
+          />
         </div>
       </div>
     </main>
