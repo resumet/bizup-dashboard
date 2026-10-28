@@ -21,7 +21,6 @@ import {
   MonitorPlay,
   PanelLeftClose,
   PanelLeftOpen,
-  Puzzle,
   ShieldCheck,
   Users,
   X,
@@ -80,6 +79,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     icon: Users,
     items: [
       { label: "수강생 관리", href: "/services/student-management" },
+      { label: "도구", href: "/services/tools" },
     ],
   },
   {
@@ -90,26 +90,13 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
       { label: "근태 관리", href: "/hr/leave" },
       { label: "비품 신청", href: "/hr/supplies" },
       { label: "공용 캘린더", href: "/calendar" },
+      { label: "강의 일정 플래너", href: "/services/course-schedule-planner" },
     ],
   },
   {
     label: "외부 마케팅 대행",
     icon: MonitorPlay,
     items: [{ label: "외부 마케팅", href: "/services/external-marketing" }],
-  },
-  {
-    label: "도구",
-    icon: Puzzle,
-    items: [
-      { label: "강의 일정 플래너", href: "/services/course-schedule-planner" },
-      { label: "수강생 명단 중복 검사", href: "/services/roster-duplicates" },
-      { label: "결제자 · 수강생 비교", href: "/services/roster-comparison" },
-      { label: "강의 정산 계산기", href: "/tools/settlement-calculator" },
-      { label: "연락처 CSV 추출", href: "/services/contact-csv" },
-      { label: "유튜브 영상 다운로드", href: "/services/youtube-download" },
-      { label: "노바 정산서 검증", href: "/services/nova-settlement-validator" },
-      { label: "부가 기능 전체보기", href: "/extras" },
-    ],
   },
 ];
 

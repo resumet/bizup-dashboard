@@ -13,11 +13,21 @@ test("새 메뉴명과 기존 메뉴명 모두 같은 메뉴를 추천한다", (
   assert.equal(filterDashboardMenus("강의 WBS")[0]?.href, "/services/course-wbs");
 });
 
-test("강의 일정 플래너를 도구 메뉴로 추천한다", () => {
+test("강의 일정 플래너를 업무 관리 메뉴로 추천한다", () => {
   const result = filterDashboardMenus("강의 일정 플래너")[0];
 
   assert.equal(result?.href, "/services/course-schedule-planner");
-  assert.equal(result?.group, "도구");
+  assert.equal(result?.group, "업무 관리");
+});
+
+test("명단 · 메시지의 도구 허브와 영상 대본 추출을 추천한다", () => {
+  const hub = filterDashboardMenus("업무 도구")[0];
+  const transcription = filterDashboardMenus("영상 대본 추출")[0];
+
+  assert.equal(hub?.href, "/services/tools");
+  assert.equal(hub?.group, "명단 · 메시지");
+  assert.equal(transcription?.href, "/extras");
+  assert.equal(transcription?.group, "도구");
 });
 
 test("수강생 관리와 하위 메뉴를 추천한다", () => {

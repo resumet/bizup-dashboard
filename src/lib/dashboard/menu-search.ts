@@ -21,8 +21,9 @@ export const DASHBOARD_MENU_SEARCH_ITEMS: readonly DashboardMenuSearchItem[] = [
   { label: "유튜브 출연 관리", href: "/services/youtube-management", group: "강의 운영", keywords: ["콘텐츠 관리", "컨텐츠 관리", "유튜브"] },
   { label: "강의별 해야할일", href: "/services/course-wbs", group: "강의 운영", keywords: ["강의 WBS", "할 일", "해야 할 일"] },
   { label: "강사 정보 받기", href: "/services/instructor-intakes", group: "강의 운영" },
-  { label: "강의 일정 플래너", href: "/services/course-schedule-planner", group: "도구" },
+  { label: "강의 일정 플래너", href: "/services/course-schedule-planner", group: "업무 관리" },
   { label: "수강생 관리", href: "/services/student-management", group: "명단 · 메시지", keywords: ["명단", "메시지"] },
+  { label: "도구", href: "/services/tools", group: "명단 · 메시지", keywords: ["업무 도구", "유틸리티"] },
   { label: "수강생 관리 및 정산", href: "/services/course-operations/students-settlements", group: "수강생 관리" },
   { label: "웨비나진행 결과관리", href: "/services/course-webinars", group: "강의 운영", keywords: ["라이브 웨비나", "웨비나 대시보드"] },
   { label: "유튜브 채널 관리", href: "/services/youtube-channels", group: "강의 운영" },
@@ -43,6 +44,7 @@ export const DASHBOARD_MENU_SEARCH_ITEMS: readonly DashboardMenuSearchItem[] = [
   { label: "연락처 CSV 추출", href: "/services/contact-csv", group: "도구" },
   { label: "유튜브 영상 다운로드", href: "/services/youtube-download", group: "도구" },
   { label: "노바 정산서 검증", href: "/services/nova-settlement-validator", group: "도구" },
+  { label: "영상 대본 추출", href: "/extras", group: "도구", keywords: ["부가 기능", "부가기능", "대본"] },
 ];
 
 export function normalizeDashboardSearchText(value: string) {
