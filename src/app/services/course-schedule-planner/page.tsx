@@ -19,7 +19,7 @@ export default async function CourseSchedulePlannerPage() {
       <header className="border-b bg-background">
         <div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
           <Button variant="ghost" size="icon" asChild>
-            <BackLink href="/work" aria-label="운영 워크스페이스로 돌아가기">
+            <BackLink href="/services/work-management" aria-label="업무 관리로 돌아가기">
               뒤로가기
             </BackLink>
           </Button>

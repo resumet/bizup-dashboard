@@ -14,11 +14,9 @@ import {
 import {
   BarChart3,
   BookOpenCheck,
-  BriefcaseBusiness,
   ChevronRight,
   GripVertical,
   Menu,
-  MonitorPlay,
   PanelLeftClose,
   PanelLeftOpen,
   ShieldCheck,
@@ -64,14 +62,18 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
       { label: "강의별 해야할일", href: "/services/course-wbs" },
       { label: "웨비나진행 결과관리", href: "/services/course-webinars" },
       { label: "유튜브 채널 관리", href: "/services/youtube-channels" },
+      {
+        label: "근태관리/업무일지/비품신청",
+        href: "/services/work-management",
+      },
     ],
   },
   {
-    label: "성과 · 재무",
+    label: "퍼포먼스 광고",
     icon: BarChart3,
     items: [
       { label: "광고성과", href: "/services/ad-performance" },
-      { label: "입출금 장부", href: "/services/cash-ledger" },
+      { label: "외부 마케팅", href: "/services/external-marketing" },
     ],
   },
   {
@@ -81,22 +83,6 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
       { label: "수강생 관리", href: "/services/student-management" },
       { label: "도구", href: "/services/tools" },
     ],
-  },
-  {
-    label: "업무 관리",
-    icon: BriefcaseBusiness,
-    items: [
-      { label: "업무일지", href: "/hr", exact: true },
-      { label: "근태 관리", href: "/hr/leave" },
-      { label: "비품 신청", href: "/hr/supplies" },
-      { label: "공용 캘린더", href: "/calendar" },
-      { label: "강의 일정 플래너", href: "/services/course-schedule-planner" },
-    ],
-  },
-  {
-    label: "외부 마케팅 대행",
-    icon: MonitorPlay,
-    items: [{ label: "외부 마케팅", href: "/services/external-marketing" }],
   },
 ];
 
@@ -200,6 +186,7 @@ function SidebarContent({
               </h2>
               <div className="border-l border-white/10 pl-2">
                 <SidebarLink item={{ label: "관리자 설정", href: "/admin", exact: true }} pathname={pathname} onNavigate={onNavigate} />
+                <SidebarLink item={{ label: "입출금 장부", href: "/services/cash-ledger" }} pathname={pathname} onNavigate={onNavigate} />
                 <SidebarLink item={{ label: "임직원 관리", href: "/hr/personnel" }} pathname={pathname} onNavigate={onNavigate} />
                 <SidebarLink item={{ label: "비품 관리", href: "/admin/supplies" }} pathname={pathname} onNavigate={onNavigate} />
                 <SidebarLink item={{ label: "캘린더 항목 관리", href: "/admin/calendar" }} pathname={pathname} onNavigate={onNavigate} />
