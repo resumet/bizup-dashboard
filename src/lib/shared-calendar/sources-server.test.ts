@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createClient } from "@supabase/supabase-js";
-import { calendarLeaveOption, loadCalendarLeaves, loadCalendarSources, loadCalendarWebinars } from "./sources-server";
+import { calendarLeaveOption, loadCalendarExternalMarketingCreativeDates, loadCalendarLeaves, loadCalendarSources, loadCalendarWebinars } from "./sources-server";
 
 test("연동 조회는 범위·워크스페이스·직원 권한을 검증하고 민감한 HR 열을 요청하지 않는다", async (t) => {
   const originalFetch = globalThis.fetch;
@@ -16,6 +16,7 @@ test("연동 조회는 범위·워크스페이스·직원 권한을 검증하고
   const range = { from: "2026-10-01", to: "2026-10-31" };
   let allowed = true;
   let webinarFailure = false;
+  let externalMarketingFailure = false;
   let leaveFailure = false;
   const calls: URL[] = [];
   globalThis.fetch = async (input, init) => {
@@ -30,6 +31,7 @@ test("연동 조회는 범위·워크스페이스·직원 권한을 검증하고
     if (url.pathname.endsWith("/personnel_directory")) return Response.json([{ user_id: staffId, name: "재직 직원", active: true }, { user_id: inactiveId, name: "퇴직 직원", active: false }]);
     if (url.pathname.endsWith("/hr_leave_requests")) return leaveFailure ? Response.json({ code: "XX000" }, { status: 500 }) : Response.json([staffId, inactiveId].map((user_id) => ({ id: user_id, user_id, leave_date: "2026-10-12", unit: "am", status: "approved", reason: "secret reason" })));
     if (url.pathname.endsWith("/courses")) return webinarFailure ? Response.json({ code: "XX000" }, { status: 500 }) : Response.json([{ id: staffId, name: "검증 강의", instructor_name: "강사", cohort: null, free_webinar_at: "2026-10-12T10:30:00Z" }]);
+    if (url.pathname.endsWith("/external_marketing_projects")) return externalMarketingFailure ? Response.json({ code: "XX000" }, { status: 500 }) : Response.json([{ dashboard_id: staffId, course_name: "외부광고 강의", instructor_name: "외부 강사", cohort: "2기", webinar_date: "2026-11-09" }]);
     throw new Error(`Unexpected calendar endpoint: ${url.pathname}`);
   };
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, "test-member-key", { auth: { persistSession: false } });
@@ -38,15 +40,20 @@ test("연동 조회는 범위·워크스페이스·직원 권한을 검증하고
     await t.test("옵션이 꺼져 있으면 HR 계정·직원·휴가를 전혀 조회하지 않는다", async () => {
       calls.length = 0;
       const result = await loadCalendarSources(context, range);
-      assert.equal(result.sources.length, 1);
+      assert.equal(result.sources.length, 2);
       assert.equal(result.sourcesWarning, "");
-      assert.ok(calls.every((url) => url.pathname.endsWith("/courses")));
-      const url = calls[0];
+      assert.ok(calls.every((url) => url.pathname.endsWith("/courses") || url.pathname.endsWith("/external_marketing_projects")));
+      const url = calls.find((item) => item.pathname.endsWith("/courses"))!;
       assert.equal(url.searchParams.get("workspace_id"), `eq.${workspaceId}`);
       assert.equal(url.searchParams.get("select"), "id,name,instructor_name,cohort,free_webinar_at,status");
       assert.equal(url.searchParams.get("free_webinar_at"), "gte.2026-10-01T00:00:00+09:00");
       assert.deepEqual(url.searchParams.getAll("free_webinar_at"), ["gte.2026-10-01T00:00:00+09:00", "lt.2026-11-01T00:00:00+09:00"]);
       assert.equal(url.searchParams.get("status"), "not.in.(on_hold,canceled)");
+      const externalUrl = calls.find((item) => item.pathname.endsWith("/external_marketing_projects"))!;
+      assert.equal(externalUrl.searchParams.get("workspace_id"), `eq.${workspaceId}`);
+      assert.equal(externalUrl.searchParams.get("select"), "dashboard_id,course_name,instructor_name,cohort,webinar_date");
+      assert.deepEqual(externalUrl.searchParams.getAll("webinar_date"), ["gte.2026-10-29", "lte.2026-11-28"]);
+      assert.equal(result.sources.find((source) => source.source === "external_marketing_creative")?.event_date, "2026-10-12");
     });
     await t.test("일반 활성 직원도 승인된 동료 일정의 최소 정보만 볼 수 있다", async () => {
       calls.length = 0;
@@ -71,11 +78,15 @@ test("연동 조회는 범위·워크스페이스·직원 권한을 검증하고
     await t.test("선택 연동 장애는 다른 연동·기존 일정 조회를 실패시키지 않는다", async () => {
       leaveFailure = true;
       let result = await loadCalendarSources(context, range, true);
-      assert.equal(result.sources.length, 1); assert.match(result.sourcesWarning, /직원 휴가/u);
+      assert.equal(result.sources.length, 2); assert.match(result.sourcesWarning, /직원 휴가/u);
       leaveFailure = false; webinarFailure = true;
       result = await loadCalendarSources(context, range, true);
-      assert.equal(result.sources.length, 1); assert.equal(result.sources[0].source, "leave"); assert.match(result.sourcesWarning, /웨비나/u);
+      assert.equal(result.sources.length, 2); assert.ok(result.sources.some((source) => source.source === "leave")); assert.ok(result.sources.some((source) => source.source === "external_marketing_creative")); assert.match(result.sourcesWarning, /웨비나/u);
       webinarFailure = false;
+      externalMarketingFailure = true;
+      result = await loadCalendarSources(context, range, true);
+      assert.equal(result.sources.length, 2); assert.ok(result.sources.some((source) => source.source === "webinar")); assert.ok(result.sources.some((source) => source.source === "leave")); assert.match(result.sourcesWarning, /외부광고 소재전달일/u);
+      externalMarketingFailure = false;
     });
     await t.test("웨비나 목록은 500건 이상도 페이지로 조회한다", async () => {
       const fetchBeforePaging = globalThis.fetch;
@@ -85,6 +96,16 @@ test("연동 조회는 범위·워크스페이스·직원 권한을 검증하고
         return Response.json(Array.from({ length: offsets.length === 1 ? 500 : 1 }, (_, i) => ({ id: `${offsets.length}-${i}`, name: "강의", instructor_name: "강사", cohort: null, free_webinar_at: "2026-10-12T10:30:00Z" })));
       };
       try { assert.equal((await loadCalendarWebinars(supabase, workspaceId, range)).length, 501); assert.deepEqual(offsets, ["0", "500"]); }
+      finally { globalThis.fetch = fetchBeforePaging; }
+    });
+    await t.test("외부광고 소재전달일 목록도 500건 이상 페이지로 조회한다", async () => {
+      const fetchBeforePaging = globalThis.fetch;
+      const offsets: string[] = [];
+      globalThis.fetch = async (input) => {
+        const url = new URL(String(input)); offsets.push(url.searchParams.get("offset")!);
+        return Response.json(Array.from({ length: offsets.length === 1 ? 500 : 1 }, (_, i) => ({ dashboard_id: `${offsets.length}-${i}`, course_name: "외부광고 강의", instructor_name: "강사", cohort: "", webinar_date: "2026-11-09" })));
+      };
+      try { assert.equal((await loadCalendarExternalMarketingCreativeDates(supabase, workspaceId, range)).length, 501); assert.deepEqual(offsets, ["0", "500"]); }
       finally { globalThis.fetch = fetchBeforePaging; }
     });
     await t.test("휴가 표시 쿼리 옵션은 명시적인 참·거짓만 허용한다", () => {

@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 const COLORS: Record<string, string> = {
   instructor_zoom: "bg-blue-100 text-blue-900", rehearsal: "bg-amber-100 text-amber-950",
   webinar: "bg-violet-100 text-violet-900", weekly_meeting: "bg-emerald-100 text-emerald-900",
+  external_marketing_creative: "bg-orange-100 text-orange-950",
 };
 
 export function SharedCalendar({ today, currentUserId, initialEvents, initialSources = [], initialSourcesWarning = "", initialTypes, courses, initialError, initialCourseId, isAdmin = false }: {
@@ -26,6 +27,7 @@ export function SharedCalendar({ today, currentUserId, initialEvents, initialSou
   const [sources, setSources] = useState(initialSources);
   const [sourcesWarning, setSourcesWarning] = useState(initialSourcesWarning);
   const [showWebinars, setShowWebinars] = useState(true);
+  const [showExternalMarketingCreative, setShowExternalMarketingCreative] = useState(true);
   const [showLeaves, setShowLeaves] = useState(false);
   const [onlyMine, setOnlyMine] = useState(false);
   const [types, setTypes] = useState(initialTypes);
@@ -126,10 +128,12 @@ export function SharedCalendar({ today, currentUserId, initialEvents, initialSou
     finally { mutation.current += 1; movePending.current = false; setMoving(false); setReload((value) => value + 1); }
   }
   const visible = filterCalendarEvents(events, { meetingTypeId: filter, onlyMine, currentUserId });
-  // Linked webinars and leave have no calendar participants; their toggles stay independent.
-  const visibleSources = sources.filter((event) => event.source === "webinar"
-    ? showWebinars && (!filter || types.find((type) => type.id === filter)?.code === "webinar")
-    : showLeaves && !filter);
+  // Linked source events have no calendar participants; their toggles stay independent.
+  const visibleSources = sources.filter((event) => {
+    if (event.source === "webinar") return showWebinars && (!filter || types.find((type) => type.id === filter)?.code === "webinar");
+    if (event.source === "external_marketing_creative") return showExternalMarketingCreative && !filter;
+    return showLeaves && !filter;
+  });
   const byDay = new Map<string, (CalendarEvent | CalendarSourceEvent)[]>();
   for (const event of [...visible, ...visibleSources]) { const list = byDay.get(event.event_date) ?? []; list.push(event); byDay.set(event.event_date, list); }
   for (const list of byDay.values()) list.sort((a, b) => a.start_minutes - b.start_minutes || a.id.localeCompare(b.id));
@@ -149,10 +153,11 @@ export function SharedCalendar({ today, currentUserId, initialEvents, initialSou
           {searchResults !== null ? <Button type="button" variant="ghost" size="icon-sm" aria-label="검색 닫기" onClick={() => { setSearchResults(null); setSearchQuery(""); setSearchError(""); }}><X /></Button> : null}
         </form>
         <div role="group" aria-label="일정 표시 옵션" className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-          <label className="flex items-center gap-2 whitespace-nowrap" title="참여자에 내가 포함된 공용 일정만 표시합니다. 강의 웨비나와 직원 휴가는 각각의 표시 옵션을 따릅니다."><input type="checkbox" checked={onlyMine} aria-describedby="calendar-mine-help" onChange={(e) => setOnlyMine(e.target.checked)} />내가 포함된 항목만 보기</label>
+          <label className="flex items-center gap-2 whitespace-nowrap" title="참여자에 내가 포함된 공용 일정만 표시합니다. 연동 일정은 각각의 표시 옵션을 따릅니다."><input type="checkbox" checked={onlyMine} aria-describedby="calendar-mine-help" onChange={(e) => setOnlyMine(e.target.checked)} />내가 포함된 항목만 보기</label>
           <label className="flex items-center gap-2 whitespace-nowrap"><input type="checkbox" checked={showWebinars} onChange={(e) => setShowWebinars(e.target.checked)} />강의 웨비나 표시</label>
+          <label className="flex items-center gap-2 whitespace-nowrap"><input type="checkbox" checked={showExternalMarketingCreative} onChange={(e) => setShowExternalMarketingCreative(e.target.checked)} />외부광고 소재전달일 표시</label>
           <label className="flex items-center gap-2 whitespace-nowrap"><input type="checkbox" checked={showLeaves} onChange={(e) => { setShowLeaves(e.target.checked); setSources((current) => current.filter((event) => event.source !== "leave")); setSourcesWarning(""); setLoading(true); }} />직원 휴가 표시</label>
-          <span id="calendar-mine-help" className="sr-only">참여자에 내가 포함된 공용 일정만 표시합니다. 강의 웨비나와 직원 휴가는 각각의 표시 옵션을 따릅니다.</span>
+          <span id="calendar-mine-help" className="sr-only">참여자에 내가 포함된 공용 일정만 표시합니다. 연동 일정은 각각의 표시 옵션을 따릅니다.</span>
         </div>
         <div role="group" aria-label="일정 관리" className="flex flex-wrap items-center gap-1 sm:gap-2">
           <label className="sr-only" htmlFor="calendar-type-filter">회의 종류 필터</label>
@@ -222,7 +227,7 @@ function CalendarSearchDetails({ result, onClose }: { result: CalendarSearchResu
 function CalendarSourceLink({ event, compact = false }: { event: CalendarSourceEvent; compact?: boolean }) {
   return <Link href={event.href} draggable={false} onDragStart={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}
     title={`${event.title} · ${event.time_label} · 원래 관리 화면에서 수정`}
-    className={compact ? cn("block w-full truncate rounded px-1 py-0.5 text-left text-[10px] font-medium focus-visible:outline-2 focus-visible:outline-ring sm:px-2 sm:text-xs", event.source === "webinar" ? COLORS.webinar : "bg-rose-100 text-rose-900") : "font-semibold underline-offset-4 hover:underline"}>
+    className={compact ? cn("block w-full truncate rounded px-1 py-0.5 text-left text-[10px] font-medium focus-visible:outline-2 focus-visible:outline-ring sm:px-2 sm:text-xs", event.source === "leave" ? "bg-rose-100 text-rose-900" : COLORS[event.source]) : "font-semibold underline-offset-4 hover:underline"}>
     {compact ? <span className="hidden sm:inline">{event.time_label} </span> : null}{event.title}
   </Link>;
 }

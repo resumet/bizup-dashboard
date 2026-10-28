@@ -10,7 +10,7 @@ export type CalendarLocationKind = "online" | "tbd" | "custom";
 
 export type CalendarSourceEvent = {
   id: string;
-  source: "webinar" | "leave";
+  source: "webinar" | "leave" | "external_marketing_creative";
   title: string;
   event_date: string;
   start_minutes: number;

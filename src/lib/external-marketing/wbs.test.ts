@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  externalMarketingMilestoneDate,
   externalMarketingWbs,
   formatExternalMarketingProjectTitle,
   formatExternalMarketingWebinarDate,
@@ -15,6 +16,8 @@ test("웨비나 기준 21·28·35·37일 전과 서울 날짜 기준 남은 일�
   assert.deepEqual(rows.map((row) => formatWbsCountdown(row.daysLeft)), ["14일 남음", "7일 남음", "오늘", "2일 지남"]);
   assert.equal(externalMarketingWbs("2027-01-05", "2026-12-01")[3].dueDate, "2026-11-29");
   assert.ok(externalMarketingWbs("", "2026-10-23").every((row) => row.daysLeft === null && !row.dueDate));
+  assert.equal(externalMarketingMilestoneDate("2026-11-27", "creative"), "2026-10-30");
+  assert.equal(externalMarketingMilestoneDate("2026-02-30", "creative"), "");
 });
 
 test("웨비나 임박순·최근 종료순·미입력순을 지키고 실제 달력 날짜만 받는다", () => {

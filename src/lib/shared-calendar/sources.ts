@@ -1,4 +1,5 @@
 import { isKoreaDateOnly, toKoreaDate, toKoreaTime } from "@/lib/course-operations/schedule";
+import { externalMarketingMilestoneDate } from "@/lib/external-marketing/wbs";
 import { isDateKey } from "./calendar";
 import type { CalendarCourse, CalendarPerson, CalendarSourceEvent } from "./types";
 import type { HrLeaveUnit } from "@/lib/hr-leave/types";
@@ -8,6 +9,13 @@ export type CalendarWebinar = CalendarCourse & {
   status?: string | null;
 };
 export type CalendarLeave = { id: string; user_id: string; leave_date: string; unit: HrLeaveUnit; status: string };
+export type CalendarExternalMarketingProject = {
+  dashboard_id: string;
+  course_name: string;
+  instructor_name: string;
+  cohort: string;
+  webinar_date: string | null;
+};
 
 export function webinarCalendarSource(course: CalendarWebinar): CalendarSourceEvent | null {
   if (course.status === "on_hold" || course.status === "canceled") return null;
@@ -23,6 +31,21 @@ export function webinarCalendarSource(course: CalendarWebinar): CalendarSourceEv
     event_date: date, start_minutes: timeUnknown ? 1440 : hour * 60 + minute,
     time_label: timeUnknown ? "시간 미정" : time,
     href: `/services/course-operations/${course.id}`,
+  };
+}
+
+export function externalMarketingCreativeCalendarSource(project: CalendarExternalMarketingProject): CalendarSourceEvent | null {
+  const eventDate = externalMarketingMilestoneDate(project.webinar_date ?? "", "creative");
+  if (!isDateKey(eventDate)) return null;
+  const detail = [project.course_name || "강의명 미입력", project.instructor_name, project.cohort].filter(Boolean).join(" · ");
+  return {
+    id: `external-marketing-creative:${project.dashboard_id}`,
+    source: "external_marketing_creative",
+    title: `외부광고 소재전달 · ${detail}`,
+    event_date: eventDate,
+    start_minutes: 0,
+    time_label: "종일",
+    href: `/services/external-marketing/${project.dashboard_id}`,
   };
 }
 

@@ -17,7 +17,7 @@ export function YoutubeWorkspace({initial,initialTab="schedule",embedded=false}:
     if(regenerate&&!window.confirm("주소를 재발급하면 기존 주소를 사용할 수 없습니다. 재발급하시겠습니까?"))return;
     setBusy(true);try{const result=await mediaRequest(endpoint,{action:"access",kind:tab,enabled:regenerate?enabled:!enabled,regenerate});setSettings(current=>({...current,...result}));setMessage(regenerate?"주소를 재발급했습니다.":enabled?"비공개로 전환했습니다.":"공개로 전환했습니다.");}catch(error){setMessage(error instanceof Error?error.message:"설정을 저장하지 못했습니다.");}finally{setBusy(false);}
   }
-  return <div className={embedded ? "space-y-6" : "mx-auto max-w-6xl space-y-6 px-5 py-8"}>
+  return <div className={embedded ? "space-y-6" : "w-full space-y-6 px-5 py-8 lg:px-8"}>
     {!embedded ? <div className="flex flex-wrap items-center justify-between gap-3">
       <Link href="/services/youtube-management" className="text-sm hover:underline">← 강사 출연 유튜브 관리</Link>
       <Button asChild variant="outline"><a href={`/services/course-operations/${initial.course.id}`} target="_blank" rel="noopener noreferrer" aria-label="강의 상세보기 (새 창)">강의 상세보기<ExternalLink /></a></Button>

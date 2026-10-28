@@ -108,7 +108,7 @@ function buildEvents(courses: CourseSummary[]) {
         courseName: course.name,
         instructorName: course.instructor_name,
         date: webinarDate,
-        label: `🎤 ${course.name} · 무료 웨비나 ${toKoreaTime(course.free_webinar_at)}`,
+        label: `${course.name} | 무료 웨비나 ${toKoreaTime(course.free_webinar_at)}`,
         eventName: "무료 웨비나",
         detail: `${toKoreaTime(course.free_webinar_at)} 시작`,
         colorIndex,
@@ -119,7 +119,7 @@ function buildEvents(courses: CourseSummary[]) {
         courseName: course.name,
         instructorName: course.instructor_name,
         date: startsDate,
-        label: `${course.name} · 개강일`,
+        label: `${course.name} | 개강일`,
         eventName: "개강일",
         detail: "강의 개강",
         colorIndex,
@@ -132,9 +132,9 @@ function buildEvents(courses: CourseSummary[]) {
           courseName: course.name,
           instructorName: course.instructor_name,
           date: task.dueDate,
-          label: `${course.name} · ${task.title}`,
+          label: `${course.name} | ${task.title}`,
           eventName: task.title,
-          detail: `무료 웨비나 ${TASK_DEADLINE_WEEKS[task.key]}주 전 · ${task.completed ? "작업 완료" : "진행 중"}`,
+          detail: `무료 웨비나 ${TASK_DEADLINE_WEEKS[task.key]}주 전 | ${task.completed ? "작업 완료" : "진행 중"}`,
           colorIndex,
           completed: task.completed,
         })),
@@ -303,7 +303,7 @@ export function CourseListCalendar({ courses }: { courses: CourseSummary[] }) {
         <DialogHeader>
           <DialogTitle>{selectedEvent?.eventName}</DialogTitle>
           <DialogDescription>
-            {selectedEvent?.courseName} · {selectedEvent?.instructorName}
+            {selectedEvent?.courseName} | {selectedEvent?.instructorName}
           </DialogDescription>
         </DialogHeader>
         <dl className="grid gap-3 rounded-lg border bg-muted/20 p-4">

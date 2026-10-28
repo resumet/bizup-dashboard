@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   ArrowLeft,
-  BookOpenCheck,
   Plus,
 } from "lucide-react";
 
@@ -11,7 +10,6 @@ import { CourseOperationsList } from "@/components/course-operations/course-list
 import { hasAdminAccess } from "@/lib/admin/access";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { getCachedCourseSummaries } from "@/lib/course-operations/list-cache";
 import { toKoreaDate } from "@/lib/course-operations/schedule";
 import type { CourseSummary } from "@/lib/course-operations/types";
@@ -41,7 +39,7 @@ export default async function CourseOperationsPage() {
   }
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen bg-muted/[0.12]">
       <header className="border-b bg-background">
         <div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
           <Button variant="ghost" size="sm" asChild>
@@ -50,10 +48,7 @@ export default async function CourseOperationsPage() {
             </BackLink>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
-          <span className="font-semibold">진행중 강의 보기</span>
-          <Button variant="outline" size="sm" asChild className="ml-auto">
-            <Link href="/services/instructor-intakes">강사 정보 받기</Link>
-          </Button>
+          <span className="font-semibold tracking-tight">진행중 강의 보기</span>
         </div>
       </header>
 
@@ -70,22 +65,17 @@ export default async function CourseOperationsPage() {
         ) : null}
 
         {!loadError && courses.length === 0 ? (
-          <Card>
-            <CardContent className="flex min-h-72 flex-col items-center justify-center text-center">
-              <span className="mb-4 grid size-12 place-items-center rounded-full bg-primary/10 text-primary">
-                <BookOpenCheck className="size-5" />
-              </span>
+          <section className="flex min-h-72 flex-col items-center justify-center rounded-xl border border-dashed bg-background px-6 text-center">
               <h2 className="font-semibold">아직 등록된 강의가 없습니다</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                첫 강의를 만들고 기존 수강생 명단과 문자 제작물을 연결해 보세요.
+                새 강의를 만들면 이곳에서 일정과 운영 상태를 관리할 수 있습니다.
               </p>
               <Button asChild className="mt-5">
                 <Link href="/services/course-operations/new">
                   <Plus />새 강의 만들기
                 </Link>
               </Button>
-            </CardContent>
-          </Card>
+          </section>
         ) : null}
 
         {!loadError && courses.length > 0 ? (

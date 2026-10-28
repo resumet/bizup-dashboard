@@ -37,6 +37,7 @@ const EMPTY_DRAFT: CourseOperationsDraft = {
   freeGiftLink: "",
   courseViewingLink: "",
   courseMaterialsLink: "",
+  courseCanvaLink: "",
   customLinks: [],
   options: [],
   youtubeAppearances: [],

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   COURSE_LIST_COLLAPSIBLE_STATUS_ORDER,
+  COURSE_LIST_INITIAL_OPEN_STATUSES,
   formatCourseWbsProgress,
   getCourseManagementDestinations,
 } from "./course-list-display";
@@ -13,6 +14,14 @@ test("완료를 진행 다음에 두고 보류를 상태 목록 맨 아래로 �
     "canceled",
     "on_hold",
   ]);
+});
+
+test("완료·취소·보류 목록은 모두 닫힌 상태로 시작한다", () => {
+  assert.deepEqual(COURSE_LIST_INITIAL_OPEN_STATUSES, {
+    completed: false,
+    canceled: false,
+    on_hold: false,
+  });
 });
 
 test("강의 운영 목록 관리 메뉴가 강의별 서비스로 연결된다", () => {

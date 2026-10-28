@@ -22,6 +22,7 @@ const validInput = {
   freeGiftLink: "https://example.com/gift",
   courseViewingLink: "https://example.com/course",
   courseMaterialsLink: "https://example.com/materials",
+  courseCanvaLink: "https://www.canva.com/design/example",
   customLinks: [
     { name: "강사 자료실", url: "https://example.com/instructor-files" },
   ],
@@ -64,6 +65,7 @@ test("강의 운영 입력값을 DB 저장 형식으로 변환한다", () => {
   assert.equal(parsed.freeKakaoRoom1Link, "https://open.kakao.com/o/free1");
   assert.equal(parsed.paidKakaoRoomLink, "https://open.kakao.com/o/paid-students");
   assert.equal(parsed.courseMaterialsLink, "https://example.com/materials");
+  assert.equal(parsed.courseCanvaLink, "https://www.canva.com/design/example");
   assert.equal(
     parsed.courseDifferentiation,
     "실무 사례를 활용한 단계별 실습 중심 강의",
@@ -138,7 +140,7 @@ test("기존 라이브 영상은 이름과 웹 주소가 필요하고 비고는 
   );
 });
 
-test("강의자료 링크는 비어 있거나 HTTP·HTTPS 주소여야 한다", () => {
+test("강사자료 폴더 링크는 비어 있거나 HTTP·HTTPS 주소여야 한다", () => {
   assert.equal(
     parseCourseOperationsInput({ ...validInput, courseMaterialsLink: "" })
       .courseMaterialsLink,
@@ -150,7 +152,23 @@ test("강의자료 링크는 비어 있거나 HTTP·HTTPS 주소여야 한다", 
         ...validInput,
         courseMaterialsLink: "javascript:alert(1)",
       }),
-    /강의자료 링크.*http 또는 https/u,
+    /강사자료 폴더 링크.*http 또는 https/u,
+  );
+});
+
+test("교안(캔바) 링크는 비어 있거나 HTTP·HTTPS 주소여야 한다", () => {
+  assert.equal(
+    parseCourseOperationsInput({ ...validInput, courseCanvaLink: "" })
+      .courseCanvaLink,
+    "",
+  );
+  assert.throws(
+    () =>
+      parseCourseOperationsInput({
+        ...validInput,
+        courseCanvaLink: "javascript:alert(1)",
+      }),
+    /교안\(캔바\) 링크.*http 또는 https/u,
   );
 });
 

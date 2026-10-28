@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { leaveCalendarSources, webinarCalendarSource } from "./sources";
+import { externalMarketingCreativeCalendarSource, leaveCalendarSources, webinarCalendarSource } from "./sources";
 
 const course = { id: "00000000-0000-4000-8000-000000000021", name: "강의 A", instructor_name: "강사 A", cohort: "2기", free_webinar_at: "2026-10-11T15:30:00Z" };
 
@@ -21,6 +21,33 @@ test("날짜만 설정한 웨비나는 시간을 꾸며내지 않고 미정으�
   assert.equal(event.time_label, "시간 미정");
   assert.equal(event.start_minutes, 1440);
   for (const free_webinar_at of [null, "", "invalid", "1999-12-31T10:00:00Z"]) assert.equal(webinarCalendarSource({ ...course, free_webinar_at }), null);
+});
+
+test("외부광고 소재전달일은 웨비나 28일 전 종일 일정으로 표시하고 상세에 연결한다", () => {
+  const dashboardId = "00000000-0000-4000-8000-000000000031";
+  const event = externalMarketingCreativeCalendarSource({
+    dashboard_id: dashboardId,
+    course_name: "외부광고 강의",
+    instructor_name: "김강사",
+    cohort: "3기",
+    webinar_date: "2026-11-27",
+  })!;
+  assert.deepEqual(event, {
+    id: `external-marketing-creative:${dashboardId}`,
+    source: "external_marketing_creative",
+    title: "외부광고 소재전달 · 외부광고 강의 · 김강사 · 3기",
+    event_date: "2026-10-30",
+    start_minutes: 0,
+    time_label: "종일",
+    href: `/services/external-marketing/${dashboardId}`,
+  });
+  assert.equal(externalMarketingCreativeCalendarSource({
+    dashboard_id: dashboardId,
+    course_name: "강의",
+    instructor_name: "",
+    cohort: "",
+    webinar_date: null,
+  }), null);
 });
 
 test("승인된 활성 직원 휴가의 날짜·종일/반차만 공개하고 사유·검토 정보는 제외한다", () => {

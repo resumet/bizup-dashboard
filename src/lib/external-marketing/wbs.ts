@@ -1,12 +1,16 @@
 import { toKoreaDate } from "@/lib/course-operations/schedule";
 import { getWebinarDayDifference, sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 
+export const externalMarketingCreativeDaysBefore = 28;
+
 export const externalMarketingMilestones = [
   { key: "advertising", label: "광고개시일", daysBefore: 21, basis: "웨비나 3주 전" },
-  { key: "creative", label: "소재전달일", daysBefore: 28, basis: "웨비나 4주 전" },
+  { key: "creative", label: "소재전달일", daysBefore: externalMarketingCreativeDaysBefore, basis: "웨비나 4주 전" },
   { key: "filming", label: "촬영일", daysBefore: 35, basis: "웨비나 5주 전" },
   { key: "planning", label: "기획서 전달일", daysBefore: 37, basis: "웨비나 5주 + 2일 전" },
 ] as const;
+
+export type ExternalMarketingMilestoneKey = (typeof externalMarketingMilestones)[number]["key"];
 
 export const externalMarketingToday = () => toKoreaDate(new Date().toISOString());
 
@@ -41,12 +45,18 @@ export function formatExternalMarketingProjectTitle(title: string, webinarDate: 
   return `${advertisingStarted ? "🏃" : "🛑"} (${formatExternalMarketingWebinarDate(webinarDate, false)}) ${title}`;
 }
 
-export function externalMarketingWbs(webinarDate: string, today: string) {
+export function externalMarketingMilestoneDate(webinarDate: string, milestoneKey: ExternalMarketingMilestoneKey) {
   const webinar = validWebinarDate(webinarDate);
+  const milestone = externalMarketingMilestones.find((item) => item.key === milestoneKey);
+  if (!webinar || !milestone) return "";
+  const date = new Date(webinar);
+  date.setUTCDate(date.getUTCDate() - milestone.daysBefore);
+  return date.toISOString().slice(0, 10);
+}
+
+export function externalMarketingWbs(webinarDate: string, today: string) {
   return externalMarketingMilestones.map((milestone) => {
-    const date = webinar ? new Date(webinar) : null;
-    date?.setUTCDate(date.getUTCDate() - milestone.daysBefore);
-    const dueDate = date?.toISOString().slice(0, 10) ?? "";
+    const dueDate = externalMarketingMilestoneDate(webinarDate, milestone.key);
     return { ...milestone, dueDate, daysLeft: dueDate ? getWebinarDayDifference(dueDate, today) : null };
   });
 }

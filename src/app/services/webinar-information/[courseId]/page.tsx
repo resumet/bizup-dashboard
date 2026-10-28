@@ -23,7 +23,7 @@ export default async function WebinarInformationPage({
   const [courseResult, videosResult] = await Promise.all([
     supabase
       .from("courses")
-      .select("id,name,instructor_name,cohort,free_webinar_at,course_materials_link,webinar_opening_video_url,webinar_youtube_title,webinar_youtube_description,webinar_command_deck_url,webinar_banner_storage_url,webinar_youtube_live_url")
+      .select("id,name,instructor_name,cohort,free_webinar_at,course_canva_link,webinar_opening_video_url,webinar_youtube_title,webinar_youtube_description,webinar_command_deck_url,webinar_banner_storage_url,webinar_youtube_live_url")
       .eq("id", courseId)
       .maybeSingle(),
     supabase
@@ -79,7 +79,7 @@ export default async function WebinarInformationPage({
           instructorName={course.instructor_name}
           cohort={course.cohort ?? ""}
           initialInformation={{
-            courseMaterialsLink: course.course_materials_link,
+            courseMaterialsLink: course.course_canva_link,
             openingVideoUrl: course.webinar_opening_video_url,
             youtubeTitle: course.webinar_youtube_title,
             youtubeDescription: course.webinar_youtube_description || course.name,

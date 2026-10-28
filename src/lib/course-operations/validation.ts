@@ -166,7 +166,8 @@ export function parseCourseOperationsInput(value: unknown): CourseOperationsInpu
       false,
     ),
     courseViewingLink: url(input.courseViewingLink, "강의 시청하기 링크", false),
-    courseMaterialsLink: url(input.courseMaterialsLink, "강의자료 링크", false),
+    courseMaterialsLink: url(input.courseMaterialsLink, "강사자료 폴더 링크", false),
+    courseCanvaLink: url(input.courseCanvaLink, "교안(캔바) 링크", false),
     customLinks: customLinks.map((item, index) => {
       const customLink =
         typeof item === "object" && item !== null

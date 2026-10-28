@@ -72,6 +72,7 @@ import type { CourseSummary } from "@/lib/course-operations/types";
 import { courseBannerUrl } from "@/lib/course-operations/banner";
 import {
   COURSE_LIST_COLLAPSIBLE_STATUS_ORDER,
+  COURSE_LIST_INITIAL_OPEN_STATUSES,
   formatCourseWbsProgress,
   getCourseManagementDestinations,
 } from "@/lib/course-operations/course-list-display";
@@ -86,23 +87,24 @@ import {
   formatWebinarCountdown,
   sortByNearestWebinar,
 } from "@/lib/course-operations/webinar-proximity";
+import {
+  formatDashboardCohort,
+  formatDashboardWebinarDate,
+} from "@/lib/dashboard/course-metadata";
 
 type ViewMode = "cards" | "list" | "calendar";
 type CollapsibleCourseStatus = Exclude<CourseStatus, "ongoing">;
 const courseManagementIcons = [BookUser, Video, Radio, UsersRound, ClipboardList];
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("ko-KR", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Seoul",
-  }).format(new Date(value));
+function formatCourseListWebinarDate(value: string) {
+  if (Number.isNaN(Date.parse(value))) return "날짜 미정";
+  return formatDashboardWebinarDate(value);
 }
 
 function CourseSectionHeading({ title, count }: { title: string; count: number }) {
-  return <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-    <h2 className="text-xl font-semibold">{title}</h2>
-    <Badge variant="secondary">{count}개</Badge>
+  return <div className="mb-4 flex items-baseline justify-between gap-3">
+    <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+    <span className="text-sm tabular-nums text-muted-foreground">{count}개</span>
   </div>;
 }
 
@@ -173,31 +175,35 @@ function CourseCards({ courses, canDelete, onStatus, onDelete, todayKoreaDate, s
 }) {
   if (!courses.length) return <div className="rounded-xl border border-dashed bg-background px-5 py-10 text-center text-sm text-muted-foreground">표시할 강의가 없습니다.</div>;
   return <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{courses.map((course, index) => (
-    <Card key={course.id} className={`relative overflow-hidden transition-shadow hover:shadow-md ${subdued ? "bg-muted/35" : ""}`}>
-      <div className="absolute right-2 top-2 z-10 rounded-md bg-background/90 shadow-sm backdrop-blur-sm">
+    <Card key={course.id} className={`relative gap-0 overflow-hidden py-0 shadow-none transition-colors hover:ring-foreground/20 ${subdued ? "bg-muted/30" : ""}`}>
+      <div className="absolute right-2 top-2 z-10 rounded-lg border bg-background/95">
         <CourseActionsMenu course={course} canDelete={canDelete} onStatus={onStatus} onDelete={onDelete} />
       </div>
-      {course.banner_image_path ? <Link href={`/services/course-operations/${course.id}`} className={`relative -mt-4 block aspect-video overflow-hidden bg-muted ${subdued ? "grayscale-[35%]" : ""}`} aria-label={`${course.name} 강의 배너로 상세보기`}>
-        <Image src={courseBannerUrl(course.id, course.updated_at)} alt={`${course.name} 배너`} fill unoptimized loading={index < 2 && !subdued ? "eager" : "lazy"} priority={index < 2 && !subdued} sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw" className="object-cover transition-transform duration-300 group-hover/card:scale-[1.02]" />
+      {course.banner_image_path ? <Link href={`/services/course-operations/${course.id}`} className={`relative block aspect-video overflow-hidden border-b bg-muted ${subdued ? "grayscale-[35%]" : ""}`} aria-label={`${course.name} 강의 배너로 상세보기`}>
+        <Image src={courseBannerUrl(course.id, course.updated_at)} alt={`${course.name} 배너`} fill unoptimized loading={index < 2 && !subdued ? "eager" : "lazy"} priority={index < 2 && !subdued} sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw" className="object-cover" />
       </Link> : null}
-      <CardHeader className="pr-14">
-        <CardTitle className="line-clamp-2 text-xl leading-7" title={course.name}>
-          <Link href={`/services/course-operations/${course.id}`} className="hover:underline">
+      <CardHeader className="gap-2 px-5 py-5 pr-14">
+        <CardTitle className="line-clamp-2 text-lg leading-7" title={course.name}>
+          <Link href={`/services/course-operations/${course.id}`} className="underline-offset-4 hover:underline">
             {course.name}
           </Link>
         </CardTitle>
-        <p className="truncate text-sm text-muted-foreground" title={`${course.cohort ? `${course.cohort}기` : "기수 미지정"} / ${course.instructor_name || "강사 미지정"} / ${formatDate(course.free_webinar_at)}`}>
-          ({course.cohort ? `${course.cohort}기` : "기수 미지정"} / {course.instructor_name || "강사 미지정"} / {formatDate(course.free_webinar_at)})
+        <p className="truncate text-sm text-muted-foreground" title={`${course.instructor_name || "강사 미지정"} | ${formatCourseListWebinarDate(course.free_webinar_at)} | ${formatDashboardCohort(course.cohort)}`}>
+          {course.instructor_name || "강사 미지정"} | {formatCourseListWebinarDate(course.free_webinar_at)} | {formatDashboardCohort(course.cohort)}
         </p>
-        <div className="flex flex-wrap gap-2 pt-1">
-          <Badge variant="outline">
-            웨비나 {formatWebinarCountdown(course.free_webinar_at, todayKoreaDate) || "일정 미정"}
-          </Badge>
-          <Badge variant={course.wbs_overdue_item_count > 0 ? "destructive" : "secondary"}>
-            WBS {formatCourseWbsProgress(course.wbs_overdue_item_count, course.wbs_total_item_count)}
-          </Badge>
-        </div>
       </CardHeader>
+      <dl className="mt-auto grid grid-cols-2 border-t text-sm">
+        <div className="px-5 py-4">
+          <dt className="text-xs text-muted-foreground">웨비나까지</dt>
+          <dd className="mt-1 font-medium tabular-nums">{formatWebinarCountdown(course.free_webinar_at, todayKoreaDate) || "일정 미정"}</dd>
+        </div>
+        <div className="border-l px-5 py-4">
+          <dt className="text-xs text-muted-foreground">WBS 일정</dt>
+          <dd className={`mt-1 font-medium tabular-nums ${course.wbs_overdue_item_count > 0 ? "text-destructive" : ""}`}>
+            {formatCourseWbsProgress(course.wbs_overdue_item_count, course.wbs_total_item_count)}
+          </dd>
+        </div>
+      </dl>
     </Card>
   ))}</div>;
 }
@@ -216,17 +222,17 @@ function CourseStatusSection({
   children: React.ReactNode;
 }) {
   return (
-    <section aria-label={`${title} 강의`}>
+    <section className="border-t pt-5" aria-label={`${title} 강의`}>
       <Button
         type="button"
         variant="ghost"
-        className="mb-4 h-auto gap-2 px-0 text-xl font-semibold hover:bg-transparent"
+        className="mb-4 h-auto w-full justify-between gap-3 px-0 text-left text-lg font-semibold tracking-tight hover:bg-transparent"
         aria-expanded={open}
         onClick={onToggle}
       >
-        {title}
-        <Badge variant="secondary">{count}개</Badge>
-        <ChevronDown className={`transition-transform ${open ? "rotate-180" : ""}`} />
+        <span>{title}</span>
+        <span className="ml-auto text-sm font-normal tabular-nums text-muted-foreground">{count}개</span>
+        <ChevronDown className={`text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </Button>
       {open ? children : null}
     </section>
@@ -242,14 +248,14 @@ function CourseTable({ courses, canDelete, onStatus, onDelete, todayKoreaDate, s
   subdued?: boolean;
 }) {
   if (!courses.length) return <div className="rounded-xl border border-dashed bg-background px-5 py-10 text-center text-sm text-muted-foreground">표시할 강의가 없습니다.</div>;
-  return <Card className={`overflow-hidden ${subdued ? "bg-muted/35" : ""}`}>
+  return <Card className={`gap-0 overflow-hidden py-0 shadow-none ${subdued ? "bg-muted/30" : ""}`}>
     <Table>
       <TableHeader><TableRow><TableHead>강사명</TableHead><TableHead>기수</TableHead><TableHead>강의명</TableHead><TableHead>웨비나 날짜</TableHead><TableHead>웨비나까지</TableHead><TableHead>WBS 일정</TableHead><TableHead className="w-16 text-right">관리</TableHead></TableRow></TableHeader>
       <TableBody>{courses.map((course) => <TableRow key={course.id} className={subdued ? "text-muted-foreground" : ""}>
         <TableCell className="font-medium">{course.instructor_name || "강사 미지정"}</TableCell>
         <TableCell>{course.cohort ? `${course.cohort}기` : "-"}</TableCell>
         <TableCell><Link href={`/services/course-operations/${course.id}`} className="font-medium hover:underline">{course.name}</Link></TableCell>
-        <TableCell>{formatDate(course.free_webinar_at)}</TableCell>
+        <TableCell>{formatCourseListWebinarDate(course.free_webinar_at)}</TableCell>
         <TableCell>
           <Badge variant="outline">
             {formatWebinarCountdown(course.free_webinar_at, todayKoreaDate) || "일정 미정"}
@@ -286,7 +292,7 @@ export function CourseOperationsList({
   const [statusError, setStatusError] = useState("");
   const [openStatuses, setOpenStatuses] = useState<
     Record<CollapsibleCourseStatus, boolean>
-  >({ on_hold: true, completed: false, canceled: false });
+  >({ ...COURSE_LIST_INITIAL_OPEN_STATUSES });
   const {
     ongoing: ongoingCourses,
     onHold: onHoldCourses,
@@ -397,8 +403,8 @@ export function CourseOperationsList({
 
   return (
     <>
-      <div className="mb-5 flex flex-wrap justify-end gap-2">
-        <div className="inline-flex self-start rounded-lg border bg-background p-1 sm:self-auto" aria-label="강의 목록 보기 방식">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3 border-b pb-5">
+        <div className="inline-flex self-start rounded-lg bg-muted/60 p-1 sm:self-auto" aria-label="강의 목록 보기 방식">
           <Button
             type="button"
             variant={viewMode === "cards" ? "secondary" : "ghost"}

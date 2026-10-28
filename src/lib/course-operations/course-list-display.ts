@@ -6,6 +6,12 @@ export const COURSE_LIST_COLLAPSIBLE_STATUS_ORDER = [
   "on_hold",
 ] as const satisfies readonly Exclude<CourseStatus, "ongoing">[];
 
+export const COURSE_LIST_INITIAL_OPEN_STATUSES = {
+  completed: false,
+  canceled: false,
+  on_hold: false,
+} as const;
+
 export type CourseManagementDestination = {
   label: string;
   href: string;

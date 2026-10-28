@@ -63,6 +63,7 @@ export type CourseOperationsDraft = {
   freeGiftLink: string;
   courseViewingLink: string;
   courseMaterialsLink: string;
+  courseCanvaLink: string;
   customLinks: CourseCustomLinkDraft[];
   options: CourseOptionDraft[];
   youtubeAppearances: YoutubeAppearanceDraft[];

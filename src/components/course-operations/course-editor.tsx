@@ -14,7 +14,6 @@ import {
   MessageSquareText,
   Plus,
   Save,
-  Sparkles,
   Trash2,
 } from "lucide-react";
 
@@ -122,7 +121,8 @@ type CourseLinkFieldKey =
   | "curriculumLink"
   | "freeGiftLink"
   | "courseViewingLink"
-  | "courseMaterialsLink";
+  | "courseMaterialsLink"
+  | "courseCanvaLink";
 
 const COURSE_LINKS: Array<{ field: CourseLinkFieldKey; label: string }> = [
   { field: "landingPageLink", label: "기본 랜딩페이지" },
@@ -135,7 +135,8 @@ const COURSE_LINKS: Array<{ field: CourseLinkFieldKey; label: string }> = [
   { field: "curriculumLink", label: "커리큘럼 보기 링크" },
   { field: "freeGiftLink", label: "무료강의 수강 선물받기 링크" },
   { field: "courseViewingLink", label: "강의 시청하기 링크" },
-  { field: "courseMaterialsLink", label: "교안" },
+  { field: "courseMaterialsLink", label: "강사자료 폴더" },
+  { field: "courseCanvaLink", label: "교안(캔바)" },
 ];
 
 function getOpenableLink(value: string) {
@@ -163,16 +164,12 @@ function CourseLinkInput({
   const openableLink = getOpenableLink(value);
   const inputId = `course-link-${field}`;
   return (
-    <TableRow>
-      <TableCell className="w-[180px]">
-        <Label htmlFor={inputId} className="font-medium">
-          {label}
-        </Label>
-      </TableCell>
-      <TableCell>
+    <div className="grid min-w-0 gap-2">
+      <Label htmlFor={inputId}>{label}</Label>
+      <div className="flex min-w-0 gap-2">
         <Input
           id={inputId}
-          className="h-10 min-w-[320px]"
+          className="h-10 min-w-0 flex-1"
           type="url"
           inputMode="url"
           placeholder="https://"
@@ -180,22 +177,25 @@ function CourseLinkInput({
           value={value}
           onChange={(event) => onChange(field, event.target.value)}
         />
-      </TableCell>
-      <TableCell className="w-[100px] text-center">
         <Button
           type="button"
           variant="outline"
-          className="h-10"
+          size="icon"
+          className="size-10 shrink-0"
+          aria-label={`${label} 열기`}
           disabled={!openableLink}
-          onClick={() => {
-            if (openableLink) window.open(openableLink, "_blank", "noopener,noreferrer");
-          }}
+          asChild={Boolean(openableLink)}
         >
-          <ExternalLink />
-          열기
+          {openableLink ? (
+            <a href={openableLink} target="_blank" rel="noopener noreferrer">
+              <ExternalLink />
+            </a>
+          ) : (
+            <span><ExternalLink /></span>
+          )}
         </Button>
-      </TableCell>
-    </TableRow>
+      </div>
+    </div>
   );
 }
 
@@ -262,63 +262,63 @@ function CourseCustomLinkInput({
 }) {
   const openableLink = getOpenableLink(url);
   return (
-    <TableRow>
-      <TableCell className="w-[180px]">
+    <div className="grid gap-3 border-t py-4 first:border-t-0 md:grid-cols-[12rem_minmax(0,1fr)_auto] md:items-end">
+      <div className="grid gap-2">
+        <Label htmlFor={`custom-link-name-${index}`}>이름</Label>
         <Input
+          id={`custom-link-name-${index}`}
           className="h-10"
-          aria-label={`${index + 1}번 커스텀 링크 이름`}
           placeholder="링크 이름"
           maxLength={100}
           value={name}
           onChange={(event) => onChange(index, { name: event.target.value })}
         />
-      </TableCell>
-      <TableCell>
+      </div>
+      <div className="grid min-w-0 gap-2">
+        <Label htmlFor={`custom-link-url-${index}`}>주소</Label>
         <Input
-          className="h-10 min-w-[320px]"
+          id={`custom-link-url-${index}`}
+          className="h-10 min-w-0"
           type="url"
           inputMode="url"
-          aria-label={`${index + 1}번 커스텀 링크 주소`}
           placeholder="https://"
           maxLength={2_000}
           value={url}
           onChange={(event) => onChange(index, { url: event.target.value })}
         />
-      </TableCell>
-      <TableCell className="w-[150px]">
-        <div className="flex justify-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-10 w-10"
-            aria-label={`${name || `${index + 1}번 커스텀 링크`} 열기`}
-            disabled={!openableLink}
-            asChild={Boolean(openableLink)}
-          >
-            {openableLink ? (
-              <a href={openableLink} target="_blank" rel="noopener noreferrer">
-                <ExternalLink />
-              </a>
-            ) : (
-              <span>
-                <ExternalLink />
-              </span>
-            )}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-10 w-10 text-destructive hover:text-destructive"
-            aria-label={`${name || `${index + 1}번 커스텀 링크`} 삭제`}
-            onClick={() => onDelete(index)}
-          >
-            <Trash2 />
-          </Button>
-        </div>
-      </TableCell>
-    </TableRow>
+      </div>
+      <div className="flex gap-2 md:justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="size-10"
+          aria-label={`${name || `${index + 1}번 커스텀 링크`} 열기`}
+          disabled={!openableLink}
+          asChild={Boolean(openableLink)}
+        >
+          {openableLink ? (
+            <a href={openableLink} target="_blank" rel="noopener noreferrer">
+              <ExternalLink />
+            </a>
+          ) : (
+            <span>
+              <ExternalLink />
+            </span>
+          )}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="size-10 text-destructive hover:text-destructive"
+          aria-label={`${name || `${index + 1}번 커스텀 링크`} 삭제`}
+          onClick={() => onDelete(index)}
+        >
+          <Trash2 />
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -919,9 +919,9 @@ export function CourseOperationsEditor({
                     )}
                   </div>
                   <div className="space-y-4">
-                    <div className="rounded-md border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950/40">
+                    <div className="border-l-2 border-primary/50 pl-4">
                       <div className="flex items-center gap-2 text-sm font-semibold">
-                        <Sparkles className="size-4 text-blue-600" />
+                        <ImagePlus className="size-4 text-muted-foreground" />
                         임시 배너 제작
                       </div>
                       <p className="mt-1 text-xs leading-5 text-muted-foreground">
@@ -930,14 +930,15 @@ export function CourseOperationsEditor({
                       </p>
                       <Button
                         type="button"
-                        className="mt-3 w-full"
+                        variant="outline"
+                        className="mt-3"
                         disabled={creatingTemporaryBanner}
                         onClick={createTemporaryBanner}
                       >
                         {creatingTemporaryBanner ? (
                           <Loader2 className="animate-spin" />
                         ) : (
-                          <Sparkles />
+                          <ImagePlus />
                         )}
                         {creatingTemporaryBanner ? "제작 중..." : "임시 배너 제작"}
                       </Button>
@@ -1187,34 +1188,17 @@ export function CourseOperationsEditor({
           </>
         </div>
 
-        <div>
         <Card>
-          <CardHeader className="flex flex-row items-start justify-between gap-4">
-            <div>
-              <CardTitle>링크 관리</CardTitle>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10 shrink-0"
-              disabled={draft.customLinks.length >= 30}
-              onClick={addCustomLink}
-            >
-              <Plus />
-              커스텀 링크 추가
-            </Button>
+          <CardHeader className="border-b">
+            <CardTitle>링크 관리</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-6 lg:grid-cols-2">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>이름</TableHead>
-                  <TableHead>링크</TableHead>
-                  <TableHead className="text-center">관리</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {COURSE_LINKS.filter((_, index) => index % 2 === 0).map((item) => (
+          <CardContent className="space-y-8">
+            <section aria-labelledby="default-course-links-heading">
+              <h3 id="default-course-links-heading" className="mb-5 font-semibold">
+                기본 링크
+              </h3>
+              <div className="grid gap-x-8 gap-y-5 lg:grid-cols-2">
+                {COURSE_LINKS.map((item) => (
                   <CourseLinkInput
                     key={item.field}
                     field={item.field}
@@ -1223,58 +1207,64 @@ export function CourseOperationsEditor({
                     onChange={updateField}
                   />
                 ))}
-                {draft.customLinks.filter((_, index) => (COURSE_LINKS.length + index) % 2 === 0).map((link, index) => (
-                  <CourseCustomLinkInput
-                    key={index}
-                    index={draft.customLinks.findIndex((candidate) => candidate === link)}
-                    name={link.name}
-                    url={link.url}
-                    onChange={updateCustomLink}
-                    onDelete={deleteCustomLink}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>이름</TableHead>
-                  <TableHead>링크</TableHead>
-                  <TableHead className="text-center">관리</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {COURSE_LINKS.filter((_, index) => index % 2 === 1).map((item) => (
-                  <CourseLinkInput
-                    key={item.field}
-                    field={item.field}
-                    label={item.label}
-                    value={draft[item.field]}
-                    onChange={updateField}
-                  />
-                ))}
-                {draft.customLinks.filter((_, index) => (COURSE_LINKS.length + index) % 2 === 1).map((link, index) => (
-                  <CourseCustomLinkInput
-                    key={index}
-                    index={draft.customLinks.findIndex((candidate) => candidate === link)}
-                    name={link.name}
-                    url={link.url}
-                    onChange={updateCustomLink}
-                    onDelete={deleteCustomLink}
-                  />
-                ))}
-              </TableBody>
-            </Table>
+              </div>
+            </section>
+
+            <section className="border-t pt-6" aria-labelledby="custom-course-links-heading">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                <h3 id="custom-course-links-heading" className="font-semibold">
+                  추가 링크
+                </h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 shrink-0"
+                  disabled={draft.customLinks.length >= 30}
+                  onClick={addCustomLink}
+                >
+                  <Plus />
+                  링크 추가
+                </Button>
+              </div>
+              {draft.customLinks.length ? (
+                <div>
+                  {draft.customLinks.map((link, index) => (
+                    <CourseCustomLinkInput
+                      key={index}
+                      index={index}
+                      name={link.name}
+                      url={link.url}
+                      onChange={updateCustomLink}
+                      onDelete={deleteCustomLink}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="py-5 text-sm text-muted-foreground">
+                  필요한 경우 강의별 추가 링크를 등록할 수 있습니다.
+                </p>
+              )}
+            </section>
           </CardContent>
         </Card>
 
-        </div>
-
         {courseId ? <CourseLandingUtms key={courseId} courseId={courseId} instructorName={draft.instructorName} /> : null}
-        {courseId && <div className="grid gap-4 sm:grid-cols-2">
-          <Link href={`/services/instagram-management/${courseId}`} className="rounded-xl border bg-card p-6 text-lg font-semibold hover:bg-muted/50">강사 인스타그램 관리</Link>
-          <Link href={`/services/youtube-management/${courseId}`} className="rounded-xl border bg-card p-6 text-lg font-semibold hover:bg-muted/50">강사 출연 유튜브 관리</Link>
-        </div>}
+        {courseId ? (
+          <div className="grid overflow-hidden rounded-xl border bg-card sm:grid-cols-2 sm:divide-x">
+            <Link
+              href={`/services/instagram-management/${courseId}`}
+              className="px-5 py-4 font-semibold underline-offset-4 transition-colors hover:bg-muted/50 hover:underline"
+            >
+              강사 인스타그램 관리
+            </Link>
+            <Link
+              href={`/services/youtube-management/${courseId}`}
+              className="border-t px-5 py-4 font-semibold underline-offset-4 transition-colors hover:bg-muted/50 hover:underline sm:border-t-0"
+            >
+              강사 출연 유튜브 관리
+            </Link>
+          </div>
+        ) : null}
 
         {courseId ? (
           <CourseNotesCard

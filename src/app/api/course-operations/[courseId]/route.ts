@@ -214,6 +214,7 @@ export async function PATCH(
         free_gift_link: input.freeGiftLink,
         course_viewing_link: input.courseViewingLink,
         course_materials_link: input.courseMaterialsLink,
+        course_canva_link: input.courseCanvaLink,
         custom_links: input.customLinks,
         free_address_book_id: input.freeAddressBookId || null,
         required_tasks: input.requiredTasks,

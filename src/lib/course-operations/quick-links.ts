@@ -14,6 +14,7 @@ export type QuickLinkCourseRow = {
   landing_page_link: string | null;
   payment_link: string | null;
   course_materials_link: string | null;
+  course_canva_link: string | null;
   free_kakao_room_1_link: string | null;
   free_kakao_room_2_link: string | null;
   paid_kakao_room_link: string | null;
@@ -36,17 +37,16 @@ export function buildCourseQuickLinks(course: QuickLinkCourseRow): CourseQuickLi
     .filter((link): link is { name: string; url: string } =>
       !!link && typeof link.name === "string" && typeof link.url === "string" && link.name.includes("교안"),
     );
+  const canvaLink = course.course_canva_link?.trim() || teachingLinks[0]?.url || "";
   const links: CourseQuickLink[] = [
     { label: "무료강의", url: course.landing_page_link ?? "" },
     { label: "유료결제", url: course.payment_link ?? "" },
-    { label: "교안", url: course.course_materials_link ?? "" },
+    { label: "강사자료 폴더", url: course.course_materials_link ?? "" },
+    { label: "교안(캔바)", url: canvaLink },
     { label: "무료카톡방 1", url: course.free_kakao_room_1_link ?? "" },
     { label: "무료카톡방 2", url: course.free_kakao_room_2_link ?? "" },
     { label: "유료수강생단톡방", url: course.paid_kakao_room_link ?? "" },
     { label: "소통방", url: course.communication_room_link ?? "" },
-    ...(teachingLinks.length
-      ? teachingLinks.map((link) => ({ label: link.name, url: link.url }))
-      : [{ label: "교안", url: "" }]),
   ];
   return {
     id: course.id,

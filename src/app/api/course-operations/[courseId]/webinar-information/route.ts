@@ -36,7 +36,7 @@ export async function PATCH(
     const { error } = await admin
       .from("courses")
       .update({
-        course_materials_link: information.courseMaterialsLink,
+        course_canva_link: information.courseMaterialsLink,
         webinar_opening_video_url: information.openingVideoUrl,
         webinar_youtube_title: information.youtubeTitle,
         webinar_youtube_description: information.youtubeDescription,
