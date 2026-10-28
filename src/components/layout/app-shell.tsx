@@ -43,6 +43,7 @@ type NavigationItem = {
   label: string;
   href: string;
   exact?: boolean;
+  activeHrefs?: readonly string[];
 };
 
 type NavigationGroup = {
@@ -61,25 +62,24 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
       { label: "강사 출연 유튜브 관리", href: "/services/youtube-management" },
       { label: "강의별 해야할일", href: "/services/course-wbs" },
       { label: "웨비나진행 결과관리", href: "/services/course-webinars" },
-      {
-        label: "근태관리/업무일지/비품신청",
-        href: "/services/work-management",
-      },
     ],
   },
   {
     label: "퍼포먼스 광고",
     icon: BarChart3,
     items: [
-      { label: "내부광고 성과기록", href: "/services/ad-performance" },
-      { label: "외부광고 성과기록", href: "/services/external-marketing" },
+      {
+        label: "성과기록",
+        href: "/services/performance-records",
+        activeHrefs: ["/services/ad-performance", "/services/external-marketing"],
+      },
     ],
   },
   {
     label: "명단 · 메시지",
     icon: Users,
     items: [
-      { label: "수강생 관리", href: "/services/student-management" },
+      { label: "수강생 및 메시지 관리", href: "/services/student-management" },
     ],
   },
   {
@@ -87,7 +87,11 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     icon: Ellipsis,
     items: [
       { label: "유튜브 채널 관리", href: "/services/youtube-channels" },
-      { label: "도구", href: "/services/tools" },
+      { label: "유용한 도구들", href: "/services/tools" },
+      {
+        label: "근태관리/업무일지/비품신청",
+        href: "/services/work-management",
+      },
     ],
   },
 ];
@@ -100,7 +104,8 @@ function isPrivateRoute(pathname: string) {
 
 function isActive(pathname: string, item: NavigationItem) {
   if (item.exact) return pathname === item.href;
-  return pathname === item.href || pathname.startsWith(`${item.href}/`);
+  const activeHrefs = [item.href, ...(item.activeHrefs ?? [])];
+  return activeHrefs.some((href) => pathname === href || pathname.startsWith(`${href}/`));
 }
 
 function SidebarLink({

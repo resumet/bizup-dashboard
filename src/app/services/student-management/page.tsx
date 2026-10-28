@@ -63,7 +63,7 @@ export default function StudentManagementPage() {
             </BackLink>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
-          <h1 className="truncate font-semibold">수강생 관리</h1>
+          <h1 className="truncate font-semibold">수강생 및 메시지 관리</h1>
         </div>
       </header>
 

@@ -68,7 +68,7 @@ export default async function ToolsPage() {
             </BackLink>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
-          <h1 className="truncate font-semibold">도구</h1>
+          <h1 className="truncate font-semibold">유용한 도구들</h1>
         </div>
       </header>
 
