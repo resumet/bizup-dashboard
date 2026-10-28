@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   answersSchema,
+  DEFAULT_INTAKE_SETTINGS,
   EMPTY_ANSWERS,
   formatWonWithKorean,
   intakeProgress,
+  intakeSettingsSchema,
   saveSchema,
   tokenSchema,
 } from "./model";
@@ -12,6 +14,29 @@ import {
 test("금액을 숫자와 한글 단위로 함께 표시한다", () => {
   assert.equal(formatWonWithKorean(3_000_000), "3,000,000원 (삼백만원)");
   assert.equal(formatWonWithKorean(-10_000), "-10,000원 (마이너스 일만원)");
+});
+
+test("공개 페이지의 문장·이미지 예시 설정은 항목별로 저장할 수 있다", () => {
+  assert.ok(intakeSettingsSchema.safeParse(DEFAULT_INTAKE_SETTINGS).success);
+  assert.equal(DEFAULT_INTAKE_SETTINGS.examples.webinarCoreContents.length, 5);
+  assert.deepEqual(Object.keys(DEFAULT_INTAKE_SETTINGS.exampleImagePaths), [
+    "evidence",
+    "studentResults",
+    "reviews",
+    "opportunity",
+  ]);
+  assert.ok(
+    intakeSettingsSchema.safeParse({
+      examples: {
+        ...DEFAULT_INTAKE_SETTINGS.examples,
+        fieldStrengths: "워크스페이스별 수정 예시",
+      },
+      exampleImagePaths: {
+        ...DEFAULT_INTAKE_SETTINGS.exampleImagePaths,
+        opportunity: ["example.webp"],
+      },
+    }).success,
+  );
 });
 
 const complete = {

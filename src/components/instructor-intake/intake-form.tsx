@@ -204,41 +204,28 @@ export function IntakeForm({ token, initialAnswers, initialPhotos, initialImages
         <Textarea id="instructorCareer" name="instructorCareer" rows={14} maxLength={12_000} defaultValue={initialAnswers.instructorCareer} placeholder="한 줄에 하나씩 주요 경력과 성과를 입력해 주세요." />
       </section>
       <section className={sectionClass}><h2 className="text-lg font-semibold">7. 증빙을 위한 자료 제출</h2><p className="text-sm text-muted-foreground">수강생과 함께 찍은 사진, 자격증, 매출 증빙 자료를 올려 주세요.</p><ImageUploadField category="evidence" photos={images.evidence} examples={exampleImages.evidence} disabled={busy} onUpload={(files) => void upload(files, "evidence")} onDelete={(path) => setImages((previous) => ({ ...previous, evidence: previous.evidence.filter((photo) => photo.path !== path) }))} /></section>
-      <section className={sectionClass}><h2 className="text-lg font-semibold">8. 수강생 성과 인증 자료</h2><p className="text-sm text-muted-foreground">메인 성공 후기로 사용할 수강생 사진과 수익화 인증 자료를 올려 주세요.</p><ImageUploadField category="studentResults" photos={images.studentResults} examples={exampleImages.studentResults} disabled={busy} onUpload={(files) => void upload(files, "studentResults")} onDelete={(path) => setImages((previous) => ({ ...previous, studentResults: previous.studentResults.filter((photo) => photo.path !== path) }))} /><div className="space-y-2"><Label htmlFor="studentSuccessDescription">자세한 설명</Label><Textarea id="studentSuccessDescription" name="studentSuccessDescription" rows={13} maxLength={12_000} defaultValue={initialAnswers.studentSuccessDescription} placeholder={`여러분의 포트폴리오 제가 만들어 드립니다
-부동산 자산에 있어서 만큼은 ..
-많은 돈이 필요하다 생각하시죠?
-아닙니다
-여러분의 생각과 실천이 바로 여러분의 미래의 돈입니다~!
-생각이 행동이 바뀌지 않으면, 아무일도 일어나지 않습니다
-
-아인슈타인이 말했죠?
-
-어제와 똑같이 오늘을 살면서, 멋진 미래가 오길 바라는게 진짜 미친 거라고
-
-네 여러분은 저를 만나기 전과 후로 나뉠 것입니다
-
-여러분의 생각이 돈으로 바뀔 겁니다
-
-한걸음 부터 시작하면, 됩니다
-월급 300아끼고 안 쓴다고 달라지지 않습니다
-하지만, 여러분이 노력한 300만원이 월세 300만원을 만들어 줄 것입니다
-
-여러분의 씨드머니, 한달 월급이면, 충분합니다`} /></div></section>
+      <section className={sectionClass}>
+        <h2 className="text-lg font-semibold">8. 수강생 성과 인증 자료</h2>
+        <p className="text-sm text-muted-foreground">메인 성공 후기로 사용할 수강생 사진과 수익화 인증 자료를 올려 주세요.</p>
+        <ImageUploadField category="studentResults" photos={images.studentResults} examples={exampleImages.studentResults} disabled={busy} onUpload={(files) => void upload(files, "studentResults")} onDelete={(path) => setImages((previous) => ({ ...previous, studentResults: previous.studentResults.filter((photo) => photo.path !== path) }))} />
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Label htmlFor="studentSuccessDescription">자세한 설명</Label>
+            <ExampleButton title="수강생 성과 자세한 설명" content={examples.studentSuccessDescription} />
+          </div>
+          <Textarea id="studentSuccessDescription" name="studentSuccessDescription" rows={13} maxLength={12_000} defaultValue={initialAnswers.studentSuccessDescription} placeholder="성과가 만들어진 과정과 수강생의 변화를 자세히 작성해 주세요." />
+        </div>
+      </section>
       <section className={sectionClass}><h2 className="text-lg font-semibold">9. 수강후기</h2><p className="text-sm text-muted-foreground">수강생 사진과 카카오톡·수강후기 페이지의 후기 캡처를 올려 주세요.</p><ImageUploadField category="reviews" photos={images.reviews} examples={exampleImages.reviews} disabled={busy} onUpload={(files) => void upload(files, "reviews")} onDelete={(path) => setImages((previous) => ({ ...previous, reviews: previous.reviews.filter((photo) => photo.path !== path) }))} /></section>
       <section className={sectionClass}><div className="flex flex-wrap items-center justify-between gap-3"><Label htmlFor="differentiators" className="text-base">10. 강의 차별점</Label><ExampleButton title="강의 차별점" content={examples.differentiators} /></div><Textarea id="differentiators" name="differentiators" rows={8} maxLength={12_000} defaultValue={initialAnswers.differentiators} placeholder="1:1 피드백, 컨설팅, 현장 수업, 강의 성과 등 차별화된 장점을 작성해 주세요." /></section>
-      <section className={sectionClass}><h2 className="text-lg font-semibold">11. 무료 웨비나를 통해 얻어갈 수 있는 핵심 내용</h2><div className="space-y-3">{Array.from({ length: 5 }, (_, index) => <div key={index} className="space-y-2"><Label htmlFor={`webinarCoreContent${index}`}>핵심 내용 {index + 1}</Label><Input id={`webinarCoreContent${index}`} name={`webinarCoreContent${index}`} maxLength={1000} defaultValue={initialAnswers.webinarCoreContents[index] ?? ""} /></div>)}</div></section>
-      <section className={sectionClass}><Label htmlFor="fieldStrengths" className="text-base">12. 해당 분야 특장점</Label><Textarea id="fieldStrengths" name="fieldStrengths" rows={10} maxLength={12_000} defaultValue={initialAnswers.fieldStrengths} placeholder={`다른 사업분야와 비교했을 때 추천하는 이유를 작성해 주세요.
-예: 초기 투자비용이 낮음, 수익 창출이 빠름, 리스크가 적음
-예: 안정적인 수익, 쉬운 리스크 관리, 시장 변동성에 덜 민감함`} /></section>
-      <section className={sectionClass}><Label htmlFor="recommendedAudience" className="text-base">13. 강의 추천 대상</Label><Textarea id="recommendedAudience" name="recommendedAudience" rows={8} maxLength={12_000} defaultValue={initialAnswers.recommendedAudience} placeholder={`- 시간 없는 직장인을 위한 N잡 투자, 월급만큼 월세 받기
-- 소자본으로 내 집 마련을 꿈꾸는 직장인
-- 부동산 전반에 대한 통찰력을 키우고 싶은 초보자
-- 은퇴 후 월세 소득을 만들고 싶은 투자자
-- 취준생도 할 수 있다`} /></section>
-      <section className={sectionClass}><Label htmlFor="webinarBenefits" className="text-base">14. 무료 웨비나 수강 혜택</Label><Textarea id="webinarBenefits" name="webinarBenefits" rows={7} maxLength={12_000} defaultValue={initialAnswers.webinarBenefits} placeholder="무료 PDF, 체크리스트, 상담권 등 웨비나 참여 시 제공할 혜택을 작성해 주세요." /></section>
-      <section className={sectionClass}><Label htmlFor="opportunityEvidence" className="text-base">15. 지금이 기회라는 정량적·정성적 증거</Label><Textarea id="opportunityEvidence" name="opportunityEvidence" rows={13} maxLength={12_000} defaultValue={initialAnswers.opportunityEvidence} placeholder={`수강생이 도전하는 시장에 틈새가 존재한다는 정량적·정성적 증거를 작성해 주세요.
-
-예: 제도 변화 전후의 시장 차이, 수요 증가율, 경쟁자 수, 가격 상승 가능성, 실제 시장 사례`} /><ImageUploadField category="opportunity" photos={images.opportunity} examples={exampleImages.opportunity} disabled={busy} onUpload={(files) => void upload(files, "opportunity")} onDelete={(path) => setImages((previous) => ({ ...previous, opportunity: previous.opportunity.filter((photo) => photo.path !== path) }))} /></section>
+      <section className={sectionClass}>
+        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">11. 무료 웨비나를 통해 얻어갈 수 있는 핵심 내용</h2><ExampleButton title="무료 웨비나 핵심 내용" content={examples.webinarCoreContents.map((content, index) => `${index + 1}. ${content}`).join("\n")} /></div>
+        <div className="space-y-3">{Array.from({ length: 5 }, (_, index) => <div key={index} className="space-y-2"><Label htmlFor={`webinarCoreContent${index}`}>핵심 내용 {index + 1}</Label><Input id={`webinarCoreContent${index}`} name={`webinarCoreContent${index}`} maxLength={1000} defaultValue={initialAnswers.webinarCoreContents[index] ?? ""} /></div>)}</div>
+      </section>
+      <section className={sectionClass}><div className="flex flex-wrap items-center justify-between gap-3"><Label htmlFor="fieldStrengths" className="text-base">12. 해당 분야 특장점</Label><ExampleButton title="해당 분야 특장점" content={examples.fieldStrengths} /></div><Textarea id="fieldStrengths" name="fieldStrengths" rows={10} maxLength={12_000} defaultValue={initialAnswers.fieldStrengths} placeholder="다른 사업분야와 비교했을 때 이 분야를 추천하는 이유를 작성해 주세요." /></section>
+      <section className={sectionClass}><div className="flex flex-wrap items-center justify-between gap-3"><Label htmlFor="recommendedAudience" className="text-base">13. 강의 추천 대상</Label><ExampleButton title="강의 추천 대상" content={examples.recommendedAudience} /></div><Textarea id="recommendedAudience" name="recommendedAudience" rows={8} maxLength={12_000} defaultValue={initialAnswers.recommendedAudience} placeholder="강의를 듣기에 적합한 대상을 구체적으로 작성해 주세요." /></section>
+      <section className={sectionClass}><div className="flex flex-wrap items-center justify-between gap-3"><Label htmlFor="webinarBenefits" className="text-base">14. 무료 웨비나 수강 혜택</Label><ExampleButton title="무료 웨비나 수강 혜택" content={examples.webinarBenefits} /></div><Textarea id="webinarBenefits" name="webinarBenefits" rows={7} maxLength={12_000} defaultValue={initialAnswers.webinarBenefits} placeholder="무료 PDF, 체크리스트, 상담권 등 참여 혜택을 작성해 주세요." /></section>
+      <section className={sectionClass}><div className="flex flex-wrap items-center justify-between gap-3"><Label htmlFor="opportunityEvidence" className="text-base">15. 지금이 기회라는 정량적·정성적 증거</Label><ExampleButton title="지금이 기회라는 증거" content={examples.opportunityEvidence} /></div><Textarea id="opportunityEvidence" name="opportunityEvidence" rows={13} maxLength={12_000} defaultValue={initialAnswers.opportunityEvidence} placeholder="시장에 기회와 틈새가 존재한다는 정량적·정성적 근거를 작성해 주세요." /><ImageUploadField category="opportunity" photos={images.opportunity} examples={exampleImages.opportunity} disabled={busy} onUpload={(files) => void upload(files, "opportunity")} onDelete={(path) => setImages((previous) => ({ ...previous, opportunity: previous.opportunity.filter((photo) => photo.path !== path) }))} /></section>
 
       <section className={sectionClass}><h2 className="text-lg font-semibold">기존 강의 경험과 자료</h2><div className="space-y-2"><Label htmlFor="hasTeachingExperience">16. 기존 강의 여부</Label><select id="hasTeachingExperience" name="hasTeachingExperience" defaultValue={initialAnswers.hasTeachingExperience === null ? "" : initialAnswers.hasTeachingExperience ? "yes" : "no"} className="h-10 w-full rounded-md border bg-background px-3 text-sm"><option value="">선택해 주세요</option><option value="no">기존 강의 없음</option><option value="yes">기존 강의 있음</option></select></div>{answers.hasTeachingExperience ? <div className="grid gap-5 sm:grid-cols-2"><NumericField name="teachingCount" label="강의 횟수 (회)" value={answers.teachingCount} min={1} /><NumericField name="studentCount" label="누적 수강생 규모 (명)" value={answers.studentCount} min={1} /></div> : null}<div className="space-y-2"><Label htmlFor="materialsUrls">17. 강의 자료·무료강의 영상 드라이브 URL</Label><Textarea id="materialsUrls" name="materialsUrls" rows={3} defaultValue={initialAnswers.materialsUrls.join("\n")} disabled={answers.materialsUnavailable} placeholder="https://drive.google.com/..." /><label className="flex items-center gap-2 text-sm"><input type="checkbox" name="materialsUnavailable" defaultChecked={initialAnswers.materialsUnavailable} />기존 자료·무료강의 영상 없음</label></div><div className="space-y-2"><Label htmlFor="youtubeUrls">18. 유튜브 출연 영상 URL</Label><Textarea id="youtubeUrls" name="youtubeUrls" rows={3} defaultValue={initialAnswers.youtubeUrls.join("\n")} disabled={answers.youtubeUnavailable} placeholder="https://www.youtube.com/watch?v=..." /><label className="flex items-center gap-2 text-sm"><input type="checkbox" name="youtubeUnavailable" defaultChecked={initialAnswers.youtubeUnavailable} />유튜브 출연 영상 없음</label></div></section>
       <section className={sectionClass}><h2 className="text-lg font-semibold">매출과 순이익</h2><div className="grid gap-5 sm:grid-cols-2"><MoneyField name="monthlyRevenue" label="19. 강의 외 월 매출 (원)" value={initialAnswers.monthlyRevenue} help="강의 수입을 제외한 월 매출입니다." /><MoneyField name="monthlyProfit" label="20. 월 순이익 (원)" value={initialAnswers.monthlyProfit} min={-1_000_000_000_000} help="적자는 음수로 입력할 수 있습니다." /></div><div className="grid gap-5 sm:grid-cols-2"><MoneyField name="expectedRevenue" label="21. 수강생 예상 월 매출 (원)" value={initialAnswers.expectedRevenue} /><MoneyField name="expectedProfit" label="수강생 예상 월 순이익 (원)" value={initialAnswers.expectedProfit} min={-1_000_000_000_000} /></div></section>

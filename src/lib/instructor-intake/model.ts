@@ -80,12 +80,70 @@ export const DEFAULT_INTAKE_EXAMPLES = {
 (특히 강조하고 싶은 이력이 있다면 함께 작성해주세요)`,
   differentiators: `코칭권을 신청하시는 경우 현장 임장 수업:
 실제 부동산 현장을 직접 방문하며 실전 경험을 쌓을 수 있는 기회 제공`,
+  studentSuccessDescription: `여러분의 포트폴리오 제가 만들어 드립니다
+부동산 자산에 있어서 만큼은 ..
+많은 돈이 필요하다 생각하시죠?
+아닙니다
+여러분의 생각과 실천이 바로 여러분의 미래의 돈입니다~!
+생각이 행동이 바뀌지 않으면, 아무일도 일어나지 않습니다
+
+아인슈타인이 말했죠?
+
+어제와 똑같이 오늘을 살면서, 멋진 미래가 오길 바라는게 진짜 미친 거라고
+
+네 여러분은 저를 만나기 전과 후로 나뉠 것입니다
+
+여러분의 생각이 돈으로 바뀔 겁니다
+
+한걸음 부터 시작하면, 됩니다
+월급 300아끼고 안 쓴다고 달라지지 않습니다
+하지만, 여러분이 노력한 300만원이 월세 300만원을 만들어 줄 것입니다
+
+여러분의 씨드머니, 한달 월급이면, 충분합니다`,
+  webinarCoreContents: [
+    "소액으로 시작할 수 있는 현실적인 첫 단계",
+    "초보자가 가장 많이 실수하는 지점과 해결 방법",
+    "실제 수익화 사례와 적용 과정",
+    "리스크를 줄이는 실행 체크리스트",
+    "웨비나 직후 바로 실천할 수 있는 액션 플랜",
+  ],
+  fieldStrengths: `초기 투자비용이 낮음, 수익 창출이 빠름, 리스크가 적음
+안정적인 수익: 부동산은 안정적인 자산으로, 월세 등 지속적인 수익을 기대할 수 있습니다.
+리스크 관리 용이: 어플을 통한 숙박 시장에도 진입이 가능합니다.
+소액으로 꾸준하게 들어오는 월세를 만들 수 있습니다.
+시장 변동성에 덜 민감: K-문화에 대한 기대감으로 매년 증가하고 있습니다. 코로나 이후 훨씬 더 활발해진 여행 문화가 자리잡아 가고 있습니다.
+기존 모텔이나 숙박시설의 개념을 벗어난 개성을 연출할 수 있습니다.`,
+  recommendedAudience: `- 시간 없는 직장인을 위한 N잡 투자, 월급만큼 월세 받기
+- 소자본으로 내 집 마련을 꿈꾸는 직장인
+- 부동산 전반에 대한 통찰력을 키우고 싶은 초보자
+- 은퇴 후 월세 소득을 만들고 싶은 투자자
+- 취준생도 할 수 있다`,
+  webinarBenefits: `- 무료 웨비나 핵심 내용을 정리한 PDF
+- 바로 실행할 수 있는 체크리스트
+- 웨비나 참여자 전용 상담 또는 수강 혜택`,
+  opportunityEvidence: `돈 많은 사람만 월세를 받을 수 있을 거라는 생각
+내 건물에서만 월세 수익을 창출해야 된다는 생각의 전환
+
+지금까지는 영업신고증 없이 에어비앤비 사이트를 통해 숙박에 관한 등록을 할 수 있었습니다.
+하지만 올해부터는 바뀝니다.
+영업신고증 있는 사람과 없는 사람의 차이가 있습니다.
+에어비앤비 게스트 수익률이 높은 만큼 정상적으로 신고하지 않은 분들은 퇴출됩니다.
+
+내년부터는 오히려 가격을 상승하여 월세를 더 받을 수 있지 않을까라는 생각을 해 봅니다.
+좋은 매물을 구해서 월세 만들고 내 집 마련, 건물주까지 달려 봅시다.
+화이팅~!`,
 };
 export const intakeExamplesSchema = z.object({
   lectureItemExamples: z.array(text(300)).min(1).max(10),
   courseContentIntroduction: longText,
   instructorCareer: longText,
   differentiators: longText,
+  studentSuccessDescription: longText,
+  webinarCoreContents: z.array(text(1000)).length(5),
+  fieldStrengths: longText,
+  recommendedAudience: longText,
+  webinarBenefits: longText,
+  opportunityEvidence: longText,
 });
 export type IntakeExamples = z.infer<typeof intakeExamplesSchema>;
 export const intakeSettingsSchema = z.object({ examples: intakeExamplesSchema, exampleImagePaths: imagePathsSchema });
