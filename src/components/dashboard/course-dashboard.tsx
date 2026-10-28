@@ -2,15 +2,19 @@ import Link from "next/link";
 import {
   ArrowRight,
   BookOpenCheck,
+  CalendarCheck2,
   CalendarClock,
   CalendarDays,
+  CalendarRange,
   ChevronDown,
   CircleAlert,
   Clock3,
   MapPin,
+  NotebookPen,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { DashboardCourseOptions } from "@/components/dashboard/dashboard-course-options";
 import { DashboardMenuSearch } from "@/components/dashboard/dashboard-menu-search";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,6 +76,12 @@ type DashboardData = {
 };
 
 const numberFormatter = new Intl.NumberFormat("ko-KR");
+const DASHBOARD_QUICK_LINKS = [
+  { label: "근태", href: "/hr/leave", icon: CalendarCheck2 },
+  { label: "업무일지", href: "/hr", icon: NotebookPen },
+  { label: "팀일정", href: "/calendar", icon: CalendarRange },
+] as const;
+
 function won(value: number | null) {
   return value === null ? "-" : `${numberFormatter.format(Math.round(value))}원`;
 }
@@ -128,8 +138,20 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
   return (
     <main className="min-h-dvh bg-slate-50/70">
       <div className="mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
-        <div className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-semibold tracking-[-0.035em] text-slate-950">{data.userName}님 안녕하세요.</h1>
+        <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <h1 className="text-3xl font-semibold tracking-[-0.035em] text-slate-950">{data.userName}님 안녕하세요.</h1>
+            <nav aria-label="업무 빠른 이동" className="flex flex-wrap items-center gap-2">
+              {DASHBOARD_QUICK_LINKS.map(({ label, href, icon: Icon }) => (
+                <Button key={href} variant="outline" size="sm" className="bg-white shadow-sm" asChild>
+                  <Link href={href}>
+                    <Icon aria-hidden="true" />
+                    {label}
+                  </Link>
+                </Button>
+              ))}
+            </nav>
+          </div>
           <div className="inline-flex w-fit items-center gap-2 rounded-full border bg-white px-3.5 py-2 text-sm font-medium text-slate-600 shadow-sm">
             <CalendarDays className="size-4 text-blue-600" aria-hidden="true" />
             {data.todayLabel}

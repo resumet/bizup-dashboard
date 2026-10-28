@@ -32,7 +32,7 @@ export const DASHBOARD_MENU_SEARCH_ITEMS: readonly DashboardMenuSearchItem[] = [
   { label: "주소록 매니저", href: "/services/address-books", group: "수강생 관리" },
   { label: "전화 세일즈 명단", href: "/services/phone-sales-list", group: "수강생 관리" },
   { label: "알림톡 · 문자 자동화", href: "/services/message-automation", group: "수강생 관리" },
-  { label: "팀 업무", href: "/hr", group: "업무 관리" },
+  { label: "업무일지", href: "/hr", group: "업무 관리", keywords: ["팀 업무", "팀업무"] },
   { label: "근태 관리", href: "/hr/leave", group: "업무 관리" },
   { label: "비품 신청", href: "/hr/supplies", group: "업무 관리" },
   { label: "공용 캘린더", href: "/calendar", group: "업무 관리" },

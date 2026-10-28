@@ -35,6 +35,11 @@ test("변경된 웨비나 메뉴명과 기존 검색어를 모두 지원한다",
   assert.equal(filterDashboardMenus("라이브 웨비나")[0]?.href, "/services/course-webinars");
 });
 
+test("업무일지의 새 메뉴명과 기존 팀 업무 검색어를 모두 지원한다", () => {
+  assert.equal(filterDashboardMenus("업무일지")[0]?.href, "/hr");
+  assert.equal(filterDashboardMenus("팀 업무")[0]?.href, "/hr");
+});
+
 test("관리자가 추가한 검색어로 메뉴를 추천한다", () => {
   const result = filterDashboardMenus("결제 확인", {
     "/services/course-operations/students-settlements": ["결제 확인", "정산 대상"],

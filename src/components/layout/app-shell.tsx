@@ -86,7 +86,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     label: "업무 관리",
     icon: BriefcaseBusiness,
     items: [
-      { label: "팀 업무", href: "/hr", exact: true },
+      { label: "업무일지", href: "/hr", exact: true },
       { label: "근태 관리", href: "/hr/leave" },
       { label: "비품 신청", href: "/hr/supplies" },
       { label: "공용 캘린더", href: "/calendar" },
