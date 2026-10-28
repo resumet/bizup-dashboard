@@ -28,6 +28,7 @@ import { selectablePeople } from "@/lib/course-wbs/people";
 import { datesForStartOffset, dueDateForOffset, dueDateForStartDate, WBS_DUE_OFFSETS, WBS_START_OFFSETS } from "@/lib/course-wbs/schedule-options";
 import { sortWbsItemsByStartDate } from "@/lib/course-wbs/start-date-sort";
 import { mergeTemplateItems } from "@/lib/course-wbs/template-items";
+import { splitWbsCoursesByCompletion } from "@/lib/course-wbs/course-groups";
 import type { WbsItemSelection } from "@/lib/course-wbs/item-schedules";
 import type { CourseWbs, CourseWbsBootstrap, WbsCourse, WbsDashboard, WbsDashboardTask, WbsItem, WbsScheduleEntry, WbsSummary, WbsTemplate } from "@/lib/course-wbs/types";
 import { syncWebinarItem, webinarDateFromTimestamp, webinarDayLabel, WEBINAR_ITEM_ID } from "@/lib/course-wbs/webinar-date";
@@ -122,6 +123,35 @@ function DashboardTaskList({ title, description, emptyMessage, tasks, coursesByI
       </button></li>;
     })}</ol> : <p className="mt-4 rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">{emptyMessage}</p>}
   </section>;
+}
+
+type SavedWbsCard = { summary: WbsSummary; course: WbsCourse };
+
+function SavedWbsTable({ cards, schedules, today, deleting, label, onSelectCourse, onDelete }: {
+  cards: SavedWbsCard[];
+  schedules: WbsScheduleEntry[];
+  today: string;
+  deleting: boolean;
+  label: string;
+  onSelectCourse: (courseId: string) => void;
+  onDelete: (course: WbsCourse) => void;
+}) {
+  return <div className="overflow-x-auto rounded-xl border bg-background"><table className="w-full min-w-[1000px] text-sm" aria-label={label}>
+    <thead className="bg-muted/50 text-left"><tr>{["강의", "강사", "기수", "웨비나 날짜", "상태", "업무", "진행", "완료", "진행률", "미진행", ""].map((heading, index) => <th key={index} className="whitespace-nowrap px-4 py-3" title={heading === "진행" ? "완료되지 않은 전체 업무 수" : heading === "미진행" ? "기한이 지났지만 완료되지 않은 업무 수" : undefined}>{heading}</th>)}</tr></thead>
+    <tbody>{cards.map(({ summary, course: linkedCourse }) => {
+      const counts = wbsProgress(schedules.find((entry) => entry.courseId === summary.courseId)?.items ?? [], today);
+      return <tr key={summary.courseId} className="border-t">
+        <td className="px-4 py-3"><button type="button" onClick={() => onSelectCourse(summary.courseId)} disabled={deleting} className="text-left font-medium text-primary hover:underline">{linkedCourse.name}</button></td>
+        <td className="px-4 py-3">{linkedCourse.instructorName || "—"}</td><td className="px-4 py-3">{linkedCourse.cohort || "—"}</td>
+        <td className="whitespace-nowrap px-4 py-3">{linkedCourse.webinarAt ? toKoreaDate(linkedCourse.webinarAt) : "—"}</td><td className="px-4 py-3">{COURSE_STATUS_LABELS[linkedCourse.status]}</td>
+        <td className="px-4 py-3 tabular-nums">{counts.total}</td><td className="px-4 py-3 tabular-nums">{counts.remaining}</td><td className="px-4 py-3 tabular-nums">{counts.completed}</td><td className="px-4 py-3 tabular-nums">{counts.progress}%</td><td className={`px-4 py-3 tabular-nums ${counts.overdue ? "font-semibold text-destructive" : ""}`}>{counts.overdue}</td>
+        <td className="px-2 py-3"><DropdownMenu>
+          <DropdownMenuTrigger asChild><Button size="icon-sm" variant="ghost" aria-label={`${courseLabel(linkedCourse)} WBS 메뉴`} disabled={deleting}><MoreHorizontal /></Button></DropdownMenuTrigger>
+          <DropdownMenuContent align="end"><DropdownMenuItem variant="destructive" onSelect={() => onDelete(linkedCourse)}><Trash2 /> WBS 삭제</DropdownMenuItem></DropdownMenuContent>
+        </DropdownMenu></td>
+      </tr>;
+    })}</tbody>
+  </table></div>;
 }
 
 function withSavedPeople(people: string[], items: WbsItem[]) {
@@ -320,6 +350,10 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
       return summary ? [{ course, summary }] : [];
     });
   }, [courses, wbsSummaries]);
+  const { current: currentWbsCards, completed: completedWbsCards } = useMemo(
+    () => splitWbsCoursesByCompletion(savedWbsCards),
+    [savedWbsCards],
+  );
   const coursesWithoutWbs = useMemo(() => {
     const savedIds = new Set(wbsSummaries.map((summary) => summary.courseId));
     return courses.filter((entry) => isSelectableCourse(entry) && !savedIds.has(entry.id));
@@ -621,23 +655,14 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
 
       <TabsContent value="manage" className="mt-6">
       <section aria-label="저장된 강의별 해야할일">
-        {savedWbsCards.length ? <div className="overflow-x-auto rounded-xl border bg-background"><table className="w-full min-w-[1000px] text-sm" aria-label="강의별 해야할일 목록">
-          <thead className="bg-muted/50 text-left"><tr>{["강의", "강사", "기수", "웨비나 날짜", "상태", "업무", "진행", "완료", "진행률", "미진행", ""].map((label, index) => <th key={index} className="whitespace-nowrap px-4 py-3" title={label === "진행" ? "완료되지 않은 전체 업무 수" : label === "미진행" ? "기한이 지났지만 완료되지 않은 업무 수" : undefined}>{label}</th>)}</tr></thead><tbody>
-          {savedWbsCards.map(({ summary, course: linkedCourse }) => {
-            const counts = wbsProgress(schedules.find((entry) => entry.courseId === summary.courseId)?.items ?? [], today);
-            return <tr key={summary.courseId} className="border-t">
-              <td className="px-4 py-3"><button type="button" onClick={() => selectCourse(summary.courseId)} disabled={deleting} className="text-left font-medium text-primary hover:underline">{linkedCourse.name}</button></td>
-              <td className="px-4 py-3">{linkedCourse.instructorName || "—"}</td><td className="px-4 py-3">{linkedCourse.cohort || "—"}</td>
-              <td className="whitespace-nowrap px-4 py-3">{linkedCourse.webinarAt ? toKoreaDate(linkedCourse.webinarAt) : "—"}</td><td className="px-4 py-3">{COURSE_STATUS_LABELS[linkedCourse.status]}</td>
-              <td className="px-4 py-3 tabular-nums">{counts.total}</td><td className="px-4 py-3 tabular-nums">{counts.remaining}</td><td className="px-4 py-3 tabular-nums">{counts.completed}</td><td className="px-4 py-3 tabular-nums">{counts.progress}%</td><td className={`px-4 py-3 tabular-nums ${counts.overdue ? "font-semibold text-destructive" : ""}`}>{counts.overdue}</td>
-              <td className="px-2 py-3">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild><Button size="icon-sm" variant="ghost" aria-label={`${courseLabel(linkedCourse)} WBS 메뉴`} disabled={deleting}><MoreHorizontal /></Button></DropdownMenuTrigger>
-                <DropdownMenuContent align="end"><DropdownMenuItem variant="destructive" onSelect={() => { setDeleteError(""); setDeleteTarget(linkedCourse); }}><Trash2 /> WBS 삭제</DropdownMenuItem></DropdownMenuContent>
-              </DropdownMenu></td>
-            </tr>;
-          })}
-        </tbody></table></div> : <div className="rounded-xl border border-dashed bg-background px-6 py-14 text-center text-sm text-muted-foreground">저장된 WBS가 없습니다. 상단의 WBS 만들기 버튼으로 강의를 연결하세요.</div>}
+        {currentWbsCards.length ? <SavedWbsTable cards={currentWbsCards} schedules={schedules} today={today} deleting={deleting} label="강의별 해야할일 목록" onSelectCourse={selectCourse} onDelete={(linkedCourse) => { setDeleteError(""); setDeleteTarget(linkedCourse); }} /> : !completedWbsCards.length ? <div className="rounded-xl border border-dashed bg-background px-6 py-14 text-center text-sm text-muted-foreground">저장된 WBS가 없습니다. 상단의 WBS 만들기 버튼으로 강의를 연결하세요.</div> : null}
+        {completedWbsCards.length ? <details className="group mt-6 overflow-hidden rounded-xl border bg-background">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 font-semibold transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+            <span>종료된 강의</span>
+            <span className="flex items-center gap-2"><Badge variant="secondary">{completedWbsCards.length}개</Badge><ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" /></span>
+          </summary>
+          <div className="border-t p-4"><SavedWbsTable cards={completedWbsCards} schedules={schedules} today={today} deleting={deleting} label="종료된 강의별 해야할일 목록" onSelectCourse={selectCourse} onDelete={(linkedCourse) => { setDeleteError(""); setDeleteTarget(linkedCourse); }} /></div>
+        </details> : null}
       </section>
 
       <WbsStartSchedule courses={courses} entries={scheduleEntries} options={scheduleOptions} selected={selectedScheduleItem} onSelect={setSelectedScheduleItem} today={today} onSelectCourse={selectCourse} />
