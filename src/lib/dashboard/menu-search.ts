@@ -45,6 +45,7 @@ export const DASHBOARD_MENU_SEARCH_ITEMS: readonly DashboardMenuSearchItem[] = [
   { label: "강의 정산 계산기", href: "/tools/settlement-calculator", group: "유용한 도구들" },
   { label: "연락처 CSV 추출", href: "/services/contact-csv", group: "유용한 도구들" },
   { label: "유튜브 영상 다운로드", href: "/services/youtube-download", group: "유용한 도구들" },
+  { label: "유튜브 라이브 레코더", href: "/services/tools", group: "유용한 도구들", keywords: ["웨비나 녹화", "라이브 녹화", "레코더 다운로드"] },
   { label: "노바 정산서 검증", href: "/services/nova-settlement-validator", group: "유용한 도구들" },
   { label: "영상 대본 추출", href: "/extras", group: "유용한 도구들", keywords: ["부가 기능", "부가기능", "대본"] },
 ];
