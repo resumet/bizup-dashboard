@@ -41,7 +41,7 @@ export function WebinarDashboard() {
   }, [reload]);
   const summary = useMemo(() => summarizeWebinars(courses), [courses]);
   const currentPage = Math.min(page, Math.max(0, Math.ceil(courses.length / 20) - 1));
-  return <section className="mt-10 min-w-0" aria-label="라이브 웨비나 대시보드">
+  return <section className="mt-10 min-w-0" aria-label="웨비나진행 결과관리">
     <Card>
       <CardHeader>
         <div className="flex justify-end"><Button size="sm" disabled={loading} onClick={() => { setLoading(true); setReload(value => value + 1); }}>실적 새로고침</Button></div>

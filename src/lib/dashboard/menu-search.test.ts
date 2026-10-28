@@ -20,11 +20,19 @@ test("강의 일정 플래너를 도구 메뉴로 추천한다", () => {
   assert.equal(result?.group, "도구");
 });
 
-test("수강생 관리 및 정산을 명단 · 메시지 메뉴로 추천한다", () => {
+test("수강생 관리와 하위 메뉴를 추천한다", () => {
+  const hub = filterDashboardMenus("수강생 관리")[0];
   const result = filterDashboardMenus("수강생 관리 및 정산")[0];
 
+  assert.equal(hub?.href, "/services/student-management");
+  assert.equal(hub?.group, "명단 · 메시지");
   assert.equal(result?.href, "/services/course-operations/students-settlements");
-  assert.equal(result?.group, "명단 · 메시지");
+  assert.equal(result?.group, "수강생 관리");
+});
+
+test("변경된 웨비나 메뉴명과 기존 검색어를 모두 지원한다", () => {
+  assert.equal(filterDashboardMenus("웨비나진행 결과관리")[0]?.href, "/services/course-webinars");
+  assert.equal(filterDashboardMenus("라이브 웨비나")[0]?.href, "/services/course-webinars");
 });
 
 test("관리자가 추가한 검색어로 메뉴를 추천한다", () => {

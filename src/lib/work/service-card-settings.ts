@@ -12,7 +12,7 @@ export const WORK_SERVICE_CARD_GROUPS = [
       {route:"/services/youtube-management",title:"유튜브 출연 관리"},
       {route:"/services/course-operations/students-settlements",title:"수강생관리 및 정산"},
       {route:"/services/course-wbs",title:"강의별 해야할일"},
-      {route:"/services/course-webinars",title:"라이브 웨비나 대시보드"},
+      {route:"/services/course-webinars",title:"웨비나진행 결과관리"},
       {route:"/services/settlement-analysis",title:"강의별 정산"},
       {route:"/services/cash-flow",title:"자금 흐름"},
       {route:"/services/purchase-analysis",title:"주문결제 매출분석"},

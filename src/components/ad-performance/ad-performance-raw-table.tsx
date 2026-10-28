@@ -62,16 +62,16 @@ export function AdPerformanceRawTable({ metrics, channels, onEdit, disabled = fa
           <tr>
             <th scope="col" className={columnHead}>노출</th>
             <th scope="col" className={columnHead}>클릭</th>
-            <th scope="col" className={columnHead}>광고접수 DB</th>
-            <th scope="col" className={columnHead}>광고비</th>
             <th scope="col" className={columnHead}>광고접수 DB당 단가</th>
+            <th scope="col" className={columnHead}>광고비</th>
+            <th scope="col" className={columnHead}>광고접수DB갯수</th>
             <th scope="col" className={columnHead}>랜딩접수 DB</th>
             <th scope="col" className={columnHead}>랜딩접수 DB당 단가</th>
             <th scope="col" className={columnHead}>노출</th>
             <th scope="col" className={columnHead}>클릭</th>
-            <th scope="col" className={columnHead}>광고접수 DB</th>
-            <th scope="col" className={columnHead}>광고비</th>
             <th scope="col" className={columnHead}>광고접수 DB당 단가</th>
+            <th scope="col" className={columnHead}>광고비</th>
+            <th scope="col" className={columnHead}>광고접수DB갯수</th>
             <th scope="col" className={columnHead}>랜딩접수 DB</th>
             <th scope="col" className={columnHead}>랜딩접수 DB당 단가</th>
             <th scope="col" className={`${columnHead} bg-blue-50/70 font-semibold text-blue-950`}>광고집행비용</th>
@@ -84,16 +84,16 @@ export function AdPerformanceRawTable({ metrics, channels, onEdit, disabled = fa
               <th scope="row" className="sticky left-0 z-10 border-r border-b bg-background px-2 py-1.5 text-left font-medium tabular-nums whitespace-nowrap group-hover:bg-muted">{metric.metricDate}</th>
               <td className={numberCell}>{displayNumber(metric.googleImpressions)}</td>
               <td className={numberCell}>{displayNumber(metric.googleClicks)}</td>
-              <td className={numberCell}>{displayNumber(metric.googleAdLeads)}</td>
-              <td className={numberCell}>{displayNumber(metric.googleSpend)}</td>
               <td className={numberCell}>{displayUnitCost(metric.googleAdLeadCost)}</td>
+              <td className={numberCell}>{displayNumber(metric.googleSpend)}</td>
+              <td className={numberCell}>{displayNumber(metric.googleAdLeads)}</td>
               <td className={numberCell}>{displayNumber(metric.googleLandingLeads)}</td>
               <td className={numberCell}>{displayUnitCost(metric.googleLandingLeadCost)}</td>
               <td className={numberCell}>{displayNumber(metric.metaImpressions)}</td>
               <td className={numberCell}>{displayNumber(metric.metaClicks)}</td>
-              <td className={numberCell}>{displayNumber(metric.metaAdLeads)}</td>
-              <td className={numberCell}>{displayNumber(metric.metaSpend)}</td>
               <td className={numberCell}>{displayUnitCost(metric.metaAdLeadCost)}</td>
+              <td className={numberCell}>{displayNumber(metric.metaSpend)}</td>
+              <td className={numberCell}>{displayNumber(metric.metaAdLeads)}</td>
               <td className={numberCell}>{displayNumber(metric.metaLandingLeads)}</td>
               <td className={numberCell}>{displayUnitCost(metric.metaLandingLeadCost)}</td>
               <td className={`${numberCell} bg-blue-50/40 font-semibold`}>{displayUnitCost(metric.totalSpend)}</td>

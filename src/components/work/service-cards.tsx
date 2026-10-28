@@ -84,7 +84,7 @@ const services: Service[] = [
       "bg-red-500/12 text-red-700 ring-red-500/15 dark:text-red-300",
   },
   {
-    title: "라이브 웨비나 대시보드",
+    title: "웨비나진행 결과관리",
     description:
       "강의별 라이브 참여 인원, 결제와 매출을 모아 보고 단계별 전환율과 광고 효율을 비교합니다.",
     route: "/services/course-webinars",
