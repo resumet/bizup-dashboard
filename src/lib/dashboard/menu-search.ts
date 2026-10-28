@@ -27,7 +27,7 @@ export const DASHBOARD_MENU_SEARCH_ITEMS: readonly DashboardMenuSearchItem[] = [
   { label: "유용한 도구들", href: "/services/tools", group: "기타", keywords: ["도구", "업무 도구", "유틸리티"] },
   { label: "수강생 관리 및 정산", href: "/services/course-operations/students-settlements", group: "수강생 및 메시지 관리" },
   { label: "웨비나진행 결과관리", href: "/services/course-webinars", group: "강의 운영", keywords: ["라이브 웨비나", "웨비나 대시보드"] },
-  { label: "유튜브 채널 관리", href: "/services/youtube-channels", group: "기타" },
+  { label: "유튜브 채널 관리", href: "/services/youtube-channels", group: "유용한 도구들" },
   { label: "성과기록", href: "/services/performance-records", group: "퍼포먼스 광고", keywords: ["광고 성과", "광고성과", "성과 재무"] },
   { label: "내부광고 성과기록", href: "/services/ad-performance", group: "성과기록", keywords: ["광고성과", "성과 재무"] },
   { label: "외부광고 성과기록", href: "/services/external-marketing", group: "성과기록", keywords: ["외부마케팅", "외부 마케팅", "외부 마케팅 대행"] },

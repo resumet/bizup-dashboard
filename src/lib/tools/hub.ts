@@ -6,4 +6,5 @@ export const TOOL_HUB_ITEMS = [
   { label: "유튜브 영상 다운로드", href: "/services/youtube-download" },
   { label: "노바 정산서 검증", href: "/services/nova-settlement-validator" },
   { label: "영상 대본 추출", href: "/extras" },
+  { label: "유튜브 채널 관리", href: "/services/youtube-channels" },
 ] as const;

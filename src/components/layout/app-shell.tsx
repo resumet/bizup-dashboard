@@ -86,11 +86,14 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     label: "기타",
     icon: Ellipsis,
     items: [
-      { label: "유튜브 채널 관리", href: "/services/youtube-channels" },
-      { label: "유용한 도구들", href: "/services/tools" },
       {
         label: "근태관리/업무일지/비품신청",
         href: "/services/work-management",
+      },
+      {
+        label: "유용한 도구들",
+        href: "/services/tools",
+        activeHrefs: ["/services/youtube-channels"],
       },
     ],
   },

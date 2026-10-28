@@ -8,6 +8,7 @@ import {
   ContactRound,
   Download,
   FileSpreadsheet,
+  MonitorPlay,
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
@@ -50,6 +51,10 @@ const toolAppearance: Record<
   "/extras": {
     icon: Captions,
     iconClassName: "bg-violet-500/10 text-violet-700",
+  },
+  "/services/youtube-channels": {
+    icon: MonitorPlay,
+    iconClassName: "bg-red-500/10 text-red-700",
   },
 };
 

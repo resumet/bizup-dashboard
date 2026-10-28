@@ -69,7 +69,7 @@ test("새 광고 메뉴명과 기존 검색어를 지원하고 입출금 장부�
 });
 
 test("유튜브 채널 관리와 유용한 도구들은 기타로 분류한다", () => {
-  assert.equal(filterDashboardMenus("유튜브 채널 관리")[0]?.group, "기타");
+  assert.equal(filterDashboardMenus("유튜브 채널 관리")[0]?.group, "유용한 도구들");
   assert.equal(filterDashboardMenus("업무 도구")[0]?.group, "기타");
   assert.equal(filterDashboardMenus("유용한 도구들")[0]?.href, "/services/tools");
 });
