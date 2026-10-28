@@ -61,16 +61,16 @@ function ReleaseDownloadCard({
 }) {
   return (
     <Card className="h-full">
-      <CardContent className="flex min-h-36 flex-col gap-5 p-6">
-        <div className="flex items-start gap-4">
+      <CardContent className="flex min-h-56 flex-col items-center gap-4 p-5 text-center">
+        <div className="flex flex-col items-center gap-3">
           <span
-            className={`grid size-12 shrink-0 place-items-center rounded-xl ${iconClassName}`}
+            className={`grid size-9 shrink-0 place-items-center rounded-lg ${iconClassName}`}
           >
-            <Icon className="size-6" aria-hidden="true" />
+            <Icon className="size-4" aria-hidden="true" />
           </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <h3 className="font-semibold tracking-tight">{title}</h3>
               {release ? (
                 <Badge variant="secondary">{release.version}</Badge>
               ) : null}
@@ -79,7 +79,7 @@ function ReleaseDownloadCard({
           </div>
         </div>
 
-        <div className="mt-auto flex flex-wrap gap-2">
+        <div className="mt-auto flex flex-wrap justify-center gap-2">
           {release?.assets.map((asset) => {
             const fileSize = formatReleaseAssetSize(asset.size);
             return (
@@ -164,7 +164,7 @@ export default async function ToolsPage() {
   return (
     <main className="min-h-screen">
       <header className="border-b bg-background">
-        <div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
+        <div className="mx-auto flex h-18 max-w-6xl items-center px-5 lg:px-8">
           <Button variant="ghost" size="sm" asChild>
             <BackLink href="/">
               <ArrowLeft />
@@ -176,49 +176,61 @@ export default async function ToolsPage() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1900px] px-5 py-10 lg:px-8">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {TOOL_HUB_ITEMS.map(({ label, href }) => {
-            const { icon: Icon, iconClassName } = toolAppearance[href];
-            return (
-              <Link
-                key={href}
-                href={href}
-                className="group rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-              >
-                <Card className="h-full transition-colors group-hover:border-primary/35 group-hover:bg-muted/20">
-                  <CardContent className="flex min-h-36 items-center gap-4 p-6">
-                    <span
-                      className={`grid size-12 shrink-0 place-items-center rounded-xl ${iconClassName}`}
-                    >
-                      <Icon className="size-6" aria-hidden="true" />
-                    </span>
-                    <h2 className="text-lg font-semibold tracking-tight">
-                      {label}
-                    </h2>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
+      <div className="mx-auto max-w-6xl space-y-10 px-5 py-10 lg:px-8">
+        <section className="space-y-4" aria-labelledby="online-tools-heading">
+          <h2 id="online-tools-heading" className="text-lg font-semibold">
+            온라인 도구
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {TOOL_HUB_ITEMS.map(({ label, href }) => {
+              const { icon: Icon, iconClassName } = toolAppearance[href];
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className="group rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+                >
+                  <Card className="h-full transition-colors group-hover:border-primary/35 group-hover:bg-muted/20">
+                    <CardContent className="flex min-h-32 flex-col items-center justify-center gap-3 p-5 text-center">
+                      <span
+                        className={`grid size-9 shrink-0 place-items-center rounded-lg ${iconClassName}`}
+                      >
+                        <Icon className="size-4" aria-hidden="true" />
+                      </span>
+                      <h3 className="font-semibold leading-snug tracking-tight">
+                        {label}
+                      </h3>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
 
-          <ReleaseDownloadCard
-            title="유튜브 라이브 레코더"
-            description="최신 GitHub 릴리즈의 설치 파일을 내려받습니다."
-            icon={RadioTower}
-            iconClassName="bg-red-500/10 text-red-700"
-            release={recorderRelease}
-            repository={YOUTUBE_LIVE_RECORDER_REPOSITORY}
-          />
-          <ReleaseDownloadCard
-            title="카카오톡 태그 자동 관리자"
-            description="카카오톡 오픈채팅 태그 관리 도구를 내려받습니다."
-            icon={MessageCircleMore}
-            iconClassName="bg-yellow-400/15 text-yellow-700"
-            release={kakaoTagManagerRelease}
-            repository={KAKAO_TAG_MANAGER_REPOSITORY}
-          />
-        </div>
+        <section className="space-y-4" aria-labelledby="downloads-heading">
+          <h2 id="downloads-heading" className="text-lg font-semibold">
+            다운로드
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <ReleaseDownloadCard
+              title="유튜브 라이브 레코더"
+              description="최신 GitHub 릴리즈의 설치 파일을 내려받습니다."
+              icon={RadioTower}
+              iconClassName="bg-red-500/10 text-red-700"
+              release={recorderRelease}
+              repository={YOUTUBE_LIVE_RECORDER_REPOSITORY}
+            />
+            <ReleaseDownloadCard
+              title="카카오톡 태그 자동 관리자"
+              description="카카오톡 오픈채팅 태그 관리 도구를 내려받습니다."
+              icon={MessageCircleMore}
+              iconClassName="bg-yellow-400/15 text-yellow-700"
+              release={kakaoTagManagerRelease}
+              repository={KAKAO_TAG_MANAGER_REPOSITORY}
+            />
+          </div>
+        </section>
       </div>
     </main>
   );
