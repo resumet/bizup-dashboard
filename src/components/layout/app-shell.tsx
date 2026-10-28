@@ -15,11 +15,11 @@ import {
   BarChart3,
   BookOpenCheck,
   ChevronRight,
+  Ellipsis,
   GripVertical,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
-  ShieldCheck,
   Users,
   X,
   type LucideIcon,
@@ -58,10 +58,9 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     items: [
       { label: "진행중 강의 보기", href: "/services/course-operations", exact: true },
       { label: "강사 인스타그램 관리", href: "/services/instagram-management" },
-      { label: "유튜브 출연 관리", href: "/services/youtube-management" },
+      { label: "강사 출연 유튜브 관리", href: "/services/youtube-management" },
       { label: "강의별 해야할일", href: "/services/course-wbs" },
       { label: "웨비나진행 결과관리", href: "/services/course-webinars" },
-      { label: "유튜브 채널 관리", href: "/services/youtube-channels" },
       {
         label: "근태관리/업무일지/비품신청",
         href: "/services/work-management",
@@ -72,8 +71,8 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     label: "퍼포먼스 광고",
     icon: BarChart3,
     items: [
-      { label: "광고성과", href: "/services/ad-performance" },
-      { label: "외부 마케팅", href: "/services/external-marketing" },
+      { label: "내부광고 성과기록", href: "/services/ad-performance" },
+      { label: "외부광고 성과기록", href: "/services/external-marketing" },
     ],
   },
   {
@@ -81,6 +80,13 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     icon: Users,
     items: [
       { label: "수강생 관리", href: "/services/student-management" },
+    ],
+  },
+  {
+    label: "기타",
+    icon: Ellipsis,
+    items: [
+      { label: "유튜브 채널 관리", href: "/services/youtube-channels" },
       { label: "도구", href: "/services/tools" },
     ],
   },
@@ -134,13 +140,11 @@ function SidebarLink({
 function SidebarContent({
   email,
   userName,
-  isSuperAdmin,
   pathname,
   onNavigate,
 }: {
   email: string;
   userName: string;
-  isSuperAdmin: boolean;
   pathname: string;
   onNavigate: () => void;
 }) {
@@ -178,21 +182,6 @@ function SidebarContent({
               </section>
             );
           })}
-          {isSuperAdmin ? (
-            <section aria-labelledby="nav-admin">
-              <h2 id="nav-admin" className="flex items-center gap-2 px-3 pb-1.5 text-[0.68rem] font-semibold tracking-[0.12em] text-slate-500 uppercase">
-                <ShieldCheck className="size-3.5" aria-hidden="true" />
-                관리자
-              </h2>
-              <div className="border-l border-white/10 pl-2">
-                <SidebarLink item={{ label: "관리자 설정", href: "/admin", exact: true }} pathname={pathname} onNavigate={onNavigate} />
-                <SidebarLink item={{ label: "입출금 장부", href: "/services/cash-ledger" }} pathname={pathname} onNavigate={onNavigate} />
-                <SidebarLink item={{ label: "임직원 관리", href: "/hr/personnel" }} pathname={pathname} onNavigate={onNavigate} />
-                <SidebarLink item={{ label: "비품 관리", href: "/admin/supplies" }} pathname={pathname} onNavigate={onNavigate} />
-                <SidebarLink item={{ label: "캘린더 항목 관리", href: "/admin/calendar" }} pathname={pathname} onNavigate={onNavigate} />
-              </div>
-            </section>
-          ) : null}
         </div>
       </nav>
       <div className="shrink-0 border-t border-white/10 p-3 [&_button]:text-slate-200 [&_button:hover]:bg-white/10 [&_button:hover]:text-white">
@@ -206,12 +195,10 @@ export function AppShell({
   children,
   email,
   userName,
-  isSuperAdmin,
 }: {
   children: ReactNode;
   email: string | null;
   userName: string;
-  isSuperAdmin: boolean;
 }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -300,7 +287,7 @@ export function AppShell({
         aria-hidden={sidebarCollapsed}
         inert={sidebarCollapsed}
       >
-        <SidebarContent email={email} userName={userName} isSuperAdmin={isSuperAdmin} pathname={pathname} onNavigate={() => undefined} />
+        <SidebarContent email={email} userName={userName} pathname={pathname} onNavigate={() => undefined} />
         <div
           role="separator"
           aria-label="사이드바 너비 조절"
@@ -377,7 +364,6 @@ export function AppShell({
             <SidebarContent
               email={email}
               userName={userName}
-              isSuperAdmin={isSuperAdmin}
               pathname={pathname}
               onNavigate={() => setMobileMenuOpen(false)}
             />

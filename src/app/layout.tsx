@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { AppShell } from "@/components/layout/app-shell";
-import { isSuperAdminEmail } from "@/lib/admin/access";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { inviteRedirectScript } from "@/lib/supabase/invite-redirect-script";
 import { createClient } from "@/lib/supabase/server";
@@ -35,7 +34,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full bg-background text-foreground">
         <Script id="supabase-invite-redirect" strategy="beforeInteractive">{inviteRedirectScript}</Script>
-        <AppShell email={email} userName={userName} isSuperAdmin={isSuperAdminEmail(email)}>
+        <AppShell email={email} userName={userName}>
           {children}
         </AppShell>
       </body>

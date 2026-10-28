@@ -26,7 +26,7 @@ test("강의 운영 목록 관리 메뉴가 강의별 서비스로 연결된다"
       href: "/services/instagram-management/course%2F1",
     },
     {
-      label: "유튜브 출연 관리",
+      label: "강사 출연 유튜브 관리",
       href: "/services/youtube-management/course%2F1",
     },
     {

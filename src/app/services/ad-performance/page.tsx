@@ -21,7 +21,7 @@ export default async function AdPerformancePage() {
       <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon-sm" asChild><BackLink href="/work"><ArrowLeft />뒤로가기</BackLink></Button>
-          <h1 className="text-3xl font-semibold tracking-tight">광고성과 서비스</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">내부광고 성과기록</h1>
           <Button variant="outline" className="ml-auto" asChild><Link href="/services/ad-performance/bulk">일괄 보기</Link></Button>
         </div>
 
@@ -30,7 +30,7 @@ export default async function AdPerformancePage() {
             <Card className="h-full min-h-72 transition-colors group-hover:border-primary/50 group-hover:bg-primary/[0.02]">
               <CardHeader>
                 <span className="mb-4 grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary"><BarChart3 className="size-7" aria-hidden="true" /></span>
-                <CardTitle className="text-2xl">광고성과 관리</CardTitle>
+                <CardTitle className="text-2xl">내부광고 성과기록</CardTitle>
                 <CardDescription className="pt-2 text-sm leading-6">강의별 광고 예산과 일일 성과를 기록하고 확인합니다.</CardDescription>
               </CardHeader>
               <CardContent className="mt-auto flex items-center gap-2 font-medium text-primary">관리 화면 열기 <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden="true" /></CardContent>

@@ -77,7 +77,7 @@ const services: Service[] = [
       "bg-pink-500/12 text-pink-700 ring-pink-500/15 dark:text-pink-300",
   },
   {
-    title: "유튜브 출연 관리",
+    title: "강사 출연 유튜브 관리",
     route: "/services/youtube-management",
     icon: MonitorPlay,
     iconClass:
@@ -156,7 +156,7 @@ const services: Service[] = [
       "bg-yellow-500/15 text-yellow-700 ring-yellow-500/20 dark:text-yellow-300",
   },
   {
-    title: "광고성과",
+    title: "내부광고 성과기록",
     description:
       "Google·Meta 광고의 일일성과를 기록하고 소재성과 메뉴로 이동합니다.",
     route: "/services/ad-performance",

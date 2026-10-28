@@ -79,12 +79,12 @@ export function ExternalMarketingIndex({ projects: initialProjects, today: initi
 
   return <main className="min-h-screen"><div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
     <div className="flex flex-wrap items-center justify-between gap-4">
-      <div className="flex items-center gap-2"><Button variant="ghost" size="icon-sm" asChild><BackLink href="/"><ArrowLeft />뒤로가기</BackLink></Button><h1 className="text-3xl font-semibold tracking-tight">외부마케팅대행</h1></div>
+      <div className="flex items-center gap-2"><Button variant="ghost" size="icon-sm" asChild><BackLink href="/"><ArrowLeft />뒤로가기</BackLink></Button><h1 className="text-3xl font-semibold tracking-tight">외부광고 성과기록</h1></div>
       <Button disabled={creating} onClick={() => void createProject()}>{creating ? <Loader2 className="animate-spin" /> : <Plus />}대시보드 만들기</Button>
     </div>
     {error ? <Alert variant="destructive" className="mt-6"><AlertTitle>처리하지 못했습니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
     <div className="mt-6 space-y-3">
-      <label className="block max-w-md text-sm font-medium">외부마케팅대행 검색<span className="relative mt-2 block"><Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /><Input className="h-11 pl-9" placeholder="강의명, 강사명, 관계사 또는 담당PM" value={query} onChange={(event) => { setQuery(event.target.value); setSelectedProjectId(""); }} /></span></label>
+      <label className="block max-w-md text-sm font-medium">외부광고 성과기록 검색<span className="relative mt-2 block"><Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /><Input className="h-11 pl-9" placeholder="강의명, 강사명, 관계사 또는 담당PM" value={query} onChange={(event) => { setQuery(event.target.value); setSelectedProjectId(""); }} /></span></label>
       {recent.length ? <div className="flex flex-wrap gap-1.5" aria-label="최근 등록 강의의 강사">{recent.map((project, index) => <button
         key={project.dashboardId}
         type="button"

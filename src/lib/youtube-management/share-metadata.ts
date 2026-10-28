@@ -30,10 +30,10 @@ export function youtubeShareMetadata(
   pagePath: string,
   imagePath: string,
 ): Metadata {
-  const title = course ? youtubeShareTitle(course) : "유튜브 출연 관리";
+  const title = course ? youtubeShareTitle(course) : "강사 출연 유튜브 관리";
   const description = course
     ? `${title} ${kind === "brief" ? "유튜브 출연 요청기획서" : "유튜브 출연 및 촬영 일정"}`
-    : "유튜브 출연 관리 공개 페이지입니다.";
+    : "강사 출연 유튜브 관리 공개 페이지입니다.";
   const origin = productionOrigin();
   const pageUrl = new URL(pagePath, origin);
   const image = course?.banner_image_path ? new URL(imagePath, origin) : null;

@@ -209,7 +209,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
                 <Link href={`/services/instagram-management/${courseId}`}>강사 인스타그램 관리</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href={`/services/youtube-management/${courseId}`}>유튜브 출연 관리</Link>
+                <Link href={`/services/youtube-management/${courseId}`}>강사 출연 유튜브 관리</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href={`/services/webinar-information/${courseId}`}>웨비나 정보</Link>

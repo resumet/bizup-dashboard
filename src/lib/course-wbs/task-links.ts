@@ -1,10 +1,10 @@
 import type { WbsItem, WbsTaskLink } from "./types";
 
 export const WBS_INTERNAL_PAGES = [
-  { label: "유튜브 출연 관리", url: "/services/youtube-management/{courseId}" },
+  { label: "강사 출연 유튜브 관리", url: "/services/youtube-management/{courseId}" },
   { label: "강사 인스타그램 관리", url: "/services/instagram-management/{courseId}" },
   { label: "강의 상세", url: "/services/course-operations/{courseId}" },
-  { label: "강의 광고성과", url: "/services/ad-performance" },
+  { label: "내부광고 성과기록", url: "/services/ad-performance" },
 ] as const;
 
 export function validTaskLink(link: WbsTaskLink) {

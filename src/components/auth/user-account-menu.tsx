@@ -1,8 +1,21 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Loader2, LogOut, Mail, UserRound } from "lucide-react";
+import {
+  CalendarCog,
+  ChevronDown,
+  Loader2,
+  LogOut,
+  Mail,
+  PackageCheck,
+  Settings2,
+  UserRound,
+  UsersRound,
+  WalletCards,
+  type LucideIcon,
+} from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -15,7 +28,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { isSuperAdminEmail } from "@/lib/admin/access";
+import { ADMIN_ACCOUNT_MENU_ITEMS } from "@/lib/admin/navigation";
 import { createClient } from "@/lib/supabase/client";
+
+const adminMenuIcons: Record<
+  (typeof ADMIN_ACCOUNT_MENU_ITEMS)[number]["href"],
+  LucideIcon
+> = {
+  "/admin": Settings2,
+  "/services/cash-ledger": WalletCards,
+  "/hr/personnel": UsersRound,
+  "/admin/supplies": PackageCheck,
+  "/admin/calendar": CalendarCog,
+};
 
 export function UserAccountMenu({
   email,
@@ -28,6 +54,7 @@ export function UserAccountMenu({
 }) {
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const isSuperAdmin = isSuperAdminEmail(email);
 
   async function signOut() {
     setIsSigningOut(true);
@@ -76,6 +103,23 @@ export function UserAccountMenu({
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {isSuperAdmin ? (
+          <>
+            <DropdownMenuLabel>관리자 메뉴</DropdownMenuLabel>
+            {ADMIN_ACCOUNT_MENU_ITEMS.map(({ label, href }) => {
+              const Icon = adminMenuIcons[href];
+              return (
+                <DropdownMenuItem key={href} asChild>
+                  <Link href={href}>
+                    <Icon aria-hidden="true" />
+                    {label}
+                  </Link>
+                </DropdownMenuItem>
+              );
+            })}
+            <DropdownMenuSeparator />
+          </>
+        ) : null}
         <DropdownMenuItem
           variant="destructive"
           disabled={isSigningOut}

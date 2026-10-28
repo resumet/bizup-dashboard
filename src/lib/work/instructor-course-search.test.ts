@@ -65,7 +65,7 @@ test("강의별 여섯 화면의 링크를 만든다", () => {
     },
     {
       kind: "youtube",
-      label: "유튜브 출연 관리",
+      label: "강사 출연 유튜브 관리",
       href: "/services/youtube-management/course%2F1",
     },
     {
@@ -95,7 +95,7 @@ test("대시보드 강의 메뉴는 인스타그램·유튜브·웨비나·수�
     },
     {
       kind: "youtube",
-      label: "유튜브 출연 관리",
+      label: "강사 출연 유튜브 관리",
       href: "/services/youtube-management/course%2F1",
     },
     {

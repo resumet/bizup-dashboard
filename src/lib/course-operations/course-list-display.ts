@@ -25,7 +25,7 @@ export function getCourseManagementDestinations(
       href: `/services/instagram-management/${encodedCourseId}`,
     },
     {
-      label: "유튜브 출연 관리",
+      label: "강사 출연 유튜브 관리",
       href: `/services/youtube-management/${encodedCourseId}`,
     },
     {

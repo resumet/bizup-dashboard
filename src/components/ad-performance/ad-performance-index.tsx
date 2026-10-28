@@ -92,7 +92,7 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
     <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon-sm" asChild><BackLink href="/services/ad-performance"><ArrowLeft />뒤로가기</BackLink></Button>
-        <h1 className="text-3xl font-semibold tracking-tight">광고성과 관리</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">내부광고 성과기록</h1>
       </div>
       {error ? <Alert variant="destructive" className="mt-6"><AlertTriangle /><AlertTitle>확인이 필요합니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
 

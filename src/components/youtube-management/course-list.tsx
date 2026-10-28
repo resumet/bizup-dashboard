@@ -17,7 +17,7 @@ export function YoutubeCourseList({courses,embedded=false}:{courses:Array<Course
   const grouped=groupYoutubeCourses(visible);
   return <div className={embedded ? "space-y-6" : "mx-auto max-w-6xl space-y-6 px-5 py-8"}>
     {!embedded ? <Link href="/work" className="text-sm hover:underline">← 운영 워크스페이스</Link> : null}
-    <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-semibold">유튜브 출연 관리</h1><Button variant="outline" disabled={busy} onClick={()=>void openConnection()}>노션 연결</Button></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-semibold">강사 출연 유튜브 관리</h1><Button variant="outline" disabled={busy} onClick={()=>void openConnection()}>노션 연결</Button></div>
     <Input aria-label="강의 검색" placeholder="강의명, 강사명, 기수 검색" value={search} onChange={event=>setSearch(event.target.value)} />
     <div className="space-y-4">{YOUTUBE_COURSE_GROUPS.map(group=>{
       const items=grouped[group.key];

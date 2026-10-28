@@ -44,7 +44,7 @@ test("대표이미지가 없거나 공유가 비활성 상태면 깨진 이미�
   assert.equal(noBanner.twitter.card, "summary");
 
   const unavailable = youtubeShareMetadata(null, "schedule", "/public/youtube/schedule/token", "");
-  assert.deepEqual(unavailable.title, { absolute: "유튜브 출연 관리" });
+  assert.deepEqual(unavailable.title, { absolute: "강사 출연 유튜브 관리" });
   assert.deepEqual(unavailable.openGraph?.images, []);
   assert.ok(!JSON.stringify(unavailable).includes(course.name));
 });

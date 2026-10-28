@@ -5,7 +5,8 @@ import { filterDashboardCourses, filterDashboardMenus } from "./menu-search";
 
 test("새 메뉴명과 기존 메뉴명 모두 같은 메뉴를 추천한다", () => {
   assert.equal(filterDashboardMenus("인스타그램")[0]?.href, "/services/instagram-management");
-  assert.equal(filterDashboardMenus("유튜브 출연")[0]?.href, "/services/youtube-management");
+  assert.equal(filterDashboardMenus("강사 출연 유튜브")[0]?.href, "/services/youtube-management");
+  assert.equal(filterDashboardMenus("유튜브 출연 관리")[0]?.href, "/services/youtube-management");
   assert.deepEqual(filterDashboardMenus("콘텐츠 관리").map(({ href }) => href), [
     "/services/instagram-management",
     "/services/youtube-management",
@@ -23,12 +24,12 @@ test("업무 관리 허브와 강의 일정 플래너를 새 위치로 추천한
   assert.equal(result?.group, "근태관리/업무일지/비품신청");
 });
 
-test("명단 · 메시지의 도구 허브와 영상 대본 추출을 추천한다", () => {
+test("기타의 도구 허브와 영상 대본 추출을 추천한다", () => {
   const hub = filterDashboardMenus("업무 도구")[0];
   const transcription = filterDashboardMenus("영상 대본 추출")[0];
 
   assert.equal(hub?.href, "/services/tools");
-  assert.equal(hub?.group, "명단 · 메시지");
+  assert.equal(hub?.group, "기타");
   assert.equal(transcription?.href, "/extras");
   assert.equal(transcription?.group, "도구");
 });
@@ -57,10 +58,17 @@ test("업무일지의 새 메뉴명과 기존 팀 업무 검색어를 모두 지
   assert.equal(filterDashboardMenus("팀 업무")[0]?.href, "/hr");
 });
 
-test("외부 마케팅과 광고성과는 퍼포먼스 광고로, 입출금 장부는 관리자로 분류한다", () => {
-  assert.equal(filterDashboardMenus("외부 마케팅")[0]?.group, "퍼포먼스 광고");
-  assert.equal(filterDashboardMenus("광고성과")[0]?.group, "퍼포먼스 광고");
+test("새 광고 메뉴명과 기존 검색어를 지원하고 입출금 장부는 관리자로 분류한다", () => {
+  assert.equal(filterDashboardMenus("외부광고 성과기록")[0]?.group, "퍼포먼스 광고");
+  assert.equal(filterDashboardMenus("외부 마케팅")[0]?.href, "/services/external-marketing");
+  assert.equal(filterDashboardMenus("내부광고 성과기록")[0]?.group, "퍼포먼스 광고");
+  assert.equal(filterDashboardMenus("광고성과")[0]?.href, "/services/ad-performance");
   assert.equal(filterDashboardMenus("입출금 장부")[0]?.group, "관리자");
+});
+
+test("유튜브 채널 관리와 도구는 기타로 분류한다", () => {
+  assert.equal(filterDashboardMenus("유튜브 채널 관리")[0]?.group, "기타");
+  assert.equal(filterDashboardMenus("업무 도구")[0]?.group, "기타");
 });
 
 test("관리자가 추가한 검색어로 메뉴를 추천한다", () => {

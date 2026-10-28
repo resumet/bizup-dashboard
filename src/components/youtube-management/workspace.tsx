@@ -19,7 +19,7 @@ export function YoutubeWorkspace({initial,initialTab="schedule",embedded=false}:
   }
   return <div className={embedded ? "space-y-6" : "mx-auto max-w-6xl space-y-6 px-5 py-8"}>
     {!embedded ? <div className="flex flex-wrap items-center justify-between gap-3">
-      <Link href="/services/youtube-management" className="text-sm hover:underline">← 유튜브 출연 관리</Link>
+      <Link href="/services/youtube-management" className="text-sm hover:underline">← 강사 출연 유튜브 관리</Link>
       <Button asChild variant="outline"><a href={`/services/course-operations/${initial.course.id}`} target="_blank" rel="noopener noreferrer" aria-label="강의 상세보기 (새 창)">강의 상세보기<ExternalLink /></a></Button>
     </div> : null}
     <h1 className="text-2xl font-semibold">{initial.course.instructor_name} · {initial.course.name}{initial.course.cohort?` · ${initial.course.cohort}`:""}</h1>

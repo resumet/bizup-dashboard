@@ -5,7 +5,7 @@ import { taskLink, taskLinkHref } from "./task-links";
 import { reusableItems } from "./template-items";
 import { applyTemplateToCourse } from "./webinar-date";
 
-const link = { type: "internal" as const, url: "/services/youtube-management/{courseId}", label: "유튜브 출연 관리" };
+const link = { type: "internal" as const, url: "/services/youtube-management/{courseId}", label: "강사 출연 유튜브 관리" };
 const item = { id: "task", title: "유튜브 신청서 강사님 전달", link };
 
 test("연결 주소를 검증하고 템플릿 저장·적용·WBS 저장 후에도 강의별 화면 연결을 보존한다", () => {
