@@ -64,9 +64,9 @@ function ReleaseDownloadCard({
       <CardContent className="flex min-h-56 flex-col items-center gap-4 p-5 text-center">
         <div className="flex flex-col items-center gap-3">
           <span
-            className={`grid size-9 shrink-0 place-items-center rounded-lg ${iconClassName}`}
+            className={`grid size-12 shrink-0 place-items-center rounded-xl ${iconClassName}`}
           >
-            <Icon className="size-4" aria-hidden="true" />
+            <Icon className="size-6" aria-hidden="true" />
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center justify-center gap-2">
@@ -164,7 +164,7 @@ export default async function ToolsPage() {
   return (
     <main className="min-h-screen">
       <header className="border-b bg-background">
-        <div className="mx-auto flex h-18 max-w-6xl items-center px-5 lg:px-8">
+        <div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
           <Button variant="ghost" size="sm" asChild>
             <BackLink href="/">
               <ArrowLeft />
@@ -176,12 +176,12 @@ export default async function ToolsPage() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl space-y-10 px-5 py-10 lg:px-8">
+      <div className="mx-auto max-w-[1900px] space-y-10 px-5 py-10 lg:px-8">
         <section className="space-y-4" aria-labelledby="online-tools-heading">
           <h2 id="online-tools-heading" className="text-lg font-semibold">
             온라인 도구
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {TOOL_HUB_ITEMS.map(({ label, href }) => {
               const { icon: Icon, iconClassName } = toolAppearance[href];
               return (
@@ -193,9 +193,9 @@ export default async function ToolsPage() {
                   <Card className="h-full transition-colors group-hover:border-primary/35 group-hover:bg-muted/20">
                     <CardContent className="flex min-h-32 flex-col items-center justify-center gap-3 p-5 text-center">
                       <span
-                        className={`grid size-9 shrink-0 place-items-center rounded-lg ${iconClassName}`}
+                        className={`grid size-12 shrink-0 place-items-center rounded-xl ${iconClassName}`}
                       >
-                        <Icon className="size-4" aria-hidden="true" />
+                        <Icon className="size-6" aria-hidden="true" />
                       </span>
                       <h3 className="font-semibold leading-snug tracking-tight">
                         {label}
@@ -212,7 +212,7 @@ export default async function ToolsPage() {
           <h2 id="downloads-heading" className="text-lg font-semibold">
             다운로드
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <ReleaseDownloadCard
               title="유튜브 라이브 레코더"
               description="최신 GitHub 릴리즈의 설치 파일을 내려받습니다."
