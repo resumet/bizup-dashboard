@@ -3,7 +3,9 @@ import type {
   CourseCostInput,
   CourseCostTaxType,
 } from "./types";
-import { parseYoutubeRsCostDetails, youtubeRsTotals } from "./youtube-rs";
+import { parseCourseCostCalculationDetails } from "./calculation-details";
+import { youtubeAppearanceFeeTotals } from "./youtube-appearance-fee";
+import { youtubeRsTotals } from "./youtube-rs";
 
 export function calculateTax(grossAmount: number, taxType: CourseCostTaxType) {
   const gross = Number.isSafeInteger(grossAmount) && grossAmount >= 0 ? grossAmount : 0;
@@ -42,13 +44,27 @@ const STATUSES = new Set(["PLANNED", "PAID", "CANCELED"]);
 
 export function parseCourseCostInput(value: unknown): CourseCostInput {
   const input = typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
-  const calculationDetails = parseYoutubeRsCostDetails(input.calculationDetails);
-  const name = calculationDetails ? "유튜브 RS" : typeof input.name === "string" ? input.name.trim() : "";
-  const managerName = calculationDetails ? "유튜브" : typeof input.managerName === "string" ? input.managerName.trim() : "";
+  const calculationDetails = parseCourseCostCalculationDetails(input.calculationDetails);
+  const isYoutubeRs = calculationDetails?.kind === "YOUTUBE_RS";
+  const isYoutubeAppearanceFee = calculationDetails?.kind === "YOUTUBE_APPEARANCE_FEE";
+  const name = isYoutubeRs
+    ? "유튜브 RS"
+    : isYoutubeAppearanceFee
+      ? "유튜브 출연료"
+      : typeof input.name === "string" ? input.name.trim() : "";
+  const managerName = isYoutubeRs
+    ? "유튜브"
+    : isYoutubeAppearanceFee
+      ? "시스템노바"
+      : typeof input.managerName === "string" ? input.managerName.trim() : "";
   const requestedBurden = input.burdenType as CourseCostBurden;
-  const burdenType = requestedBurden === "UNCLASSIFIED" ? "COMPANY" : requestedBurden;
+  const burdenType = isYoutubeAppearanceFee || requestedBurden === "UNCLASSIFIED" ? "COMPANY" : requestedBurden;
   const status = String(input.status);
-  const grossAmount = calculationDetails ? youtubeRsTotals(calculationDetails).feeAmount : Number(input.grossAmount);
+  const grossAmount = isYoutubeRs
+    ? youtubeRsTotals(calculationDetails).feeAmount
+    : isYoutubeAppearanceFee
+      ? youtubeAppearanceFeeTotals(calculationDetails).feeAmount
+      : Number(input.grossAmount);
   if (!name || name.length > 100) throw new Error("비용 이름은 1~100자로 입력해 주세요.");
   if (!managerName || managerName.length > 100) throw new Error("담당자를 입력해 주세요.");
   if (!BURDENS.has(requestedBurden)) throw new Error("비용 구분을 확인해 주세요.");
@@ -61,7 +77,11 @@ export function parseCourseCostInput(value: unknown): CourseCostInput {
     throw new Error("회사 부담률은 0~100%여야 합니다.");
   }
   return {
-    categoryCode: calculationDetails ? "YOUTUBE_RS" : typeof input.categoryCode === "string" ? input.categoryCode.trim().slice(0, 50) || "CUSTOM" : "CUSTOM",
+    categoryCode: isYoutubeRs
+      ? "YOUTUBE_RS"
+      : isYoutubeAppearanceFee
+        ? "YOUTUBE_FIXED"
+        : typeof input.categoryCode === "string" ? input.categoryCode.trim().slice(0, 50) || "CUSTOM" : "CUSTOM",
     name,
     burdenType,
     managerUserId: typeof input.managerUserId === "string" && input.managerUserId ? input.managerUserId : null,

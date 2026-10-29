@@ -10,7 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { calculateBurden, calculateTax } from "@/lib/course-costs/calculation";
+import { YoutubeAppearanceFeeDialog } from "@/components/course-costs/youtube-appearance-fee-dialog";
 import { YoutubeRsCostDialog } from "@/components/course-costs/youtube-rs-cost-dialog";
+import { youtubeAppearanceFeeTotals } from "@/lib/course-costs/youtube-appearance-fee";
 import { youtubeRsTotals } from "@/lib/course-costs/youtube-rs";
 import {
   COURSE_COST_DEFAULT_CATEGORIES,
@@ -18,6 +20,7 @@ import {
   type CourseCostAttachment,
   type CourseCostBurden,
   type CourseCostInput,
+  type YoutubeAppearanceFeeCostDetails,
   type YoutubeRsCostDetails,
 } from "@/lib/course-costs/types";
 
@@ -135,6 +138,9 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
   const [youtubeRsOpen, setYoutubeRsOpen] = useState(false);
   const [youtubeRsTargetKey, setYoutubeRsTargetKey] = useState<string | null>(null);
   const [youtubeRsInitialDetails, setYoutubeRsInitialDetails] = useState<YoutubeRsCostDetails | null>(null);
+  const [youtubeAppearanceFeeOpen, setYoutubeAppearanceFeeOpen] = useState(false);
+  const [youtubeAppearanceFeeTargetKey, setYoutubeAppearanceFeeTargetKey] = useState<string | null>(null);
+  const [youtubeAppearanceFeeInitialDetails, setYoutubeAppearanceFeeInitialDetails] = useState<YoutubeAppearanceFeeCostDetails | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -194,8 +200,16 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
 
   function openYoutubeRsDialog(draft?: CostDraft) {
     setYoutubeRsTargetKey(draft?.key ?? null);
-    setYoutubeRsInitialDetails(draft?.value.calculationDetails ?? null);
+    setYoutubeRsInitialDetails(draft?.value.calculationDetails?.kind === "YOUTUBE_RS" ? draft.value.calculationDetails : null);
     setYoutubeRsOpen(true);
+  }
+
+  function openYoutubeAppearanceFeeDialog(draft?: CostDraft) {
+    setYoutubeAppearanceFeeTargetKey(draft?.key ?? null);
+    setYoutubeAppearanceFeeInitialDetails(
+      draft?.value.calculationDetails?.kind === "YOUTUBE_APPEARANCE_FEE" ? draft.value.calculationDetails : null,
+    );
+    setYoutubeAppearanceFeeOpen(true);
   }
 
   function applyYoutubeRs(details: YoutubeRsCostDetails) {
@@ -221,6 +235,31 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
       setNotice("");
     }
     setYoutubeRsOpen(false);
+  }
+
+  function applyYoutubeAppearanceFee(details: YoutubeAppearanceFeeCostDetails) {
+    const grossAmount = youtubeAppearanceFeeTotals(details).feeAmount;
+    const patch: Partial<CourseCostInput> = {
+      categoryCode: "YOUTUBE_FIXED",
+      name: "유튜브 출연료",
+      managerName: "시스템노바",
+      grossAmount,
+      calculationDetails: details,
+    };
+    if (youtubeAppearanceFeeTargetKey) {
+      updateDraft(youtubeAppearanceFeeTargetKey, patch);
+    } else {
+      const key = crypto.randomUUID();
+      setDrafts((current) => [...current, {
+        key,
+        id: null,
+        value: { ...emptyInput("COMPANY", "YOUTUBE_FIXED", "유튜브 출연료"), ...patch },
+        attachments: [],
+      }]);
+      setDirtyKeys((current) => new Set(current).add(key));
+      setNotice("");
+    }
+    setYoutubeAppearanceFeeOpen(false);
   }
 
   function updateDraft(key: string, patch: Partial<CourseCostInput>) {
@@ -323,11 +362,11 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
       return <Card key={burden.value}>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>{burden.label}</CardTitle><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={busy || items.length === 0} onClick={() => setSectionPaid(burden.value)}><CheckCircle2/>전체 지급완료</Button><Button type="button" variant="outline" disabled={busy || !hasPaidItem} onClick={() => setSectionDateToday(burden.value)}><CalendarDays/>정산일 오늘로</Button><Button type="button" variant="outline" disabled={busy} onClick={() => addDraft(burden.value)}><Plus/>기타 비용 추가</Button></div></div>
-          <div className="flex flex-wrap gap-2">{COURSE_COST_DEFAULT_CATEGORIES[burden.value].map(([code,name]) => <Button type="button" key={code} size="sm" variant="secondary" disabled={busy} onClick={() => code === "YOUTUBE_RS" ? openYoutubeRsDialog() : addDraft(burden.value, code, name)}>{name} 등록</Button>)}</div>
+          <div className="flex flex-wrap gap-2">{COURSE_COST_DEFAULT_CATEGORIES[burden.value].map(([code,name]) => <Button type="button" key={code} size="sm" variant="secondary" disabled={busy} onClick={() => code === "YOUTUBE_RS" ? openYoutubeRsDialog() : code === "YOUTUBE_FIXED" ? openYoutubeAppearanceFeeDialog() : addDraft(burden.value, code, name)}>{name} 등록</Button>)}</div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className={`${COST_ROW_GRID} hidden border-b px-3 pb-2 text-xs font-medium text-muted-foreground xl:grid`}><span>이름</span><span>담당자</span><span>정산금액</span><span>비용상태</span><span>정산일</span><span className="sr-only">관리</span></div>
-          {items.map((draft) => <CostEditor key={draft.key} draft={draft} locked={locked} busy={busy} courseId={courseId} onChange={(patch) => updateDraft(draft.key, patch)} onDelete={() => removeDraft(draft)} onEditYoutubeRs={() => openYoutubeRsDialog(draft)} onBusy={setBusy} onError={setError} onApply={applyAttachmentResponse}/>)}
+          {items.map((draft) => <CostEditor key={draft.key} draft={draft} locked={locked} busy={busy} courseId={courseId} onChange={(patch) => updateDraft(draft.key, patch)} onDelete={() => removeDraft(draft)} onEditCalculation={() => draft.value.calculationDetails?.kind === "YOUTUBE_RS" ? openYoutubeRsDialog(draft) : openYoutubeAppearanceFeeDialog(draft)} onBusy={setBusy} onError={setError} onApply={applyAttachmentResponse}/>)}
           {!items.length ? <p className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">등록된 비용이 없습니다.</p> : null}
         </CardContent>
       </Card>;
@@ -337,17 +376,18 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
       <Button type="button" size="lg" disabled={busy || changeCount === 0} onClick={() => void saveChanges()}>{busy ? <Loader2 className="animate-spin"/> : <Save/>}비용 변경사항 저장</Button>
     </div>
     {youtubeRsOpen ? <YoutubeRsCostDialog courseId={courseId} open initialDetails={youtubeRsInitialDetails} onOpenChange={setYoutubeRsOpen} onConfirm={applyYoutubeRs}/> : null}
+    {youtubeAppearanceFeeOpen ? <YoutubeAppearanceFeeDialog courseId={courseId} open initialDetails={youtubeAppearanceFeeInitialDetails} onOpenChange={setYoutubeAppearanceFeeOpen} onConfirm={applyYoutubeAppearanceFee}/> : null}
   </div>;
 }
 
-function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onEditYoutubeRs, onBusy, onError, onApply }: {
+function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onEditCalculation, onBusy, onError, onApply }: {
   draft: CostDraft;
   locked: boolean;
   busy: boolean;
   courseId: string;
   onChange: (patch: Partial<CourseCostInput>) => void;
   onDelete: () => void;
-  onEditYoutubeRs: () => void;
+  onEditCalculation: () => void;
   onBusy: (value: boolean) => void;
   onError: (value: string) => void;
   onApply: (body: CostResponse, message: string) => void;
@@ -412,12 +452,12 @@ function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onEditY
       <Paperclip className="size-4"/>{draft.attachments.length ? <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-blue-600 text-[10px] text-white">{draft.attachments.length}</span> : null}
     </Button>
     <Button type="button" size="icon" variant="outline" className="size-10 shrink-0 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-300" title="비용 삭제" aria-label={`${draft.value.name || "새 비용"} 삭제`} disabled={busy} onClick={onDelete}><Trash2/></Button>
-    {draft.value.calculationDetails?.kind === "YOUTUBE_RS" ? <Button type="button" size="icon" variant="outline" className="size-10 shrink-0" title="유튜브 RS 상세 내역 보기 및 수정" aria-label="유튜브 RS 상세 내역 보기 및 수정" disabled={busy} onClick={onEditYoutubeRs}><PencilLine/></Button> : null}
+    {draft.value.calculationDetails ? <Button type="button" size="icon" variant="outline" className="size-10 shrink-0" title={`${draft.value.name} 상세 내역 보기 및 수정`} aria-label={`${draft.value.name} 상세 내역 보기 및 수정`} disabled={busy} onClick={onEditCalculation}><PencilLine/></Button> : null}
   </div>;
 
   return <>
     <div>
-      <CompactCostFields value={draft.value} showLabels={false} actions={actions} onChange={onChange} calculationLocked={draft.value.calculationDetails?.kind === "YOUTUBE_RS"}/>
+      <CompactCostFields value={draft.value} showLabels={false} actions={actions} onChange={onChange} calculationLocked={Boolean(draft.value.calculationDetails)}/>
       {draft.attachments.length ? <div className="mt-2 flex flex-wrap items-center gap-2">{draft.attachments.map((file) => <span key={file.id} className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs"><Paperclip className="size-3"/>{file.url ? <a href={file.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">{file.originalName}<ExternalLink className="size-3"/></a> : file.originalName}<button type="button" disabled={locked || busy} title={locked ? "정산 확정 취소 후 삭제할 수 있습니다." : "증빙 삭제"} aria-label={`${file.originalName} 삭제`} onClick={() => void request(`/api/course-operations/${courseId}/costs/${draft.id}/attachments/${file.id}`, { method: "DELETE" }).then((body) => onApply(body, "증빙을 삭제했습니다."), (reason: unknown) => onError(reason instanceof Error ? reason.message : "증빙을 삭제하지 못했습니다."))}>×</button></span>)}</div> : null}
     </div>
     <Dialog open={attachmentOpen} onOpenChange={(open) => { if (open) setAttachmentOpen(true); else closeAttachmentDialog(); }}>

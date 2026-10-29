@@ -44,6 +44,26 @@ export type YoutubeRsCostDetails = {
   channels: YoutubeRsChannelDetail[];
 };
 
+export type YoutubeAppearanceFeeChannelDetail = {
+  appearanceId: string;
+  channelName: string;
+  channelUrl: string;
+  linkedChannelId: string | null;
+  linkedChannelName: string;
+  linkedChannelUrl: string;
+  appearanceFee: number | null;
+  included: boolean;
+};
+
+export type YoutubeAppearanceFeeCostDetails = {
+  kind: "YOUTUBE_APPEARANCE_FEE";
+  version: 1;
+  calculatedAt: string;
+  channels: YoutubeAppearanceFeeChannelDetail[];
+};
+
+export type CourseCostCalculationDetails = YoutubeRsCostDetails | YoutubeAppearanceFeeCostDetails;
+
 export type CourseCost = {
   id: string;
   courseId: string;
@@ -68,7 +88,7 @@ export type CourseCost = {
   instructorShareAmount: number;
   includeInSettlement: boolean;
   note: string;
-  calculationDetails: YoutubeRsCostDetails | null;
+  calculationDetails: CourseCostCalculationDetails | null;
   migratedFrom: string | null;
   version: number;
   createdBy: string;
@@ -94,7 +114,7 @@ export type CourseCostInput = Omit<
   | "updatedAt"
   | "attachments"
   | "calculationDetails"
-> & { version?: number; calculationDetails?: YoutubeRsCostDetails | null };
+> & { version?: number; calculationDetails?: CourseCostCalculationDetails | null };
 
 export type CourseCostAudit = {
   id: number;
