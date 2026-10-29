@@ -165,34 +165,6 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
 
         <div className="grid gap-5 lg:grid-cols-2">
           <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
-            <SectionHeader title="출장보고" href="/services/business-trip-reports" />
-            <CardContent className="p-4 sm:p-5">
-              {data.errors.tripReports ? <ErrorState>{data.errors.tripReports}</ErrorState> : (
-                <Link href="/services/business-trip-reports" className="group flex min-h-36 items-center gap-4 rounded-xl border border-slate-200 p-5 transition-colors hover:border-rose-300 hover:bg-rose-50/40">
-                  <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-rose-50 text-rose-700">
-                    <PlaneTakeoff className="size-6" aria-hidden="true" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-muted-foreground">지급해야 할 출장 비용</p>
-                    {data.businessTrips.unpaidCount ? (
-                      <>
-                        <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">{numberFormatter.format(data.businessTrips.unpaidCost)}원</p>
-                        <p className="mt-1 text-sm text-rose-700">미지급 출장보고 {numberFormatter.format(data.businessTrips.unpaidCount)}건</p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="mt-1 text-xl font-semibold text-emerald-700">지급할 비용 없음</p>
-                        <p className="mt-1 text-sm text-muted-foreground">등록된 출장 비용이 모두 지급됐습니다.</p>
-                      </>
-                    )}
-                  </div>
-                  <ArrowRight className="size-5 shrink-0 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-rose-700" aria-hidden="true" />
-                </Link>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
             <SectionHeader title="현재 진행 중인 강의" href="/services/course-operations" />
             <CardContent className="p-4 sm:p-5">
               {data.errors.courses ? <ErrorState>{data.errors.courses}</ErrorState> : data.courses.length ? (
@@ -319,6 +291,34 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
                   ))}
                 </div>
               ) : <EmptyState>현재 진행 중인 외부 마케팅 강의가 없습니다.</EmptyState>}
+            </CardContent>
+          </Card>
+
+          <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
+            <SectionHeader title="출장보고" href="/services/business-trip-reports" />
+            <CardContent className="p-4 sm:p-5">
+              {data.errors.tripReports ? <ErrorState>{data.errors.tripReports}</ErrorState> : (
+                <Link href="/services/business-trip-reports" className="group flex min-h-36 items-center gap-4 rounded-xl border border-slate-200 p-5 transition-colors hover:border-rose-300 hover:bg-rose-50/40">
+                  <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-rose-50 text-rose-700">
+                    <PlaneTakeoff className="size-6" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-muted-foreground">지급해야 할 출장 비용</p>
+                    {data.businessTrips.unpaidCount ? (
+                      <>
+                        <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">{numberFormatter.format(data.businessTrips.unpaidCost)}원</p>
+                        <p className="mt-1 text-sm text-rose-700">미지급 출장보고 {numberFormatter.format(data.businessTrips.unpaidCount)}건</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="mt-1 text-xl font-semibold text-emerald-700">지급할 비용 없음</p>
+                        <p className="mt-1 text-sm text-muted-foreground">등록된 출장 비용이 모두 지급됐습니다.</p>
+                      </>
+                    )}
+                  </div>
+                  <ArrowRight className="size-5 shrink-0 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-rose-700" aria-hidden="true" />
+                </Link>
+              )}
             </CardContent>
           </Card>
         </div>
