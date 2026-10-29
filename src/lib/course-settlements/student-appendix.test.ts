@@ -11,11 +11,11 @@ test("수강생의 클래스와 결제금액을 매핑하고 미등록 금액을
   assert.equal(toStatementStudent({ ...row, values: { ...row.values, paymentAmount: "0" } }, "기본").paymentAmount, 0);
 });
 
-test("유튜브 RS 구성과 공동 부담 증빙은 수강생 목록 뒤 순서대로 배치한다", () => {
-  const html = composeStatementPrintHtml("<main>정산 본문</main>", [], "<section>유튜브 RS 상세 구성</section><section>공동 부담 증빙</section>");
+test("유튜브 채널 비용 상세와 공동 부담 증빙은 수강생 목록 뒤 순서대로 배치한다", () => {
+  const html = composeStatementPrintHtml("<main>정산 본문</main>", [], "<section>유튜브 채널 출연료 / RS 비용 상세 내역</section><section>공동 부담 증빙</section>");
   assert.ok(html.indexOf("정산 본문") < html.indexOf("수강생 목록"));
-  assert.ok(html.indexOf("수강생 목록") < html.indexOf("유튜브 RS 상세 구성"));
-  assert.ok(html.indexOf("유튜브 RS 상세 구성") < html.indexOf("공동 부담 증빙"));
+  assert.ok(html.indexOf("수강생 목록") < html.indexOf("유튜브 채널 출연료 / RS 비용 상세 내역"));
+  assert.ok(html.indexOf("유튜브 채널 출연료 / RS 비용 상세 내역") < html.indexOf("공동 부담 증빙"));
 });
 
 test("인쇄 명단은 새 페이지에서 시작하며 동명이인과 HTML 문자를 보존한다", () => {
