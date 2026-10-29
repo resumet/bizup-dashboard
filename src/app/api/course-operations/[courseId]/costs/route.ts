@@ -37,7 +37,7 @@ export async function POST(request: Request, { params }: Context) {
       evidence_types: input.evidenceTypes, other_evidence_type: input.otherEvidenceType,
       company_share_rate: burden.companyShareRate, instructor_share_rate: burden.instructorShareRate,
       company_share_amount: burden.companyShareAmount, instructor_share_amount: burden.instructorShareAmount,
-      include_in_settlement: input.includeInSettlement, note: input.note, created_by: user.id, updated_by: user.id,
+      include_in_settlement: input.includeInSettlement, note: input.note, calculation_details: input.calculationDetails, created_by: user.id, updated_by: user.id,
     }).select("id").single();
     if (error || !data) throw new Error(`비용 저장 실패: ${error?.code}`);
     await admin.from("course_cost_audit_logs").insert({ course_cost_id: data.id, course_id: courseId, actor_id: user.id, action: "CREATED", after_data: input });
@@ -65,6 +65,7 @@ function databaseValues(value: unknown) {
     instructor_share_rate: burden.instructorShareRate,
     company_share_amount: burden.companyShareAmount,
     instructor_share_amount: burden.instructorShareAmount,
+    calculation_details: input.calculationDetails,
   };
 }
 

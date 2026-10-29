@@ -73,11 +73,11 @@ const HEADER_ROW_COUNT = 2;
 const PAGE_SIZE = 100;
 const TRACKING_FILE_EXTENSION = /\.(xlsx|csv)$/iu;
 const TABLE_TEXT_SIZES = [
-  { body: 9, header: 8, headerRow: 26 },
-  { body: 10, header: 9, headerRow: 28 },
-  { body: 12, header: 11, headerRow: 32 },
-  { body: 14, header: 13, headerRow: 38 },
-  { body: 16, header: 15, headerRow: 44 },
+  { body: 9, header: 8, headerRow: 26, bodyRow: 24 },
+  { body: 10, header: 9, headerRow: 28, bodyRow: 26 },
+  { body: 12, header: 11, headerRow: 32, bodyRow: 31 },
+  { body: 14, header: 13, headerRow: 38, bodyRow: 37 },
+  { body: 16, header: 15, headerRow: 44, bodyRow: 44 },
 ] as const;
 
 type SelectedDate = {
@@ -885,7 +885,7 @@ export function MeaningSheetWorkspace({
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow className="bg-primary/10 font-semibold hover:bg-primary/10">
+              <TableRow className="bg-primary/10 font-semibold hover:bg-primary/10" style={{ height: tableTextSize.bodyRow }}>
                 {totals.map((item, index) => index === 0
                   ? <TableHead key={index} scope="row" className="sticky left-0 z-10 border-r-2 bg-muted text-left font-sans">합계</TableHead>
                   : <TableCell key={index} className="whitespace-nowrap border-r text-right">{formatAdPerformanceTableCell(item)}</TableCell>)}
@@ -893,7 +893,7 @@ export function MeaningSheetWorkspace({
               {visibleRows.map((row, rowIndex) => {
                 const sourceRow = start + rowIndex + HEADER_ROW_COUNT + 1;
                 const { metricDate, cells } = adPerformanceTableRow(row, dashboardStartDate, sheetState);
-                return <TableRow key={sourceRow}>
+                return <TableRow key={sourceRow} style={{ height: tableTextSize.bodyRow }}>
                   {cells.map((item, columnIndex) => {
                     const displayCell = formatAdPerformanceTableCell(item);
                     return columnIndex === 0 ? <TableCell key={columnIndex} className="sticky left-0 z-10 min-w-18 border-r-2 bg-background shadow-[2px_0_0_0_var(--border)]">

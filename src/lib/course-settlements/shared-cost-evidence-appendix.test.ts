@@ -13,6 +13,7 @@ function cost(input: Partial<CourseCost>): CourseCost {
     createdBy: "", createdAt: "", updatedBy: "", updatedAt: "",
     attachments: [{ id: "image-1", originalName: "영수증.png", mimeType: "image/png", size: 100, uploadedAt: "", uploadedBy: "", storagePath: "", url: "https://example.com/image.png?a=1&b=2" }],
     ...input,
+    calculationDetails: input.calculationDetails ?? null,
   };
 }
 

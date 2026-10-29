@@ -3,6 +3,7 @@ import type {
   CourseCostInput,
   CourseCostTaxType,
 } from "./types";
+import { parseYoutubeRsCostDetails, youtubeRsTotals } from "./youtube-rs";
 
 export function calculateTax(grossAmount: number, taxType: CourseCostTaxType) {
   const gross = Number.isSafeInteger(grossAmount) && grossAmount >= 0 ? grossAmount : 0;
@@ -41,12 +42,13 @@ const STATUSES = new Set(["PLANNED", "PAID", "CANCELED"]);
 
 export function parseCourseCostInput(value: unknown): CourseCostInput {
   const input = typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
-  const name = typeof input.name === "string" ? input.name.trim() : "";
-  const managerName = typeof input.managerName === "string" ? input.managerName.trim() : "";
+  const calculationDetails = parseYoutubeRsCostDetails(input.calculationDetails);
+  const name = calculationDetails ? "유튜브 RS" : typeof input.name === "string" ? input.name.trim() : "";
+  const managerName = calculationDetails ? "유튜브" : typeof input.managerName === "string" ? input.managerName.trim() : "";
   const requestedBurden = input.burdenType as CourseCostBurden;
   const burdenType = requestedBurden === "UNCLASSIFIED" ? "COMPANY" : requestedBurden;
   const status = String(input.status);
-  const grossAmount = Number(input.grossAmount);
+  const grossAmount = calculationDetails ? youtubeRsTotals(calculationDetails).feeAmount : Number(input.grossAmount);
   if (!name || name.length > 100) throw new Error("비용 이름은 1~100자로 입력해 주세요.");
   if (!managerName || managerName.length > 100) throw new Error("담당자를 입력해 주세요.");
   if (!BURDENS.has(requestedBurden)) throw new Error("비용 구분을 확인해 주세요.");
@@ -59,7 +61,7 @@ export function parseCourseCostInput(value: unknown): CourseCostInput {
     throw new Error("회사 부담률은 0~100%여야 합니다.");
   }
   return {
-    categoryCode: typeof input.categoryCode === "string" ? input.categoryCode.trim().slice(0, 50) || "CUSTOM" : "CUSTOM",
+    categoryCode: calculationDetails ? "YOUTUBE_RS" : typeof input.categoryCode === "string" ? input.categoryCode.trim().slice(0, 50) || "CUSTOM" : "CUSTOM",
     name,
     burdenType,
     managerUserId: typeof input.managerUserId === "string" && input.managerUserId ? input.managerUserId : null,
@@ -76,6 +78,7 @@ export function parseCourseCostInput(value: unknown): CourseCostInput {
     instructorShareRate: burdenType === "SHARED" ? 100 - companyRate : burdenType === "INSTRUCTOR" ? 100 : 0,
     includeInSettlement: true,
     note: "",
+    calculationDetails,
     version: Number.isSafeInteger(Number(input.version)) ? Number(input.version) : undefined,
   };
 }

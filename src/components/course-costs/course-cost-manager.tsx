@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardPaste, ExternalLink, FileImage, Loader2, Paperclip, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
+import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardPaste, ExternalLink, FileImage, Loader2, Paperclip, PencilLine, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,12 +10,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { calculateBurden, calculateTax } from "@/lib/course-costs/calculation";
+import { YoutubeRsCostDialog } from "@/components/course-costs/youtube-rs-cost-dialog";
+import { youtubeRsTotals } from "@/lib/course-costs/youtube-rs";
 import {
   COURSE_COST_DEFAULT_CATEGORIES,
   type CourseCost,
   type CourseCostAttachment,
   type CourseCostBurden,
   type CourseCostInput,
+  type YoutubeRsCostDetails,
 } from "@/lib/course-costs/types";
 
 type FixedBurden = Exclude<CourseCostBurden, "UNCLASSIFIED">;
@@ -65,7 +68,7 @@ function emptyInput(burdenType: FixedBurden, categoryCode = "CUSTOM", name = "")
     evidenceNeedsReview: false, evidenceTypes: [], otherEvidenceType: "",
     companyShareRate: burdenType === "COMPANY" ? 100 : burdenType === "SHARED" ? 50 : 0,
     instructorShareRate: burdenType === "INSTRUCTOR" ? 100 : burdenType === "SHARED" ? 50 : 0,
-    includeInSettlement: true, note: "",
+    includeInSettlement: true, note: "", calculationDetails: null,
   };
 }
 
@@ -88,6 +91,7 @@ function editableCost(cost: CourseCost, sectionBurden?: FixedBurden): CourseCost
     instructorShareRate: cost.instructorShareRate,
     includeInSettlement: true,
     note: "",
+    calculationDetails: cost.calculationDetails,
     version: cost.version,
   };
 }
@@ -128,6 +132,9 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [youtubeRsOpen, setYoutubeRsOpen] = useState(false);
+  const [youtubeRsTargetKey, setYoutubeRsTargetKey] = useState<string | null>(null);
+  const [youtubeRsInitialDetails, setYoutubeRsInitialDetails] = useState<YoutubeRsCostDetails | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -183,6 +190,37 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
     setDrafts((current) => [...current, { key, id: null, value: emptyInput(burdenType, categoryCode, name), attachments: [] }]);
     setDirtyKeys((current) => new Set(current).add(key));
     setNotice("");
+  }
+
+  function openYoutubeRsDialog(draft?: CostDraft) {
+    setYoutubeRsTargetKey(draft?.key ?? null);
+    setYoutubeRsInitialDetails(draft?.value.calculationDetails ?? null);
+    setYoutubeRsOpen(true);
+  }
+
+  function applyYoutubeRs(details: YoutubeRsCostDetails) {
+    const grossAmount = youtubeRsTotals(details).feeAmount;
+    const patch: Partial<CourseCostInput> = {
+      categoryCode: "YOUTUBE_RS",
+      name: "유튜브 RS",
+      managerName: "유튜브",
+      grossAmount,
+      calculationDetails: details,
+    };
+    if (youtubeRsTargetKey) {
+      updateDraft(youtubeRsTargetKey, patch);
+    } else {
+      const key = crypto.randomUUID();
+      setDrafts((current) => [...current, {
+        key,
+        id: null,
+        value: { ...emptyInput("SHARED", "YOUTUBE_RS", "유튜브 RS"), ...patch },
+        attachments: [],
+      }]);
+      setDirtyKeys((current) => new Set(current).add(key));
+      setNotice("");
+    }
+    setYoutubeRsOpen(false);
   }
 
   function updateDraft(key: string, patch: Partial<CourseCostInput>) {
@@ -285,11 +323,11 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
       return <Card key={burden.value}>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>{burden.label}</CardTitle><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={busy || items.length === 0} onClick={() => setSectionPaid(burden.value)}><CheckCircle2/>전체 지급완료</Button><Button type="button" variant="outline" disabled={busy || !hasPaidItem} onClick={() => setSectionDateToday(burden.value)}><CalendarDays/>정산일 오늘로</Button><Button type="button" variant="outline" disabled={busy} onClick={() => addDraft(burden.value)}><Plus/>기타 비용 추가</Button></div></div>
-          <div className="flex flex-wrap gap-2">{COURSE_COST_DEFAULT_CATEGORIES[burden.value].map(([code,name]) => <Button type="button" key={code} size="sm" variant="secondary" disabled={busy} onClick={() => addDraft(burden.value, code, name)}>{name} 등록</Button>)}</div>
+          <div className="flex flex-wrap gap-2">{COURSE_COST_DEFAULT_CATEGORIES[burden.value].map(([code,name]) => <Button type="button" key={code} size="sm" variant="secondary" disabled={busy} onClick={() => code === "YOUTUBE_RS" ? openYoutubeRsDialog() : addDraft(burden.value, code, name)}>{name} 등록</Button>)}</div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className={`${COST_ROW_GRID} hidden border-b px-3 pb-2 text-xs font-medium text-muted-foreground xl:grid`}><span>이름</span><span>담당자</span><span>정산금액</span><span>비용상태</span><span>정산일</span><span className="sr-only">관리</span></div>
-          {items.map((draft) => <CostEditor key={draft.key} draft={draft} locked={locked} busy={busy} courseId={courseId} onChange={(patch) => updateDraft(draft.key, patch)} onDelete={() => removeDraft(draft)} onBusy={setBusy} onError={setError} onApply={applyAttachmentResponse}/>)}
+          {items.map((draft) => <CostEditor key={draft.key} draft={draft} locked={locked} busy={busy} courseId={courseId} onChange={(patch) => updateDraft(draft.key, patch)} onDelete={() => removeDraft(draft)} onEditYoutubeRs={() => openYoutubeRsDialog(draft)} onBusy={setBusy} onError={setError} onApply={applyAttachmentResponse}/>)}
           {!items.length ? <p className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">등록된 비용이 없습니다.</p> : null}
         </CardContent>
       </Card>;
@@ -298,16 +336,18 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
       {changeCount ? <span className="text-sm text-muted-foreground">저장하지 않은 변경 {changeCount}건</span> : null}
       <Button type="button" size="lg" disabled={busy || changeCount === 0} onClick={() => void saveChanges()}>{busy ? <Loader2 className="animate-spin"/> : <Save/>}비용 변경사항 저장</Button>
     </div>
+    {youtubeRsOpen ? <YoutubeRsCostDialog courseId={courseId} open initialDetails={youtubeRsInitialDetails} onOpenChange={setYoutubeRsOpen} onConfirm={applyYoutubeRs}/> : null}
   </div>;
 }
 
-function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onBusy, onError, onApply }: {
+function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onEditYoutubeRs, onBusy, onError, onApply }: {
   draft: CostDraft;
   locked: boolean;
   busy: boolean;
   courseId: string;
   onChange: (patch: Partial<CourseCostInput>) => void;
   onDelete: () => void;
+  onEditYoutubeRs: () => void;
   onBusy: (value: boolean) => void;
   onError: (value: string) => void;
   onApply: (body: CostResponse, message: string) => void;
@@ -372,11 +412,12 @@ function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onBusy,
       <Paperclip className="size-4"/>{draft.attachments.length ? <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-blue-600 text-[10px] text-white">{draft.attachments.length}</span> : null}
     </Button>
     <Button type="button" size="icon" variant="outline" className="size-10 shrink-0 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-300" title="비용 삭제" aria-label={`${draft.value.name || "새 비용"} 삭제`} disabled={busy} onClick={onDelete}><Trash2/></Button>
+    {draft.value.calculationDetails?.kind === "YOUTUBE_RS" ? <Button type="button" size="icon" variant="outline" className="size-10 shrink-0" title="유튜브 RS 상세 내역 보기 및 수정" aria-label="유튜브 RS 상세 내역 보기 및 수정" disabled={busy} onClick={onEditYoutubeRs}><PencilLine/></Button> : null}
   </div>;
 
   return <>
     <div>
-      <CompactCostFields value={draft.value} showLabels={false} actions={actions} onChange={onChange}/>
+      <CompactCostFields value={draft.value} showLabels={false} actions={actions} onChange={onChange} calculationLocked={draft.value.calculationDetails?.kind === "YOUTUBE_RS"}/>
       {draft.attachments.length ? <div className="mt-2 flex flex-wrap items-center gap-2">{draft.attachments.map((file) => <span key={file.id} className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs"><Paperclip className="size-3"/>{file.url ? <a href={file.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">{file.originalName}<ExternalLink className="size-3"/></a> : file.originalName}<button type="button" disabled={locked || busy} title={locked ? "정산 확정 취소 후 삭제할 수 있습니다." : "증빙 삭제"} aria-label={`${file.originalName} 삭제`} onClick={() => void request(`/api/course-operations/${courseId}/costs/${draft.id}/attachments/${file.id}`, { method: "DELETE" }).then((body) => onApply(body, "증빙을 삭제했습니다."), (reason: unknown) => onError(reason instanceof Error ? reason.message : "증빙을 삭제하지 못했습니다."))}>×</button></span>)}</div> : null}
     </div>
     <Dialog open={attachmentOpen} onOpenChange={(open) => { if (open) setAttachmentOpen(true); else closeAttachmentDialog(); }}>
@@ -435,15 +476,15 @@ function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onBusy,
   </>;
 }
 
-function CompactCostFields({ value, onChange, actions, showLabels = true }: { value: CourseCostInput; onChange: (patch: Partial<CourseCostInput>) => void; actions?: ReactNode; showLabels?: boolean }) {
+function CompactCostFields({ value, onChange, actions, showLabels = true, calculationLocked = false }: { value: CourseCostInput; onChange: (patch: Partial<CourseCostInput>) => void; actions?: ReactNode; showLabels?: boolean; calculationLocked?: boolean }) {
   const tax = calculateTax(value.grossAmount, "TAXABLE");
   const burden = calculateBurden(value.grossAmount, value.burdenType, value.companyShareRate);
   const shared = value.burdenType === "SHARED";
   const labelClass = showLabels ? "" : "xl:sr-only";
   return <div className={COST_ROW_GRID}>
-    <div className="min-w-0 space-y-1"><Label className={labelClass}>이름 *</Label><Input maxLength={100} value={value.name} onChange={(event) => onChange({ name: event.target.value })}/></div>
-    <div className="min-w-0 space-y-1"><Label className={labelClass}>담당자 *</Label><Input maxLength={100} value={value.managerName} onChange={(event) => onChange({ managerName: event.target.value })}/></div>
-    <div className="min-w-0 space-y-1"><Label className={labelClass}>정산금액 *</Label><div className="flex gap-1"><Input className="min-w-0 flex-1" inputMode="numeric" value={value.grossAmount ? value.grossAmount.toLocaleString("ko-KR") : ""} onChange={(event) => onChange({ grossAmount: Number(event.target.value.replace(/\D/gu, "")) })}/>{shared ? <div className="relative w-24 shrink-0"><Input aria-label="회사 부담률" type="number" min="0" max="100" className="pr-6" value={value.companyShareRate} onChange={(event) => { const companyShareRate = Number(event.target.value); onChange({ companyShareRate, instructorShareRate: 100 - companyShareRate }); }}/><span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span></div> : null}</div><p className="truncate px-1 text-[11px] text-muted-foreground">공급 {money(tax.supplyAmount)} · VAT {money(tax.vatAmount)}{shared ? ` · 회사 ${money(burden.companyShareAmount)} · 강사 ${money(burden.instructorShareAmount)}` : ""}</p></div>
+    <div className="min-w-0 space-y-1"><Label className={labelClass}>이름 *</Label><Input maxLength={100} readOnly={calculationLocked} value={value.name} onChange={(event) => onChange({ name: event.target.value })}/></div>
+    <div className="min-w-0 space-y-1"><Label className={labelClass}>담당자 *</Label><Input maxLength={100} readOnly={calculationLocked} value={value.managerName} onChange={(event) => onChange({ managerName: event.target.value })}/></div>
+    <div className="min-w-0 space-y-1"><Label className={labelClass}>정산금액 *</Label><div className="flex gap-1"><Input className="min-w-0 flex-1" inputMode="numeric" readOnly={calculationLocked} value={value.grossAmount ? value.grossAmount.toLocaleString("ko-KR") : ""} onChange={(event) => onChange({ grossAmount: Number(event.target.value.replace(/\D/gu, "")) })}/>{shared ? <div className="relative w-24 shrink-0"><Input aria-label="회사 부담률" type="number" min="0" max="100" className="pr-6" value={value.companyShareRate} onChange={(event) => { const companyShareRate = Number(event.target.value); onChange({ companyShareRate, instructorShareRate: 100 - companyShareRate }); }}/><span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span></div> : null}</div><p className="truncate px-1 text-[11px] text-muted-foreground">공급 {money(tax.supplyAmount)} · VAT {money(tax.vatAmount)}{shared ? ` · 회사 ${money(burden.companyShareAmount)} · 강사 ${money(burden.instructorShareAmount)}` : ""}</p></div>
     <div className="min-w-0 space-y-1"><Label className={labelClass}>비용상태 *</Label><Select value={value.status} onValueChange={(status: CourseCostInput["status"]) => onChange({ status, paidDate: status === "PLANNED" ? "" : value.paidDate })}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="PLANNED">예정</SelectItem><SelectItem value="PAID">지급완료</SelectItem><SelectItem value="CANCELED">취소</SelectItem></SelectContent></Select></div>
     <div className="min-w-0 space-y-1 overflow-hidden"><Label className={labelClass}>정산일 {value.status === "PAID" ? "*" : ""}</Label><Input className="max-w-full" type="date" disabled={value.status === "PLANNED"} value={value.status === "PLANNED" ? "" : value.paidDate} onChange={(event) => onChange({ paidDate: event.target.value })}/></div>
     {actions ?? <span aria-hidden="true"/>}

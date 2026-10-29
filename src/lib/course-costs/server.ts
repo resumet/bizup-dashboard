@@ -57,7 +57,7 @@ export async function loadCourseCosts(
     evidenceTypes: item.evidence_types ?? [], otherEvidenceType: item.other_evidence_type,
     companyShareRate: Number(item.company_share_rate), instructorShareRate: Number(item.instructor_share_rate),
     companyShareAmount: Number(item.company_share_amount), instructorShareAmount: Number(item.instructor_share_amount),
-    includeInSettlement: item.include_in_settlement, note: item.note, migratedFrom: item.migrated_from,
+    includeInSettlement: item.include_in_settlement, note: item.note, calculationDetails: item.calculation_details ?? null, migratedFrom: item.migrated_from,
     version: item.version, createdBy: item.created_by, createdAt: item.created_at, updatedBy: item.updated_by, updatedAt: item.updated_at,
     attachments: attachmentItems.filter((attachment) => attachmentCostId.get(attachment.id) === item.id),
   }));

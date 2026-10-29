@@ -147,6 +147,7 @@ export async function loadSettlementState(
   });
   const snapshots = await Promise.all(rawSnapshots.map(async (cost) => ({
     ...cost,
+    calculationDetails: cost.calculationDetails ?? null,
     attachments: await Promise.all((cost.attachments ?? []).map(async (file) => ({
       ...file,
       url: file.storagePath
@@ -166,7 +167,7 @@ export async function loadSettlementState(
       taxType: "REVIEW_REQUIRED", paidDate: cost.occurredOn, status: "PAID", evidenceRequired: cost.evidenceRequired, evidenceNeedsReview: cost.evidenceNeedsReview,
       evidenceTypes: [], otherEvidenceType: "", companyShareRate: cost.burden === "company" ? 100 : cost.burden === "shared" ? 50 : 0,
       instructorShareRate: cost.burden === "instructor" ? 100 : cost.burden === "shared" ? 50 : 0,
-      companyShareAmount, instructorShareAmount, includeInSettlement: true, note: cost.note,
+      companyShareAmount, instructorShareAmount, includeInSettlement: true, note: cost.note, calculationDetails: null,
       migratedFrom: `legacy:${settlement.id}:${cost.id}`, version: 1, createdBy: "", createdAt: settlement.updated_at,
       updatedBy: "", updatedAt: settlement.updated_at,
       attachments: attachments.filter((file) => file.costId === cost.id).map((file) => ({
