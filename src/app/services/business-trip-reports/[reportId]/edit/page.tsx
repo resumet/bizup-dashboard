@@ -23,7 +23,10 @@ export default async function EditBusinessTripReportPage({ params }: { params: P
     <main className="min-h-screen">
       <div className="mx-auto w-full max-w-[1600px] space-y-6 p-5 sm:p-7 lg:p-9">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">출장보고서 수정</h1>
-        <BusinessTripReportForm initialReport={report} />
+        <BusinessTripReportForm
+          initialReport={report}
+          canUpdatePaymentStatus={context.isSuperAdmin}
+        />
       </div>
     </main>
   );

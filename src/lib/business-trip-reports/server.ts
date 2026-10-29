@@ -8,7 +8,10 @@ import { requireCourseOperationsMembership, requireCourseOperationsUser } from "
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { BUSINESS_TRIP_REPORT_BUCKET, validateBusinessTripFile } from "./file";
-import { canManageBusinessTripReport } from "./model";
+import {
+  canManageBusinessTripReport,
+  canSetBusinessTripPaymentStatus,
+} from "./model";
 import type { BusinessTripDashboardSummary, BusinessTripReport } from "./types";
 
 type ReportRow = {
@@ -133,6 +136,19 @@ function assertCanManage(context: ReportContext, row: ReportRow) {
   }
 }
 
+function assertCanSetPaymentStatus(
+  context: Pick<ReportContext, "isSuperAdmin">,
+  current: boolean,
+  next: boolean,
+) {
+  if (!canSetBusinessTripPaymentStatus(context.isSuperAdmin, current, next)) {
+    throw new BusinessTripReportError(
+      "비용 지급 완료 상태는 최고관리자만 변경할 수 있습니다.",
+      403,
+    );
+  }
+}
+
 function authorName(context: ReportContext) {
   return context.user.displayName?.trim()
     || context.user.email?.split("@")[0]?.trim()
@@ -165,6 +181,7 @@ export async function createBusinessTripReport(
   context: ReportContext,
   input: { title: string; finalCost: number; paymentCompleted: boolean },
 ) {
+  assertCanSetPaymentStatus(context, false, input.paymentCompleted);
   const now = new Date().toISOString();
   const { data, error } = await context.admin
     .from("business_trip_reports")
@@ -190,6 +207,11 @@ export async function updateBusinessTripReport(
 ) {
   const current = await reportRow(context, reportId);
   assertCanManage(context, current);
+  assertCanSetPaymentStatus(
+    context,
+    current.payment_completed,
+    input.paymentCompleted,
+  );
   if (current.version !== input.version) {
     throw new BusinessTripReportError("다른 변경이 먼저 저장되었습니다. 새로고침 후 다시 시도해 주세요.", 409);
   }

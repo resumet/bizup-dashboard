@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   canManageBusinessTripReport,
+  canSetBusinessTripPaymentStatus,
   saveBusinessTripReportSchema,
 } from "./model";
 import { BUSINESS_TRIP_REPORT_MAX_BYTES, validateBusinessTripFile } from "./file";
@@ -25,6 +26,15 @@ test("작성자와 최고관리자만 출장보고서를 수정할 수 있다", 
   assert.equal(canManageBusinessTripReport("other", "author", false), false);
   assert.equal(canManageBusinessTripReport("super", "author", true), true);
   assert.equal(canManageBusinessTripReport("other", null, false), false);
+});
+
+test("비용 지급 상태는 최고관리자만 변경할 수 있다", () => {
+  assert.equal(canSetBusinessTripPaymentStatus(false, false, false), true);
+  assert.equal(canSetBusinessTripPaymentStatus(false, true, true), true);
+  assert.equal(canSetBusinessTripPaymentStatus(false, false, true), false);
+  assert.equal(canSetBusinessTripPaymentStatus(false, true, false), false);
+  assert.equal(canSetBusinessTripPaymentStatus(true, false, true), true);
+  assert.equal(canSetBusinessTripPaymentStatus(true, true, false), true);
 });
 
 test("출장보고서 첨부파일 형식과 크기를 제한한다", () => {

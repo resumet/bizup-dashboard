@@ -30,3 +30,11 @@ export function canManageBusinessTripReport(
 ) {
   return isSuperAdmin || authorId === actorId;
 }
+
+export function canSetBusinessTripPaymentStatus(
+  isSuperAdmin: boolean,
+  current: boolean,
+  next: boolean,
+) {
+  return isSuperAdmin || current === next;
+}

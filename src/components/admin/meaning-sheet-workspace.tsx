@@ -72,6 +72,13 @@ import type { SheetUpdatePreview } from "@/lib/ad-performance/sheet-update";
 const HEADER_ROW_COUNT = 2;
 const PAGE_SIZE = 100;
 const TRACKING_FILE_EXTENSION = /\.(xlsx|csv)$/iu;
+const TABLE_TEXT_SIZES = [
+  { body: 9, header: 8, headerRow: 26 },
+  { body: 10, header: 9, headerRow: 28 },
+  { body: 12, header: 11, headerRow: 32 },
+  { body: 14, header: 13, headerRow: 38 },
+  { body: 16, header: 15, headerRow: 44 },
+] as const;
 
 type SelectedDate = {
   key: string;
@@ -161,6 +168,7 @@ export function MeaningSheetWorkspace({
   const [manualInputError, setManualInputError] = useState("");
   const [fullscreenError, setFullscreenError] = useState("");
   const [isTableFullscreen, setIsTableFullscreen] = useState(false);
+  const [tableTextSizeIndex, setTableTextSizeIndex] = useState(1);
   const tableFullscreenRef = useRef<HTMLDivElement>(null);
   const trackingFileInputRef = useRef<HTMLInputElement>(null);
   const sheetVersionRef = useRef(sheetState?.version ?? 0);
@@ -187,6 +195,8 @@ export function MeaningSheetWorkspace({
   const organicChannels = tracking?.organicChannels ?? [];
   const organicColumnCount = organicChannels.length + 1;
   const cumulativeDbHeading = cumulativeDbLabel.replace(/\s*DB$/u, "");
+  const tableTextSize = TABLE_TEXT_SIZES[tableTextSizeIndex];
+  const secondHeaderStyle = { top: tableTextSize.headerRow };
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -650,6 +660,45 @@ export function MeaningSheetWorkspace({
                   ? ` · 오가닉 채널 ${organicChannels.length.toLocaleString("ko-KR")}열`
                   : " · 오가닉 채널은 엑셀 추가 후 생성"}
               </span>
+              <div
+                className="flex items-center overflow-hidden rounded-md border bg-background"
+                role="group"
+                aria-label="표 글자 크기"
+              >
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  className="size-7 rounded-none border-r text-xs font-semibold"
+                  aria-label="표 글자 크기 줄이기"
+                  title="표 글자 크기 줄이기"
+                  disabled={tableTextSizeIndex === 0}
+                  onClick={() =>
+                    setTableTextSizeIndex((current) => Math.max(0, current - 1))
+                  }
+                >
+                  A−
+                </Button>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  className="size-7 rounded-none text-xs font-semibold"
+                  aria-label="표 글자 크기 키우기"
+                  title="표 글자 크기 키우기"
+                  disabled={tableTextSizeIndex === TABLE_TEXT_SIZES.length - 1}
+                  onClick={() =>
+                    setTableTextSizeIndex((current) =>
+                      Math.min(TABLE_TEXT_SIZES.length - 1, current + 1),
+                    )
+                  }
+                >
+                  A+
+                </Button>
+                <span className="sr-only" aria-live="polite">
+                  현재 표 글자 크기 {tableTextSize.body}픽셀
+                </span>
+              </div>
               <Button
                 type="button"
                 size="sm"
@@ -669,16 +718,19 @@ export function MeaningSheetWorkspace({
             </div>
           </div>
 
-          <Table className="w-max min-w-full border-separate border-spacing-0 text-[10px] tracking-tight [&_td]:h-6 [&_td]:px-0.5 [&_td]:py-0 [&_td]:font-mono [&_td]:tabular-nums [&_th]:px-0.5 [&_th]:py-0.5">
-            <TableHeader>
-              <TableRow>
+          <Table
+            className="w-max min-w-full border-separate border-spacing-0 tracking-tight [&_td]:h-6 [&_td]:px-0.5 [&_td]:py-0 [&_td]:font-mono [&_td]:tabular-nums [&_th]:px-0.5 [&_th]:py-0.5"
+            style={{ fontSize: tableTextSize.body }}
+          >
+            <TableHeader style={{ fontSize: tableTextSize.header }}>
+              <TableRow style={{ height: tableTextSize.headerRow }}>
                 {headers.top.map((cell, cellIndex) => (
                   <TableHead
                     key={cell.key}
                     colSpan={cell.columnSpan}
                     rowSpan={cell.rowSpan}
                     className={cn(
-                      "sticky top-0 z-20 h-7 min-w-16 whitespace-normal border-r border-b bg-muted text-center text-[9px] leading-tight font-semibold",
+                      "sticky top-0 z-20 h-7 min-w-16 whitespace-normal border-r border-b bg-muted text-center leading-tight font-semibold",
                       cellIndex === 0 &&
                         "left-0 z-50 min-w-18 border-r-2 bg-muted shadow-[2px_0_0_0_var(--border)]",
                     )}
@@ -689,7 +741,7 @@ export function MeaningSheetWorkspace({
                 ))}
                 <TableHead
                   colSpan={2}
-                  className="sticky top-0 z-20 h-7 border-r border-b bg-sky-100 text-center text-[9px] leading-tight font-semibold text-sky-900 dark:bg-sky-950 dark:text-sky-200"
+                  className="sticky top-0 z-20 h-7 border-r border-b bg-sky-100 text-center leading-tight font-semibold text-sky-900 dark:bg-sky-950 dark:text-sky-200"
                 >
                   랜딩페이지
                   <br />
@@ -697,7 +749,7 @@ export function MeaningSheetWorkspace({
                 </TableHead>
                 <TableHead
                   rowSpan={HEADER_ROW_COUNT}
-                  className="sticky top-0 z-20 min-w-18 whitespace-normal border-r border-b bg-blue-100 text-center text-[9px] leading-tight font-semibold text-blue-900 dark:bg-blue-950 dark:text-blue-200"
+                  className="sticky top-0 z-20 min-w-18 whitespace-normal border-r border-b bg-blue-100 text-center leading-tight font-semibold text-blue-900 dark:bg-blue-950 dark:text-blue-200"
                 >
                   랜딩접수총DB
                   <br />
@@ -705,7 +757,7 @@ export function MeaningSheetWorkspace({
                 </TableHead>
                 <TableHead
                   colSpan={organicColumnCount}
-                  className="sticky top-0 z-20 h-7 border-r border-b bg-emerald-100 text-center text-[9px] leading-tight font-semibold text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+                  className="sticky top-0 z-20 h-7 border-r border-b bg-emerald-100 text-center leading-tight font-semibold text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
                 >
                   자연유입
                   <br />
@@ -713,13 +765,13 @@ export function MeaningSheetWorkspace({
                 </TableHead>
                 <TableHead
                   rowSpan={HEADER_ROW_COUNT}
-                  className="sticky top-0 z-20 min-w-14 border-r border-b bg-amber-100 text-center text-[9px] leading-tight font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                  className="sticky top-0 z-20 min-w-14 border-r border-b bg-amber-100 text-center leading-tight font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-200"
                 >
                   DB총합
                 </TableHead>
                 <TableHead
                   colSpan={2}
-                  className="sticky top-0 z-20 h-7 border-r border-b bg-violet-100 text-center text-[9px] leading-tight font-semibold text-violet-900 dark:bg-violet-950 dark:text-violet-200"
+                  className="sticky top-0 z-20 h-7 border-r border-b bg-violet-100 text-center leading-tight font-semibold text-violet-900 dark:bg-violet-950 dark:text-violet-200"
                   title="광고집행비용 ÷ 랜딩페이지접수된DB"
                 >
                   랜딩DB당
@@ -728,7 +780,7 @@ export function MeaningSheetWorkspace({
                 </TableHead>
                 <TableHead
                   colSpan={2}
-                  className="sticky top-0 z-20 h-7 min-w-32 border-r border-b bg-violet-100 text-center text-[9px] leading-tight font-semibold text-violet-900 dark:bg-violet-950 dark:text-violet-200"
+                  className="sticky top-0 z-20 h-7 min-w-32 border-r border-b bg-violet-100 text-center leading-tight font-semibold text-violet-900 dark:bg-violet-950 dark:text-violet-200"
                   title="광고DB당단가 - 랜딩DB당단가"
                 >
                   광고DB-랜딩DB
@@ -737,7 +789,7 @@ export function MeaningSheetWorkspace({
                 </TableHead>
                 <TableHead
                   rowSpan={HEADER_ROW_COUNT}
-                  className="sticky top-0 z-20 min-w-16 whitespace-normal border-r border-b bg-orange-100 text-center text-[9px] leading-tight font-semibold text-orange-900 dark:bg-orange-950 dark:text-orange-200"
+                  className="sticky top-0 z-20 min-w-16 whitespace-normal border-r border-b bg-orange-100 text-center leading-tight font-semibold text-orange-900 dark:bg-orange-950 dark:text-orange-200"
                 >
                   {cumulativeDbHeading}
                   <br />
@@ -745,7 +797,7 @@ export function MeaningSheetWorkspace({
                 </TableHead>
                 <TableHead
                   rowSpan={HEADER_ROW_COUNT}
-                  className="sticky top-0 z-20 min-w-16 whitespace-normal border-r border-b bg-orange-100 text-center text-[9px] leading-tight font-semibold text-orange-900 dark:bg-orange-950 dark:text-orange-200"
+                  className="sticky top-0 z-20 min-w-16 whitespace-normal border-r border-b bg-orange-100 text-center leading-tight font-semibold text-orange-900 dark:bg-orange-950 dark:text-orange-200"
                 >
                   톡방누적
                   <br />
@@ -753,7 +805,7 @@ export function MeaningSheetWorkspace({
                 </TableHead>
                 <TableHead
                   rowSpan={HEADER_ROW_COUNT}
-                  className="sticky top-0 z-20 min-w-16 whitespace-normal border-r border-b bg-orange-100 text-center text-[9px] leading-tight font-semibold text-orange-900 dark:bg-orange-950 dark:text-orange-200"
+                  className="sticky top-0 z-20 min-w-16 whitespace-normal border-r border-b bg-orange-100 text-center leading-tight font-semibold text-orange-900 dark:bg-orange-950 dark:text-orange-200"
                   title="오늘 톡방누적인원 - 어제 톡방누적인원"
                 >
                   톡방입장
@@ -762,7 +814,7 @@ export function MeaningSheetWorkspace({
                 </TableHead>
                 <TableHead
                   rowSpan={HEADER_ROW_COUNT}
-                  className="sticky top-0 z-20 min-w-20 whitespace-normal border-r border-b bg-indigo-100 text-center text-[9px] leading-tight font-semibold text-indigo-900 dark:bg-indigo-950 dark:text-indigo-200"
+                  className="sticky top-0 z-20 min-w-20 whitespace-normal border-r border-b bg-indigo-100 text-center leading-tight font-semibold text-indigo-900 dark:bg-indigo-950 dark:text-indigo-200"
                   title="총광고비 ÷ 랜딩접수총DB(광고)"
                 >
                   랜딩접수
@@ -771,7 +823,7 @@ export function MeaningSheetWorkspace({
                 </TableHead>
                 <TableHead
                   rowSpan={HEADER_ROW_COUNT}
-                  className="sticky top-0 z-20 min-w-20 whitespace-normal border-b bg-indigo-100 text-center text-[9px] leading-tight font-semibold text-indigo-900 dark:bg-indigo-950 dark:text-indigo-200"
+                  className="sticky top-0 z-20 min-w-20 whitespace-normal border-b bg-indigo-100 text-center leading-tight font-semibold text-indigo-900 dark:bg-indigo-950 dark:text-indigo-200"
                   title="총광고비 ÷ 톡방입장인원"
                 >
                   톡방접수
@@ -779,12 +831,13 @@ export function MeaningSheetWorkspace({
                   DB단가
                 </TableHead>
               </TableRow>
-              <TableRow>
+              <TableRow style={{ height: tableTextSize.headerRow }}>
                 {headers.bottom.map((cell) => (
                   <TableHead
                     key={cell.key}
                     colSpan={cell.columnSpan}
-                    className="sticky top-7 z-20 h-7 min-w-14 max-w-18 whitespace-normal border-r border-b bg-muted/95 text-center text-[9px] leading-tight"
+                    className="sticky z-20 h-7 min-w-14 max-w-18 whitespace-normal border-r border-b bg-muted/95 text-center leading-tight"
+                    style={secondHeaderStyle}
                     title={
                       cell.key === "column-b-detail"
                         ? formatMeaningSheetSourceCell(cell.label, 1)
@@ -796,22 +849,23 @@ export function MeaningSheetWorkspace({
                       : cell.label}
                   </TableHead>
                 ))}
-                <TableHead className="sticky top-7 z-20 h-7 min-w-14 border-r border-b bg-sky-50 text-center text-[9px] dark:bg-sky-950/90">
+                <TableHead className="sticky z-20 h-7 min-w-14 border-r border-b bg-sky-50 text-center dark:bg-sky-950/90" style={secondHeaderStyle}>
                   구글
                 </TableHead>
-                <TableHead className="sticky top-7 z-20 h-7 min-w-14 border-r border-b bg-sky-50 text-center text-[9px] dark:bg-sky-950/90">
+                <TableHead className="sticky z-20 h-7 min-w-14 border-r border-b bg-sky-50 text-center dark:bg-sky-950/90" style={secondHeaderStyle}>
                   메타
                 </TableHead>
                 {organicChannels.map((channel) => (
                   <TableHead
                     key={channel}
-                    className="sticky top-7 z-20 h-7 min-w-16 max-w-20 whitespace-normal border-r border-b bg-emerald-50 text-center text-[9px] leading-tight dark:bg-emerald-950/90"
+                    className="sticky z-20 h-7 min-w-16 max-w-20 whitespace-normal border-r border-b bg-emerald-50 text-center leading-tight dark:bg-emerald-950/90"
+                    style={secondHeaderStyle}
                     title={channel}
                   >
                     {channel}
                   </TableHead>
                 ))}
-                <TableHead className="sticky top-7 z-20 h-7 min-w-18 border-r border-b bg-emerald-50 text-center text-[9px] font-semibold dark:bg-emerald-950/90">
+                <TableHead className="sticky z-20 h-7 min-w-18 border-r border-b bg-emerald-50 text-center font-semibold dark:bg-emerald-950/90" style={secondHeaderStyle}>
                   오가닉총합
                 </TableHead>
                 {[
@@ -822,7 +876,8 @@ export function MeaningSheetWorkspace({
                 ].map((label, index) => (
                   <TableHead
                     key={`unit-cost-${index}`}
-                    className="sticky top-7 z-20 h-7 min-w-16 whitespace-nowrap border-r border-b bg-violet-50 text-center text-[9px] dark:bg-violet-950/90"
+                    className="sticky z-20 h-7 min-w-16 whitespace-nowrap border-r border-b bg-violet-50 text-center dark:bg-violet-950/90"
+                    style={secondHeaderStyle}
                   >
                     {label}
                   </TableHead>
@@ -843,7 +898,8 @@ export function MeaningSheetWorkspace({
                     const displayCell = formatAdPerformanceTableCell(item);
                     return columnIndex === 0 ? <TableCell key={columnIndex} className="sticky left-0 z-10 min-w-18 border-r-2 bg-background shadow-[2px_0_0_0_var(--border)]">
                       {metricDate ? <Button type="button" variant="ghost" size="sm"
-                        className="h-5 w-full justify-between gap-0.5 px-0.5 text-[10px] font-semibold text-primary hover:text-primary"
+                        className="h-5 w-full justify-between gap-0.5 px-0.5 font-semibold text-primary hover:text-primary"
+                        style={{ fontSize: "inherit" }}
                         title="톡방누적인원 입력" onClick={() => openManualInput(displayCell, metricDate)}>
                         <span className="whitespace-nowrap">{displayCell}</span><PencilLine className="size-3 opacity-60" />
                       </Button> : <span className="block px-0.5 py-0">{displayCell}</span>}
