@@ -23,6 +23,26 @@ test("공유는 저장된 명단의 수정·수동추가 정보를 사용하고 
   assert.ok(JSON.stringify(students).includes("private memo"));
 });
 
+test("부분환불자는 공유 명단에 남은 매출금액으로 포함하고 전액환불자만 제외한다", () => {
+  const partial = {
+    ...row,
+    id: "partial",
+    values: {
+      ...row.values,
+      paymentAmount: "70000",
+      originalPaymentAmount: "100000",
+      refundAmount: "30000",
+      partialRefunded: true,
+    },
+  };
+  const students = paidRosterStudents([
+    partial,
+    { ...row, id: "full-refund", values: { ...row.values, refundedAt: "2026-09-16" } },
+  ]);
+  assert.equal(students.length, 1);
+  assert.equal(students[0].amount, 70000);
+});
+
 test("별표 선택은 서버 전달값과 CSV에 일관되게 반영되며 해제해도 결제ID는 공개하지 않는다", () => {
   const students = paidRosterStudents([row]);
   const masked = maskOrderStudentsForPublic(students);

@@ -5,6 +5,8 @@ import { PaymentMethodBadge } from "@/components/jobs/payment-method";
 import { refundDate } from "@/lib/jobs/refund";
 import { buildInviteClipboardText } from "@/lib/messages/invite";
 import { RefundedRoster } from "@/components/jobs/refunded-roster";
+import { PartialRefundRoster } from "@/components/jobs/partial-refund-roster";
+import { isPartialRefundRosterRow } from "@/lib/jobs/partial-refund";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -150,8 +152,23 @@ export function RosterDetailClient({
   const { hiddenColumns, setHiddenColumns } = usePaidRosterColumns(currentUserId);
   const showColumn = (column: PaidRosterColumn) => !paidRoster || !hiddenColumns.includes(column);
   const [allRows, setRows] = useState(initialRows);
-  const rows = useMemo(() => allRows.filter((row) => !refundDate(row.values)), [allRows]);
-  const refundedRows = useMemo(() => allRows.filter((row) => refundDate(row.values)), [allRows]);
+  const partialRefundRows = useMemo(
+    () => paidRoster ? allRows.filter(isPartialRefundRosterRow) : [],
+    [allRows, paidRoster],
+  );
+  const rows = useMemo(
+    () => allRows.filter((row) => !refundDate(row.values)
+      && (!paidRoster || !isPartialRefundRosterRow(row))),
+    [allRows, paidRoster],
+  );
+  const paidSummaryRows = useMemo(
+    () => paidRoster ? [...rows, ...partialRefundRows] : rows,
+    [paidRoster, partialRefundRows, rows],
+  );
+  const refundedRows = useMemo(
+    () => allRows.filter((row) => refundDate(row.values) && !isPartialRefundRosterRow(row)),
+    [allRows],
+  );
   const [filters, setFilters] = useState<RosterFilters>(EMPTY_ROSTER_FILTERS);
   const [sort, setSort] = useState<RosterSort>("original");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -164,16 +181,16 @@ export function RosterDetailClient({
   >(new Set());
   const courseName =
     defaultCourseName ||
-    rows.find((row) => row.values.courseName)?.values.courseName ||
+    paidSummaryRows.find((row) => row.values.courseName)?.values.courseName ||
     "";
   const sortedRows = useMemo(() => sortRosterRows(rows, sort), [rows, sort]);
   const filteredRows = useMemo(
     () => filterRosterRows(sortedRows, filters),
     [sortedRows, filters],
   );
-  const sourceAnalysis = useMemo(() => analyzeRosterSources(rows), [rows]);
-  const optionAnalysis = useMemo(() => analyzeRosterOptions(rows), [rows]);
-  const paidRosterSummary = useMemo(() => summarizePaidRoster(rows), [rows]);
+  const sourceAnalysis = useMemo(() => analyzeRosterSources(paidSummaryRows), [paidSummaryRows]);
+  const optionAnalysis = useMemo(() => analyzeRosterOptions(paidSummaryRows), [paidSummaryRows]);
+  const paidRosterSummary = useMemo(() => summarizePaidRoster(paidSummaryRows), [paidSummaryRows]);
   const selectedRows = sortedRows.filter((row) => selected.has(row.id));
   const allFilteredSelected =
     filteredRows.length > 0 &&
@@ -190,10 +207,10 @@ export function RosterDetailClient({
   const linkedOptionInvites = useMemo(
     () =>
       buildCourseOptionInviteMap(
-        rows.map((row) => row.values.optionName),
+        paidSummaryRows.map((row) => row.values.optionName),
         linkedCourseOptionInvites,
       ),
-    [linkedCourseOptionInvites, rows],
+    [linkedCourseOptionInvites, paidSummaryRows],
   );
   const linkedOptionInviteVersion = linkedCourseOptionInvites
     .map((option) => `${option.optionName}:${option.entryCode}:${option.linkName}`)
@@ -714,12 +731,13 @@ export function RosterDetailClient({
           </div>
         )}
       </Card>
+      {paidRoster ? <PartialRefundRoster rows={partialRefundRows} /> : null}
       <RefundedRoster rows={refundedRows} />
       <RosterAnalysisCards
         sourceLabel={paidRoster ? "RS" : undefined}
         sourceItems={sourceAnalysis}
         optionItems={optionAnalysis}
-        totalCount={rows.length}
+        totalCount={paidSummaryRows.length}
       />
       <RosterNotesCard
         jobId={jobId}

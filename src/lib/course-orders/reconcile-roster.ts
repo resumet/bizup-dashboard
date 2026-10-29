@@ -42,16 +42,21 @@ function identity(name: string, number: string, email: string) {
   return contact && normalize(name) ? `${normalize(name)}|${contact}` : "";
 }
 const completed = (order: ReconcileOrder) => normalize(order.status) === "결제완료";
-const refundStatuses = new Set(["환불", "환불완료", "전액환불", "부분환불"]);
 const statusParts = (order: ReconcileOrder) => normalize(order.status).split("/");
+const partiallyRefunded = (order: ReconcileOrder) => statusParts(order).includes("부분환불")
+  && remainingPaymentAmount(order) > 0;
+const paid = (order: ReconcileOrder) => completed(order) || partiallyRefunded(order);
+const refundStatuses = new Set(["환불", "환불완료", "전액환불"]);
 const markedRefunded = (order: ReconcileOrder) => statusParts(order).some(status => refundStatuses.has(status))
   || (/취소/u.test(normalize(order.status)) && Number(order.current_amount) === 0);
-const partiallyRefunded = (order: ReconcileOrder) => statusParts(order).includes("부분환불");
 export const isDefaultRosterChange = (change: RosterChange) => change.kind !== "remove"
   || change.exclusionReason === "refund" || change.exclusionReason === "partial_refund";
 export const isRosterEligibleOrder = (snapshot: Pick<RosterSnapshot, "webinarDate">, order: ReconcileOrder) =>
-  completed(order) && !isPaymentBeforeWebinar(order.payment_date, snapshot.webinarDate);
+  paid(order) && !isPaymentBeforeWebinar(order.payment_date, snapshot.webinarDate);
 const amount = (value: unknown) => Number(text(value).replace(/,/gu, "") || value || 0);
+function remainingPaymentAmount(order: Pick<ReconcileOrder, "payment_amount" | "refund_amount">) {
+  return Math.max(0, Math.round((Number(order.payment_amount) - Number(order.refund_amount)) * 100) / 100);
+}
 
 // A duplicate with its own operator edits needs manual review, never silent deletion.
 function duplicateHasEdits(row: ReconcileEnrollment, keep: ReconcileEnrollment, order: ReconcileOrder) {
@@ -64,7 +69,7 @@ function duplicateHasEdits(row: ReconcileEnrollment, keep: ReconcileEnrollment, 
   return normalize(text(v.customerName)) !== normalize(order.member_name)
     || phone(text(v.phone)) !== phone(order.phone) || normalize(text(v.email)) !== normalize(order.email)
     || (Boolean(text(v.productName)) && v.productName !== order.product_name)
-    || text(v.optionName) !== order.option_name || amount(v.paymentAmount) !== Number(order.payment_amount);
+    || text(v.optionName) !== order.option_name || amount(v.paymentAmount) !== remainingPaymentAmount(order);
 }
 
 export function planPaidRoster(snapshot: RosterSnapshot, orderIds: string[]): RosterPlan {
@@ -166,7 +171,9 @@ export function planPaidRoster(snapshot: RosterSnapshot, orderIds: string[]): Ro
     } : null;
     const after = {
       ...(typeof order.product_name === "string" ? { productName: order.product_name } : {}),
-      optionName: order.option_name, paymentAmount: Number(order.payment_amount),
+      optionName: order.option_name, paymentAmount: partiallyRefunded(order)
+        ? remainingPaymentAmount(order)
+        : Number(order.payment_amount),
     };
     if (target && !text(target.normalized_values.refundedAt) && !removeIds.length && target.normalized_values.orderRecordKey === order.record_key
       && before!.productName === after.productName && before!.optionName === after.optionName && before!.paymentAmount === after.paymentAmount) {
@@ -178,7 +185,13 @@ export function planPaidRoster(snapshot: RosterSnapshot, orderIds: string[]): Ro
       kind: removeIds.length ? "merge" : target ? "update" : "add",
       name: target ? text(target.normalized_values.customerName) : order.member_name,
       phone: target ? target.normalized_phone ?? "" : phone(order.phone),
-      reason: target ? reason : "결제완료된 신규 주문을 유료수강생 명단에 추가합니다.", before, after,
+      reason: target
+        ? reason
+        : partiallyRefunded(order)
+          ? "부분환불 후 남은 매출이 있는 주문을 부분환불자 명단에 추가합니다."
+          : "결제완료된 신규 주문을 유료수강생 명단에 추가합니다.",
+      before,
+      after,
     });
   }
   const mergedIds = new Set(plan.changes.flatMap(change => change.removeIds));
@@ -197,14 +210,10 @@ export function planPaidRoster(snapshot: RosterSnapshot, orderIds: string[]): Ro
       name: text(row.normalized_values.customerName), phone: row.normalized_phone ?? "",
       exclusionReason: beforeWebinar && !refunded
         ? "before_webinar"
-        : source && partiallyRefunded(source)
-          ? "partial_refund"
-          : source ? "refund" : "missing_order",
+        : source ? "refund" : "missing_order",
       reason: beforeWebinar && !refunded
         ? `결제일 ${source!.payment_date}이 웨비나일 ${snapshot.webinarDate}보다 이전입니다. 승인하면 현재 결제자 명단에서 제외합니다.`
-        : source && partiallyRefunded(source)
-          ? `주문상태가 '${source.status}'이고 현 결제금액은 ${Number(source.current_amount).toLocaleString("ko-KR")}원입니다. 승인하면 현재 명단에서 제외하고 환불자 목록에 보관합니다.`
-          : source ? `주문상태가 '${source.status}'이고 현 결제금액은 ${Number(source.current_amount).toLocaleString("ko-KR")}원입니다. 승인하면 현재 명단에서 제외하고 환불자 목록에 보관합니다.`
+        : source ? `주문상태가 '${source.status}'이고 현 결제금액은 ${Number(source.current_amount).toLocaleString("ko-KR")}원입니다. 승인하면 현재 명단에서 제외하고 환불자 목록에 보관합니다.`
         : "연결된 주문이 최신 주문내역에서 없어졌습니다. 취소·환불 여부를 확인하고 승인하면 현재 명단에서 제외하여 환불자 목록에 보관합니다.",
       before, after: before,
     });
@@ -243,7 +252,7 @@ export function planAutomaticPaidRosterSync(
   return {
     changes,
     reviewRequiredCount: plan.conflicts.length + skippedRemovalCount,
-    beforeWebinarExcludedCount: snapshot.orders.filter((order) => completed(order)
+    beforeWebinarExcludedCount: snapshot.orders.filter((order) => paid(order)
       && isPaymentBeforeWebinar(order.payment_date, snapshot.webinarDate)).length,
   };
 }

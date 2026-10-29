@@ -39,7 +39,7 @@ export function summarizeCourseOrders(rows: CourseOrder[]) {
 }
 
 export function summarizeCourseOrderOverview(rows: CourseOrder[]) {
-  const summary = { count: rows.length, completedCount: 0, awaitingDepositCount: 0, refundedCount: 0,
+  const summary = { count: rows.length, completedCount: 0, partialRefundCount: 0, awaitingDepositCount: 0, refundedCount: 0,
     currentAmount: 0, partialRefundCurrentAmount: 0, totalRevenueAmount: 0,
     awaitingDepositAmount: 0, refundAmount: 0 };
   // Sum in cents so decimal amounts do not accumulate floating-point error.
@@ -49,14 +49,17 @@ export function summarizeCourseOrderOverview(rows: CourseOrder[]) {
       summary.completedCount += 1;
       summary.currentAmount += Math.round(row.currentAmount * 100);
     }
-    if (statuses.includes("부분환불")) {
-      summary.partialRefundCurrentAmount += Math.round(row.currentAmount * 100);
+    const partiallyRefunded = statuses.includes("부분환불") && row.paymentAmount > row.refundAmount;
+    if (partiallyRefunded) {
+      summary.partialRefundCount += 1;
+      summary.partialRefundCurrentAmount += Math.round((row.paymentAmount - row.refundAmount) * 100);
     }
     if (isAwaitingDeposit(row)) {
       summary.awaitingDepositCount += 1;
       summary.awaitingDepositAmount += Math.round(row.paymentAmount * 100);
     }
-    if (row.refundAmount !== 0 || row.refundDate || statuses.some((status) => ["환불", "환불완료", "전액환불", "부분환불"].includes(status))) {
+    if (statuses.some((status) => ["환불", "환불완료", "전액환불"].includes(status))
+      || (row.paymentAmount > 0 && row.refundAmount >= row.paymentAmount)) {
       summary.refundedCount += 1;
     }
     summary.refundAmount += Math.round(row.refundAmount * 100);

@@ -98,11 +98,11 @@ test("동명이인·정상 다중구매는 합치지 않고 모호하거나 별�
   }
 });
 
-test("부분환불 후 재결제는 기존 수강생에 연결하고 입금대기는 명단에 추가하지 않는다", () => {
+test("부분환불 주문은 유료수강생으로 유지하고 별도 재결제와 입금대기를 구분한다", () => {
   const partial = order("old", { status: "부분환불", current_amount: 100000, refund_amount: 20000 });
   const repaid = planPaidRoster(state([partial, order("new")], [enrollment("old")]), ["new"]).changes[0];
-  assert.equal(repaid.kind, "update");
-  assert.equal(repaid.targetId, "old");
+  assert.equal(repaid.kind, "add");
+  assert.equal(repaid.targetId, null);
   assert.equal(repaid.orderId, "new");
   assert.equal(planPaidRoster(state([order("pending", { status: "입금대기" })], []), ["pending"]).changes.length, 0);
 });
@@ -122,7 +122,7 @@ test("웨비나보다 이른 결제는 신규 결제자에서 제외하고 기�
   assert.equal(automatic.changes.some((change) => change.kind === "remove"), true);
 });
 
-test("전액환불·부분환불·취소·누락 주문은 제외 후보로 표시하고 수동·이미 환불자는 유지한다", () => {
+test("전액환불·취소·누락 주문은 제외하고 부분환불 주문은 남은 매출로 유지한다", () => {
   for (const status of ["전액환불", "주문취소"]) {
     const s = state([order("old", { status, current_amount: 0 })], [enrollment("old")]);
     const before = structuredClone(s);
@@ -136,14 +136,13 @@ test("전액환불·부분환불·취소·누락 주문은 제외 후보로 표�
   assert.equal(missing.kind, "remove");
   assert.equal(missing.orderId, null);
   assert.match(missing.reason, /없어졌습니다/);
-  const partialRemoval = planPaidRoster(
+  const partialChanges = planPaidRoster(
     state([order("old", { status: "부분환불", current_amount: 10000, refund_amount: 110000 })], [enrollment("old")]),
-    [],
+    ["old"],
   ).changes;
-  assert.equal(partialRemoval.length, 1);
-  assert.equal(partialRemoval[0].kind, "remove");
-  assert.equal(partialRemoval[0].exclusionReason, "partial_refund");
-  assert.match(partialRemoval[0].reason, /부분환불/);
+  assert.equal(partialChanges.length, 1);
+  assert.equal(partialChanges[0].kind, "update");
+  assert.equal(partialChanges[0].after.paymentAmount, 10000);
   assert.equal(planPaidRoster(state([order("old")], [enrollment("old")]), []).changes.length, 0); // Omitted selection is not an absent order.
   for (const row of [enrollment("old", { refundedAt: "2026-09-18" }), enrollment("old", { orderRecordKey: "" }), { ...enrollment("old"), is_manually_added: true }]) {
     assert.equal(planPaidRoster(state([], [row]), []).changes.length, 0);
@@ -166,7 +165,8 @@ test("주문 갱신 자동 동기화는 명시적 환불만 제외하고 재결�
     ),
   );
   assert.equal(partial.changes.length, 1);
-  assert.equal(partial.changes[0].kind, "remove");
+  assert.equal(partial.changes[0].kind, "update");
+  assert.equal(partial.changes[0].after.paymentAmount, 10000);
   assert.equal(partial.reviewRequiredCount, 0);
 
   const archived = enrollment("old", {
@@ -242,6 +242,7 @@ test("선택 반영은 결제항목·가격·옵션을 수정하고 개인 정�
     );
     await db.exec(await readFile("supabase/migrations/20261014132913_track_paid_roster_payment_items.sql", "utf8"));
     await db.exec(await readFile("supabase/migrations/20261015080511_sync_marked_refund_roster.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations/20261029080000_retain_partial_refunds_in_paid_roster.sql", "utf8"));
     await db.query("insert into auth.users values($1),($2)", [actor, outsider]);
     await db.query("insert into workspaces(id,name) values($1,'Test')", [workspace]);
     await db.query("insert into workspace_members(workspace_id,user_id) values($1,$2)", [workspace, actor]);
@@ -380,15 +381,17 @@ test("선택 반영은 결제항목·가격·옵션을 수정하고 개인 정�
       [partialRefundId],
     );
     const partialRefundSnapshot = await snapshot();
-    const partialRefundRemoval = planPaidRoster(partialRefundSnapshot, []).changes.find(
-      (change) => change.kind === "remove" && change.orderId === partialRefundId,
+    const partialRefundChange = planPaidRoster(partialRefundSnapshot, [partialRefundId]).changes.find(
+      (change) => change.kind === "update" && change.orderId === partialRefundId,
     )!;
-    assert.ok(partialRefundRemoval);
-    await review(partialRefundSnapshot, [partialRefundRemoval]);
-    const partialRefundArchived = (await snapshot()).enrollments.find(
+    assert.ok(partialRefundChange);
+    await apply(partialRefundSnapshot, [partialRefundId]);
+    const partialRefundSaved = (await snapshot()).enrollments.find(
       (item) => item.normalized_values.orderRecordKey === "partial-refund",
     )!;
-    assert.equal(partialRefundArchived.normalized_values.refundSource, "partial_refund");
+    assert.equal(partialRefundSaved.normalized_values.refundedAt, undefined);
+    assert.equal(partialRefundSaved.normalized_values.partialRefunded, true);
+    assert.equal(partialRefundSaved.normalized_values.paymentAmount, "100000.00");
     // A refund-only approval must persist the source status even with a nonzero amount.
     for (const status of ["환불", "환불 완료", "전액환불", "결제완료 / 환불"]) {
       const markedId = await insert(`marked-${status}`, "01022223333");
@@ -425,8 +428,8 @@ test("선택 반영은 결제항목·가격·옵션을 수정하고 개인 정�
   } finally { await db.close(); }
 });
 
-test("환불 표시는 금액과 관계없이 기본 반영하고 환불대기·요청은 유지한다", () => {
-  for (const status of ["환불", "환불 완료", "전액환불", "부분환불", "결제완료 / 환불"]) {
+test("전액환불 표시는 기본 반영하고 부분환불·환불대기·요청은 유료 명단에 유지한다", () => {
+  for (const status of ["환불", "환불 완료", "전액환불", "결제완료 / 환불"]) {
     const snapshot = state([order("marked", { status })], [enrollment("marked", { memo: "보존" })]);
     const original = structuredClone(snapshot);
     const plan = planPaidRoster(snapshot, []);
@@ -436,6 +439,14 @@ test("환불 표시는 금액과 관계없이 기본 반영하고 환불대기·
     assert.deepEqual(planAutomaticPaidRosterSync(snapshot).changes, plan.changes);
     assert.deepEqual(snapshot, original);
   }
+  const partial = state(
+    [order("partial", { status: "결제완료 / 부분환불", payment_amount: 120000, refund_amount: 20000, current_amount: 100000 })],
+    [enrollment("partial")],
+  );
+  const partialPlan = planPaidRoster(partial, ["partial"]);
+  assert.equal(partialPlan.changes.length, 1);
+  assert.equal(partialPlan.changes[0].kind, "update");
+  assert.equal(partialPlan.changes[0].after.paymentAmount, 100000);
   for (const status of ["환불대기", "환불요청", "결제완료"]) {
     assert.equal(planPaidRoster(state([order("pending", { status, current_amount: 0 })], [enrollment("pending")]), []).changes.length, 0);
   }

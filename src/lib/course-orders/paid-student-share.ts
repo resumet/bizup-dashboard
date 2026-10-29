@@ -1,13 +1,16 @@
 import type { RosterRow } from "@/lib/jobs/types";
 import { rosterRecipient } from "@/lib/jobs/linked-student";
 import { refundDate } from "@/lib/jobs/refund";
+import { isPartialRefundRosterRow, partialRefundRosterAmounts } from "@/lib/jobs/partial-refund";
 import type { OrderStudent } from "./student-roster";
 
 /** Public sharing reflects the saved roster, including manual edits and linked learners. */
 export function paidRosterStudents(rows: RosterRow[]): OrderStudent[] {
-  return rows.filter(row => !refundDate(row.values)).map(row => {
+  return rows.filter(row => !refundDate(row.values) || isPartialRefundRosterRow(row)).map(row => {
     const recipient = rosterRecipient(row);
-    const amount = Number(row.values.paymentAmount ?? 0);
+    const amount = isPartialRefundRosterRow(row)
+      ? partialRefundRosterAmounts(row).revenueAmount
+      : Number(row.values.paymentAmount ?? 0);
     return {
       orderId: row.id,
       name: recipient.name,

@@ -10,11 +10,21 @@ const order: SavedCourseOrder = {
   paymentMethod: "카드", rs: "", adMedia: "", inflowType: "광고 유입", paymentId: "payment-1", orderId: "source-1", paymentDate: "2026-09-15", refundDate: "",
 };
 
-test("결제완료 주문만 포함하고 원본 결제정보·RS·전화번호를 보존한다", () => {
+test("결제완료와 남은 매출이 있는 부분환불 주문을 포함하고 결제정보·RS·전화번호를 보존한다", () => {
   const statuses = ["결제완료", " 결제완료 ", "부분환불", "전액환불", "결제대기", "취소", "미결제완료", "결제완료 / 부분환불", ""];
-  const rows = statuses.map((status, index) => ({ ...order, id: String(index), status }));
-  assert.deepEqual(createOrderStudentRoster(rows), ["0", "1"].map((orderId) => ({
-    orderId, name: "김학생", phone: "01012345678", email: "student@example.com", optionName: "기본반", inflowType: "광고 유입", amount: 123456.78,
+  const rows = statuses.map((status, index) => ({
+    ...order,
+    id: String(index),
+    status,
+    refundAmount: status.includes("부분환불") ? 23_456.78 : 0,
+  }));
+  assert.deepEqual(createOrderStudentRoster(rows), [
+    { orderId: "0", amount: 123456.78 },
+    { orderId: "1", amount: 123456.78 },
+    { orderId: "2", amount: 100000 },
+    { orderId: "7", amount: 100000 },
+  ].map(({ orderId, amount }) => ({
+    orderId, name: "김학생", phone: "01012345678", email: "student@example.com", optionName: "기본반", inflowType: "광고 유입", amount,
     paymentMethod: "카드", rs: "", paymentId: "payment-1",
   })));
   assert.equal(rows.length, statuses.length);

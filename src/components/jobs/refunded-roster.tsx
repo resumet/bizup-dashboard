@@ -15,7 +15,7 @@ export function RefundedRoster({ rows }: { rows: (RosterRow & { sourceJobName?: 
   const current = Math.min(page, pages);
   return <details className="rounded-lg border bg-muted/30 p-4">
     <summary className="cursor-pointer font-semibold">환불자 명단 · {rows.length.toLocaleString("ko-KR")}명 (조회 전용)</summary>
-    <p className="my-3 text-sm text-muted-foreground">환불자는 명단 비교·중복 검사·발송 대상에서 제외됩니다.</p>
+    <p className="my-3 text-sm text-muted-foreground">결제 후 전액 환불된 수강생만 표시하며 명단 비교·중복 검사·발송 대상에서 제외됩니다.</p>
     <Input aria-label="환불자 검색" placeholder="이름·전화번호·이메일·명단명 검색" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} />
     <Table><TableHeader><TableRow>{["이름", "전화번호", "이메일", "명단", "옵션", "환불금액", "환불 표시일", "비고"].map((label) => <TableHead key={label}>{label}</TableHead>)}</TableRow></TableHeader>
       <TableBody>{filtered.slice((current - 1) * 50, current * 50).map((row) => <TableRow key={row.id}>

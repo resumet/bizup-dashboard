@@ -255,11 +255,12 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
         <>
           <section aria-label="전체 주문 요약" className="space-y-3">
             <p className="text-sm text-muted-foreground">이 강의에 저장된 전체 주문 기준입니다.</p>
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
               {([
                 ["결제완료", overview.completedCount, "text-emerald-700 dark:text-emerald-400"],
+                ["부분환불", overview.partialRefundCount, "text-blue-700 dark:text-blue-400"],
                 ["입금대기", overview.awaitingDepositCount, "text-amber-700 dark:text-amber-400"],
-                ["환불", overview.refundedCount, "text-rose-700 dark:text-rose-400"],
+                ["전액환불", overview.refundedCount, "text-rose-700 dark:text-rose-400"],
                 ["전체 주문", overview.count, ""],
               ] as const).map(([label, count, color]) => <Card key={label} role="group" aria-label={`${label} 건수`}>
                 <CardContent><p className="text-sm text-muted-foreground">{label}</p><p className={`mt-2 text-2xl font-semibold tabular-nums ${color}`}>{count.toLocaleString("ko-KR")}<span className="ml-1 text-sm font-normal text-muted-foreground">건</span></p></CardContent>
@@ -268,7 +269,7 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               {[
                 ["현 결제금액 합계", money(overview.currentAmount), "결제완료 주문의 현 결제금액 기준"],
-                ["부분환불 결제금액", money(overview.partialRefundCurrentAmount), "부분환불 주문의 현 결제금액 기준"],
+                ["부분환불 매출금액", money(overview.partialRefundCurrentAmount), "주문금액 − 환불금액"],
                 ["전체 매출금액", money(overview.totalRevenueAmount), "현 결제금액 합계 + 부분환불 결제금액"],
                 ["입금대기 합계", money(overview.awaitingDepositAmount), "입금대기 상태가 포함된 주문의 결제금액 기준"],
                 ["환불금액 합계", money(overview.refundAmount), "전체 주문의 환불금액 기준 · 부분환불 포함"],
@@ -276,7 +277,7 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
                 <CardContent><p className="text-sm text-muted-foreground">{label}</p><p className="mt-2 break-all text-2xl font-semibold tabular-nums">{amount}</p><p className="mt-2 text-xs text-muted-foreground">{description}</p></CardContent>
               </Card>)}
             </div>
-            <p className="text-xs text-muted-foreground">환불 건수에는 부분환불이 포함됩니다. 분할결제 등으로 여러 상태가 포함된 주문은 상태별 건수에 중복 집계될 수 있습니다.</p>
+            <p className="text-xs text-muted-foreground">전액환불은 부분환불과 구분해 집계합니다. 분할결제 등으로 여러 상태가 포함된 주문은 상태별 건수에 중복 집계될 수 있습니다.</p>
           </section>
           <Tabs value={orderView} onValueChange={(value) => {
             setOrderView(value === "awaitingDeposit" ? "awaitingDeposit" : "all");

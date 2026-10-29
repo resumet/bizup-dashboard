@@ -7,7 +7,7 @@ const money = (value: number) =>
 export function PaidRosterSummaryCards({ summary }: { summary: PaidRosterSummary }) {
   return (
     <section aria-label="유료수강생 결제 요약" className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Card role="group" aria-label="전체 결제자 수">
           <CardContent>
             <p className="text-sm text-muted-foreground">전체 결제자 수</p>
@@ -28,6 +28,16 @@ export function PaidRosterSummaryCards({ summary }: { summary: PaidRosterSummary
             <p className="mt-2 break-all text-2xl font-semibold tabular-nums">
               {money(summary.paymentAmount)}
             </p>
+          </CardContent>
+        </Card>
+        <Card role="group" aria-label="부분환불자" className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
+          <CardContent>
+            <p className="text-sm text-muted-foreground">부분환불자</p>
+            <p className="mt-2 text-2xl font-semibold tabular-nums text-blue-700 dark:text-blue-300">
+              {summary.partialRefundPayerCount.toLocaleString("ko-KR")}
+              <span className="ml-1 text-sm font-normal text-muted-foreground">명</span>
+            </p>
+            <p className="mt-3 text-sm text-muted-foreground">남은 매출 {money(summary.partialRefundAmount)}</p>
           </CardContent>
         </Card>
         <Card role="group" aria-label="현금결제자 수" className="border-amber-200 bg-amber-50/50">

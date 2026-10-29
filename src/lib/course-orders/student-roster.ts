@@ -166,14 +166,37 @@ export function isCompletedCourseOrder(order: Pick<SavedCourseOrder, "status">) 
   return order.status.normalize("NFKC").replace(/\s/gu, "") === "결제완료";
 }
 
+function courseOrderStatusParts(order: Pick<SavedCourseOrder, "status">) {
+  return order.status.normalize("NFKC").split("/").map((status) => status.replace(/\s/gu, ""));
+}
+
+export function isPartiallyRefundedCourseOrder(
+  order: Pick<SavedCourseOrder, "status" | "paymentAmount" | "refundAmount">,
+) {
+  return courseOrderStatusParts(order).includes("부분환불")
+    && courseOrderRevenueAmount(order) > 0;
+}
+
+export function courseOrderRevenueAmount(
+  order: Pick<SavedCourseOrder, "paymentAmount" | "refundAmount">,
+) {
+  return Math.max(0, Math.round((order.paymentAmount - order.refundAmount) * 100) / 100);
+}
+
+export function isPaidCourseOrder(
+  order: Pick<SavedCourseOrder, "status" | "paymentAmount" | "refundAmount">,
+) {
+  return isCompletedCourseOrder(order) || isPartiallyRefundedCourseOrder(order);
+}
+
 export function countCompletedOrdersBeforeWebinar(orders: SavedCourseOrder[], webinarDate: string) {
-  return orders.filter((order) => isCompletedCourseOrder(order)
+  return orders.filter((order) => isPaidCourseOrder(order)
     && isPaymentBeforeWebinar(order.paymentDate, webinarDate)).length;
 }
 
 export function createOrderStudentRoster(orders: SavedCourseOrder[], webinarDate = ""): OrderStudent[] {
   return orders
-    .filter((order) => isCompletedCourseOrder(order)
+    .filter((order) => isPaidCourseOrder(order)
       && !isPaymentBeforeWebinar(order.paymentDate, webinarDate))
     .map((order) => ({
       orderId: order.id,
@@ -182,7 +205,9 @@ export function createOrderStudentRoster(orders: SavedCourseOrder[], webinarDate
       email: order.email,
       optionName: order.optionName,
       inflowType: order.inflowType,
-      amount: order.paymentAmount,
+      amount: isPartiallyRefundedCourseOrder(order)
+        ? courseOrderRevenueAmount(order)
+        : order.paymentAmount,
       paymentMethod: order.paymentMethod,
       rs: order.rs,
       paymentId: order.paymentId,

@@ -44,6 +44,8 @@ test("유료수강생 요약은 결제자를 중복 제외하고 결제 건 금�
 
   assert.equal(summary.payerCount, 2);
   assert.equal(summary.paymentAmount, 650000);
+  assert.equal(summary.partialRefundPayerCount, 0);
+  assert.equal(summary.partialRefundAmount, 0);
   assert.deepEqual(summary.options, [
     { optionName: "기본반", payerCount: 2 },
     { optionName: "심화반", payerCount: 1 },
@@ -83,4 +85,19 @@ test("현금결제자는 기존 결제자 기준으로 중복 제외하고 복�
 test("결제방법이 미입력이거나 현금결제자가 없으면 0명을 반환한다", () => {
   assert.equal(summarizePaidRoster([]).cashPayerCount, 0);
   assert.equal(summarizePaidRoster([row("1", "01012345678", "기본반", "100000")]).cashPayerCount, 0);
+});
+
+test("부분환불자는 전체 결제자와 매출에 포함하면서 별도 인원과 남은 매출을 집계한다", () => {
+  const partial = row("2", "01099998888", "심화반", "70000");
+  partial.values.partialRefunded = true;
+  partial.values.originalPaymentAmount = "100000";
+  partial.values.refundAmount = "30000";
+  const summary = summarizePaidRoster([
+    row("1", "01012345678", "기본반", "200000"),
+    partial,
+  ]);
+  assert.equal(summary.payerCount, 2);
+  assert.equal(summary.paymentAmount, 270000);
+  assert.equal(summary.partialRefundPayerCount, 1);
+  assert.equal(summary.partialRefundAmount, 70000);
 });
