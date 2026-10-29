@@ -58,6 +58,12 @@ test("업무일지의 새 메뉴명과 기존 팀 업무 검색어를 모두 지
   assert.equal(filterDashboardMenus("팀 업무")[0]?.href, "/hr");
 });
 
+test("출장보고서를 업무 관리 하위 메뉴로 추천한다", () => {
+  const report = filterDashboardMenus("출장 비용")[0];
+  assert.equal(report?.href, "/services/business-trip-reports");
+  assert.equal(report?.group, "근태관리/업무일지/비품신청");
+});
+
 test("새 광고 메뉴명과 기존 검색어를 지원하고 입출금 장부는 관리자로 분류한다", () => {
   assert.equal(filterDashboardMenus("성과기록")[0]?.href, "/services/performance-records");
   assert.equal(filterDashboardMenus("성과기록")[0]?.group, "퍼포먼스 광고");

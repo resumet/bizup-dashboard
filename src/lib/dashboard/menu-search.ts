@@ -39,6 +39,7 @@ export const DASHBOARD_MENU_SEARCH_ITEMS: readonly DashboardMenuSearchItem[] = [
   { label: "업무일지", href: "/hr", group: "근태관리/업무일지/비품신청", keywords: ["팀 업무", "팀업무"] },
   { label: "근태관리", href: "/hr/leave", group: "근태관리/업무일지/비품신청", keywords: ["근태 관리"] },
   { label: "비품신청", href: "/hr/supplies", group: "근태관리/업무일지/비품신청", keywords: ["비품 신청"] },
+  { label: "출장보고서", href: "/services/business-trip-reports", group: "근태관리/업무일지/비품신청", keywords: ["출장 보고", "출장비", "출장 비용"] },
   { label: "공용 캘린더", href: "/calendar", group: "근태관리/업무일지/비품신청" },
   { label: "수강생 명단 중복 검사", href: "/services/roster-duplicates", group: "유용한 도구들" },
   { label: "결제자 · 수강생 비교", href: "/services/roster-comparison", group: "유용한 도구들" },

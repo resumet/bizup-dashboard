@@ -8,6 +8,7 @@ test("업무 관리 허브는 기존 하위 메뉴 전체를 카드 대상으로
     { label: "근태관리", href: "/hr/leave" },
     { label: "업무일지", href: "/hr" },
     { label: "비품신청", href: "/hr/supplies" },
+    { label: "출장보고서", href: "/services/business-trip-reports" },
     { label: "공용 캘린더", href: "/calendar" },
     { label: "강의 일정 플래너", href: "/services/course-schedule-planner" },
   ]);

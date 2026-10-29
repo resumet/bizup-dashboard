@@ -7,6 +7,7 @@ import {
   CalendarRange,
   NotebookPen,
   PackagePlus,
+  PlaneTakeoff,
   type LucideIcon,
 } from "lucide-react";
 
@@ -32,6 +33,10 @@ const itemAppearance: Record<
   "/hr/supplies": {
     icon: PackagePlus,
     iconClassName: "bg-amber-500/10 text-amber-800",
+  },
+  "/services/business-trip-reports": {
+    icon: PlaneTakeoff,
+    iconClassName: "bg-rose-500/10 text-rose-700",
   },
   "/calendar": {
     icon: CalendarRange,

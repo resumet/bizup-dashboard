@@ -18,6 +18,7 @@ import { loadExternalMarketingProjects } from "@/lib/external-marketing/server";
 import { formatCalendarTime, formatLocation, koreaToday } from "@/lib/shared-calendar/calendar";
 import { calendarContext, loadCalendarEvents } from "@/lib/shared-calendar/server";
 import { loadCalendarLeaves, loadCalendarWebinars } from "@/lib/shared-calendar/sources-server";
+import { loadBusinessTripDashboardSummary } from "@/lib/business-trip-reports/server";
 
 function errorMessage(section: string) {
   return `${section} 정보를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.`;
@@ -38,7 +39,8 @@ export default async function HomePage() {
 
   const today = koreaToday();
   const range = { from: today, to: today };
-  const [coursesResult, wbsResult, eventsResult, webinarsResult, leavesResult, externalMarketingResult, menuSearchResult] = await Promise.allSettled([
+  const [tripReportsResult, coursesResult, wbsResult, eventsResult, webinarsResult, leavesResult, externalMarketingResult, menuSearchResult] = await Promise.allSettled([
+    loadBusinessTripDashboardSummary(context.workspaceId),
     getCachedCourseSummaries(context.workspaceId),
     loadCourseWbsBootstrap(context.workspaceId),
     loadCalendarEvents(context.supabase, context.workspaceId, range),
@@ -48,7 +50,12 @@ export default async function HomePage() {
     loadDashboardMenuSearchKeywordSettings(context.workspaceId),
   ]);
 
-  const errors: Partial<Record<"courses" | "wbs" | "schedules" | "leaves" | "externalMarketing", string>> = {};
+  const errors: Partial<Record<"tripReports" | "courses" | "wbs" | "schedules" | "leaves" | "externalMarketing", string>> = {};
+
+  const businessTrips = tripReportsResult.status === "fulfilled"
+    ? tripReportsResult.value
+    : { unpaidCount: 0, unpaidCost: 0 };
+  if (tripReportsResult.status === "rejected") errors.tripReports = errorMessage("출장보고");
 
   const loadedCourses = coursesResult.status === "fulfilled" ? coursesResult.value : [];
   const courses: DashboardCourse[] = coursesResult.status === "fulfilled"
@@ -149,6 +156,7 @@ export default async function HomePage() {
         courses,
         searchCourses,
         menuSearchKeywords: menuSearchResult.status === "fulfilled" ? menuSearchResult.value.keywords : {},
+        businessTrips,
         wbsTasks,
         schedules,
         leaves,

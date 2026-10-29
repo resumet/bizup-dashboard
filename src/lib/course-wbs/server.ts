@@ -196,11 +196,11 @@ export function wbsApiError(error: unknown): Response {
   if (error instanceof WbsConflictError) {
     return Response.json({ message: error.message }, { status: 409 });
   }
-  if (error instanceof WbsInputError || error instanceof SyntaxError) {
-    return Response.json(
-      { message: error instanceof SyntaxError ? "요청 내용을 확인해 주세요." : error.message },
-      { status: 400 },
-    );
+  if (error instanceof SyntaxError) {
+    return Response.json({ message: "요청 내용을 확인해 주세요." }, { status: 400 });
+  }
+  if (error instanceof WbsInputError) {
+    return Response.json({ message: error.message }, { status: 400 });
   }
   console.error("WBS API error", error);
   return Response.json({ message: "WBS 요청을 처리하지 못했습니다." }, { status: 500 });
