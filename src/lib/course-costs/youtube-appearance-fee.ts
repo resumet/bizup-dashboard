@@ -72,10 +72,13 @@ export function buildYoutubeAppearanceFeeCostDetails(
 export function youtubeAppearanceFeeTotals(details: YoutubeAppearanceFeeCostDetails) {
   return details.channels.reduce((totals, channel) => {
     if (!channel.included || channel.appearanceFee === null) return totals;
+    const vatAmount = Math.round(channel.appearanceFee * 0.1);
     totals.channelCount += 1;
-    totals.feeAmount += channel.appearanceFee;
+    totals.supplyAmount += channel.appearanceFee;
+    totals.vatAmount += vatAmount;
+    totals.finalAmount += channel.appearanceFee + vatAmount;
     return totals;
-  }, { channelCount: 0, feeAmount: 0 });
+  }, { channelCount: 0, supplyAmount: 0, vatAmount: 0, finalAmount: 0 });
 }
 
 function requiredString(value: unknown, maxLength: number) {

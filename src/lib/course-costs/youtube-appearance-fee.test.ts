@@ -8,7 +8,7 @@ import {
   youtubeAppearanceFeeTotals,
 } from "./youtube-appearance-fee";
 
-test("출연 유튜브와 관리 채널을 연결해 출연료 합계를 계산한다", () => {
+test("채널 출연료를 공급가액으로 보고 부가세 10%를 더해 최종 지급액을 계산한다", () => {
   const details = buildYoutubeAppearanceFeeCostDetails(
     [
       { id: "appearance-1", channelName: "초월 스토리", channelUrl: "https://youtube.com/@chowol" },
@@ -26,7 +26,12 @@ test("출연 유튜브와 관리 채널을 연결해 출연료 합계를 계산�
   assert.equal(details.channels[1]?.linkedChannelId, "channel-2");
   assert.equal(details.channels[2]?.linkedChannelId, null);
   assert.equal(details.channels[2]?.included, false);
-  assert.deepEqual(youtubeAppearanceFeeTotals(details), { channelCount: 2, feeAmount: 800_000 });
+  assert.deepEqual(youtubeAppearanceFeeTotals(details), {
+    channelCount: 2,
+    supplyAmount: 800_000,
+    vatAmount: 80_000,
+    finalAmount: 880_000,
+  });
 });
 
 test("출연료 생성 항목의 이름, 담당자, 금액, 부담 구분을 서버에서 고정한다", () => {
@@ -61,5 +66,43 @@ test("출연료 생성 항목의 이름, 담당자, 금액, 부담 구분을 서
   assert.equal(parsed.managerName, "시스템노바");
   assert.equal(parsed.categoryCode, "YOUTUBE_FIXED");
   assert.equal(parsed.burdenType, "COMPANY");
-  assert.equal(parsed.grossAmount, 550_000);
+  assert.equal(parsed.grossAmount, 605_000);
+});
+
+test("원 단위 공급가액은 채널별 부가세를 반올림해 계산한다", () => {
+  const details = parseYoutubeAppearanceFeeCostDetails({
+    kind: "YOUTUBE_APPEARANCE_FEE",
+    version: 1,
+    calculatedAt: "2026-10-29T00:00:00.000Z",
+    channels: [
+      {
+        appearanceId: "appearance-1",
+        channelName: "채널 1",
+        channelUrl: "",
+        linkedChannelId: null,
+        linkedChannelName: "",
+        linkedChannelUrl: "",
+        appearanceFee: 10_005,
+        included: true,
+      },
+      {
+        appearanceId: "appearance-2",
+        channelName: "채널 2",
+        channelUrl: "",
+        linkedChannelId: null,
+        linkedChannelName: "",
+        linkedChannelUrl: "",
+        appearanceFee: 10_004,
+        included: true,
+      },
+    ],
+  });
+
+  assert.ok(details);
+  assert.deepEqual(youtubeAppearanceFeeTotals(details), {
+    channelCount: 2,
+    supplyAmount: 20_009,
+    vatAmount: 2_001,
+    finalAmount: 22_010,
+  });
 });

@@ -63,7 +63,7 @@ export function parseCourseCostInput(value: unknown): CourseCostInput {
   const grossAmount = isYoutubeRs
     ? youtubeRsTotals(calculationDetails).feeAmount
     : isYoutubeAppearanceFee
-      ? youtubeAppearanceFeeTotals(calculationDetails).feeAmount
+      ? youtubeAppearanceFeeTotals(calculationDetails).finalAmount
       : Number(input.grossAmount);
   if (!name || name.length > 100) throw new Error("비용 이름은 1~100자로 입력해 주세요.");
   if (!managerName || managerName.length > 100) throw new Error("담당자를 입력해 주세요.");

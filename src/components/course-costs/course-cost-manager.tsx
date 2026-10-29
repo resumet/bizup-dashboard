@@ -238,7 +238,7 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
   }
 
   function applyYoutubeAppearanceFee(details: YoutubeAppearanceFeeCostDetails) {
-    const grossAmount = youtubeAppearanceFeeTotals(details).feeAmount;
+    const grossAmount = youtubeAppearanceFeeTotals(details).finalAmount;
     const patch: Partial<CourseCostInput> = {
       categoryCode: "YOUTUBE_FIXED",
       name: "유튜브 출연료",

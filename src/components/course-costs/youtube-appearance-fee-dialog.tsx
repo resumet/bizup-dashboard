@@ -75,7 +75,9 @@ export function YoutubeAppearanceFeeDialog({
   }, [courseId, initialDetails]);
 
   const totals = useMemo(
-    () => details ? youtubeAppearanceFeeTotals(details) : { channelCount: 0, feeAmount: 0 },
+    () => details
+      ? youtubeAppearanceFeeTotals(details)
+      : { channelCount: 0, supplyAmount: 0, vatAmount: 0, finalAmount: 0 },
     [details],
   );
   const missingFee = details?.channels.some((channel) => channel.included && channel.appearanceFee === null) ?? false;
@@ -91,11 +93,11 @@ export function YoutubeAppearanceFeeDialog({
     <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-5xl">
       <DialogHeader>
         <DialogTitle>유튜브 출연료 등록</DialogTitle>
-        <DialogDescription>강사 출연 유튜브 목록을 채널 관리 정보와 연결해 출연료 합계를 계산합니다.</DialogDescription>
+        <DialogDescription>채널 관리의 출연료를 공급가액으로 보고 부가세 10%를 더해 최종 지급액을 계산합니다.</DialogDescription>
       </DialogHeader>
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 px-4 py-3">
-        <p className="text-sm text-muted-foreground">출연료를 수정해도 유튜브 채널 관리의 기준 금액은 변경되지 않습니다.</p>
+        <p className="text-sm text-muted-foreground">공급가액을 수정해도 유튜브 채널 관리의 기준 금액은 변경되지 않습니다.</p>
         <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => void loadCurrent()}>
           {loading ? <Loader2 className="animate-spin"/> : <RefreshCw/>}현재 채널 정보로 다시 불러오기
         </Button>
@@ -112,7 +114,7 @@ export function YoutubeAppearanceFeeDialog({
               <TableHead className="w-14 text-center">포함</TableHead>
               <TableHead>강사 출연 유튜브</TableHead>
               <TableHead>연계된 채널 정보</TableHead>
-              <TableHead className="w-52 text-right">출연료</TableHead>
+              <TableHead className="w-60 text-right">채널 등록 금액</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>{details.channels.map((channel, index) => <TableRow key={`${channel.appearanceId}-${index}`} data-state={channel.included ? "selected" : undefined}>
@@ -132,8 +134,8 @@ export function YoutubeAppearanceFeeDialog({
                 <Input
                   className="pr-9 text-right tabular-nums"
                   inputMode="numeric"
-                  aria-label={`${channel.channelName} 출연료`}
-                  placeholder="출연료 입력"
+                  aria-label={`${channel.channelName} 공급가액`}
+                  placeholder="공급가액 입력"
                   value={channel.appearanceFee === null ? "" : channel.appearanceFee.toLocaleString("ko-KR")}
                   onChange={(event) => {
                     const digits = event.target.value.replace(/\D/gu, "");
@@ -142,14 +144,19 @@ export function YoutubeAppearanceFeeDialog({
                 />
                 <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">원</span>
               </div>
+              {channel.appearanceFee !== null ? <p className="mt-1 text-right text-xs tabular-nums text-muted-foreground">
+                VAT {won(Math.round(channel.appearanceFee * 0.1))} · 지급 {won(channel.appearanceFee + Math.round(channel.appearanceFee * 0.1))}
+              </p> : null}
             </TableCell>
           </TableRow>)}</TableBody>
         </Table>
       </div> : null}
 
-      {details ? <div className="grid gap-3 sm:grid-cols-2">
+      {details ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">포함된 출연 채널</p><p className="mt-1 text-xl font-semibold tabular-nums">{totals.channelCount.toLocaleString("ko-KR")}개</p></div>
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4"><p className="text-sm text-muted-foreground">유튜브 출연료 합계</p><p className="mt-1 text-xl font-semibold tabular-nums text-primary">{won(totals.feeAmount)}</p></div>
+        <div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">공급가액 합계</p><p className="mt-1 text-xl font-semibold tabular-nums">{won(totals.supplyAmount)}</p></div>
+        <div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">부가세 10%</p><p className="mt-1 text-xl font-semibold tabular-nums">{won(totals.vatAmount)}</p></div>
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4"><p className="text-sm text-muted-foreground">최종 지급액</p><p className="mt-1 text-xl font-semibold tabular-nums text-primary">{won(totals.finalAmount)}</p></div>
       </div> : null}
       {missingFee ? <Alert variant="destructive"><AlertTitle>출연료를 입력해 주세요</AlertTitle><AlertDescription>포함한 출연 채널 중 출연료가 비어 있는 항목이 있습니다.</AlertDescription></Alert> : null}
 
