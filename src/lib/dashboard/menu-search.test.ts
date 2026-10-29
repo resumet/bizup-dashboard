@@ -94,9 +94,23 @@ test("관리자가 추가한 검색어로 메뉴를 추천한다", () => {
 
 test("강사명과 강의명으로 강의를 검색한다", () => {
   const courses = [
-    { id: "a", name: "마케팅 실전", instructor: "김선아", cohort: "1기", webinarDate: "2026년 11월 1일" },
-    { id: "b", name: "브랜딩 기초", instructor: "신예영", cohort: "2기", webinarDate: "2026년 12월 1일" },
+    { id: "a", name: "마케팅 실전", instructor: "김선아", cohort: "1기", webinarDate: "2026년 11월 1일", status: "ongoing" as const },
+    { id: "b", name: "브랜딩 기초", instructor: "신예영", cohort: "2기", webinarDate: "2026년 12월 1일", status: "ongoing" as const },
   ];
   assert.deepEqual(filterDashboardCourses(courses, "김 선아").map(({ id }) => id), ["a"]);
   assert.deepEqual(filterDashboardCourses(courses, "브랜딩").map(({ id }) => id), ["b"]);
+});
+
+test("강사 검색에 진행중·종료 강의만 포함하고 기존 정렬 순서를 유지한다", () => {
+  const courses = [
+    { id: "ongoing-near", name: "진행 강의 1", instructor: "김선아", cohort: "1기", webinarDate: "2026년 11월 1일", status: "ongoing" as const },
+    { id: "ongoing-far", name: "진행 강의 2", instructor: "김선아", cohort: "2기", webinarDate: "2026년 12월 1일", status: "ongoing" as const },
+    { id: "completed", name: "종료 강의", instructor: "김선아", cohort: "3기", webinarDate: "2026년 10월 1일", status: "completed" as const },
+  ];
+
+  assert.deepEqual(filterDashboardCourses(courses, "김선아").map(({ id }) => id), [
+    "ongoing-near",
+    "ongoing-far",
+    "completed",
+  ]);
 });

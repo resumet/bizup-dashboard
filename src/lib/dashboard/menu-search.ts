@@ -13,6 +13,7 @@ export type DashboardCourseSearchItem = {
   instructor: string;
   cohort: string;
   webinarDate: string;
+  status: "ongoing" | "completed";
 };
 
 export const DASHBOARD_MENU_SEARCH_ITEMS: readonly DashboardMenuSearchItem[] = [
@@ -71,8 +72,10 @@ export function filterDashboardMenus(
 export function filterDashboardCourses(courses: readonly DashboardCourseSearchItem[], query: string) {
   const normalizedQuery = normalizeDashboardSearchText(query);
   if (!normalizedQuery) return [];
-  return courses.filter((course) =>
+  return courses.filter((course) => (
+    course.status === "ongoing" || course.status === "completed"
+  ) && (
     normalizeDashboardSearchText(course.instructor).includes(normalizedQuery)
-    || normalizeDashboardSearchText(course.name).includes(normalizedQuery),
-  );
+    || normalizeDashboardSearchText(course.name).includes(normalizedQuery)
+  ));
 }

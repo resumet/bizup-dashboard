@@ -179,7 +179,7 @@ export function SettlementStatement({ instructor, manualCash, monthlyAnalyses, c
     { code: "D", label: "정산대상 매출", value: calculation.settlementTargetRevenue, formula: "A − B − C − C1" },
     { code: "E", label: "공동 부담액", value: calculation.costs.shared, formula: "공동 부담 비용 총합" },
     { code: "F", label: "분배 기준액", value: calculation.distributionBase, formula: "D − E" },
-    { code: "G", label: "강사 기본분", value: calculation.instructorBase, formula: `F × ${calculation.instructorRatioPercent}%` },
+    { code: "G", label: "강사 기본분", value: calculation.instructorBase, formula: `F × ${calculation.instructorRatioPercent}%`, emphasized: true },
     { code: "H", label: "강사 부담액", value: calculation.costs.instructor, formula: "강사 단독 부담 비용 총합" },
     { code: "I", label: "공동비용 강사 조정액", value: sharedInstructorAdjustment, formula: `공동비용 강사 부담액 − (E × ${calculation.instructorRatioPercent}%)` },
     { code: "J", label: "강사 공급가액", value: calculation.instructorSupply, formula: "G − H − I" },

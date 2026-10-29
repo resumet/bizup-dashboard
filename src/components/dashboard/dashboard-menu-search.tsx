@@ -5,6 +5,7 @@ import { useDeferredValue, useId, useState } from "react";
 import { ArrowRight, BookOpenCheck, ChevronDown, Search, X } from "lucide-react";
 
 import { DashboardCourseOptions } from "@/components/dashboard/dashboard-course-options";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -32,7 +33,7 @@ export function DashboardMenuSearch({
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const menus = filterDashboardMenus(deferredQuery, customKeywords).slice(0, 8);
-  const courseResults = filterDashboardCourses(courses, deferredQuery).slice(0, 4);
+  const courseResults = filterDashboardCourses(courses, deferredQuery);
   const hasQuery = query.trim().length > 0;
 
   return (
@@ -69,7 +70,17 @@ export function DashboardMenuSearch({
               <button type="button" aria-label={`${course.name} 이동 메뉴 열기`} className="group flex w-full items-start gap-3 rounded-xl border border-slate-200 p-3.5 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 data-[state=open]:border-blue-300 data-[state=open]:bg-blue-50/60">
                 <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-700"><BookOpenCheck className="size-4" aria-hidden="true" /></span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-slate-900 group-hover:text-blue-700 group-data-[state=open]:text-blue-700">{course.name}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="min-w-0 truncate text-sm font-semibold text-slate-900 group-hover:text-blue-700 group-data-[state=open]:text-blue-700">{course.name}</span>
+                    <Badge
+                      variant="secondary"
+                      className={course.status === "ongoing"
+                        ? "shrink-0 bg-blue-50 text-blue-700"
+                        : "shrink-0 bg-slate-100 text-slate-600"}
+                    >
+                      {course.status === "ongoing" ? "진행중" : "종료"}
+                    </Badge>
+                  </span>
                   <span className="mt-0.5 block text-xs text-muted-foreground">{course.instructor || "강사 미정"} · {course.cohort || "기수 미정"} · {course.webinarDate}</span>
                 </span>
                 <ChevronDown className="mt-1 size-4 shrink-0 text-slate-400 transition-transform group-data-[state=open]:rotate-180 group-data-[state=open]:text-blue-600" aria-hidden="true" />

@@ -8,7 +8,6 @@ import {
   type DashboardWbsTask,
 } from "@/components/dashboard/course-dashboard";
 import { getCachedCourseSummaries } from "@/lib/course-operations/list-cache";
-import { isSelectableCourse } from "@/lib/course-operations/course-status";
 import { formatWebinarCountdown } from "@/lib/course-operations/webinar-proximity";
 import { loadCourseWbsBootstrap } from "@/lib/course-wbs/server";
 import { formatDashboardCohort, formatDashboardWebinarDate } from "@/lib/dashboard/course-metadata";
@@ -70,13 +69,18 @@ export default async function HomePage() {
         countdown: formatWebinarCountdown(course.free_webinar_at, today),
       }))
     : [];
-  const searchCourses = loadedCourses.filter(isSelectableCourse).map((course) => ({
-    id: course.id,
-    name: course.name,
-    instructor: course.instructor_name,
-    cohort: formatDashboardCohort(course.cohort),
-    webinarDate: formatDashboardWebinarDate(course.free_webinar_at),
-  }));
+  const searchCourses = (["ongoing", "completed"] as const).flatMap((status) =>
+    loadedCourses
+      .filter((course) => course.status === status)
+      .map((course) => ({
+        id: course.id,
+        name: course.name,
+        instructor: course.instructor_name,
+        cohort: formatDashboardCohort(course.cohort),
+        webinarDate: formatDashboardWebinarDate(course.free_webinar_at),
+        status,
+      })),
+  );
   if (coursesResult.status === "rejected") errors.courses = errorMessage("강의");
 
   const wbsTasks: DashboardWbsTask[] = [];
