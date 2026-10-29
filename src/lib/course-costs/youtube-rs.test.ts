@@ -66,9 +66,11 @@ test("저장할 상세 내역은 서버에서 수수료를 다시 계산한다",
     status: "PLANNED",
     calculationDetails: parsed,
   });
-  assert.deepEqual({ name: input.name, manager: input.managerName, amount: input.grossAmount }, {
+  assert.deepEqual({ name: input.name, manager: input.managerName, amount: input.grossAmount, status: input.status }, {
     name: "유튜브 RS",
     manager: "유튜브",
     amount: 25_000,
+    status: "PAID",
   });
+  assert.match(input.paidDate, /^\d{4}-\d{2}-\d{2}$/u);
 });

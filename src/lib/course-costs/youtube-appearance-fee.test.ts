@@ -67,6 +67,8 @@ test("출연료 생성 항목의 이름, 담당자, 금액, 부담 구분을 서
   assert.equal(parsed.categoryCode, "YOUTUBE_FIXED");
   assert.equal(parsed.burdenType, "COMPANY");
   assert.equal(parsed.grossAmount, 605_000);
+  assert.equal(parsed.status, "PAID");
+  assert.match(parsed.paidDate, /^\d{4}-\d{2}-\d{2}$/u);
 });
 
 test("원 단위 공급가액은 채널별 부가세를 반올림해 계산한다", () => {

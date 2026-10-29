@@ -214,11 +214,14 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
 
   function applyYoutubeRs(details: YoutubeRsCostDetails) {
     const grossAmount = youtubeRsTotals(details).feeAmount;
+    const target = youtubeRsTargetKey ? drafts.find((draft) => draft.key === youtubeRsTargetKey) : null;
     const patch: Partial<CourseCostInput> = {
       categoryCode: "YOUTUBE_RS",
       name: "유튜브 RS",
       managerName: "유튜브",
       grossAmount,
+      status: "PAID",
+      paidDate: target?.value.paidDate || todayInSeoul(),
       calculationDetails: details,
     };
     if (youtubeRsTargetKey) {
@@ -239,11 +242,14 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
 
   function applyYoutubeAppearanceFee(details: YoutubeAppearanceFeeCostDetails) {
     const grossAmount = youtubeAppearanceFeeTotals(details).finalAmount;
+    const target = youtubeAppearanceFeeTargetKey ? drafts.find((draft) => draft.key === youtubeAppearanceFeeTargetKey) : null;
     const patch: Partial<CourseCostInput> = {
       categoryCode: "YOUTUBE_FIXED",
       name: "유튜브 출연료",
       managerName: "시스템노바",
       grossAmount,
+      status: "PAID",
+      paidDate: target?.value.paidDate || todayInSeoul(),
       calculationDetails: details,
     };
     if (youtubeAppearanceFeeTargetKey) {

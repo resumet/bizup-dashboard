@@ -42,6 +42,15 @@ export function calculateBurden(
 const BURDENS = new Set<CourseCostBurden>(["COMPANY", "INSTRUCTOR", "SHARED", "UNCLASSIFIED"]);
 const STATUSES = new Set(["PLANNED", "PAID", "CANCELED"]);
 
+function todayInSeoul() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 export function parseCourseCostInput(value: unknown): CourseCostInput {
   const input = typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
   const calculationDetails = parseCourseCostCalculationDetails(input.calculationDetails);
@@ -59,7 +68,9 @@ export function parseCourseCostInput(value: unknown): CourseCostInput {
       : typeof input.managerName === "string" ? input.managerName.trim() : "";
   const requestedBurden = input.burdenType as CourseCostBurden;
   const burdenType = isYoutubeAppearanceFee || requestedBurden === "UNCLASSIFIED" ? "COMPANY" : requestedBurden;
-  const status = String(input.status);
+  const requestedStatus = String(input.status);
+  const autoCompleted = (isYoutubeRs || isYoutubeAppearanceFee) && requestedStatus === "PLANNED";
+  const status = autoCompleted ? "PAID" : requestedStatus;
   const grossAmount = isYoutubeRs
     ? youtubeRsTotals(calculationDetails).feeAmount
     : isYoutubeAppearanceFee
@@ -70,7 +81,10 @@ export function parseCourseCostInput(value: unknown): CourseCostInput {
   if (!BURDENS.has(requestedBurden)) throw new Error("비용 구분을 확인해 주세요.");
   if (!STATUSES.has(status)) throw new Error("비용 상태를 확인해 주세요.");
   if (!Number.isSafeInteger(grossAmount) || grossAmount < 0) throw new Error("정산금액은 0원 이상 정수여야 합니다.");
-  const paidDate = typeof input.paidDate === "string" ? input.paidDate.trim() : "";
+  const requestedPaidDate = typeof input.paidDate === "string" ? input.paidDate.trim() : "";
+  const paidDate = autoCompleted && !/^\d{4}-\d{2}-\d{2}$/u.test(requestedPaidDate)
+    ? todayInSeoul()
+    : requestedPaidDate;
   if (status === "PAID" && !/^\d{4}-\d{2}-\d{2}$/u.test(paidDate)) throw new Error("지급완료 비용은 지급연월일이 필요합니다.");
   const companyRate = Number(input.companyShareRate);
   if (burdenType === "SHARED" && (!Number.isFinite(companyRate) || companyRate < 0 || companyRate > 100)) {
