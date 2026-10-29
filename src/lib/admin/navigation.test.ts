@@ -10,5 +10,6 @@ test("관리자 계정 상세 메뉴는 기존 관리자 기능 전체를 제공
     { label: "임직원 관리", href: "/hr/personnel" },
     { label: "비품 관리", href: "/admin/supplies" },
     { label: "캘린더 항목 관리", href: "/admin/calendar" },
+    { label: "실험실", href: "/admin/labs" },
   ]);
 });

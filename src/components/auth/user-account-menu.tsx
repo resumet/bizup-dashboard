@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   CalendarCog,
   ChevronDown,
+  FlaskConical,
   Loader2,
   LogOut,
   Mail,
@@ -41,6 +42,7 @@ const adminMenuIcons: Record<
   "/hr/personnel": UsersRound,
   "/admin/supplies": PackageCheck,
   "/admin/calendar": CalendarCog,
+  "/admin/labs": FlaskConical,
 };
 
 export function UserAccountMenu({

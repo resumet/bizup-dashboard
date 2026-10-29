@@ -4,4 +4,5 @@ export const ADMIN_ACCOUNT_MENU_ITEMS = [
   { label: "임직원 관리", href: "/hr/personnel" },
   { label: "비품 관리", href: "/admin/supplies" },
   { label: "캘린더 항목 관리", href: "/admin/calendar" },
+  { label: "실험실", href: "/admin/labs" },
 ] as const;

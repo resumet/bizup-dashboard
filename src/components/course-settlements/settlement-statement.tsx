@@ -17,6 +17,7 @@ import { escapePrintHtml } from "@/lib/course-settlements/print";
 import { printStatementWithStudents } from "@/lib/course-settlements/print-students";
 import { sharedCostEvidenceAppendixHtml } from "@/lib/course-settlements/shared-cost-evidence-appendix";
 import { createSettlementStatementDraft, type SettlementStatementDraft } from "@/lib/course-settlements/statement";
+import { youtubeRsAppendixHtml } from "@/lib/course-settlements/youtube-rs-appendix";
 
 const ISSUER = "주식회사 비즈업클래스";
 const currency = (value: number) => `${roundWon(value).toLocaleString("ko-KR")}원`;
@@ -224,8 +225,9 @@ export function SettlementStatement({ instructor, manualCash, monthlyAnalyses, c
     const body = `<header class="document-header"><div><p class="eyebrow">BIZUP CLASS · SETTLEMENT</p><h1>${escapePrintHtml(draft.lectureName)} 최종 정산서</h1><p class="meta">강의기간 ${escapePrintHtml(draft.coursePeriod)} · 정산기간 ${escapePrintHtml(draft.settlementPeriod)} · 발행일 ${escapePrintHtml(draft.issueDate)} · 담당자 ${escapePrintHtml(draft.manager)}</p></div><div class="document-status">${escapePrintHtml(draft.status)}</div></header>${companyInformation}<h2>정산 요약</h2>${primarySummary}${countSummary}<h2>비용 상세</h2>${costs}<h2>최종 정산 계산</h2><table class="calculation-table"><thead><tr><th class="code">코드</th><th>항목</th><th class="number">금액</th><th>계산식</th></tr></thead><tbody>${flow}</tbody></table>`;
     setError("");
     setPrinting(true);
+    const youtubeRsAppendix = youtubeRsAppendixHtml(appliedCourseCosts);
     const sharedEvidenceAppendix = sharedCostEvidenceAppendixHtml(appliedCourseCosts);
-    try { await printStatementWithStudents(`${draft.lectureName.replace(/[\\/:*?"<>|]/gu, "_")}_최종_정산서`, body, courseId, sharedEvidenceAppendix); }
+    try { await printStatementWithStudents(`${draft.lectureName.replace(/[\\/:*?"<>|]/gu, "_")}_최종_정산서`, body, courseId, youtubeRsAppendix + sharedEvidenceAppendix); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "정산서 인쇄 창을 열지 못했습니다. 다시 시도해 주세요."); }
     finally { setPrinting(false); }
   }
