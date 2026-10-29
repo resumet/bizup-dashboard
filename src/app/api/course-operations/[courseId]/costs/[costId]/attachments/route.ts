@@ -7,6 +7,7 @@ type Context = { params: Promise<{ courseId: string; costId: string }> };
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const MIME_BY_EXTENSION: Record<string, string> = {
   ".pdf": "application/pdf", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+  ".webp": "image/webp",
   ".xls": "application/vnd.ms-excel", ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 };
 
@@ -25,7 +26,7 @@ export async function POST(request: Request, { params }: Context) {
       for (const file of files) {
         const extension = file.name.toLowerCase().match(/\.[^.]+$/u)?.[0] ?? "";
         const mimeType = MIME_BY_EXTENSION[extension];
-        if (!mimeType || (file.type && file.type !== mimeType)) throw new Error(`${file.name}: PDF, JPG, JPEG, PNG, XLS, XLSX만 첨부할 수 있습니다.`);
+        if (!mimeType || (file.type && file.type !== mimeType)) throw new Error(`${file.name}: PDF, JPG, JPEG, PNG, WEBP, XLS, XLSX만 첨부할 수 있습니다.`);
         if (file.size < 1 || file.size > MAX_FILE_SIZE) throw new Error(`${file.name}: 파일은 20MB 이하여야 합니다.`);
         const id = crypto.randomUUID();
         const path = `${workspaceId}/${courseId}/${costId}/${id}${extension}`;

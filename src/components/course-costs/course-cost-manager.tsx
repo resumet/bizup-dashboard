@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, CalendarDays, CheckCircle2, ExternalLink, Loader2, Paperclip, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardPaste, ExternalLink, FileImage, Loader2, Paperclip, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -29,6 +30,33 @@ const BURDENS: Array<{ value: FixedBurden; label: string }> = [
 ];
 const money = (value: number) => `${Math.round(value).toLocaleString("ko-KR")}원`;
 const COST_ROW_GRID = "grid items-start gap-2 xl:grid-cols-[210px_160px_minmax(180px,0.8fr)_130px_180px_152px]";
+const MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024;
+const ATTACHMENT_ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.xls,.xlsx";
+const ATTACHMENT_MIME_BY_EXTENSION: Record<string, string> = {
+  pdf: "application/pdf",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+};
+
+function attachmentExtension(file: File) {
+  return file.name.toLowerCase().match(/\.([^.]+)$/u)?.[1] ?? "";
+}
+
+function validateAttachment(file: File) {
+  const expectedMime = ATTACHMENT_MIME_BY_EXTENSION[attachmentExtension(file)];
+  if (!expectedMime || (file.type && file.type !== expectedMime)) throw new Error(`${file.name}: PDF, JPG, JPEG, PNG, WEBP, XLS, XLSX만 첨부할 수 있습니다.`);
+  if (file.size < 1 || file.size > MAX_ATTACHMENT_SIZE) throw new Error(`${file.name}: 파일은 20MB 이하여야 합니다.`);
+}
+
+function clipboardImageName(type: string, index: number) {
+  const extension = type === "image/jpeg" ? "jpg" : type === "image/webp" ? "webp" : "png";
+  const stamp = new Date().toLocaleString("sv-SE", { timeZone: "Asia/Seoul" }).replaceAll(/[-: ]/gu, "").slice(0, 14);
+  return `클립보드-${stamp}${index ? `-${index + 1}` : ""}.${extension}`;
+}
 
 function emptyInput(burdenType: FixedBurden, categoryCode = "CUSTOM", name = ""): CourseCostInput {
   return {
@@ -285,17 +313,40 @@ function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onBusy,
   onApply: (body: CostResponse, message: string) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [attachmentOpen, setAttachmentOpen] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [attachmentError, setAttachmentError] = useState("");
 
-  async function upload(files: FileList | null) {
-    if (!draft.id || !files?.length) return;
+  function addFiles(files: File[]) {
+    try {
+      files.forEach(validateAttachment);
+      setPendingFiles((current) => [...current, ...files]);
+      setAttachmentError("");
+    } catch (reason) {
+      setAttachmentError(reason instanceof Error ? reason.message : "첨부파일을 확인해 주세요.");
+    }
+  }
+
+  function closeAttachmentDialog() {
+    if (busy) return;
+    setAttachmentOpen(false);
+    setPendingFiles([]);
+    setAttachmentError("");
+  }
+
+  async function upload() {
+    if (!draft.id || !pendingFiles.length) return;
     onBusy(true);
     onError("");
+    setAttachmentError("");
     try {
       const form = new FormData();
-      Array.from(files).forEach((file) => form.append("files", file));
+      pendingFiles.forEach((file) => form.append("files", file));
       onApply(await request(`/api/course-operations/${courseId}/costs/${draft.id}/attachments`, { method: "POST", body: form }), "증빙을 첨부했습니다.");
+      setPendingFiles([]);
+      setAttachmentOpen(false);
     } catch (reason) {
-      onError(reason instanceof Error ? reason.message : "증빙 첨부에 실패했습니다.");
+      setAttachmentError(reason instanceof Error ? reason.message : "증빙 첨부에 실패했습니다.");
     } finally {
       onBusy(false);
     }
@@ -315,19 +366,73 @@ function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onBusy,
           onError("비용을 먼저 저장한 후 증빙을 첨부해 주세요.");
           return;
         }
-        fileInputRef.current?.click();
+        setAttachmentOpen(true);
       }}
     >
       <Paperclip className="size-4"/>{draft.attachments.length ? <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-blue-600 text-[10px] text-white">{draft.attachments.length}</span> : null}
     </Button>
-    <Input ref={fileInputRef} type="file" multiple className="sr-only" disabled={busy || !draft.id} accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx" onChange={(event) => { void upload(event.target.files); event.currentTarget.value = ""; }}/>
     <Button type="button" size="icon" variant="outline" className="size-10 shrink-0 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-300" title="비용 삭제" aria-label={`${draft.value.name || "새 비용"} 삭제`} disabled={busy} onClick={onDelete}><Trash2/></Button>
   </div>;
 
-  return <div>
-    <CompactCostFields value={draft.value} showLabels={false} actions={actions} onChange={onChange}/>
-    {draft.attachments.length ? <div className="mt-2 flex flex-wrap items-center gap-2">{draft.attachments.map((file) => <span key={file.id} className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs"><Paperclip className="size-3"/>{file.url ? <a href={file.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">{file.originalName}<ExternalLink className="size-3"/></a> : file.originalName}<button type="button" disabled={locked || busy} title={locked ? "정산 확정 취소 후 삭제할 수 있습니다." : "증빙 삭제"} aria-label={`${file.originalName} 삭제`} onClick={() => void request(`/api/course-operations/${courseId}/costs/${draft.id}/attachments/${file.id}`, { method: "DELETE" }).then((body) => onApply(body, "증빙을 삭제했습니다."), (reason: unknown) => onError(reason instanceof Error ? reason.message : "증빙을 삭제하지 못했습니다."))}>×</button></span>)}</div> : null}
-  </div>;
+  return <>
+    <div>
+      <CompactCostFields value={draft.value} showLabels={false} actions={actions} onChange={onChange}/>
+      {draft.attachments.length ? <div className="mt-2 flex flex-wrap items-center gap-2">{draft.attachments.map((file) => <span key={file.id} className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs"><Paperclip className="size-3"/>{file.url ? <a href={file.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">{file.originalName}<ExternalLink className="size-3"/></a> : file.originalName}<button type="button" disabled={locked || busy} title={locked ? "정산 확정 취소 후 삭제할 수 있습니다." : "증빙 삭제"} aria-label={`${file.originalName} 삭제`} onClick={() => void request(`/api/course-operations/${courseId}/costs/${draft.id}/attachments/${file.id}`, { method: "DELETE" }).then((body) => onApply(body, "증빙을 삭제했습니다."), (reason: unknown) => onError(reason instanceof Error ? reason.message : "증빙을 삭제하지 못했습니다."))}>×</button></span>)}</div> : null}
+    </div>
+    <Dialog open={attachmentOpen} onOpenChange={(open) => { if (open) setAttachmentOpen(true); else closeAttachmentDialog(); }}>
+      <DialogContent
+        aria-describedby={undefined}
+        className="max-h-[85dvh] overflow-y-auto sm:max-w-xl"
+        onPaste={(event) => {
+          if (busy) return;
+          const images = Array.from(event.clipboardData.items)
+            .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+            .map((item) => item.getAsFile())
+            .filter((file): file is File => Boolean(file))
+            .map((file, index) => new File([file], clipboardImageName(file.type, index), { type: file.type, lastModified: Date.now() }));
+          event.preventDefault();
+          if (!images.length) {
+            setAttachmentError("클립보드에서 붙여넣을 사진을 찾지 못했습니다.");
+            return;
+          }
+          addFiles(images);
+        }}
+      >
+        <DialogHeader><DialogTitle>비용 증빙 첨부</DialogTitle></DialogHeader>
+        <div
+          tabIndex={0}
+          className="rounded-xl border-2 border-dashed border-border bg-muted/30 p-6 text-center outline-none transition-colors focus:border-primary focus:bg-primary/5"
+          onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
+        >
+          <div className="mx-auto mb-3 flex size-11 items-center justify-center rounded-full bg-background shadow-sm ring-1 ring-border"><ClipboardPaste className="size-5 text-primary"/></div>
+          <p className="font-medium">사진을 Ctrl+V로 붙여넣으세요</p>
+          <p className="mt-1 text-xs text-muted-foreground">이 영역을 클릭해 파일을 직접 선택할 수도 있습니다.</p>
+          <Button type="button" variant="outline" className="mt-4" disabled={busy} onClick={(event) => { event.stopPropagation(); fileInputRef.current?.click(); }}><Paperclip/>파일 선택</Button>
+          <Input ref={fileInputRef} type="file" multiple className="sr-only" disabled={busy} accept={ATTACHMENT_ACCEPT} onChange={(event) => { addFiles(Array.from(event.target.files ?? [])); event.currentTarget.value = ""; }}/>
+          <p className="mt-3 text-[11px] text-muted-foreground">PDF·JPG·PNG·WEBP·Excel, 파일당 20MB 이하</p>
+        </div>
+        {pendingFiles.length ? <ul className="space-y-2" aria-label="첨부 대기 파일">
+          {pendingFiles.map((file, index) => <li key={`${file.name}-${file.size}-${index}`} className="flex items-center gap-3 rounded-lg border px-3 py-2.5">
+            <FileImage className="size-4 shrink-0 text-muted-foreground"/>
+            <span className="min-w-0 flex-1 truncate text-sm">{file.name}</span>
+            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{Math.max(1, Math.ceil(file.size / 1024)).toLocaleString("ko-KR")}KB</span>
+            <Button type="button" variant="ghost" size="icon-sm" aria-label={`${file.name} 제외`} disabled={busy} onClick={() => setPendingFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))}><X/></Button>
+          </li>)}
+        </ul> : null}
+        {attachmentError ? <Alert variant="destructive"><AlertTitle>첨부할 수 없습니다</AlertTitle><AlertDescription>{attachmentError}</AlertDescription></Alert> : null}
+        <DialogFooter>
+          <Button type="button" variant="outline" disabled={busy} onClick={closeAttachmentDialog}>취소</Button>
+          <Button type="button" disabled={busy || pendingFiles.length === 0} onClick={() => void upload()}>{busy ? <Loader2 className="animate-spin"/> : <Paperclip/>}{pendingFiles.length ? `${pendingFiles.length}개 파일 첨부` : "파일 첨부"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>;
 }
 
 function CompactCostFields({ value, onChange, actions, showLabels = true }: { value: CourseCostInput; onChange: (patch: Partial<CourseCostInput>) => void; actions?: ReactNode; showLabels?: boolean }) {
