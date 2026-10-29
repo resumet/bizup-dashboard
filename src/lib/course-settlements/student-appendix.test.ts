@@ -2,12 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { RosterRow } from "@/lib/jobs/types";
 import { studentAppendixHtml, toStatementStudent } from "./student-appendix";
+import { composeStatementPrintHtml } from "./print-students";
 
 test("수강생의 클래스와 결제금액을 매핑하고 미등록 금액을 0과 구분한다", () => {
   const row = { normalizedPhone: "01012345678", values: { customerName: "동명이인", courseName: "강의", optionName: "심화반", email: "a@example.com", paymentAmount: "1,990,000원" } } as RosterRow;
   assert.deepEqual(toStatementStudent(row, "기본"), { name: "동명이인", phone: "01012345678", email: "a@example.com", className: "강의 / 심화반", paymentAmount: 1990000 });
   assert.equal(toStatementStudent({ ...row, values: { ...row.values, paymentAmount: "" } }, "기본").paymentAmount, null);
   assert.equal(toStatementStudent({ ...row, values: { ...row.values, paymentAmount: "0" } }, "기본").paymentAmount, 0);
+});
+
+test("공동 부담 증빙 부록은 수강생 목록보다 뒤에 배치한다", () => {
+  const html = composeStatementPrintHtml("<main>정산 본문</main>", [], "<section>공동 부담 증빙</section>");
+  assert.ok(html.indexOf("정산 본문") < html.indexOf("수강생 목록"));
+  assert.ok(html.indexOf("수강생 목록") < html.indexOf("공동 부담 증빙"));
 });
 
 test("인쇄 명단은 새 페이지에서 시작하며 동명이인과 HTML 문자를 보존한다", () => {
