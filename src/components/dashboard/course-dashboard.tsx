@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { DashboardExternalMarketingCourse } from "@/lib/dashboard/external-marketing";
+import type { DashboardLeave } from "@/lib/dashboard/leaves";
 import type { DashboardCourseSearchItem, DashboardMenuCustomKeywords } from "@/lib/dashboard/menu-search";
 import type { BusinessTripDashboardSummary } from "@/lib/business-trip-reports/types";
 
@@ -55,13 +56,6 @@ export type DashboardSchedule = {
   location: string;
   href: string;
   startMinutes: number;
-};
-
-export type DashboardLeave = {
-  id: string;
-  name: string;
-  unit: string;
-  href: string;
 };
 
 type DashboardData = {
@@ -243,21 +237,33 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
           </Card>
 
           <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
-            <SectionHeader title="오늘 휴가자" href="/hr/leave" />
+            <SectionHeader title="휴가자 정보" href="/hr/leave" />
             <CardContent className="p-4 sm:p-5">
               {data.errors.leaves ? <ErrorState>{data.errors.leaves}</ErrorState> : data.leaves.length ? (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-                  {data.leaves.slice(0, 4).map((leave) => (
+                  {data.leaves.map((leave) => (
                     <Link key={leave.id} href={leave.href} className="flex items-center gap-3 rounded-xl border border-slate-200 p-4 transition-colors hover:border-emerald-300 hover:bg-emerald-50/40">
                       <span className="grid size-10 shrink-0 place-items-center rounded-full bg-emerald-100 font-semibold text-emerald-800">{leave.name.slice(0, 1)}</span>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="truncate font-semibold text-slate-900">{leave.name}</p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">{leave.unit}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {leave.status === "today" ? leave.unit : `${dateLabel(leave.leaveDate)} · ${leave.unit}`}
+                        </p>
                       </div>
+                      <Badge
+                        variant={leave.status === "pending" ? "outline" : "secondary"}
+                        className={leave.status === "today"
+                          ? "shrink-0 bg-emerald-100 text-emerald-800"
+                          : leave.status === "pending"
+                            ? "shrink-0 border-amber-300 bg-amber-50 text-amber-800"
+                            : "shrink-0 bg-blue-50 text-blue-700"}
+                      >
+                        {leave.status === "today" ? "오늘" : leave.status === "pending" ? "미승인" : "예정"}
+                      </Badge>
                     </Link>
                   ))}
                 </div>
-              ) : <EmptyState>오늘 휴가자가 없습니다.</EmptyState>}
+              ) : <EmptyState>오늘부터 일주일 이내 휴가자가 없습니다.</EmptyState>}
             </CardContent>
           </Card>
 

@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import {
   CourseDashboard,
   type DashboardCourse,
-  type DashboardLeave,
   type DashboardSchedule,
   type DashboardWbsTask,
 } from "@/components/dashboard/course-dashboard";
@@ -12,11 +11,12 @@ import { formatWebinarCountdown } from "@/lib/course-operations/webinar-proximit
 import { loadCourseWbsBootstrap } from "@/lib/course-wbs/server";
 import { formatDashboardCohort, formatDashboardWebinarDate } from "@/lib/dashboard/course-metadata";
 import { activeExternalMarketingCourses } from "@/lib/dashboard/external-marketing";
+import { loadDashboardLeaves } from "@/lib/dashboard/leaves-server";
 import { loadDashboardMenuSearchKeywordSettings } from "@/lib/admin/menu-search-keywords-storage";
 import { loadExternalMarketingProjects } from "@/lib/external-marketing/server";
 import { formatCalendarTime, formatLocation, koreaToday } from "@/lib/shared-calendar/calendar";
 import { calendarContext, loadCalendarEvents } from "@/lib/shared-calendar/server";
-import { loadCalendarLeaves, loadCalendarWebinars } from "@/lib/shared-calendar/sources-server";
+import { loadCalendarWebinars } from "@/lib/shared-calendar/sources-server";
 import { loadBusinessTripDashboardSummary } from "@/lib/business-trip-reports/server";
 
 function errorMessage(section: string) {
@@ -44,7 +44,7 @@ export default async function HomePage() {
     loadCourseWbsBootstrap(context.workspaceId),
     loadCalendarEvents(context.supabase, context.workspaceId, range),
     loadCalendarWebinars(context.supabase, context.workspaceId, range),
-    loadCalendarLeaves(context, range),
+    loadDashboardLeaves(context, today),
     loadExternalMarketingProjects(context.workspaceId),
     loadDashboardMenuSearchKeywordSettings(context.workspaceId),
   ]);
@@ -139,12 +139,7 @@ export default async function HomePage() {
   schedules.sort((left, right) => left.startMinutes - right.startMinutes || left.title.localeCompare(right.title, "ko"));
   if (eventsResult.status === "rejected" && webinarsResult.status === "rejected") errors.schedules = errorMessage("오늘 일정");
 
-  const leaves: DashboardLeave[] = leavesResult.status === "fulfilled"
-    ? leavesResult.value.map((leave) => {
-      const [name, unit = "휴가"] = leave.title.split(" · ");
-      return { id: leave.id, name, unit, href: leave.href };
-    })
-    : [];
+  const leaves = leavesResult.status === "fulfilled" ? leavesResult.value : [];
   if (leavesResult.status === "rejected") errors.leaves = errorMessage("휴가자");
 
   const externalMarketing = externalMarketingResult.status === "fulfilled"
