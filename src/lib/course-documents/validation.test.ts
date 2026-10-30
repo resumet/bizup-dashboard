@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { adminCourseDocumentSchema, assertValidKoreanPhone, courseDocumentContentSchema, slugBase, splitDocumentAtLeadGate } from "./validation";
+import { adminCourseDocumentSchema, assertValidKoreanPhone, courseDocumentContentSchema, getLeadGatePreviewBlocks, slugBase, splitDocumentAtLeadGate } from "./validation";
 
 test("전화번호는 숫자만 남기고 국내 전화번호 길이를 검증한다", () => {
   assert.equal(assertValidKoreanPhone("010-1234-5678"), "01012345678");
@@ -14,6 +14,11 @@ test("리드게이트는 선택한 블록 다음부터 잠근다", () => {
     publicBlocks: blocks.slice(0, 2),
     lockedBlocks: blocks.slice(2),
   });
+});
+
+test("리드게이트 미리보기는 잠긴 내용의 첫 네 블록만 노출한다", () => {
+  const blocks = Array.from({ length: 6 }, (_, index) => ({ id: String(index + 1) }));
+  assert.deepEqual(getLeadGatePreviewBlocks(blocks), blocks.slice(0, 4));
 });
 
 test("리드게이트는 뒤에 공개할 블록이 남는 위치에만 둘 수 있다", () => {

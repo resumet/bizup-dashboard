@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, LockKeyhole } from "lucide-react";
 
@@ -16,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function LeadGateForm({ slug }: { slug: string }) {
+export function LeadGateForm({ slug, children }: { slug: string; children: ReactNode }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -56,21 +57,13 @@ export function LeadGateForm({ slug }: { slug: string }) {
 
   return (
     <section className="relative -mt-2 pb-4 pt-2" aria-label="잠긴 나머지 내용">
-      <div className="pointer-events-none relative h-48 select-none overflow-hidden" aria-hidden="true">
-        <div className="space-y-7 pt-5 opacity-35 blur-[1.5px] [mask-image:linear-gradient(to_bottom,black_5%,transparent_92%)]">
-          <div className="space-y-3">
-            <div className="h-3.5 w-[94%] rounded-full bg-foreground/35" />
-            <div className="h-3.5 w-[86%] rounded-full bg-foreground/30" />
-            <div className="h-3.5 w-[72%] rounded-full bg-foreground/25" />
-          </div>
-          <div className="space-y-3">
-            <div className="h-3.5 w-[91%] rounded-full bg-foreground/25" />
-            <div className="h-3.5 w-[78%] rounded-full bg-foreground/20" />
-          </div>
+      <div className="pointer-events-none relative h-[22rem] select-none overflow-hidden sm:h-[26rem]" aria-hidden="true">
+        <div className="pt-5 opacity-65 blur-[1.25px] [mask-image:linear-gradient(to_bottom,black_0%,black_42%,transparent_96%)]">
+          {children}
         </div>
-        <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-b from-transparent via-[#faf9f7]/85 to-[#faf9f7]" />
+        <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-b from-transparent via-[#faf9f7]/75 to-[#faf9f7] sm:h-56" />
       </div>
-      <div className="relative -mt-20 flex justify-center">
+      <div className="relative -mt-24 flex justify-center">
         <Button
           type="button"
           size="lg"

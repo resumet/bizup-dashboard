@@ -196,6 +196,10 @@ export function splitDocumentAtLeadGate<T extends { id: string }>(
   };
 }
 
+export function getLeadGatePreviewBlocks<T>(lockedBlocks: T[]) {
+  return lockedBlocks.slice(0, 4);
+}
+
 export function slugBase(title: string) {
   const normalized = title
     .normalize("NFKC")
