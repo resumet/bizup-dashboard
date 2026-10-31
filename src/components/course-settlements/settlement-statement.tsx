@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import type { CourseCost, CourseCostBurden } from "@/lib/course-costs/types";
-import { sharedCostCalculationRows } from "@/lib/course-settlements/calculation-rows";
+import { companyCostCalculationRows, sharedCostCalculationRows } from "@/lib/course-settlements/calculation-rows";
 import { calculateCostSettlement, roundWon, type AggregatedInstructorSettlement, type MonthlyAnalysis, type SettlementCost } from "@/lib/course-settlements/engine";
 import { escapePrintHtml } from "@/lib/course-settlements/print";
 import { printStatementWithStudents } from "@/lib/course-settlements/print-students";
@@ -190,6 +190,7 @@ export function SettlementStatement({ instructor, manualCash, monthlyAnalyses, c
     { code: "L", label: "최종 강사 지급액", value: calculation.instructorFinal, formula: "J + K", emphasized: true },
     { code: "M", label: "회사 기본분", value: calculation.companyBase, formula: `F × ${calculation.companyRatioPercent}%` },
     { code: "N", label: "회사 부담액", value: calculation.costs.company, formula: "회사 단독 부담 비용 총합" },
+    ...companyCostCalculationRows(appliedCourseCosts),
     { code: "O", label: "공동비용 회사 조정액", value: sharedCompanyAdjustment, formula: `공동비용 회사 부담액 − (E × ${calculation.companyRatioPercent}%)` },
     { code: "P", label: "최종 회사분", value: calculation.companyFinal, formula: "M − N − O", emphasized: true },
   ];

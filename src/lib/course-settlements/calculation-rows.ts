@@ -23,3 +23,17 @@ export function sharedCostCalculationRows(
       detail: true,
     }));
 }
+
+export function companyCostCalculationRows(
+  costs: readonly SharedCostSource[],
+): SharedCostCalculationRow[] {
+  return costs
+    .filter((cost) => cost.burdenType === "COMPANY")
+    .map((cost, index) => ({
+      code: `N-${index + 1}`,
+      label: cost.name,
+      value: cost.grossAmount,
+      formula: "회사 단독 부담 비용 상세",
+      detail: true,
+    }));
+}
