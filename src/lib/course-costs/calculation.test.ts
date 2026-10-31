@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculateBurden, calculateTax, parseCourseCostInput } from "./calculation";
+import { burdenTypePatch, calculateBurden, calculateTax, parseCourseCostInput } from "./calculation";
 import { COURSE_COST_DEFAULT_CATEGORIES } from "./types";
 
 test("기본 비용 항목은 광고 매체를 분리하고 스튜디오와 PD 인건비를 통합한다", () => {
@@ -30,6 +30,24 @@ test("공동부담 60:40 금액 합계는 정산금액과 일치한다", () => {
     instructorShareRate: 40,
     companyShareAmount: 600_001,
     instructorShareAmount: 400_000,
+  });
+});
+
+test("부담 구분 이동 시 기본 부담 비율도 함께 바뀐다", () => {
+  assert.deepEqual(burdenTypePatch("COMPANY"), {
+    burdenType: "COMPANY",
+    companyShareRate: 100,
+    instructorShareRate: 0,
+  });
+  assert.deepEqual(burdenTypePatch("SHARED"), {
+    burdenType: "SHARED",
+    companyShareRate: 50,
+    instructorShareRate: 50,
+  });
+  assert.deepEqual(burdenTypePatch("INSTRUCTOR"), {
+    burdenType: "INSTRUCTOR",
+    companyShareRate: 0,
+    instructorShareRate: 100,
   });
 });
 

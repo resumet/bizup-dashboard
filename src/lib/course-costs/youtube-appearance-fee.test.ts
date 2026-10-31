@@ -34,7 +34,7 @@ test("채널 출연료를 공급가액으로 보고 부가세 10%를 더해 최�
   });
 });
 
-test("출연료 생성 항목의 이름, 담당자, 금액, 부담 구분을 서버에서 고정한다", () => {
+test("출연료 생성 항목의 이름, 담당자와 금액은 고정하고 사용자가 옮긴 부담 구분은 보존한다", () => {
   const details = parseYoutubeAppearanceFeeCostDetails({
     kind: "YOUTUBE_APPEARANCE_FEE",
     version: 1,
@@ -65,7 +65,9 @@ test("출연료 생성 항목의 이름, 담당자, 금액, 부담 구분을 서
   assert.equal(parsed.name, "유튜브 출연료");
   assert.equal(parsed.managerName, "시스템노바");
   assert.equal(parsed.categoryCode, "YOUTUBE_FIXED");
-  assert.equal(parsed.burdenType, "COMPANY");
+  assert.equal(parsed.burdenType, "INSTRUCTOR");
+  assert.equal(parsed.companyShareRate, 0);
+  assert.equal(parsed.instructorShareRate, 100);
   assert.equal(parsed.grossAmount, 605_000);
   assert.equal(parsed.status, "PAID");
   assert.match(parsed.paidDate, /^\d{4}-\d{2}-\d{2}$/u);

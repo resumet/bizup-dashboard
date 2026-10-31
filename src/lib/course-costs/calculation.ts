@@ -39,6 +39,18 @@ export function calculateBurden(
   };
 }
 
+export function burdenTypePatch(
+  burdenType: Exclude<CourseCostBurden, "UNCLASSIFIED">,
+): Pick<CourseCostInput, "burdenType" | "companyShareRate" | "instructorShareRate"> {
+  if (burdenType === "COMPANY") {
+    return { burdenType, companyShareRate: 100, instructorShareRate: 0 };
+  }
+  if (burdenType === "INSTRUCTOR") {
+    return { burdenType, companyShareRate: 0, instructorShareRate: 100 };
+  }
+  return { burdenType, companyShareRate: 50, instructorShareRate: 50 };
+}
+
 const BURDENS = new Set<CourseCostBurden>(["COMPANY", "INSTRUCTOR", "SHARED", "UNCLASSIFIED"]);
 const STATUSES = new Set(["PLANNED", "PAID", "CANCELED"]);
 
@@ -67,7 +79,7 @@ export function parseCourseCostInput(value: unknown): CourseCostInput {
       ? "시스템노바"
       : typeof input.managerName === "string" ? input.managerName.trim() : "";
   const requestedBurden = input.burdenType as CourseCostBurden;
-  const burdenType = isYoutubeAppearanceFee || requestedBurden === "UNCLASSIFIED" ? "COMPANY" : requestedBurden;
+  const burdenType = requestedBurden === "UNCLASSIFIED" ? "COMPANY" : requestedBurden;
   const requestedStatus = String(input.status);
   const autoCompleted = (isYoutubeRs || isYoutubeAppearanceFee) && requestedStatus === "PLANNED";
   const status = autoCompleted ? "PAID" : requestedStatus;

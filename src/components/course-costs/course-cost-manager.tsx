@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardPaste, ExternalLink, FileImage, Loader2, Paperclip, PencilLine, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardPaste, ExternalLink, FileImage, GripVertical, Loader2, Paperclip, PencilLine, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { calculateBurden, calculateTax } from "@/lib/course-costs/calculation";
+import { burdenTypePatch, calculateBurden, calculateTax } from "@/lib/course-costs/calculation";
 import { YoutubeAppearanceFeeDialog } from "@/components/course-costs/youtube-appearance-fee-dialog";
 import { YoutubeRsCostDialog } from "@/components/course-costs/youtube-rs-cost-dialog";
 import { youtubeAppearanceFeeTotals } from "@/lib/course-costs/youtube-appearance-fee";
@@ -35,7 +35,7 @@ const BURDENS: Array<{ value: FixedBurden; label: string }> = [
   { value: "INSTRUCTOR", label: "강사 부담" },
 ];
 const money = (value: number) => `${Math.round(value).toLocaleString("ko-KR")}원`;
-const COST_ROW_GRID = "grid items-start gap-2 xl:grid-cols-[210px_160px_minmax(180px,0.8fr)_130px_180px_152px]";
+const COST_ROW_GRID = "grid items-start gap-2 xl:grid-cols-[210px_160px_minmax(180px,0.8fr)_130px_180px_200px]";
 const MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024;
 const ATTACHMENT_ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.xls,.xlsx";
 const ATTACHMENT_MIME_BY_EXTENSION: Record<string, string> = {
@@ -141,6 +141,8 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
   const [youtubeAppearanceFeeOpen, setYoutubeAppearanceFeeOpen] = useState(false);
   const [youtubeAppearanceFeeTargetKey, setYoutubeAppearanceFeeTargetKey] = useState<string | null>(null);
   const [youtubeAppearanceFeeInitialDetails, setYoutubeAppearanceFeeInitialDetails] = useState<YoutubeAppearanceFeeCostDetails | null>(null);
+  const [draggedKey, setDraggedKey] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<FixedBurden | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -274,6 +276,31 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
     setNotice("");
   }
 
+  function moveDraft(key: string, burdenType: FixedBurden) {
+    const draft = drafts.find((item) => item.key === key);
+    if (!draft || belongsToSection(draft.value, burdenType)) return;
+    updateDraft(key, burdenTypePatch(burdenType));
+  }
+
+  function startDragging(event: DragEvent<HTMLButtonElement>, key: string) {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", key);
+    setDraggedKey(key);
+    setDropTarget(null);
+  }
+
+  function finishDragging() {
+    setDraggedKey(null);
+    setDropTarget(null);
+  }
+
+  function dropIntoSection(event: DragEvent<HTMLElement>, burdenType: FixedBurden) {
+    event.preventDefault();
+    const key = draggedKey || event.dataTransfer.getData("text/plain");
+    if (key) moveDraft(key, burdenType);
+    finishDragging();
+  }
+
   function removeDraft(draft: CostDraft) {
     setDrafts((current) => current.filter((item) => item.key !== draft.key));
     setDirtyKeys((current) => {
@@ -365,15 +392,31 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
     {BURDENS.map((burden) => {
       const items = drafts.filter((draft) => belongsToSection(draft.value, burden.value));
       const hasPaidItem = items.some((draft) => draft.value.status === "PAID");
-      return <Card key={burden.value}>
+      const draggedDraft = draggedKey ? drafts.find((draft) => draft.key === draggedKey) : null;
+      const acceptsDrop = Boolean(draggedDraft && !belongsToSection(draggedDraft.value, burden.value));
+      const activeDropTarget = acceptsDrop && dropTarget === burden.value;
+      return <Card
+        key={burden.value}
+        className={activeDropTarget ? "border-blue-400 bg-blue-50/40 ring-2 ring-blue-200 dark:border-blue-700 dark:bg-blue-950/20 dark:ring-blue-900" : undefined}
+        onDragOver={(event) => {
+          if (!acceptsDrop) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+          setDropTarget(burden.value);
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTarget(null);
+        }}
+        onDrop={(event) => dropIntoSection(event, burden.value)}
+      >
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>{burden.label}</CardTitle><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={busy || items.length === 0} onClick={() => setSectionPaid(burden.value)}><CheckCircle2/>전체 지급완료</Button><Button type="button" variant="outline" disabled={busy || !hasPaidItem} onClick={() => setSectionDateToday(burden.value)}><CalendarDays/>정산일 오늘로</Button><Button type="button" variant="outline" disabled={busy} onClick={() => addDraft(burden.value)}><Plus/>기타 비용 추가</Button></div></div>
           <div className="flex flex-wrap gap-2">{COURSE_COST_DEFAULT_CATEGORIES[burden.value].map(([code,name]) => <Button type="button" key={code} size="sm" variant="secondary" disabled={busy} onClick={() => code === "YOUTUBE_RS" ? openYoutubeRsDialog() : code === "YOUTUBE_FIXED" ? openYoutubeAppearanceFeeDialog() : addDraft(burden.value, code, name)}>{name} 등록</Button>)}</div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className={`${COST_ROW_GRID} hidden border-b px-3 pb-2 text-xs font-medium text-muted-foreground xl:grid`}><span>이름</span><span>담당자</span><span>정산금액</span><span>비용상태</span><span>정산일</span><span className="sr-only">관리</span></div>
-          {items.map((draft) => <CostEditor key={draft.key} draft={draft} locked={locked} busy={busy} courseId={courseId} onChange={(patch) => updateDraft(draft.key, patch)} onDelete={() => removeDraft(draft)} onEditCalculation={() => draft.value.calculationDetails?.kind === "YOUTUBE_RS" ? openYoutubeRsDialog(draft) : openYoutubeAppearanceFeeDialog(draft)} onBusy={setBusy} onError={setError} onApply={applyAttachmentResponse}/>)}
-          {!items.length ? <p className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">등록된 비용이 없습니다.</p> : null}
+          {items.map((draft) => <CostEditor key={draft.key} draft={draft} locked={locked} busy={busy} courseId={courseId} onChange={(patch) => updateDraft(draft.key, patch)} onDelete={() => removeDraft(draft)} onEditCalculation={() => draft.value.calculationDetails?.kind === "YOUTUBE_RS" ? openYoutubeRsDialog(draft) : openYoutubeAppearanceFeeDialog(draft)} onDragStart={(event) => startDragging(event, draft.key)} onDragEnd={finishDragging} onBusy={setBusy} onError={setError} onApply={applyAttachmentResponse}/>)}
+          {!items.length ? <p className={`rounded-lg border border-dashed py-8 text-center text-sm ${activeDropTarget ? "border-blue-400 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300" : "text-muted-foreground"}`}>{activeDropTarget ? "이곳에 놓아 부담 구분을 변경하세요." : "등록된 비용이 없습니다."}</p> : null}
         </CardContent>
       </Card>;
     })}
@@ -386,7 +429,7 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
   </div>;
 }
 
-function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onEditCalculation, onBusy, onError, onApply }: {
+function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onEditCalculation, onDragStart, onDragEnd, onBusy, onError, onApply }: {
   draft: CostDraft;
   locked: boolean;
   busy: boolean;
@@ -394,6 +437,8 @@ function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onEditC
   onChange: (patch: Partial<CourseCostInput>) => void;
   onDelete: () => void;
   onEditCalculation: () => void;
+  onDragStart: (event: DragEvent<HTMLButtonElement>) => void;
+  onDragEnd: () => void;
   onBusy: (value: boolean) => void;
   onError: (value: string) => void;
   onApply: (body: CostResponse, message: string) => void;
@@ -439,6 +484,20 @@ function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onEditC
   }
 
   const actions = <div className="flex h-10 items-center justify-start gap-2 pl-4">
+    <Button
+      type="button"
+      size="icon"
+      variant="ghost"
+      draggable={!busy}
+      title="다른 부담 구분으로 끌어서 이동"
+      aria-label={`${draft.value.name || "새 비용"} 부담 구분 이동`}
+      className="size-10 shrink-0 cursor-grab text-muted-foreground active:cursor-grabbing"
+      disabled={busy}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+    >
+      <GripVertical className="size-4"/>
+    </Button>
     <Button
       type="button"
       size="icon"

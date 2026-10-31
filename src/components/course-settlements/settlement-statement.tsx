@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import type { CourseCost, CourseCostBurden } from "@/lib/course-costs/types";
+import { sharedCostCalculationRows } from "@/lib/course-settlements/calculation-rows";
 import { calculateCostSettlement, roundWon, type AggregatedInstructorSettlement, type MonthlyAnalysis, type SettlementCost } from "@/lib/course-settlements/engine";
 import { escapePrintHtml } from "@/lib/course-settlements/print";
 import { printStatementWithStudents } from "@/lib/course-settlements/print-students";
@@ -24,7 +25,7 @@ const currency = (value: number) => `${roundWon(value).toLocaleString("ko-KR")}�
 
 import type { ManualCashSummary } from "@/lib/course-settlements/manual-cash";
 
-type CalculationRow = { code: string; label: string; value: number; formula: string; emphasized?: boolean };
+type CalculationRow = { code: string; label: string; value: number; formula: string; emphasized?: boolean; detail?: boolean };
 
 function SummaryMetric({ label, value, unit = "원", tone = "default" }: {
   label: string;
@@ -179,6 +180,7 @@ export function SettlementStatement({ instructor, manualCash, monthlyAnalyses, c
     { code: "C1", label: "부가서비스", value: calculation.additionalServiceFee, formula: "부가서비스 이용료 합계" },
     { code: "D", label: "정산대상 매출", value: calculation.settlementTargetRevenue, formula: "A − B − C − C1" },
     { code: "E", label: "공동 부담액", value: calculation.costs.shared, formula: "공동 부담 비용 총합" },
+    ...sharedCostCalculationRows(appliedCourseCosts),
     { code: "F", label: "분배 기준액", value: calculation.distributionBase, formula: "D − E" },
     { code: "G", label: "강사 기본분", value: calculation.instructorBase, formula: `F × ${calculation.instructorRatioPercent}%`, emphasized: true },
     { code: "H", label: "강사 부담액", value: calculation.costs.instructor, formula: "강사 단독 부담 비용 총합" },
@@ -221,8 +223,11 @@ export function SettlementStatement({ instructor, manualCash, monthlyAnalyses, c
     const primarySummary = `<div class="summary-grid"><div class="summary-card primary"><span>전체 매출</span><strong>${currency(calculation.totalSales)}</strong></div><div class="summary-card"><span>공동 부담액</span><strong>${currency(calculation.costs.shared)}</strong></div><div class="summary-card success"><span>최종 강사 지급액</span><strong>${currency(calculation.instructorFinal)}</strong></div></div>`;
     const countSummary = `<div class="metric-grid"><div><span>전체 결제자 수</span><strong>${transactionMetrics.payerCount.toLocaleString("ko-KR")}명</strong></div><div><span>결제 건수</span><strong>${transactionMetrics.paymentCount.toLocaleString("ko-KR")}건</strong></div><div><span>환불 건수</span><strong>${transactionMetrics.refundCount.toLocaleString("ko-KR")}건</strong></div></div>`;
     const costs = [printCostSection("공동 부담액", "SHARED", appliedCourseCosts), printCostSection("회사 부담액", "COMPANY", appliedCourseCosts), printCostSection("강사 부담액", "INSTRUCTOR", appliedCourseCosts)].join("");
-    const flow = calculationRows.map((row) => `<tr${row.emphasized ? ' class="highlight"' : ""}><td class="code">${row.code}</td><th>${row.label}</th><td class="number">${currency(row.value)}</td><td class="formula">${escapePrintHtml(row.formula)}</td></tr>`).join("");
-    const body = `<header class="document-header"><div><p class="eyebrow">BIZUP CLASS · SETTLEMENT</p><h1>${escapePrintHtml(draft.lectureName)} 최종 정산서</h1><p class="meta">강의기간 ${escapePrintHtml(draft.coursePeriod)} · 정산기간 ${escapePrintHtml(draft.settlementPeriod)} · 발행일 ${escapePrintHtml(draft.issueDate)} · 담당자 ${escapePrintHtml(draft.manager)}</p></div><div class="document-status">${escapePrintHtml(draft.status)}</div></header>${companyInformation}<h2>정산 요약</h2>${primarySummary}${countSummary}<h2>비용 상세</h2>${costs}<h2>최종 정산 계산</h2><table class="calculation-table"><thead><tr><th class="code">코드</th><th>항목</th><th class="number">금액</th><th>계산식</th></tr></thead><tbody>${flow}</tbody></table>`;
+    const flow = calculationRows.map((row) => {
+      const rowClass = [row.emphasized ? "highlight" : "", row.detail ? "detail" : ""].filter(Boolean).join(" ");
+      return `<tr${rowClass ? ` class="${rowClass}"` : ""}><td class="code">${escapePrintHtml(row.code)}</td><th>${escapePrintHtml(row.label)}</th><td class="number">${currency(row.value)}</td><td class="formula">${escapePrintHtml(row.formula)}</td></tr>`;
+    }).join("");
+    const body = `<style>.calculation-table .detail td{background:#f8fafc;color:#475467}.calculation-table .detail th{background:#f8fafc;color:#475467;font-weight:600;padding-left:20px}</style><header class="document-header"><div><p class="eyebrow">BIZUP CLASS · SETTLEMENT</p><h1>${escapePrintHtml(draft.lectureName)} 최종 정산서</h1><p class="meta">강의기간 ${escapePrintHtml(draft.coursePeriod)} · 정산기간 ${escapePrintHtml(draft.settlementPeriod)} · 발행일 ${escapePrintHtml(draft.issueDate)} · 담당자 ${escapePrintHtml(draft.manager)}</p></div><div class="document-status">${escapePrintHtml(draft.status)}</div></header>${companyInformation}<h2>정산 요약</h2>${primarySummary}${countSummary}<h2>비용 상세</h2>${costs}<h2>최종 정산 계산</h2><table class="calculation-table"><thead><tr><th class="code">코드</th><th>항목</th><th class="number">금액</th><th>계산식</th></tr></thead><tbody>${flow}</tbody></table>`;
     setError("");
     setPrinting(true);
     const youtubeCostAppendix = youtubeChannelCostAppendixHtml(appliedCourseCosts);
@@ -275,7 +280,25 @@ export function SettlementStatement({ instructor, manualCash, monthlyAnalyses, c
       </CardContent></Card>
 
       <Card><CardHeader><div className="flex items-center gap-3"><div className="rounded-xl bg-blue-100 p-2.5 text-blue-700 dark:bg-blue-950 dark:text-blue-300"><ReceiptText className="size-5" /></div><div><CardTitle>최종 정산 계산</CardTitle></div></div></CardHeader><CardContent className="space-y-5">
-        <div className="overflow-hidden rounded-xl border"><Table><TableHeader className="bg-muted/50"><TableRow><TableHead className="w-16 px-4 text-center">코드</TableHead><TableHead>항목</TableHead><TableHead className="text-right">금액</TableHead><TableHead className="min-w-52 px-4">계산식</TableHead></TableRow></TableHeader><TableBody>{calculationRows.map((row) => <TableRow key={row.code} className={row.emphasized ? "bg-blue-50/70 dark:bg-blue-950/20" : ""}><TableCell className="px-4 text-center"><span className={`inline-flex size-8 items-center justify-center rounded-lg font-bold ${row.emphasized ? "bg-blue-600 text-white" : "bg-muted text-foreground"}`}>{row.code}</span></TableCell><TableCell className={row.emphasized ? "font-bold" : "font-medium"}>{row.label}</TableCell><TableCell className={`text-right tabular-nums ${row.emphasized ? "text-base font-bold text-blue-700 dark:text-blue-300" : "font-medium"}`}>{currency(row.value)}</TableCell><TableCell className="px-4 font-mono text-xs text-muted-foreground">{row.formula}</TableCell></TableRow>)}</TableBody></Table></div>
+        <div className="overflow-hidden rounded-xl border">
+          <Table>
+            <TableHeader className="bg-muted/50">
+              <TableRow><TableHead className="w-16 px-4 text-center">코드</TableHead><TableHead>항목</TableHead><TableHead className="text-right">금액</TableHead><TableHead className="min-w-52 px-4">계산식</TableHead></TableRow>
+            </TableHeader>
+            <TableBody>
+              {calculationRows.map((row) => (
+                <TableRow key={row.code} className={row.emphasized ? "bg-blue-50/70 dark:bg-blue-950/20" : row.detail ? "bg-muted/25" : ""}>
+                  <TableCell className="px-4 text-center">
+                    <span className={`inline-flex items-center justify-center rounded-lg font-bold ${row.detail ? "h-7 min-w-10 px-1.5 text-xs text-muted-foreground" : "size-8"} ${row.emphasized ? "bg-blue-600 text-white" : "bg-muted text-foreground"}`}>{row.code}</span>
+                  </TableCell>
+                  <TableCell className={row.emphasized ? "font-bold" : row.detail ? "pl-8 font-medium text-muted-foreground" : "font-medium"}>{row.label}</TableCell>
+                  <TableCell className={`text-right tabular-nums ${row.emphasized ? "text-base font-bold text-blue-700 dark:text-blue-300" : row.detail ? "text-muted-foreground" : "font-medium"}`}>{currency(row.value)}</TableCell>
+                  <TableCell className="px-4 font-mono text-xs text-muted-foreground">{row.formula}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
         {missingEvidence.length ? <Alert variant="destructive"><AlertTriangle /><AlertTitle>필수 증빙 미등록 {missingEvidence.length}건</AlertTitle><AlertDescription>{missingEvidence.map((cost) => cost.name).join(", ")}</AlertDescription></Alert> : null}
         {!confirmed ? <div><Label>예외 확정 사유</Label><Textarea className="mt-2" placeholder="필수 증빙 없이 확정해야 하는 사유를 기록하세요." value={draft.exceptionReason} onChange={(event) => patchDraft({ exceptionReason: event.target.value })} /></div> : draft.exceptionReason ? <Alert><AlertTitle>예외 확정 사유</AlertTitle><AlertDescription>{draft.exceptionReason}</AlertDescription></Alert> : null}
         <div className="flex flex-wrap justify-end gap-2 border-t pt-5">
