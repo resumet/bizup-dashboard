@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import {
   CourseDashboard,
   type DashboardCourse,
+  type DashboardCoursePreparation,
   type DashboardSchedule,
   type DashboardWbsTask,
 } from "@/components/dashboard/course-dashboard";
@@ -10,6 +11,7 @@ import { getCachedCourseSummaries } from "@/lib/course-operations/list-cache";
 import { formatWebinarCountdown } from "@/lib/course-operations/webinar-proximity";
 import { loadCourseWbsBootstrap } from "@/lib/course-wbs/server";
 import { formatDashboardCohort, formatDashboardWebinarDate } from "@/lib/dashboard/course-metadata";
+import { buildDashboardCoursePreparation } from "@/lib/dashboard/course-preparation";
 import { activeExternalMarketingCourses } from "@/lib/dashboard/external-marketing";
 import { loadDashboardLeaves } from "@/lib/dashboard/leaves-server";
 import { loadDashboardMenuSearchKeywordSettings } from "@/lib/admin/menu-search-keywords-storage";
@@ -84,7 +86,19 @@ export default async function HomePage() {
   if (coursesResult.status === "rejected") errors.courses = errorMessage("강의");
 
   const wbsTasks: DashboardWbsTask[] = [];
+  const preparationCourses: DashboardCoursePreparation[] = [];
   if (wbsResult.status === "fulfilled") {
+    preparationCourses.push(...buildDashboardCoursePreparation(
+      wbsResult.value.courses,
+      wbsResult.value.schedules,
+      wbsResult.value.template.items,
+      today,
+    ).map(({ webinarAt, ...course }) => ({
+      ...course,
+      cohort: formatDashboardCohort(course.cohort),
+      webinarDate: formatDashboardWebinarDate(webinarAt),
+      countdown: formatWebinarCountdown(webinarAt ?? "", today),
+    })));
     const courseById = new Map(wbsResult.value.courses.map((course) => [course.id, course]));
     const ongoingCourseIds = new Set(wbsResult.value.courses.filter((course) => course.status === "ongoing").map((course) => course.id));
     const tasks = [
@@ -156,6 +170,7 @@ export default async function HomePage() {
         searchCourses,
         menuSearchKeywords: menuSearchResult.status === "fulfilled" ? menuSearchResult.value.keywords : {},
         businessTrips,
+        preparationCourses,
         wbsTasks,
         schedules,
         leaves,

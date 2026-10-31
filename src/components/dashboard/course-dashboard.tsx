@@ -8,10 +8,14 @@ import {
   CalendarRange,
   ChevronDown,
   CircleAlert,
+  CircleCheckBig,
   Clock3,
+  Gauge,
+  ListChecks,
   MapPin,
   NotebookPen,
   PlaneTakeoff,
+  TriangleAlert,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { DashboardExternalMarketingCourse } from "@/lib/dashboard/external-marketing";
+import type { CoursePreparationSummary } from "@/lib/dashboard/course-preparation";
 import type { DashboardLeave } from "@/lib/dashboard/leaves";
 import type { DashboardCourseSearchItem, DashboardMenuCustomKeywords } from "@/lib/dashboard/menu-search";
 import type { BusinessTripDashboardSummary } from "@/lib/business-trip-reports/types";
@@ -48,6 +53,11 @@ export type DashboardWbsTask = {
   timing: "overdue" | "today" | "upcoming";
 };
 
+export type DashboardCoursePreparation = Omit<CoursePreparationSummary, "webinarAt"> & {
+  webinarDate: string;
+  countdown: string;
+};
+
 export type DashboardSchedule = {
   id: string;
   title: string;
@@ -65,6 +75,7 @@ type DashboardData = {
   searchCourses: DashboardCourseSearchItem[];
   menuSearchKeywords: DashboardMenuCustomKeywords;
   businessTrips: BusinessTripDashboardSummary;
+  preparationCourses: DashboardCoursePreparation[];
   wbsTasks: DashboardWbsTask[];
   schedules: DashboardSchedule[];
   leaves: DashboardLeave[];
@@ -132,6 +143,157 @@ function dateLabel(value: string) {
   }).format(date);
 }
 
+const PREPARATION_STATUS = {
+  danger: {
+    label: "위험",
+    badgeClass: "bg-red-100 text-red-800",
+    borderClass: "border-red-200",
+    barClass: "bg-red-500",
+  },
+  warning: {
+    label: "주의",
+    badgeClass: "bg-amber-100 text-amber-800",
+    borderClass: "border-amber-200",
+    barClass: "bg-amber-500",
+  },
+  normal: {
+    label: "정상",
+    badgeClass: "bg-blue-100 text-blue-800",
+    borderClass: "border-slate-200",
+    barClass: "bg-blue-500",
+  },
+  complete: {
+    label: "준비 완료",
+    badgeClass: "bg-emerald-100 text-emerald-800",
+    borderClass: "border-emerald-200",
+    barClass: "bg-emerald-500",
+  },
+} as const;
+
+function CoursePreparationSection({ courses, error }: { courses: DashboardCoursePreparation[]; error?: string }) {
+  const dangerCount = courses.filter((course) => course.status === "danger").length;
+  const dueTodayCount = courses.reduce((total, course) => total + course.todayCount, 0);
+  const missingWbsCount = courses.filter((course) => course.wbsMissing).length;
+  const summaries = [
+    { label: "진행 강의", value: courses.length, icon: ListChecks, className: "text-blue-700 bg-blue-50" },
+    { label: "위험 강의", value: dangerCount, icon: TriangleAlert, className: dangerCount ? "text-red-700 bg-red-50" : "text-slate-600 bg-slate-100" },
+    { label: "오늘 마감", value: dueTodayCount, icon: Clock3, className: dueTodayCount ? "text-amber-700 bg-amber-50" : "text-slate-600 bg-slate-100" },
+    { label: "WBS 미등록", value: missingWbsCount, icon: Gauge, className: missingWbsCount ? "text-violet-700 bg-violet-50" : "text-slate-600 bg-slate-100" },
+  ];
+
+  return (
+    <Card className="mb-5 gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
+      <SectionHeader title="강의 준비 현황" href="/services/course-wbs" />
+      <CardContent className="p-4 sm:p-5">
+        {error ? <ErrorState>{error}</ErrorState> : courses.length ? (
+          <div className="space-y-4">
+            <dl className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+              {summaries.map(({ label, value, icon: Icon, className }) => (
+                <div key={label} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+                  <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${className}`}>
+                    <Icon className="size-4.5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">{label}</dt>
+                    <dd className="mt-0.5 text-xl font-semibold tabular-nums text-slate-950">{numberFormatter.format(value)}</dd>
+                  </div>
+                </div>
+              ))}
+            </dl>
+
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {courses.slice(0, 6).map((course) => {
+                const status = PREPARATION_STATUS[course.status];
+                const signals = [
+                  { label: "지연", count: course.overdueCount, className: "bg-red-50 text-red-700" },
+                  { label: "오늘", count: course.todayCount, className: "bg-amber-50 text-amber-700" },
+                  { label: "등록 누락", count: course.missingCount, className: "bg-violet-50 text-violet-700" },
+                  { label: "진행 필요", count: course.activeCount, className: "bg-orange-50 text-orange-700" },
+                  { label: "일정 미정", count: course.undatedCount, className: "bg-slate-100 text-slate-700" },
+                  { label: "7일 이내", count: course.upcomingCount, className: "bg-blue-50 text-blue-700" },
+                ].filter((signal) => signal.count > 0);
+
+                return (
+                  <article key={course.id} className={`rounded-xl border bg-white p-4 ${status.borderClass}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <Link
+                          href={`/services/course-wbs?courseId=${encodeURIComponent(course.id)}`}
+                          className="line-clamp-2 rounded-sm text-sm font-semibold leading-5 text-slate-950 transition-colors hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                        >
+                          {course.name}
+                        </Link>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          {course.instructorName || "강사 미정"} | {course.cohort || "기수 미정"}
+                        </p>
+                      </div>
+                      <Badge variant="secondary" className={`shrink-0 ${status.badgeClass}`}>{status.label}</Badge>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+                      <span className="text-muted-foreground">{course.webinarDate}</span>
+                      {course.countdown ? <span className="font-medium text-blue-700">{course.countdown}</span> : null}
+                    </div>
+
+                    <div className="mt-3">
+                      <div className="mb-1.5 flex items-center justify-between text-xs">
+                        <span className="font-medium text-slate-700">준비도 {course.progress}%</span>
+                        <span className="tabular-nums text-muted-foreground">{course.completedCount}/{course.totalCount}</span>
+                      </div>
+                      <div
+                        role="progressbar"
+                        aria-label={`${course.name} 준비도`}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={course.progress}
+                        className="h-2 overflow-hidden rounded-full bg-slate-100"
+                      >
+                        <div className={`h-full rounded-full ${status.barClass}`} style={{ width: `${course.progress}%` }} />
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex min-h-6 flex-wrap gap-1.5">
+                      {course.wbsMissing ? <Badge variant="secondary" className="bg-violet-50 text-violet-700">WBS 미등록</Badge> : null}
+                      {signals.length ? signals.map((signal) => (
+                        <Badge key={signal.label} variant="secondary" className={signal.className}>{signal.label} {signal.count}</Badge>
+                      )) : course.wbsMissing ? null : course.status === "complete" ? (
+                        <Badge variant="secondary" className="bg-emerald-50 text-emerald-700">준비 완료</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="bg-slate-100 text-slate-600">지연 없음</Badge>
+                      )}
+                    </div>
+
+                    <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs leading-5">
+                      {course.wbsMissing ? (
+                        <p className="font-medium text-violet-700">WBS 등록이 필요합니다.</p>
+                      ) : course.status === "complete" ? (
+                        <p className="flex items-center gap-1.5 font-medium text-emerald-700">
+                          <CircleCheckBig className="size-4" aria-hidden="true" />
+                          모든 준비 업무를 완료했습니다.
+                        </p>
+                      ) : course.nextTask ? (
+                        <>
+                          <p className="line-clamp-1 font-medium text-slate-900">다음 업무 · {course.nextTask.title}</p>
+                          <p className="mt-0.5 line-clamp-2 text-muted-foreground">
+                            {course.nextTask.owner || "담당자 미정"} | {dateLabel(course.nextTask.scheduledDate)} | {course.nextTask.reason}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-muted-foreground">확인할 다음 업무가 없습니다.</p>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+            {courses.length > 6 ? <p className="text-right text-xs text-muted-foreground">그 외 {numberFormatter.format(courses.length - 6)}개 강의</p> : null}
+          </div>
+        ) : <EmptyState>현재 준비 중인 강의가 없습니다.</EmptyState>}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function CourseDashboard({ data }: { data: DashboardData }) {
   return (
     <main className="min-h-dvh bg-slate-50/70">
@@ -157,6 +319,8 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
         </div>
 
         <DashboardMenuSearch courses={data.searchCourses} customKeywords={data.menuSearchKeywords} />
+
+        <CoursePreparationSection courses={data.preparationCourses} error={data.errors.wbs} />
 
         <div className="grid gap-5 lg:grid-cols-2">
           <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
