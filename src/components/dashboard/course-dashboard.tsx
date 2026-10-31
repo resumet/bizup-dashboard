@@ -183,113 +183,131 @@ function CoursePreparationSection({ courses, error }: { courses: DashboardCourse
 
   return (
     <Card className="mb-5 gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
-      <SectionHeader title="강의 준비 현황" href="/services/course-wbs" />
-      <CardContent className="p-4 sm:p-5">
-        {error ? <ErrorState>{error}</ErrorState> : courses.length ? (
-          <div className="space-y-4">
-            <dl className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-              {summaries.map(({ label, value, icon: Icon, className }) => (
-                <div key={label} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
-                  <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${className}`}>
-                    <Icon className="size-4.5" aria-hidden="true" />
-                  </span>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">{label}</dt>
-                    <dd className="mt-0.5 text-xl font-semibold tabular-nums text-slate-950">{numberFormatter.format(value)}</dd>
+      <details className="group">
+        <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 border-b px-5 py-4 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600 sm:px-6 [&::-webkit-details-marker]:hidden">
+          <span className="text-lg font-semibold tracking-tight text-slate-950">강의 준비 현황</span>
+          {error ? (
+            <Badge variant="secondary" className="ml-auto hidden bg-red-50 text-red-700 sm:inline-flex">불러오기 실패</Badge>
+          ) : (
+            <span className="ml-auto hidden items-center gap-1.5 lg:flex" aria-label="강의 준비 요약">
+              <Badge variant="secondary" className="bg-blue-50 text-blue-700">진행 {numberFormatter.format(courses.length)}</Badge>
+              <Badge variant="secondary" className={dangerCount ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600"}>위험 {numberFormatter.format(dangerCount)}</Badge>
+              <Badge variant="secondary" className={dueTodayCount ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600"}>오늘 {numberFormatter.format(dueTodayCount)}</Badge>
+              <Badge variant="secondary" className={missingWbsCount ? "bg-violet-50 text-violet-700" : "bg-slate-100 text-slate-600"}>WBS 미등록 {numberFormatter.format(missingWbsCount)}</Badge>
+            </span>
+          )}
+          <span className={error ? "ml-auto sm:ml-0" : "ml-auto lg:ml-0"}>
+            <span className="sr-only">강의 준비 현황 펼치기 또는 접기</span>
+            <ChevronDown className="size-5 text-slate-500 transition-transform group-open:rotate-180" aria-hidden="true" />
+          </span>
+        </summary>
+        <CardContent className="p-4 sm:p-5">
+          {error ? <ErrorState>{error}</ErrorState> : courses.length ? (
+            <div className="space-y-4">
+              <dl className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+                {summaries.map(({ label, value, icon: Icon, className }) => (
+                  <div key={label} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+                    <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${className}`}>
+                      <Icon className="size-4.5" aria-hidden="true" />
+                    </span>
+                    <div>
+                      <dt className="text-xs text-muted-foreground">{label}</dt>
+                      <dd className="mt-0.5 text-xl font-semibold tabular-nums text-slate-950">{numberFormatter.format(value)}</dd>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </dl>
+                ))}
+              </dl>
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {courses.slice(0, 6).map((course) => {
-                const status = PREPARATION_STATUS[course.status];
-                const signals = [
-                  { label: "지연", count: course.overdueCount, className: "bg-red-50 text-red-700" },
-                  { label: "오늘", count: course.todayCount, className: "bg-amber-50 text-amber-700" },
-                  { label: "등록 누락", count: course.missingCount, className: "bg-violet-50 text-violet-700" },
-                  { label: "진행 필요", count: course.activeCount, className: "bg-orange-50 text-orange-700" },
-                  { label: "일정 미정", count: course.undatedCount, className: "bg-slate-100 text-slate-700" },
-                  { label: "7일 이내", count: course.upcomingCount, className: "bg-blue-50 text-blue-700" },
-                ].filter((signal) => signal.count > 0);
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {courses.slice(0, 6).map((course) => {
+                  const status = PREPARATION_STATUS[course.status];
+                  const signals = [
+                    { label: "지연", count: course.overdueCount, className: "bg-red-50 text-red-700" },
+                    { label: "오늘", count: course.todayCount, className: "bg-amber-50 text-amber-700" },
+                    { label: "등록 누락", count: course.missingCount, className: "bg-violet-50 text-violet-700" },
+                    { label: "진행 필요", count: course.activeCount, className: "bg-orange-50 text-orange-700" },
+                    { label: "일정 미정", count: course.undatedCount, className: "bg-slate-100 text-slate-700" },
+                    { label: "7일 이내", count: course.upcomingCount, className: "bg-blue-50 text-blue-700" },
+                  ].filter((signal) => signal.count > 0);
 
-                return (
-                  <article key={course.id} className={`rounded-xl border bg-white p-4 ${status.borderClass}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <Link
-                          href={`/services/course-wbs?courseId=${encodeURIComponent(course.id)}`}
-                          className="line-clamp-2 rounded-sm text-sm font-semibold leading-5 text-slate-950 transition-colors hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
-                        >
-                          {course.name}
-                        </Link>
-                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                          {course.instructorName || "강사 미정"} | {course.cohort || "기수 미정"}
-                        </p>
-                      </div>
-                      <Badge variant="secondary" className={`shrink-0 ${status.badgeClass}`}>{status.label}</Badge>
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between gap-3 text-xs">
-                      <span className="text-muted-foreground">{course.webinarDate}</span>
-                      {course.countdown ? <span className="font-medium text-blue-700">{course.countdown}</span> : null}
-                    </div>
-
-                    <div className="mt-3">
-                      <div className="mb-1.5 flex items-center justify-between text-xs">
-                        <span className="font-medium text-slate-700">준비도 {course.progress}%</span>
-                        <span className="tabular-nums text-muted-foreground">{course.completedCount}/{course.totalCount}</span>
-                      </div>
-                      <div
-                        role="progressbar"
-                        aria-label={`${course.name} 준비도`}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-valuenow={course.progress}
-                        className="h-2 overflow-hidden rounded-full bg-slate-100"
-                      >
-                        <div className={`h-full rounded-full ${status.barClass}`} style={{ width: `${course.progress}%` }} />
-                      </div>
-                    </div>
-
-                    <div className="mt-3 flex min-h-6 flex-wrap gap-1.5">
-                      {course.wbsMissing ? <Badge variant="secondary" className="bg-violet-50 text-violet-700">WBS 미등록</Badge> : null}
-                      {signals.length ? signals.map((signal) => (
-                        <Badge key={signal.label} variant="secondary" className={signal.className}>{signal.label} {signal.count}</Badge>
-                      )) : course.wbsMissing ? null : course.status === "complete" ? (
-                        <Badge variant="secondary" className="bg-emerald-50 text-emerald-700">준비 완료</Badge>
-                      ) : (
-                        <Badge variant="secondary" className="bg-slate-100 text-slate-600">지연 없음</Badge>
-                      )}
-                    </div>
-
-                    <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs leading-5">
-                      {course.wbsMissing ? (
-                        <p className="font-medium text-violet-700">WBS 등록이 필요합니다.</p>
-                      ) : course.status === "complete" ? (
-                        <p className="flex items-center gap-1.5 font-medium text-emerald-700">
-                          <CircleCheckBig className="size-4" aria-hidden="true" />
-                          모든 준비 업무를 완료했습니다.
-                        </p>
-                      ) : course.nextTask ? (
-                        <>
-                          <p className="line-clamp-1 font-medium text-slate-900">다음 업무 · {course.nextTask.title}</p>
-                          <p className="mt-0.5 line-clamp-2 text-muted-foreground">
-                            {course.nextTask.owner || "담당자 미정"} | {dateLabel(course.nextTask.scheduledDate)} | {course.nextTask.reason}
+                  return (
+                    <article key={course.id} className={`rounded-xl border bg-white p-4 ${status.borderClass}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <Link
+                            href={`/services/course-wbs?courseId=${encodeURIComponent(course.id)}`}
+                            className="line-clamp-2 rounded-sm text-sm font-semibold leading-5 text-slate-950 transition-colors hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                          >
+                            {course.name}
+                          </Link>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            {course.instructorName || "강사 미정"} | {course.cohort || "기수 미정"}
                           </p>
-                        </>
-                      ) : (
-                        <p className="text-muted-foreground">확인할 다음 업무가 없습니다.</p>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
+                        </div>
+                        <Badge variant="secondary" className={`shrink-0 ${status.badgeClass}`}>{status.label}</Badge>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+                        <span className="text-muted-foreground">{course.webinarDate}</span>
+                        {course.countdown ? <span className="font-medium text-blue-700">{course.countdown}</span> : null}
+                      </div>
+
+                      <div className="mt-3">
+                        <div className="mb-1.5 flex items-center justify-between text-xs">
+                          <span className="font-medium text-slate-700">준비도 {course.progress}%</span>
+                          <span className="tabular-nums text-muted-foreground">{course.completedCount}/{course.totalCount}</span>
+                        </div>
+                        <div
+                          role="progressbar"
+                          aria-label={`${course.name} 준비도`}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={course.progress}
+                          className="h-2 overflow-hidden rounded-full bg-slate-100"
+                        >
+                          <div className={`h-full rounded-full ${status.barClass}`} style={{ width: `${course.progress}%` }} />
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex min-h-6 flex-wrap gap-1.5">
+                        {course.wbsMissing ? <Badge variant="secondary" className="bg-violet-50 text-violet-700">WBS 미등록</Badge> : null}
+                        {signals.length ? signals.map((signal) => (
+                          <Badge key={signal.label} variant="secondary" className={signal.className}>{signal.label} {signal.count}</Badge>
+                        )) : course.wbsMissing ? null : course.status === "complete" ? (
+                          <Badge variant="secondary" className="bg-emerald-50 text-emerald-700">준비 완료</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="bg-slate-100 text-slate-600">지연 없음</Badge>
+                        )}
+                      </div>
+
+                      <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs leading-5">
+                        {course.wbsMissing ? (
+                          <p className="font-medium text-violet-700">WBS 등록이 필요합니다.</p>
+                        ) : course.status === "complete" ? (
+                          <p className="flex items-center gap-1.5 font-medium text-emerald-700">
+                            <CircleCheckBig className="size-4" aria-hidden="true" />
+                            모든 준비 업무를 완료했습니다.
+                          </p>
+                        ) : course.nextTask ? (
+                          <>
+                            <p className="line-clamp-1 font-medium text-slate-900">다음 업무 · {course.nextTask.title}</p>
+                            <p className="mt-0.5 line-clamp-2 text-muted-foreground">
+                              {course.nextTask.owner || "담당자 미정"} | {dateLabel(course.nextTask.scheduledDate)} | {course.nextTask.reason}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-muted-foreground">확인할 다음 업무가 없습니다.</p>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+              {courses.length > 6 ? <p className="text-right text-xs text-muted-foreground">그 외 {numberFormatter.format(courses.length - 6)}개 강의</p> : null}
             </div>
-            {courses.length > 6 ? <p className="text-right text-xs text-muted-foreground">그 외 {numberFormatter.format(courses.length - 6)}개 강의</p> : null}
-          </div>
-        ) : <EmptyState>현재 준비 중인 강의가 없습니다.</EmptyState>}
-      </CardContent>
+          ) : <EmptyState>현재 준비 중인 강의가 없습니다.</EmptyState>}
+        </CardContent>
+      </details>
     </Card>
   );
 }
