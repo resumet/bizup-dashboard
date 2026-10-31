@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { burdenTypePatch, calculateBurden, calculateTax, parseCourseCostInput } from "./calculation";
+import { burdenTypePatch, calculateBurden, calculateTax, courseCostDatabaseValues, parseCourseCostInput } from "./calculation";
 import { COURSE_COST_DEFAULT_CATEGORIES } from "./types";
 
 test("기본 비용 항목은 광고 매체를 분리하고 스튜디오와 PD 인건비를 통합한다", () => {
@@ -72,4 +72,16 @@ test("비용 입력은 과세·정산반영으로 고정하고 증빙과 비고 
   assert.deepEqual(result.evidenceTypes, []);
   assert.equal(result.includeInSettlement, true);
   assert.equal(result.note, "");
+});
+
+test("일반 비용 일괄 저장값에는 null 계산 상세를 포함하지 않는다", () => {
+  const result = courseCostDatabaseValues({
+    name: "광고비",
+    managerName: "담당자",
+    burdenType: "COMPANY",
+    grossAmount: 1100,
+    status: "PLANNED",
+  });
+
+  assert.equal("calculation_details" in result, false);
 });

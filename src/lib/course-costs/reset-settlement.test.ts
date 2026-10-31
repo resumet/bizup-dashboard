@@ -24,7 +24,17 @@ test("cost save resets only its settlement atomically and preserves source files
     await db.exec("alter table course_settlement_projects add column analysis_snapshot jsonb, add column statement_draft jsonb not null default '{}';");
     await db.exec((await sql("202609030003_course_cost_management")).split("create index")[0]);
     await db.exec(await sql("202609030006_bulk_save_course_costs"));
+    await db.exec(`alter table course_costs add column calculation_details jsonb;
+      alter table course_costs add constraint course_costs_calculation_details_valid check (
+        calculation_details is null or (
+          jsonb_typeof(calculation_details) = 'object'
+          and octet_length(calculation_details::text) <= 2000000
+        )
+      );`);
+    await db.exec(await readFile("supabase/migrations/20261031052956_normalize_course_cost_calculation_details.sql", "utf8"));
     await db.exec(await sql("202609230003_cost_changes_reset_settlement"));
+    assert.equal((await db.query<{ allowed: boolean }>("select has_function_privilege('anon', 'public.save_course_cost_changes(uuid,uuid,jsonb)', 'EXECUTE') as allowed")).rows[0].allowed, false);
+    assert.equal((await db.query<{ allowed: boolean }>("select has_function_privilege('authenticated', 'public.save_course_cost_changes(uuid,uuid,jsonb)', 'EXECUTE') as allowed")).rows[0].allowed, false);
     assert.equal((await db.query<{ allowed: boolean }>("select has_function_privilege('anon', 'public.save_course_cost_changes_and_reset_settlement(uuid,uuid,jsonb)', 'EXECUTE') as allowed")).rows[0].allowed, false);
     assert.equal((await db.query<{ allowed: boolean }>("select has_function_privilege('authenticated', 'public.save_course_cost_changes_and_reset_settlement(uuid,uuid,jsonb)', 'EXECUTE') as allowed")).rows[0].allowed, false);
     await db.exec(`insert into course_settlement_projects (workspace_id,course_id,name,created_by,status,analysis_snapshot,statement_draft,latest_version)
@@ -42,7 +52,7 @@ test("cost save resets only its settlement atomically and preserves source files
     await assert.rejects(save({ updates: [{ id: user, version: 1 }] }), /비용을 찾을/);
     assert.equal((await db.query<Record<string, unknown>>("select count(*)::int n from settlement_cost_snapshots")).rows[0].n, 1);
     assert.equal((await db.query<Record<string, unknown>>("select status from course_settlement_projects where id=$1", [project])).rows[0].status, "정산확정");
-    await save({ creates: [{ category_code: "CUSTOM", name: "Cost", burden_type: "COMPANY", manager_name: "Manager", gross_amount: 110, supply_amount: 100, vat_amount: 10, status: "PAID", paid_date: "2026-09-22", company_share_rate: 100, instructor_share_rate: 0, company_share_amount: 110, instructor_share_amount: 0 }] });
+    await save({ creates: [{ category_code: "CUSTOM", name: "Cost", burden_type: "COMPANY", manager_name: "Manager", gross_amount: 110, supply_amount: 100, vat_amount: 10, status: "PAID", paid_date: "2026-09-22", company_share_rate: 100, instructor_share_rate: 0, company_share_amount: 110, instructor_share_amount: 0, calculation_details: null }] });
     const result = (await db.query<Record<string, unknown>>("select status,analysis_snapshot,statement_draft,latest_version from course_settlement_projects where id=$1", [project])).rows[0];
     assert.deepEqual(result, { status: "비용입력중", analysis_snapshot: null, statement_draft: {}, latest_version: 4 });
     assert.equal((await db.query<Record<string, unknown>>("select count(*)::int n from settlement_cost_snapshots")).rows[0].n, 0);
@@ -50,6 +60,7 @@ test("cost save resets only its settlement atomically and preserves source files
     assert.equal((await db.query<Record<string, unknown>>("select count(*)::int n from course_settlement_uploads")).rows[0].n, 1);
     assert.equal((await db.query<Record<string, unknown>>("select status from course_settlement_projects where course_id=$1", [other])).rows[0].status, "정산확정");
     const cost = (await db.query<{ id: string }>("select id from course_costs")).rows[0];
+    assert.equal((await db.query<{ is_null: boolean }>("select calculation_details is null as is_null from course_costs where id=$1", [cost.id])).rows[0].is_null, true);
     await assert.rejects(save({ updates: [{ id: cost.id, version: 99 }] }), /다른 사용자/);
     assert.equal((await db.query<Record<string, unknown>>("select latest_version from course_settlement_projects where id=$1", [project])).rows[0].latest_version, 4);
     await db.exec(`update course_settlement_projects set status='정산확정' where id='${project}';

@@ -39,6 +39,29 @@ export function calculateBurden(
   };
 }
 
+export function courseCostDatabaseValues(value: unknown) {
+  const input = parseCourseCostInput(value);
+  const tax = calculateTax(input.grossAmount, input.taxType);
+  const burden = calculateBurden(input.grossAmount, input.burdenType, input.companyShareRate);
+  return {
+    category_code: input.categoryCode,
+    name: input.name,
+    burden_type: input.burdenType,
+    manager_user_id: input.managerUserId,
+    manager_name: input.managerName,
+    gross_amount: tax.grossAmount,
+    supply_amount: tax.supplyAmount,
+    vat_amount: tax.vatAmount,
+    paid_date: input.paidDate || null,
+    status: input.status,
+    company_share_rate: burden.companyShareRate,
+    instructor_share_rate: burden.instructorShareRate,
+    company_share_amount: burden.companyShareAmount,
+    instructor_share_amount: burden.instructorShareAmount,
+    ...(input.calculationDetails ? { calculation_details: input.calculationDetails } : {}),
+  };
+}
+
 export function burdenTypePatch(
   burdenType: Exclude<CourseCostBurden, "UNCLASSIFIED">,
 ): Pick<CourseCostInput, "burdenType" | "companyShareRate" | "instructorShareRate"> {

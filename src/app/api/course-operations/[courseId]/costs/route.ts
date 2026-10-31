@@ -1,4 +1,4 @@
-import { calculateBurden, calculateTax, parseCourseCostInput } from "@/lib/course-costs/calculation";
+import { calculateBurden, calculateTax, courseCostDatabaseValues, parseCourseCostInput } from "@/lib/course-costs/calculation";
 import { authorizeCourseCosts, courseCostError, loadCourseCosts } from "@/lib/course-costs/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -46,29 +46,6 @@ export async function POST(request: Request, { params }: Context) {
   } catch (error) { return courseCostError(error); }
 }
 
-function databaseValues(value: unknown) {
-  const input = parseCourseCostInput(value);
-  const tax = calculateTax(input.grossAmount, input.taxType);
-  const burden = calculateBurden(input.grossAmount, input.burdenType, input.companyShareRate);
-  return {
-    category_code: input.categoryCode,
-    name: input.name,
-    burden_type: input.burdenType,
-    manager_user_id: input.managerUserId,
-    manager_name: input.managerName,
-    gross_amount: tax.grossAmount,
-    supply_amount: tax.supplyAmount,
-    vat_amount: tax.vatAmount,
-    paid_date: input.paidDate || null,
-    status: input.status,
-    company_share_rate: burden.companyShareRate,
-    instructor_share_rate: burden.instructorShareRate,
-    company_share_amount: burden.companyShareAmount,
-    instructor_share_amount: burden.instructorShareAmount,
-    calculation_details: input.calculationDetails,
-  };
-}
-
 export async function PUT(request: Request, { params }: Context) {
   try {
     const { admin, courseId, workspaceId, user, locked } = await context(params);
@@ -79,7 +56,7 @@ export async function PUT(request: Request, { params }: Context) {
     if (rawCreates.length + rawUpdates.length + rawDeletes.length > 500) {
       throw new Error("한 번에 저장할 수 있는 비용 변경은 최대 500건입니다.");
     }
-    const creates = rawCreates.map(databaseValues);
+    const creates = rawCreates.map(courseCostDatabaseValues);
     const updates = rawUpdates.map((raw) => {
       const item = typeof raw === "object" && raw !== null ? raw as Record<string, unknown> : {};
       const id = typeof item.id === "string" ? item.id : "";
@@ -87,7 +64,7 @@ export async function PUT(request: Request, { params }: Context) {
       if (!UUID_PATTERN.test(id) || !Number.isSafeInteger(version) || version < 1) {
         throw new Error("수정할 비용 정보가 올바르지 않습니다.");
       }
-      return { id, version, ...databaseValues(item.input) };
+      return { id, version, ...courseCostDatabaseValues(item.input) };
     });
     const deletes = rawDeletes.map((raw) => {
       const item = typeof raw === "object" && raw !== null ? raw as Record<string, unknown> : {};
