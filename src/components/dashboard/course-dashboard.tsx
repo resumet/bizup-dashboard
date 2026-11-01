@@ -290,13 +290,16 @@ function CoursePreparationSection({
                       </div>
 
                       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                        <Link
+                          href={`/services/course-wbs?courseId=${encodeURIComponent(course.id)}`}
+                          className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 transition-colors hover:border-blue-300 hover:bg-blue-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                        >
                           <div className="flex items-center justify-between gap-2">
                             <span className="font-medium text-slate-700">WBS</span>
                             <strong className="tabular-nums text-slate-950">{course.wbsProgress}%</strong>
                           </div>
                           <p className="mt-1 text-muted-foreground">완료 {course.completedCount}/{course.totalCount}</p>
-                        </div>
+                        </Link>
                         <Link
                           href={`/services/instagram-management/${encodeURIComponent(course.id)}`}
                           className="rounded-lg border border-rose-200 bg-rose-50/60 p-2.5 transition-colors hover:border-rose-300 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2"
