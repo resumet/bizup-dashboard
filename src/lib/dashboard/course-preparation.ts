@@ -1,5 +1,11 @@
 import { buildWbsAttention, wbsProgress, type AttentionCategory } from "@/lib/course-wbs/attention";
 import type { WbsCourse, WbsItem, WbsScheduleEntry, WbsScheduleItem } from "@/lib/course-wbs/types";
+import {
+  buildInstagramPreparationSummary,
+  emptyInstagramPreparationInput,
+  type InstagramPreparationInput,
+  type InstagramPreparationSummary,
+} from "./instagram-preparation";
 
 export type CoursePreparationStatus = "danger" | "warning" | "normal" | "complete";
 
@@ -20,6 +26,7 @@ export type CoursePreparationSummary = {
   webinarAt: string | null;
   totalCount: number;
   completedCount: number;
+  wbsProgress: number;
   progress: number;
   overdueCount: number;
   todayCount: number;
@@ -28,6 +35,7 @@ export type CoursePreparationSummary = {
   undatedCount: number;
   upcomingCount: number;
   wbsMissing: boolean;
+  instagram: InstagramPreparationSummary | null;
   status: CoursePreparationStatus;
   nextTask: CoursePreparationNextTask | null;
 };
@@ -69,6 +77,7 @@ export function buildDashboardCoursePreparation(
   entries: WbsScheduleEntry[],
   templateItems: WbsItem[],
   today: string,
+  instagramByCourse?: ReadonlyMap<string, InstagramPreparationInput>,
 ): CoursePreparationSummary[] {
   const attention = buildWbsAttention(courses, entries, today, templateItems);
   const entriesByCourse = new Map(entries.map((entry) => [entry.courseId, entry]));
@@ -94,11 +103,30 @@ export function buildDashboardCoursePreparation(
       const undatedCount = count("undated");
       const upcomingCount = count("upcoming");
       const wbsMissing = items.length === 0;
+      const instagram = instagramByCourse
+        ? buildInstagramPreparationSummary(
+            instagramByCourse.get(course.id) ?? emptyInstagramPreparationInput(),
+            course.webinarAt,
+            today,
+          )
+        : null;
+      const overallProgress = instagram
+        ? Math.round((progress.progress + instagram.progress) / 2)
+        : progress.progress;
 
       let status: CoursePreparationStatus = "normal";
-      if (wbsMissing || overdueCount > 0 || missingCount > 0) status = "danger";
-      else if (progress.total > 0 && progress.completed === progress.total) status = "complete";
-      else if (todayCount > 0 || activeCount > 0 || undatedCount > 0) status = "warning";
+      if (wbsMissing || overdueCount > 0 || missingCount > 0 || instagram?.isAtRisk) status = "danger";
+      else if (
+        progress.total > 0
+        && progress.completed === progress.total
+        && (!instagram || instagram.isComplete)
+      ) status = "complete";
+      else if (
+        todayCount > 0
+        || activeCount > 0
+        || undatedCount > 0
+        || (instagram !== null && !instagram.configured)
+      ) status = "warning";
 
       const attentionTask = tasks[0];
       const nextTask = attentionTask
@@ -120,7 +148,8 @@ export function buildDashboardCoursePreparation(
         webinarAt: course.webinarAt,
         totalCount: progress.total,
         completedCount: progress.completed,
-        progress: progress.progress,
+        wbsProgress: progress.progress,
+        progress: overallProgress,
         overdueCount,
         todayCount,
         missingCount,
@@ -128,6 +157,7 @@ export function buildDashboardCoursePreparation(
         undatedCount,
         upcomingCount,
         wbsMissing,
+        instagram,
         status,
         nextTask,
         courseOrder,

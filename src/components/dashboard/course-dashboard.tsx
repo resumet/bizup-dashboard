@@ -6,6 +6,7 @@ import {
   CalendarClock,
   CalendarDays,
   CalendarRange,
+  Camera,
   ChevronDown,
   CircleAlert,
   CircleCheckBig,
@@ -15,7 +16,6 @@ import {
   MapPin,
   NotebookPen,
   PlaneTakeoff,
-  TriangleAlert,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -80,7 +80,7 @@ type DashboardData = {
   schedules: DashboardSchedule[];
   leaves: DashboardLeave[];
   externalMarketing: DashboardExternalMarketingCourse[];
-  errors: Partial<Record<"tripReports" | "courses" | "wbs" | "schedules" | "leaves" | "externalMarketing", string>>;
+  errors: Partial<Record<"tripReports" | "courses" | "wbs" | "instagramPreparation" | "schedules" | "leaves" | "externalMarketing", string>>;
 };
 
 const numberFormatter = new Intl.NumberFormat("ko-KR");
@@ -145,19 +145,19 @@ function dateLabel(value: string) {
 
 const PREPARATION_STATUS = {
   danger: {
-    label: "위험",
+    label: "달성 어려움",
     badgeClass: "bg-red-100 text-red-800",
     borderClass: "border-red-200",
     barClass: "bg-red-500",
   },
   warning: {
-    label: "주의",
+    label: "주의 필요",
     badgeClass: "bg-amber-100 text-amber-800",
     borderClass: "border-amber-200",
     barClass: "bg-amber-500",
   },
   normal: {
-    label: "정상",
+    label: "달성 가능",
     badgeClass: "bg-blue-100 text-blue-800",
     borderClass: "border-slate-200",
     barClass: "bg-blue-500",
@@ -170,15 +170,28 @@ const PREPARATION_STATUS = {
   },
 } as const;
 
-function CoursePreparationSection({ courses, error }: { courses: DashboardCoursePreparation[]; error?: string }) {
+function CoursePreparationSection({
+  courses,
+  error,
+  instagramError,
+}: {
+  courses: DashboardCoursePreparation[];
+  error?: string;
+  instagramError?: string;
+}) {
   const dangerCount = courses.filter((course) => course.status === "danger").length;
-  const dueTodayCount = courses.reduce((total, course) => total + course.todayCount, 0);
-  const missingWbsCount = courses.filter((course) => course.wbsMissing).length;
+  const achievableCount = courses.filter((course) => course.status === "normal" || course.status === "complete").length;
+  const overallProgress = courses.length
+    ? Math.round(courses.reduce((total, course) => total + course.progress, 0) / courses.length)
+    : 0;
+  const instagramAttentionCount = courses.filter((course) => (
+    course.instagram && (!course.instagram.configured || course.instagram.isAtRisk)
+  )).length;
   const summaries = [
     { label: "진행 강의", value: courses.length, icon: ListChecks, className: "text-blue-700 bg-blue-50" },
-    { label: "위험 강의", value: dangerCount, icon: TriangleAlert, className: dangerCount ? "text-red-700 bg-red-50" : "text-slate-600 bg-slate-100" },
-    { label: "오늘 마감", value: dueTodayCount, icon: Clock3, className: dueTodayCount ? "text-amber-700 bg-amber-50" : "text-slate-600 bg-slate-100" },
-    { label: "WBS 미등록", value: missingWbsCount, icon: Gauge, className: missingWbsCount ? "text-violet-700 bg-violet-50" : "text-slate-600 bg-slate-100" },
+    { label: "전체 진행률", value: `${overallProgress}%`, icon: Gauge, className: "text-violet-700 bg-violet-50" },
+    { label: "달성 가능", value: achievableCount, icon: CircleCheckBig, className: achievableCount ? "text-emerald-700 bg-emerald-50" : "text-slate-600 bg-slate-100" },
+    { label: "인스타 주의", value: instagramAttentionCount, icon: Camera, className: instagramAttentionCount ? "text-rose-700 bg-rose-50" : "text-slate-600 bg-slate-100" },
   ];
 
   return (
@@ -191,9 +204,9 @@ function CoursePreparationSection({ courses, error }: { courses: DashboardCourse
           ) : (
             <span className="ml-auto hidden items-center gap-1.5 lg:flex" aria-label="강의 준비 요약">
               <Badge variant="secondary" className="bg-blue-50 text-blue-700">진행 {numberFormatter.format(courses.length)}</Badge>
-              <Badge variant="secondary" className={dangerCount ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600"}>위험 {numberFormatter.format(dangerCount)}</Badge>
-              <Badge variant="secondary" className={dueTodayCount ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600"}>오늘 {numberFormatter.format(dueTodayCount)}</Badge>
-              <Badge variant="secondary" className={missingWbsCount ? "bg-violet-50 text-violet-700" : "bg-slate-100 text-slate-600"}>WBS 미등록 {numberFormatter.format(missingWbsCount)}</Badge>
+              <Badge variant="secondary" className="bg-violet-50 text-violet-700">전체 {overallProgress}%</Badge>
+              <Badge variant="secondary" className={dangerCount ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600"}>달성 어려움 {numberFormatter.format(dangerCount)}</Badge>
+              <Badge variant="secondary" className={instagramAttentionCount ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600"}>인스타 주의 {numberFormatter.format(instagramAttentionCount)}</Badge>
             </span>
           )}
           <span className={error ? "ml-auto sm:ml-0" : "ml-auto lg:ml-0"}>
@@ -204,6 +217,12 @@ function CoursePreparationSection({ courses, error }: { courses: DashboardCourse
         <CardContent className="p-4 sm:p-5">
           {error ? <ErrorState>{error}</ErrorState> : courses.length ? (
             <div className="space-y-4">
+              {instagramError ? (
+                <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
+                  {instagramError} WBS 기준 준비도만 표시합니다.
+                </div>
+              ) : null}
               <dl className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
                 {summaries.map(({ label, value, icon: Icon, className }) => (
                   <div key={label} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
@@ -212,7 +231,7 @@ function CoursePreparationSection({ courses, error }: { courses: DashboardCourse
                     </span>
                     <div>
                       <dt className="text-xs text-muted-foreground">{label}</dt>
-                      <dd className="mt-0.5 text-xl font-semibold tabular-nums text-slate-950">{numberFormatter.format(value)}</dd>
+                      <dd className="mt-0.5 text-xl font-semibold tabular-nums text-slate-950">{typeof value === "number" ? numberFormatter.format(value) : value}</dd>
                     </div>
                   </div>
                 ))}
@@ -228,6 +247,7 @@ function CoursePreparationSection({ courses, error }: { courses: DashboardCourse
                     { label: "진행 필요", count: course.activeCount, className: "bg-orange-50 text-orange-700" },
                     { label: "일정 미정", count: course.undatedCount, className: "bg-slate-100 text-slate-700" },
                     { label: "7일 이내", count: course.upcomingCount, className: "bg-blue-50 text-blue-700" },
+                    { label: "인스타 지연", count: course.instagram?.uploadShortfallCount ?? 0, className: "bg-rose-50 text-rose-700" },
                   ].filter((signal) => signal.count > 0);
 
                   return (
@@ -254,8 +274,8 @@ function CoursePreparationSection({ courses, error }: { courses: DashboardCourse
 
                       <div className="mt-3">
                         <div className="mb-1.5 flex items-center justify-between text-xs">
-                          <span className="font-medium text-slate-700">준비도 {course.progress}%</span>
-                          <span className="tabular-nums text-muted-foreground">{course.completedCount}/{course.totalCount}</span>
+                          <span className="font-medium text-slate-700">전체 준비도 {course.progress}%</span>
+                          <span className="tabular-nums text-muted-foreground">WBS + 인스타그램</span>
                         </div>
                         <div
                           role="progressbar"
@@ -267,6 +287,34 @@ function CoursePreparationSection({ courses, error }: { courses: DashboardCourse
                         >
                           <div className={`h-full rounded-full ${status.barClass}`} style={{ width: `${course.progress}%` }} />
                         </div>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-slate-700">WBS</span>
+                            <strong className="tabular-nums text-slate-950">{course.wbsProgress}%</strong>
+                          </div>
+                          <p className="mt-1 text-muted-foreground">완료 {course.completedCount}/{course.totalCount}</p>
+                        </div>
+                        <Link
+                          href={`/services/instagram-management/${encodeURIComponent(course.id)}`}
+                          className="rounded-lg border border-rose-200 bg-rose-50/60 p-2.5 transition-colors hover:border-rose-300 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-rose-800">인스타 운영</span>
+                            <strong className="tabular-nums text-rose-950">
+                              {course.instagram === null ? "조회 실패" : course.instagram.configured ? `${course.instagram.progress}%` : "미설정"}
+                            </strong>
+                          </div>
+                          <p className="mt-1 text-rose-700/80">
+                            {course.instagram === null
+                              ? "운영 데이터를 확인할 수 없음"
+                              : course.instagram.configured
+                                ? `업로드 ${course.instagram.uploadCompletedCount}/${course.instagram.totalContentCount} · 체크 ${course.instagram.checklistCompletedCount}/${course.instagram.checklistTotalCount}`
+                                : "계정과 진행 건수를 설정해 주세요"}
+                          </p>
+                        </Link>
                       </div>
 
                       <div className="mt-3 flex min-h-6 flex-wrap gap-1.5">
@@ -338,7 +386,7 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
 
         <DashboardMenuSearch courses={data.searchCourses} customKeywords={data.menuSearchKeywords} />
 
-        <CoursePreparationSection courses={data.preparationCourses} error={data.errors.wbs} />
+        <CoursePreparationSection courses={data.preparationCourses} error={data.errors.wbs} instagramError={data.errors.instagramPreparation} />
 
         <div className="grid gap-5 lg:grid-cols-2">
           <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">

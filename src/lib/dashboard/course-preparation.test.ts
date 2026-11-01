@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildDashboardCoursePreparation } from "./course-preparation";
+import type { InstagramPreparationInput } from "./instagram-preparation";
 import type { WbsCourse, WbsScheduleItem } from "@/lib/course-wbs/types";
 
 function course(id: string, status: WbsCourse["status"] = "ongoing"): WbsCourse {
@@ -75,4 +76,52 @@ test("템플릿에서 이미 시작됐지만 저장되지 않은 업무를 등�
   assert.equal(result[0].missingCount, 1);
   assert.equal(result[0].status, "danger");
   assert.equal(result[0].nextTask?.id, "missing");
+});
+
+test("WBS와 인스타그램 운영을 합쳐 전체 준비도와 달성 가능성을 계산한다", () => {
+  const instagram = new Map<string, InstagramPreparationInput>([["combined", {
+    configured: true,
+    totalContentCount: 1,
+    materials: [{ position: 1, planningCompleted: true, filmingCompleted: true, editingCompleted: false, uploadCompleted: false }],
+    checklistTotalCount: 2,
+    checklistCompletedCount: 1,
+  }]]);
+  const result = buildDashboardCoursePreparation(
+    [course("combined")],
+    [{ courseId: "combined", items: [task("finished", "2026-10-01", "2026-10-10", true)] }],
+    [],
+    "2026-10-31",
+    instagram,
+  );
+
+  assert.equal(result[0].wbsProgress, 100);
+  assert.equal(result[0].instagram?.progress, 50);
+  assert.equal(result[0].progress, 75);
+  assert.equal(result[0].status, "normal");
+});
+
+test("인스타그램 운영 미설정은 주의, 업로드 일정 지연은 위험으로 표시한다", () => {
+  const instagram = new Map<string, InstagramPreparationInput>([
+    ["not-configured", { configured: false, totalContentCount: 0, materials: [], checklistTotalCount: 2, checklistCompletedCount: 0 }],
+    ["at-risk", {
+      configured: true,
+      totalContentCount: 2,
+      materials: [
+        { position: 1, planningCompleted: true, filmingCompleted: true, editingCompleted: true, uploadCompleted: false },
+        { position: 2, planningCompleted: true, filmingCompleted: false, editingCompleted: false, uploadCompleted: false },
+      ],
+      checklistTotalCount: 0,
+      checklistCompletedCount: 0,
+    }],
+  ]);
+  const courses = [
+    { ...course("not-configured"), webinarAt: "2026-11-30T19:30:00+09:00" },
+    { ...course("at-risk"), webinarAt: "2026-11-01T19:30:00+09:00" },
+  ];
+  const schedules = courses.map((item) => ({ courseId: item.id, items: [task("future", "2026-11-20", "2026-11-21")] }));
+  const result = buildDashboardCoursePreparation(courses, schedules, [], "2026-10-31", instagram);
+
+  assert.equal(result.find((item) => item.id === "not-configured")?.status, "warning");
+  assert.equal(result.find((item) => item.id === "at-risk")?.status, "danger");
+  assert.equal(result.find((item) => item.id === "at-risk")?.instagram?.uploadShortfallCount, 1);
 });
