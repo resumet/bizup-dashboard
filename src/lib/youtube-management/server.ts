@@ -36,7 +36,7 @@ export async function mediaMember(courseId:string){
 export async function loadMedia(courseId:string):Promise<MediaData>{
   const {admin,course}=await mediaMember(courseId);
   const [settings,appearances,channels,landingUtms,filmingAlertSettings]=await Promise.all([
-    admin.from("course_youtube_settings").select("public_enabled,public_token,public_short_code,brief_enabled,brief_token,brief_short_code,brief,brief_revision,notion_page_id,notion_url,notion_public_url,notion_synced_revision").eq("course_id",courseId).single(),
+    admin.from("course_youtube_settings").select("public_enabled,public_token,public_short_code,brief_enabled,brief_token,brief_short_code,appearance_not_required,brief,brief_revision,notion_page_id,notion_url,notion_public_url,notion_synced_revision").eq("course_id",courseId).single(),
     admin.from("course_youtube_appearances").select("id,revision,channel_name,channel_url,video_url,landing_utm,request_status,filming_date,upload_date,filming_confirmed,is_internal,note,respondent").eq("course_id",courseId).order("sort_order").order("created_at"),
     admin.from("youtube_analyzed_channels").select("channel,position").eq("workspace_id",course.workspace_id).order("position",{ascending:false}).limit(500),
     loadLandingUtms(admin,courseId),

@@ -9,6 +9,7 @@ export type YoutubePreparationAppearance = {
 };
 
 export type YoutubePreparationSummary = {
+  appearanceNotRequired: boolean;
   appearanceCount: number;
   confirmedAppearanceCount: number;
   filmingConfirmedCount: number;
@@ -22,6 +23,7 @@ export function buildYoutubePreparationSummary(
   appearances: readonly YoutubePreparationAppearance[],
   today: string,
   filmingAlertWeeks: YoutubeFilmingAlertWeeks,
+  appearanceNotRequired = false,
 ): YoutubePreparationSummary {
   const filmingAlert = getYoutubeFilmingAlert(
     freeWebinarAt,
@@ -31,6 +33,7 @@ export function buildYoutubePreparationSummary(
   );
 
   return {
+    appearanceNotRequired,
     appearanceCount: appearances.length,
     confirmedAppearanceCount: appearances.filter(
       (appearance) => appearance.request_status === "confirmed",
@@ -39,7 +42,7 @@ export function buildYoutubePreparationSummary(
       (appearance) => appearance.filming_confirmed === true && Boolean(appearance.filming_date),
     ).length,
     uploadCompletedCount: appearances.filter((appearance) => Boolean(appearance.upload_date)).length,
-    filmingAlertCount: filmingAlert.alertCount,
+    filmingAlertCount: appearanceNotRequired ? 0 : filmingAlert.alertCount,
     filmingAlertWeeks,
   };
 }

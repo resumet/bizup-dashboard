@@ -331,7 +331,15 @@ function CoursePreparationSection({
                                 : "계정과 진행 건수를 설정해 주세요"}
                           </p>
                         </Link>
-                        <Link
+                        {course.youtube?.appearanceNotRequired ? (
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-slate-500" aria-disabled="true">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium">강사 유튜브</span>
+                              <strong>진행하지 않음</strong>
+                            </div>
+                            <p className="mt-1">유튜브 출연 없이 진행</p>
+                          </div>
+                        ) : <Link
                           href={`/services/youtube-management/${encodeURIComponent(course.id)}`}
                           className="rounded-lg border border-red-200 bg-red-50/60 p-2.5 transition-colors hover:border-red-300 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
                         >
@@ -348,7 +356,7 @@ function CoursePreparationSection({
                                 ? `촬영 ${course.youtube.filmingConfirmedCount} · 업로드 ${course.youtube.uploadCompletedCount}`
                                 : "등록된 출연 채널 없음"}
                           </p>
-                        </Link>
+                        </Link>}
                       </div>
 
                       <div className="mt-3 flex min-h-6 flex-wrap gap-1.5">

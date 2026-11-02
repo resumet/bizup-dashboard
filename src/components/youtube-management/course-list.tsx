@@ -24,6 +24,7 @@ type Connection = {
 };
 
 type YoutubeCourse = CourseMedia & {
+  appearanceNotRequired: boolean;
   appearanceCount: number;
   confirmedAppearanceCount: number;
   uploadCompletedCount: number;
@@ -94,7 +95,7 @@ export function YoutubeCourseList({ courses, filmingAlertWeeks, embedded = false
             <TableCell><Link className="font-medium hover:underline" href={`/services/youtube-management/${course.id}`}>{course.name}</Link></TableCell>
             <TableCell>{course.instructor_name || "—"}</TableCell><TableCell>{course.cohort || "—"}</TableCell>
             <TableCell><time dateTime={course.free_webinar_at || undefined}>{formatWebinarDate(course.free_webinar_at)}</time></TableCell>
-            <TableCell className="text-right">{course.appearanceCount}개</TableCell><TableCell className="text-right">{course.confirmedAppearanceCount}개</TableCell><TableCell className="text-right">{course.uploadCompletedCount}개</TableCell>
+            <TableCell className="text-right">{course.appearanceNotRequired ? "진행하지 않음" : `${course.appearanceCount}개`}</TableCell><TableCell className="text-right">{course.appearanceNotRequired ? "-" : `${course.confirmedAppearanceCount}개`}</TableCell><TableCell className="text-right">{course.appearanceNotRequired ? "-" : `${course.uploadCompletedCount}개`}</TableCell>
             <TableCell className="text-right">{course.filmingAlert.deadlineReached
               ? course.filmingAlert.alertCount > 0
                 ? <Badge variant="destructive">{course.filmingAlert.alertCount}건</Badge>

@@ -12,6 +12,7 @@ type YoutubePreparationCourseRow = {
   id: string;
   free_webinar_at: string | null;
   course_youtube_appearances: YoutubePreparationAppearance[] | null;
+  course_youtube_settings: { appearance_not_required: boolean }[] | null;
 };
 
 export async function loadDashboardYoutubePreparation(workspaceId: string, today: string) {
@@ -19,7 +20,7 @@ export async function loadDashboardYoutubePreparation(workspaceId: string, today
   const [coursesResult, settings] = await Promise.all([
     admin
       .from("courses")
-      .select("id,free_webinar_at,course_youtube_appearances(request_status,filming_confirmed,filming_date,upload_date)")
+      .select("id,free_webinar_at,course_youtube_appearances(request_status,filming_confirmed,filming_date,upload_date),course_youtube_settings(appearance_not_required)")
       .eq("workspace_id", workspaceId),
     loadYoutubeFilmingAlertSettings(workspaceId, admin),
   ]);
@@ -36,6 +37,7 @@ export async function loadDashboardYoutubePreparation(workspaceId: string, today
         course.course_youtube_appearances ?? [],
         today,
         settings.filmingAlertWeeks,
+        course.course_youtube_settings?.[0]?.appearance_not_required ?? false,
       ),
     ]),
   );

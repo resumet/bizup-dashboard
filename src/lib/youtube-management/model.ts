@@ -43,7 +43,7 @@ export const publicAppearanceSchema = appearanceBase
   .refine(value => !value.upload_date || value.request_status === "confirmed", "출연 확정 후 업로드 일정을 입력해 주세요.");
 export type Appearance = z.infer<typeof appearanceSchema> & { id:string; revision:number };
 export type CourseMedia = { id:string; name:string; instructor_name:string; cohort:string; status:string; free_webinar_at:string | null };
-export type YoutubeSettings = { public_enabled:boolean; public_token:string; public_short_code:string; brief_enabled:boolean; brief_token:string; brief_short_code:string; brief:Brief; brief_revision:number; notion_page_id:string|null; notion_url:string; notion_public_url:string; notion_synced_revision:number|null };
+export type YoutubeSettings = { public_enabled:boolean; public_token:string; public_short_code:string; brief_enabled:boolean; brief_token:string; brief_short_code:string; appearance_not_required:boolean; brief:Brief; brief_revision:number; notion_page_id:string|null; notion_url:string; notion_public_url:string; notion_synced_revision:number|null };
 export type MediaData = { course:CourseMedia; settings:YoutubeSettings; appearances:Appearance[]; landingUtms:LandingUtm[]; suggestions:Array<{channelName:string;channelUrl:string}>; filmingAlertWeeks:YoutubeFilmingAlertWeeks };
 export const emptyAppearance = (): Appearance => ({id:"",revision:0,channel_name:"",channel_url:"",video_url:"",landing_utm:"",request_status:"planned",filming_date:null,upload_date:null,filming_confirmed:false,is_internal:false,note:"",respondent:""});
 export function briefMarkdown(course: Pick<CourseMedia,"name"|"instructor_name">, brief:Brief) {

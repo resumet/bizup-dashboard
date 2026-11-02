@@ -129,6 +129,7 @@ test("인스타그램 운영 미설정은 주의, 업로드 일정 지연은 위
 
 test("관리자 기준을 넘긴 유튜브 촬영 일정 미확정 강의를 위험으로 표시한다", () => {
   const youtube = new Map<string, YoutubePreparationSummary>([["youtube-risk", {
+    appearanceNotRequired: false,
     appearanceCount: 3,
     confirmedAppearanceCount: 2,
     filmingConfirmedCount: 1,
