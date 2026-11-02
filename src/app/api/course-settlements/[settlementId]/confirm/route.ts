@@ -4,12 +4,32 @@ import {
   settlementError,
 } from "@/lib/course-settlements/server";
 import { sanitizeSettlementStatementDraft } from "@/lib/course-settlements/statement";
+import { calculateCostSettlement, normalizeName, type SettlementAnalysis, type SettlementCost } from "@/lib/course-settlements/engine";
+import { loadManualCashSummary } from "@/lib/course-settlements/manual-cash-server";
 import { filterSettlementCosts, loadCourseCosts } from "@/lib/course-costs/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin/access";
 
 type Context = { params: Promise<{ settlementId: string }> };
+
+function settlementCost(cost: Awaited<ReturnType<typeof loadCourseCosts>>[number]): SettlementCost {
+  return {
+    id: cost.id,
+    name: cost.name,
+    burden: cost.burdenType === "INSTRUCTOR" ? "instructor" : cost.burdenType === "SHARED" ? "shared" : "company",
+    manager: cost.managerName,
+    amount: cost.grossAmount,
+    occurredOn: cost.paidDate,
+    note: cost.note,
+    evidenceRequired: cost.evidenceRequired,
+    evidenceType: "기타",
+    evidenceNeedsReview: cost.evidenceNeedsReview,
+    attachments: cost.attachments.map((file) => ({ id: file.id, name: file.originalName, type: file.mimeType, size: file.size, url: file.url })),
+    companyShareAmount: cost.companyShareAmount,
+    instructorShareAmount: cost.instructorShareAmount,
+  };
+}
 
 export async function POST(_: Request, { params }: Context) {
   const supabase = await createClient();
@@ -29,7 +49,7 @@ export async function POST(_: Request, { params }: Context) {
     }
     const { data: course } = await admin
       .from("courses")
-      .select("name")
+      .select("name,instructor_name")
       .eq("id", settlement.course_id)
       .eq("workspace_id", workspaceId)
       .maybeSingle();
@@ -47,6 +67,21 @@ export async function POST(_: Request, { params }: Context) {
       await loadCourseCosts(admin, settlement.course_id),
       settlement.analysis_snapshot,
     );
+    const analysis = settlement.analysis_snapshot as SettlementAnalysis;
+    const instructor = analysis.instructorResults?.find(
+      (item) => normalizeName(item.instructor) === normalizeName(course.instructor_name),
+    );
+    if (!instructor) throw new Error("정산 분석에서 강사 지급액을 계산할 강사를 찾을 수 없습니다.");
+    const manualCash = await loadManualCashSummary(admin, settlement.course_id);
+    const instructorPayoutAmount = calculateCostSettlement({
+      totalSales: instructor.totalSales,
+      pgFee: instructor.pgFee,
+      novaFee: instructor.systemNovaFee,
+      additionalServiceFee: instructor.additionalServiceFee,
+      manualCashSales: manualCash.amount,
+      costs: costs.map(settlementCost),
+      instructorRatioPercent: draft.instructorRatioPercent,
+    }).instructorFinal;
     const missingEvidence = costs.filter(
       (cost) => cost.evidenceRequired && cost.attachments.length === 0,
     );
@@ -92,6 +127,7 @@ export async function POST(_: Request, { params }: Context) {
         status: "정산확정",
         manager_name: draft.manager,
         instructor_ratio_bps: Math.round(draft.instructorRatioPercent * 100),
+        instructor_payout_amount: instructorPayoutAmount,
         updated_at: now,
       })
       .eq("id", settlement.id)
@@ -141,6 +177,7 @@ export async function DELETE(_: Request, { params }: Context) {
     const { data: updated, error } = await admin.from("course_settlement_projects").update({
       status: "비용입력중",
       statement_draft: draft,
+      instructor_payout_amount: 0,
       updated_at: now,
     }).eq("id", settlement.id).select("*").single();
     if (error || !updated) throw new Error(`정산 확정 취소 실패: ${error?.code}`);
