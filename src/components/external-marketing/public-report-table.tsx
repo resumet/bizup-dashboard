@@ -19,6 +19,20 @@ const number = new Intl.NumberFormat("ko-KR");
 const won = new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW", maximumFractionDigits: 0 });
 function cost(value: number | null) { return value === null ? "—" : won.format(value); }
 function rate(value: number | null) { return value === null ? "—" : `${value.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}%`; }
+function count(value: number | null) { return value === null ? "—" : number.format(value); }
+
+function MediaValues({ google, meta, format }: {
+  google: number | null;
+  meta: number | null;
+  format: (value: number | null) => string;
+}) {
+  const googleLabel = format(google);
+  const metaLabel = format(meta);
+  return <>
+    <span className="block" aria-label={`Google ${googleLabel}`}>G {googleLabel}</span>
+    <span className="block" aria-label={`Meta ${metaLabel}`}>M {metaLabel}</span>
+  </>;
+}
 
 const head = "border-r border-b px-3 py-2 text-center text-xs font-medium whitespace-nowrap last:border-r-0";
 const cell = "border-r border-b px-3 py-2 text-right text-xs tabular-nums whitespace-nowrap last:border-r-0";
@@ -38,11 +52,12 @@ function ReportRow({ row, total = false, onDateClick }: {
       >{row.metricDate}</button> : row.metricDate}
     </th>
     <td className={cell}>{number.format(row.impressions)}</td>
-    <td className={cell}>{number.format(row.clicks)}</td>
-    <td className={cell}>{rate(row.clickConversionRate)}</td>
-    <td className={cell}>{rate(row.landingConversionRate)}</td>
-    <td className={`${cell} font-semibold`}>{cost(row.spend)}</td>
-    <td className={cell}>{number.format(row.landingReceptionDb)}</td>
+    <td className={cell}><MediaValues google={row.googleClicks} meta={row.metaClicks} format={count} /></td>
+    <td className={cell}><MediaValues google={row.googleClickConversionRate} meta={row.metaClickConversionRate} format={rate} /></td>
+    <td className={cell}><MediaValues google={row.googleLandingConversionRate} meta={row.metaLandingConversionRate} format={rate} /></td>
+    <td className={`${cell} font-semibold`}><MediaValues google={row.googleSpend} meta={row.metaSpend} format={cost} /></td>
+    <td className={cell}><MediaValues google={row.googleAdLeads} meta={row.metaAdLeads} format={count} /></td>
+    <td className={cell}><MediaValues google={row.googleLandingReceptionDb} meta={row.metaLandingReceptionDb} format={count} /></td>
     <td className={cell}>{row.chatRoomEntrants === null ? "—" : number.format(row.chatRoomEntrants)}</td>
     <td className={cell}>{row.chatRoomCumulative === null ? "—" : number.format(row.chatRoomCumulative)}</td>
     <td className={cell}>{cost(row.adDbUnitCost)}</td>
@@ -104,10 +119,10 @@ export function PublicExternalMarketingReportTable({ metrics, token }: {
   }
 
   return <>
-    <div className="overflow-x-auto rounded-lg border" role="region" aria-label="날짜별 광고집행 결과 표" tabIndex={0}><table className="w-full min-w-[1620px] border-collapse">
-      <caption className="sr-only">날짜별 광고 노출, 클릭, 전환율, 광고비, 랜딩접수 DB, 오늘 및 누적 단톡방 인원과 DB 단가</caption>
-      <thead className="bg-muted/65 text-muted-foreground"><tr><th className={`${head} text-left`}>날짜</th><th className={head}>총 광고노출</th><th className={head}>광고클릭</th><th className={head}>클릭전환율</th><th className={head}>랜딩전환율</th><th className={head}>광고집행비용</th><th className={head}>랜딩접수DB</th><th className={head}>오늘 단톡방 입장인원</th><th className={head}>누적 단톡방 인원</th><th className={head}>광고DB당단가</th><th className={head}>랜딩DB당단가</th><th className={head}>랜딩접수DB단가</th><th className={head}>톡방접수 DB당단가</th></tr></thead>
-      <tbody>{total ? <ReportRow row={total} total /> : null}{rows.length ? rows.map((row) => <ReportRow key={row.metricDate} row={row} onDateClick={openChatMembersInput} />) : <tr><td colSpan={13} className="px-5 py-12 text-center text-sm text-muted-foreground">표시할 광고집행 결과가 없습니다.</td></tr>}</tbody>
+    <div className="overflow-x-auto rounded-lg border" role="region" aria-label="날짜별 광고집행 결과 표" tabIndex={0}><table className="w-full min-w-[1740px] border-collapse">
+      <caption className="sr-only">날짜별 광고 노출, 매체별 클릭, 전환율, 광고비, 광고접수 DB, 랜딩접수 DB, 오늘 및 누적 단톡방 인원과 DB 단가</caption>
+      <thead className="bg-muted/65 text-muted-foreground"><tr><th className={`${head} text-left`}>날짜</th><th className={head}>총 광고노출</th><th className={head}>광고클릭</th><th className={head}>클릭전환율</th><th className={head}>랜딩전환율</th><th className={head}>광고집행비용</th><th className={head}>광고접수DB</th><th className={head}>랜딩접수DB</th><th className={head}>오늘 단톡방 입장인원</th><th className={head}>누적 단톡방 인원</th><th className={head}>광고DB당단가</th><th className={head}>랜딩DB당단가</th><th className={head}>랜딩접수DB단가</th><th className={head}>톡방접수 DB당단가</th></tr></thead>
+      <tbody>{total ? <ReportRow row={total} total /> : null}{rows.length ? rows.map((row) => <ReportRow key={row.metricDate} row={row} onDateClick={openChatMembersInput} />) : <tr><td colSpan={14} className="px-5 py-12 text-center text-sm text-muted-foreground">표시할 광고집행 결과가 없습니다.</td></tr>}</tbody>
     </table></div>
 
     <Dialog open={Boolean(selectedDate)} onOpenChange={(open) => { if (!open && !saving) setSelectedDate(""); }}>
