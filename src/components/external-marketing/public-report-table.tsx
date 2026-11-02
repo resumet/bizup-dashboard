@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
-import { Loader2, Save } from "lucide-react";
+import { useState, type CSSProperties, type FormEvent } from "react";
+import { Loader2, Minus, Plus, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -34,8 +34,14 @@ function MediaValues({ google, meta, format }: {
   </>;
 }
 
-const head = "border-r border-b px-3 py-2 text-center text-xs font-medium whitespace-nowrap last:border-r-0";
-const cell = "border-r border-b px-3 py-2 text-right text-xs tabular-nums whitespace-nowrap last:border-r-0";
+const TABLE_SIZES = [
+  { label: "작게", fontSize: "0.6875rem", lineHeight: "1rem", paddingX: "0.5rem", paddingY: "0.375rem" },
+  { label: "기본", fontSize: "0.75rem", lineHeight: "1.25rem", paddingX: "0.75rem", paddingY: "0.5rem" },
+  { label: "크게", fontSize: "0.875rem", lineHeight: "1.5rem", paddingX: "1rem", paddingY: "0.75rem" },
+] as const;
+
+const head = "border-r border-b px-[var(--report-cell-padding-x)] py-[var(--report-cell-padding-y)] text-center text-[length:var(--report-font-size)] leading-[var(--report-line-height)] font-medium whitespace-nowrap last:border-r-0";
+const cell = "border-r border-b px-[var(--report-cell-padding-x)] py-[var(--report-cell-padding-y)] text-right text-[length:var(--report-font-size)] leading-[var(--report-line-height)] tabular-nums whitespace-nowrap last:border-r-0";
 
 function ReportRow({ row, total = false, onDateClick }: {
   row: ExternalMarketingReportRow;
@@ -80,6 +86,14 @@ export function PublicExternalMarketingReportTable({ metrics, token }: {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [tableSizeIndex, setTableSizeIndex] = useState(1);
+  const tableSize = TABLE_SIZES[tableSizeIndex];
+  const tableStyle = {
+    "--report-font-size": tableSize.fontSize,
+    "--report-line-height": tableSize.lineHeight,
+    "--report-cell-padding-x": tableSize.paddingX,
+    "--report-cell-padding-y": tableSize.paddingY,
+  } as CSSProperties;
 
   function openChatMembersInput(metricDate: string) {
     const current = cumulativeByDate.get(metricDate);
@@ -119,9 +133,16 @@ export function PublicExternalMarketingReportTable({ metrics, token }: {
   }
 
   return <>
-    <div className="overflow-x-auto rounded-lg border" role="region" aria-label="날짜별 광고집행 결과 표" tabIndex={0}><table className="w-full min-w-[1740px] border-collapse">
+    <div className="mb-2 flex justify-end">
+      <div className="inline-flex items-center gap-1 rounded-lg border bg-background p-1 shadow-sm" role="group" aria-label="표 글자 크기 조절">
+        <span className="min-w-16 px-2 text-center text-xs text-muted-foreground" aria-live="polite">글자 {tableSize.label}</span>
+        <Button type="button" variant="ghost" size="icon-sm" aria-label="표 글자 작게" title="표 글자 작게" disabled={tableSizeIndex === 0} onClick={() => setTableSizeIndex((current) => Math.max(0, current - 1))}><Minus /></Button>
+        <Button type="button" variant="ghost" size="icon-sm" aria-label="표 글자 크게" title="표 글자 크게" disabled={tableSizeIndex === TABLE_SIZES.length - 1} onClick={() => setTableSizeIndex((current) => Math.min(TABLE_SIZES.length - 1, current + 1))}><Plus /></Button>
+      </div>
+    </div>
+    <div className="overflow-x-auto rounded-lg border" role="region" aria-label="날짜별 광고집행 결과 표" tabIndex={0}><table className="w-full min-w-[1740px] border-collapse" style={tableStyle}>
       <caption className="sr-only">날짜별 광고 노출, 매체별 클릭, 전환율, 광고비, 광고접수 DB, 랜딩접수 DB, 오늘 및 누적 단톡방 인원과 DB 단가</caption>
-      <thead className="bg-muted/65 text-muted-foreground"><tr><th className={`${head} text-left`}>날짜</th><th className={head}>총 광고노출</th><th className={head}>광고클릭</th><th className={head}>클릭전환율</th><th className={head}>랜딩전환율</th><th className={head}>광고집행비용</th><th className={head}>광고접수DB</th><th className={head}>랜딩접수DB</th><th className={head}>오늘 단톡방 입장인원</th><th className={head}>누적 단톡방 인원</th><th className={head}>광고DB당단가</th><th className={head}>랜딩DB당단가</th><th className={head}>랜딩접수DB단가</th><th className={head}>톡방접수 DB당단가</th></tr></thead>
+      <thead className="bg-muted/65 text-muted-foreground"><tr><th className={`${head} text-left`}>날짜</th><th className={head}>총 광고노출</th><th className={head}>광고클릭</th><th className={head}>클릭전환율</th><th className={head}>랜딩전환율</th><th className={head}>광고집행비용</th><th className={head}>광고접수DB</th><th className={head}>랜딩접수DB</th><th className={head}><span className="block">오늘 단톡방</span><span className="block">입장인원</span></th><th className={head}>누적 단톡방 인원</th><th className={head}>광고DB당단가</th><th className={head}>랜딩DB당단가</th><th className={head}>랜딩접수DB단가</th><th className={head}>톡방접수 DB당단가</th></tr></thead>
       <tbody>{total ? <ReportRow row={total} total /> : null}{rows.length ? rows.map((row) => <ReportRow key={row.metricDate} row={row} onDateClick={openChatMembersInput} />) : <tr><td colSpan={14} className="px-5 py-12 text-center text-sm text-muted-foreground">표시할 광고집행 결과가 없습니다.</td></tr>}</tbody>
     </table></div>
 
