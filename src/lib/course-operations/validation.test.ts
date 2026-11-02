@@ -90,6 +90,23 @@ test("강의 옵션이 없어도 입력값을 저장 형식으로 변환한다",
   assert.deepEqual(parsed.options, []);
 });
 
+test("강의 상세 저장은 유튜브 출연 정보를 검사하지 않는다", () => {
+  const parsed = parseCourseOperationsInput({
+    ...validInput,
+    youtubeAppearances: [
+      ...validInput.youtubeAppearances,
+      {
+        channelName: "자체 진행 채널",
+        channelUrl: "",
+        videoUrl: "",
+        landingUtm: "",
+      },
+    ],
+  }, { ignoreYoutubeAppearances: true });
+
+  assert.deepEqual(parsed.youtubeAppearances, []);
+});
+
 test("강의 차별점은 선택값이며 최대 10,000자까지 저장한다", () => {
   assert.equal(
     parseCourseOperationsInput({ ...validInput, courseDifferentiation: "" })

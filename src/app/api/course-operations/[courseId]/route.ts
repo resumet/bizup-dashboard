@@ -143,7 +143,9 @@ export async function PATCH(
       readCourseOperationsRequest(request),
     ]);
     const { body, banner } = requestData;
-    const input = parseCourseOperationsInput(body);
+    const input = parseCourseOperationsInput(body, {
+      ignoreYoutubeAppearances: true,
+    });
     const loadedDetailSections =
       typeof body === "object" && body !== null
         ? (body as Record<string, unknown>).loadedDetailSections

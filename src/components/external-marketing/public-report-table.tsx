@@ -62,7 +62,7 @@ function ReportRow({ row, total = false, onDateClick }: {
     <td className={cell}>{row.chatRoomCumulative === null ? "—" : number.format(row.chatRoomCumulative)}</td>
     <td className={cell}>{cost(row.adDbUnitCost)}</td>
     <td className={cell}><span className="block">G {cost(row.googleLandingDbUnitCost)}</span><span className="block">M {cost(row.metaLandingDbUnitCost)}</span></td>
-    <td className={cell}>{cost(row.landingReceptionDbUnitCost)}</td>
+    <td className={cell}><MediaValues google={row.googleLandingDbUnitCost} meta={row.metaLandingDbUnitCost} format={cost} /></td>
     <td className={cell}>{cost(row.chatReceptionDbUnitCost)}</td>
   </tr>;
 }

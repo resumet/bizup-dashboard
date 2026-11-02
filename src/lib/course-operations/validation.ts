@@ -57,7 +57,10 @@ function optionalId(value: unknown, label: string) {
   return normalized;
 }
 
-export function parseCourseOperationsInput(value: unknown): CourseOperationsInput {
+export function parseCourseOperationsInput(
+  value: unknown,
+  parseOptions: { ignoreYoutubeAppearances?: boolean } = {},
+): CourseOperationsInput {
   const input =
     typeof value === "object" && value !== null
       ? (value as Record<string, unknown>)
@@ -108,9 +111,10 @@ export function parseCourseOperationsInput(value: unknown): CourseOperationsInpu
     };
   });
 
-  const appearances = Array.isArray(input.youtubeAppearances)
-    ? input.youtubeAppearances
-    : [];
+  const appearances =
+    !parseOptions.ignoreYoutubeAppearances && Array.isArray(input.youtubeAppearances)
+      ? input.youtubeAppearances
+      : [];
   if (appearances.length > 50) throw new Error("유튜브 출연 정보는 최대 50개입니다.");
   const liveVideos = Array.isArray(input.liveVideos) ? input.liveVideos : [];
   if (liveVideos.length > 50) {
