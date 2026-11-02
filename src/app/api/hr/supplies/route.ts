@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     const parsed = createSupplyRequestSchema.safeParse(body);
     if (!parsed.success) {
       return Response.json(
-        { message: "비품 이름, 가격, 신청 목적과 비고를 확인해 주세요." },
+        { message: "비품 이름, 구매링크, 가격, 신청 목적과 비고를 확인해 주세요." },
         { status: 400 },
       );
     }

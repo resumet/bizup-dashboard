@@ -18,6 +18,7 @@ async function readError(response: Response) {
 export function SupplyRequestForm() {
   const router = useRouter();
   const [itemName, setItemName] = useState("");
+  const [purchaseUrl, setPurchaseUrl] = useState("");
   const [price, setPrice] = useState("");
   const [purpose, setPurpose] = useState("");
   const [note, setNote] = useState("");
@@ -35,6 +36,7 @@ export function SupplyRequestForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           itemName,
+          purchaseUrl,
           priceKrw: Number(price),
           purpose,
           note,
@@ -63,6 +65,18 @@ export function SupplyRequestForm() {
               autoComplete="off"
               required
               autoFocus
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="supply-purchase-url">구매링크</Label>
+            <Input
+              id="supply-purchase-url"
+              type="url"
+              value={purchaseUrl}
+              onChange={(event) => setPurchaseUrl(event.target.value)}
+              maxLength={2048}
+              placeholder="https://example.com/product"
+              autoComplete="url"
             />
           </div>
           <div className="space-y-2">

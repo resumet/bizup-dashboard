@@ -13,19 +13,35 @@ const NOW = "2026-10-25T09:00:00.000Z";
 test("비품 신청 입력은 원 단위 정수 가격과 필수 항목을 검증한다", () => {
   assert.equal(createSupplyRequestSchema.safeParse({
     itemName: "촬영용 삼각대",
+    purchaseUrl: "https://example.com/products/tripod",
+    priceKrw: 120_000,
+    purpose: "강의 촬영",
+    note: "",
+  }).success, true);
+  assert.equal(createSupplyRequestSchema.safeParse({
+    itemName: "촬영용 삼각대",
     priceKrw: 120_000,
     purpose: "강의 촬영",
     note: "",
   }).success, true);
   assert.equal(createSupplyRequestSchema.safeParse({
     itemName: "삼각대",
+    purchaseUrl: "",
     priceKrw: 12.5,
     purpose: "강의 촬영",
     note: "",
   }).success, false);
   assert.equal(createSupplyRequestSchema.safeParse({
     itemName: " ",
+    purchaseUrl: "",
     priceKrw: 100,
+    purpose: "강의 촬영",
+    note: "",
+  }).success, false);
+  assert.equal(createSupplyRequestSchema.safeParse({
+    itemName: "삼각대",
+    purchaseUrl: "javascript:alert(1)",
+    priceKrw: 120_000,
     purpose: "강의 촬영",
     note: "",
   }).success, false);

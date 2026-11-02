@@ -20,6 +20,7 @@ test("비품 신청 DB가 금액·승인·구매 상태와 서버 전용 접근�
       insert into public.workspaces values ('${WORKSPACE}');
     `);
     await db.exec(await readFile("supabase/migrations/20261025140632_supply_requests.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations/20261102063744_add_supply_request_purchase_url.sql", "utf8"));
 
     await db.exec("set role anon");
     await assert.rejects(() => db.query("select * from public.supply_requests"), /permission denied/u);
@@ -29,14 +30,19 @@ test("비품 신청 DB가 금액·승인·구매 상태와 서버 전용 접근�
     await db.exec("reset role; set role service_role");
     await db.query(
       `insert into public.supply_requests
-        (workspace_id, requester_id, requester_name, item_name, price_krw, purpose)
-       values ($1, $2, '권정인', '촬영용 삼각대', 120000, '강의 촬영')`,
+        (workspace_id, requester_id, requester_name, item_name, purchase_url, price_krw, purpose)
+       values ($1, $2, '권정인', '촬영용 삼각대', 'https://example.com/products/tripod', 120000, '강의 촬영')`,
       [WORKSPACE, USER],
     );
-    const initial = await db.query<{ approval_status: string; purchased: boolean; version: number }>(
-      "select approval_status, purchased, version from public.supply_requests",
+    const initial = await db.query<{ purchase_url: string; approval_status: string; purchased: boolean; version: number }>(
+      "select purchase_url, approval_status, purchased, version from public.supply_requests",
     );
-    assert.deepEqual(initial.rows[0], { approval_status: "pending", purchased: false, version: 1 });
+    assert.deepEqual(initial.rows[0], {
+      purchase_url: "https://example.com/products/tripod",
+      approval_status: "pending",
+      purchased: false,
+      version: 1,
+    });
 
     await assert.rejects(() => db.query(
       `insert into public.supply_requests
@@ -44,6 +50,12 @@ test("비품 신청 DB가 금액·승인·구매 상태와 서버 전용 접근�
        values ($1, '권정인', '잘못된 가격', -1, '테스트')`,
       [WORKSPACE],
     ), /supply_requests_price_krw_check/u);
+    await assert.rejects(() => db.query(
+      `insert into public.supply_requests
+        (workspace_id, requester_name, item_name, purchase_url, price_krw, purpose)
+       values ($1, '권정인', '잘못된 링크', 'javascript:alert(1)', 1000, '테스트')`,
+      [WORKSPACE],
+    ), /supply_requests_purchase_url_check/u);
     await assert.rejects(() => db.exec(
       "update public.supply_requests set purchased=true, purchased_at=now()",
     ), /supply_requests_purchase_state_check/u);

@@ -2,8 +2,19 @@ import { z } from "zod";
 
 import type { SupplyApprovalStatus, SupplyRequestCommand } from "./types";
 
+function isHttpUrl(value: string) {
+  if (value === "") return true;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export const createSupplyRequestSchema = z.object({
   itemName: z.string().trim().min(1).max(120),
+  purchaseUrl: z.string().trim().max(2048).refine(isHttpUrl).default(""),
   priceKrw: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
   purpose: z.string().trim().min(1).max(1000),
   note: z.string().trim().max(2000).default(""),

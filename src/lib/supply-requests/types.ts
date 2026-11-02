@@ -5,6 +5,7 @@ export type SupplyRequest = {
   requesterId: string | null;
   requesterName: string;
   itemName: string;
+  purchaseUrl: string | null;
   priceKrw: number;
   purpose: string;
   note: string;

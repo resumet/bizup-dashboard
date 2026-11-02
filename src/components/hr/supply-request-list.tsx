@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, PackageOpen } from "lucide-react";
+import { ExternalLink, Loader2, PackageOpen } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -108,12 +109,13 @@ export function SupplyRequestList({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <Table className="min-w-[1120px]">
+            <Table className="min-w-[1360px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-32 pl-4">신청 날짜</TableHead>
                   <TableHead className="w-28">신청자</TableHead>
                   <TableHead className="min-w-44">비품 이름</TableHead>
+                  <TableHead className="min-w-72">구매링크</TableHead>
                   <TableHead className="w-32 text-right">가격</TableHead>
                   <TableHead className="min-w-64">신청 목적</TableHead>
                   <TableHead className="min-w-52">비고</TableHead>
@@ -130,6 +132,21 @@ export function SupplyRequestList({
                       <TableCell className="pl-4 whitespace-nowrap">{dateFormatter.format(new Date(item.requestedAt))}</TableCell>
                       <TableCell className="font-medium whitespace-nowrap">{item.requesterName}</TableCell>
                       <TableCell className="font-medium">{item.itemName}</TableCell>
+                      <TableCell>
+                        {item.purchaseUrl ? (
+                          <div className="flex items-center gap-2">
+                            <span className="min-w-0 flex-1 truncate text-muted-foreground" title={item.purchaseUrl}>
+                              {item.purchaseUrl}
+                            </span>
+                            <Button asChild size="sm" variant="outline" className="shrink-0">
+                              <a href={item.purchaseUrl} target="_blank" rel="noopener noreferrer">
+                                바로가기
+                                <ExternalLink aria-hidden="true" />
+                              </a>
+                            </Button>
+                          </div>
+                        ) : "-"}
+                      </TableCell>
                       <TableCell className="text-right whitespace-nowrap">{priceFormatter.format(item.priceKrw)}원</TableCell>
                       <TableCell className="max-w-80 whitespace-pre-wrap">{item.purpose}</TableCell>
                       <TableCell className="max-w-72 whitespace-pre-wrap text-muted-foreground">{item.note || "-"}</TableCell>

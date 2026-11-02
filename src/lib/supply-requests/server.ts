@@ -14,6 +14,7 @@ type SupplyRequestRow = {
   requester_id: string | null;
   requester_name: string;
   item_name: string;
+  purchase_url: string | null;
   price_krw: number | string;
   purpose: string;
   note: string;
@@ -51,6 +52,7 @@ function normalizeSupplyRequest(row: SupplyRequestRow): SupplyRequest {
     requesterId: row.requester_id,
     requesterName: row.requester_name,
     itemName: row.item_name,
+    purchaseUrl: row.purchase_url,
     priceKrw: Number(row.price_krw),
     purpose: row.purpose,
     note: row.note,
@@ -102,7 +104,7 @@ export async function loadSupplyRequests(
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await context.admin
       .from("supply_requests")
-      .select("id,requester_id,requester_name,item_name,price_krw,purpose,note,approval_status,reviewed_at,purchased,purchased_at,version,requested_at,updated_at")
+      .select("id,requester_id,requester_name,item_name,purchase_url,price_krw,purpose,note,approval_status,reviewed_at,purchased,purchased_at,version,requested_at,updated_at")
       .eq("workspace_id", context.workspaceId)
       .order("requested_at", { ascending: false })
       .order("id", { ascending: false })
@@ -118,7 +120,7 @@ export async function loadSupplyRequests(
 
 export async function createSupplyRequest(
   context: SupplyRequestContext,
-  input: { itemName: string; priceKrw: number; purpose: string; note: string },
+  input: { itemName: string; purchaseUrl: string; priceKrw: number; purpose: string; note: string },
 ) {
   const name = await requesterName(context.user, context.workspaceId);
   const { data, error } = await context.admin
@@ -128,11 +130,12 @@ export async function createSupplyRequest(
       requester_id: context.user.id,
       requester_name: name,
       item_name: input.itemName,
+      purchase_url: input.purchaseUrl || null,
       price_krw: input.priceKrw,
       purpose: input.purpose,
       note: input.note,
     })
-    .select("id,requester_id,requester_name,item_name,price_krw,purpose,note,approval_status,reviewed_at,purchased,purchased_at,version,requested_at,updated_at")
+    .select("id,requester_id,requester_name,item_name,purchase_url,price_krw,purpose,note,approval_status,reviewed_at,purchased,purchased_at,version,requested_at,updated_at")
     .single();
   if (error) throw databaseError(error.message);
   const request = normalizeSupplyRequest(data as SupplyRequestRow);
@@ -175,7 +178,7 @@ export async function updateSupplyRequest(
     .eq("workspace_id", context.workspaceId)
     .eq("id", requestId)
     .eq("version", command.version)
-    .select("id,requester_id,requester_name,item_name,price_krw,purpose,note,approval_status,reviewed_at,purchased,purchased_at,version,requested_at,updated_at")
+    .select("id,requester_id,requester_name,item_name,purchase_url,price_krw,purpose,note,approval_status,reviewed_at,purchased,purchased_at,version,requested_at,updated_at")
     .maybeSingle();
   if (error) throw databaseError(error.message);
   if (!data) throw new SupplyRequestServerError("다른 변경이 먼저 저장되었습니다. 화면을 새로고침해 주세요.", 409);
