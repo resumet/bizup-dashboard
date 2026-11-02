@@ -226,7 +226,7 @@ function CoursePreparationSection({
               {instagramError ? (
                 <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                   <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
-                  {instagramError} WBS 기준 준비도만 표시합니다.
+                  {instagramError} 해야할일 기준 준비도만 표시합니다.
                 </div>
               ) : null}
               {youtubeError ? (
@@ -288,7 +288,7 @@ function CoursePreparationSection({
                       <div className="mt-3">
                         <div className="mb-1.5 flex items-center justify-between text-xs">
                           <span className="font-medium text-slate-700">전체 준비도 {course.progress}%</span>
-                          <span className="tabular-nums text-muted-foreground">WBS + 인스타그램</span>
+                          <span className="tabular-nums text-muted-foreground">해야할일 + 인스타그램</span>
                         </div>
                         <div
                           role="progressbar"
@@ -302,16 +302,16 @@ function CoursePreparationSection({
                         </div>
                       </div>
 
-                      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+                      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                         <Link
                           href={`/services/course-wbs?courseId=${encodeURIComponent(course.id)}`}
                           className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 transition-colors hover:border-blue-300 hover:bg-blue-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-medium text-slate-700">WBS</span>
+                            <span className="font-medium text-slate-700">해야할일</span>
                             <strong className="tabular-nums text-slate-950">{course.wbsProgress}%</strong>
                           </div>
-                          <p className="mt-1 text-muted-foreground">완료 {course.completedCount}/{course.totalCount}</p>
+                          <p className="mt-1 text-muted-foreground">{course.totalCount ? `완료 ${course.completedCount}/${course.totalCount}` : "현재 지연 없음"}</p>
                         </Link>
                         <Link
                           href={`/services/instagram-management/${encodeURIComponent(course.id)}`}
@@ -360,7 +360,7 @@ function CoursePreparationSection({
                       </div>
 
                       <div className="mt-3 flex min-h-6 flex-wrap gap-1.5">
-                        {course.wbsMissing ? <Badge variant="secondary" className="bg-violet-50 text-violet-700">WBS 미등록</Badge> : null}
+                        {course.wbsMissing ? <Badge variant="secondary" className="bg-violet-50 text-violet-700">해야할일 미등록</Badge> : null}
                         {signals.length ? signals.map((signal) => (
                           <Badge key={signal.label} variant="secondary" className={signal.className}>{signal.label} {signal.count}</Badge>
                         )) : course.wbsMissing ? null : course.status === "complete" ? (
@@ -372,7 +372,7 @@ function CoursePreparationSection({
 
                       <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs leading-5">
                         {course.wbsMissing ? (
-                          <p className="font-medium text-violet-700">WBS 등록이 필요합니다.</p>
+                          <p className="font-medium text-violet-700">해야할일 등록이 필요합니다.</p>
                         ) : course.status === "complete" ? (
                           <p className="flex items-center gap-1.5 font-medium text-emerald-700">
                             <CircleCheckBig className="size-4" aria-hidden="true" />

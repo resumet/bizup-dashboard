@@ -1,4 +1,4 @@
-import { buildWbsAttention, wbsProgress, type AttentionCategory } from "@/lib/course-wbs/attention";
+import { buildWbsAttention, type AttentionCategory } from "@/lib/course-wbs/attention";
 import type { WbsCourse, WbsItem, WbsScheduleEntry, WbsScheduleItem } from "@/lib/course-wbs/types";
 import {
   buildInstagramPreparationSummary,
@@ -53,6 +53,20 @@ function scheduledDate(item: WbsScheduleItem) {
   return item.dueDate || item.startDate;
 }
 
+function dashboardWbsProgress(items: readonly WbsScheduleItem[], today: string) {
+  const scheduledItems = items.filter((item) => {
+    const date = scheduledDate(item);
+    return Boolean(date && date < today);
+  });
+  const completed = scheduledItems.filter((item) => item.completed).length;
+
+  return {
+    total: scheduledItems.length,
+    completed,
+    progress: scheduledItems.length ? Math.round((completed / scheduledItems.length) * 100) : 100,
+  };
+}
+
 function findNextPlannedTask(items: readonly WbsScheduleItem[]): CoursePreparationNextTask | null {
   const next = items
     .map((item, index) => ({ item, index, scheduledDate: scheduledDate(item) }))
@@ -96,7 +110,7 @@ export function buildDashboardCoursePreparation(
     .filter((course) => course.status === "ongoing")
     .map((course, courseOrder) => {
       const items = entriesByCourse.get(course.id)?.items ?? [];
-      const progress = wbsProgress(items, today);
+      const progress = dashboardWbsProgress(items, today);
       const tasks = attentionByCourse.get(course.id) ?? [];
       const count = (category: AttentionCategory) => tasks.filter((task) => task.category === category).length;
       const overdueCount = count("overdue");

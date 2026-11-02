@@ -149,3 +149,20 @@ test("관리자 기준을 넘긴 유튜브 촬영 일정 미확정 강의를 위
   assert.equal(result[0].status, "danger");
   assert.deepEqual(result[0].youtube, youtube.get("youtube-risk"));
 });
+
+test("대시보드 해야할일 진척도는 오늘 이전 일정만 기준으로 계산한다", () => {
+  const result = buildDashboardCoursePreparation(
+    [course("scheduled-progress")],
+    [{ courseId: "scheduled-progress", items: [
+      task("completed-past", "2026-10-01", "2026-10-10", true),
+      task("pending-past", "2026-10-11", "2026-10-20"),
+      task("future", "2026-11-20", "2026-11-21"),
+    ] }],
+    [],
+    "2026-10-31",
+  );
+
+  assert.equal(result[0].totalCount, 2);
+  assert.equal(result[0].completedCount, 1);
+  assert.equal(result[0].wbsProgress, 50);
+});

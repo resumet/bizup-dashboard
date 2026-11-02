@@ -1,6 +1,7 @@
 import { loadLandingUtms } from "@/lib/course-landing-utms/server";
 import { resolveLandingUtm } from "@/lib/youtube-management/utm";
 import { randomBytes } from "node:crypto";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { appearanceSchema, briefSchema } from "@/lib/youtube-management/model";
 import { loadMedia, mediaMember, MediaError, mediaError, privateHeaders, readMediaInput } from "@/lib/youtube-management/server";
@@ -24,7 +25,7 @@ export async function POST(request:Request,{params}:Context){
     }
     if(input.action==="appearanceRequirement"){
       const {data,error}=await admin.from("course_youtube_settings").update({appearance_not_required:input.appearanceNotRequired,updated_at:new Date().toISOString()}).eq("course_id",courseId).select("appearance_not_required").single();
-      if(error)throw new MediaError("유튜브 출연 진행 여부를 저장하지 못했습니다.",500);return Response.json(data,{headers:privateHeaders});
+      if(error)throw new MediaError("유튜브 출연 진행 여부를 저장하지 못했습니다.",500);revalidatePath("/");return Response.json(data,{headers:privateHeaders});
     }
     if(input.action==="brief"){
       const {data,error}=await admin.from("course_youtube_settings").update({brief:input.brief,brief_revision:input.revision+1,updated_at:new Date().toISOString()}).eq("course_id",courseId).eq("brief_revision",input.revision).select("brief,brief_revision").maybeSingle();
