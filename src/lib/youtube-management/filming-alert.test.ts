@@ -49,6 +49,22 @@ test("확정 플래그와 촬영일이 모두 있어야 촬영 일정 확정으�
   assert.equal(result.unconfirmedCount, 2);
 });
 
+test("관리자가 선택한 3·5·6주 기준으로 알림 시작일을 계산한다", () => {
+  const appearances = [
+    { request_status: "confirmed", filming_confirmed: false, filming_date: null },
+  ];
+
+  assert.deepEqual(getYoutubeFilmingAlert(webinarAt, appearances, "2026-11-15", 3), {
+    alertCount: 0,
+    deadlineDate: "2026-11-16",
+    deadlineReached: false,
+    unconfirmedCount: 1,
+  });
+  assert.equal(getYoutubeFilmingAlert(webinarAt, appearances, "2026-11-16", 3).alertCount, 1);
+  assert.equal(getYoutubeFilmingAlert(webinarAt, appearances, "2026-11-02", 5).deadlineDate, "2026-11-02");
+  assert.equal(getYoutubeFilmingAlert(webinarAt, appearances, "2026-10-26", 6).deadlineDate, "2026-10-26");
+});
+
 test("무료강의일이 없거나 유효하지 않으면 알림을 만들지 않는다", () => {
   const appearances = [{ request_status: "confirmed", filming_confirmed: false, filming_date: null }];
   assert.deepEqual(getYoutubeFilmingAlert(null, appearances, "2026-11-09"), {

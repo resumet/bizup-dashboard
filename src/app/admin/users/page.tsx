@@ -15,6 +15,7 @@ import { UserStatusToggle } from "@/components/admin/user-status-toggle";
 import { CommonLinksManager } from "@/components/admin/common-links-manager";
 import { CalendarMeetingTypesManager } from "@/components/admin/calendar-meeting-types-manager";
 import { MenuSearchKeywordsManager } from "@/components/admin/menu-search-keywords-manager";
+import { YoutubeFilmingAlertSettingsManager } from "@/components/admin/youtube-filming-alert-settings-manager";
 import { loadDashboardMenuSearchKeywordSettings } from "@/lib/admin/menu-search-keywords-storage";
 import { calendarContext, loadMeetingTypes } from "@/lib/shared-calendar/server";
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
@@ -44,6 +45,8 @@ import {
 import { loadAdminUsers } from "@/lib/admin/users";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_YOUTUBE_FILMING_ALERT_WEEKS } from "@/lib/youtube-management/settings";
+import { loadYoutubeFilmingAlertSettings } from "@/lib/youtube-management/settings-server";
 
 type AdminUsersPageProps = {
   searchParams: Promise<{ q?: string | string[] }>;
@@ -82,21 +85,26 @@ export default async function AdminUsersPage({
   if (!isSuperAdminEmail(currentUser.email)) notFound();
 
   const adminSettings = await calendarContext(true).then(async (context) => {
-    const [calendarResult, menuSearchResult] = await Promise.allSettled([
+    const [calendarResult, menuSearchResult, youtubeFilmingAlertResult] = await Promise.allSettled([
       loadMeetingTypes(context.supabase, context.workspaceId),
       loadDashboardMenuSearchKeywordSettings(context.workspaceId),
+      loadYoutubeFilmingAlertSettings(context.workspaceId),
     ]);
     return {
       calendarTypes: calendarResult.status === "fulfilled" ? calendarResult.value : [],
       calendarError: calendarResult.status === "rejected" ? "회의 항목을 불러오지 못했습니다. 새로고침해 주세요." : "",
       menuSearchSettings: menuSearchResult.status === "fulfilled" ? menuSearchResult.value : { keywords: {} },
       menuSearchError: menuSearchResult.status === "rejected" ? "메뉴 검색어를 불러오지 못했습니다. 새로고침해 주세요." : "",
+      youtubeFilmingAlertSettings: youtubeFilmingAlertResult.status === "fulfilled" ? youtubeFilmingAlertResult.value : { filmingAlertWeeks: DEFAULT_YOUTUBE_FILMING_ALERT_WEEKS },
+      youtubeFilmingAlertError: youtubeFilmingAlertResult.status === "rejected" ? "유튜브 촬영 일정 알림 설정을 불러오지 못했습니다. 새로고침해 주세요." : "",
     };
   }).catch(() => ({
     calendarTypes: [],
     calendarError: "회의 항목을 불러오지 못했습니다. 새로고침해 주세요.",
     menuSearchSettings: { keywords: {} },
     menuSearchError: "메뉴 검색어를 불러오지 못했습니다. 새로고침해 주세요.",
+    youtubeFilmingAlertSettings: { filmingAlertWeeks: DEFAULT_YOUTUBE_FILMING_ALERT_WEEKS },
+    youtubeFilmingAlertError: "유튜브 촬영 일정 알림 설정을 불러오지 못했습니다. 새로고침해 주세요.",
   }));
 
   const params = await searchParams;
@@ -167,6 +175,7 @@ export default async function AdminUsersPage({
       <div className="mx-auto max-w-[1900px] space-y-6 px-5 py-8 lg:px-8">
         <CommonLinksManager />
         <MenuSearchKeywordsManager initialSettings={adminSettings.menuSearchSettings} loadError={adminSettings.menuSearchError} />
+        <YoutubeFilmingAlertSettingsManager initialSettings={adminSettings.youtubeFilmingAlertSettings} loadError={adminSettings.youtubeFilmingAlertError} />
         <CalendarMeetingTypesManager initialTypes={adminSettings.calendarTypes} loadError={adminSettings.calendarError} />
         <section>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">

@@ -1,7 +1,11 @@
 import { toKoreaDate } from "@/lib/course-operations/schedule";
 import { getWebinarDayDifference } from "@/lib/course-operations/webinar-proximity";
+import {
+  DEFAULT_YOUTUBE_FILMING_ALERT_WEEKS,
+  type YoutubeFilmingAlertWeeks,
+} from "./settings";
 
-export const YOUTUBE_FILMING_ALERT_DAYS = 28;
+export const YOUTUBE_FILMING_ALERT_DAYS = DEFAULT_YOUTUBE_FILMING_ALERT_WEEKS * 7;
 
 type FilmingScheduleAppearance = {
   request_status: string;
@@ -27,16 +31,18 @@ export function getYoutubeFilmingAlert(
   freeWebinarAt: string | null | undefined,
   appearances: readonly FilmingScheduleAppearance[],
   todayKoreaDate = toKoreaDate(new Date().toISOString()),
+  filmingAlertWeeks: YoutubeFilmingAlertWeeks = DEFAULT_YOUTUBE_FILMING_ALERT_WEEKS,
 ): YoutubeFilmingAlert {
+  const filmingAlertDays = filmingAlertWeeks * 7;
   const webinarDate = freeWebinarAt ? toKoreaDate(freeWebinarAt) : "";
   const daysUntilWebinar = freeWebinarAt
     ? getWebinarDayDifference(freeWebinarAt, todayKoreaDate)
     : null;
   const deadlineDate = webinarDate
-    ? subtractCalendarDays(webinarDate, YOUTUBE_FILMING_ALERT_DAYS)
+    ? subtractCalendarDays(webinarDate, filmingAlertDays)
     : null;
   const deadlineReached =
-    daysUntilWebinar !== null && daysUntilWebinar <= YOUTUBE_FILMING_ALERT_DAYS;
+    daysUntilWebinar !== null && daysUntilWebinar <= filmingAlertDays;
   const unconfirmedCount = appearances.filter(
     (appearance) =>
       appearance.request_status === "confirmed" &&

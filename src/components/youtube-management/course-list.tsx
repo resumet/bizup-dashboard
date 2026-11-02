@@ -12,6 +12,7 @@ import { formatWebinarDate } from "@/lib/course-operations/webinar-proximity";
 import { groupYoutubeCourses, YOUTUBE_COURSE_GROUPS } from "@/lib/youtube-management/course-list";
 import type { YoutubeFilmingAlert } from "@/lib/youtube-management/filming-alert";
 import type { CourseMedia } from "@/lib/youtube-management/model";
+import type { YoutubeFilmingAlertWeeks } from "@/lib/youtube-management/settings";
 import { MediaNotice, mediaRequest } from "./editors";
 
 type Connection = {
@@ -25,10 +26,11 @@ type Connection = {
 type YoutubeCourse = CourseMedia & {
   appearanceCount: number;
   confirmedAppearanceCount: number;
+  uploadCompletedCount: number;
   filmingAlert: YoutubeFilmingAlert;
 };
 
-export function YoutubeCourseList({ courses, embedded = false }: { courses: YoutubeCourse[]; embedded?: boolean }) {
+export function YoutubeCourseList({ courses, filmingAlertWeeks, embedded = false }: { courses: YoutubeCourse[]; filmingAlertWeeks: YoutubeFilmingAlertWeeks; embedded?: boolean }) {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [connection, setConnection] = useState<Connection | null>(null);
@@ -75,7 +77,7 @@ export function YoutubeCourseList({ courses, embedded = false }: { courses: Yout
       </div>
       <div className="rounded-lg border bg-card p-4">
         <p className="text-sm text-muted-foreground">알림 기준</p>
-        <p className="mt-1 text-lg font-semibold">무료강의 4주 전</p>
+        <p className="mt-1 text-lg font-semibold">무료강의 {filmingAlertWeeks}주 전</p>
       </div>
     </section>
     <Input aria-label="강의 검색" placeholder="강의명, 강사명, 기수 검색" value={search} onChange={(event) => setSearch(event.target.value)} />
@@ -83,16 +85,16 @@ export function YoutubeCourseList({ courses, embedded = false }: { courses: Yout
       const items = grouped[group.key];
       return <details key={group.key} open={group.defaultOpen} className="group rounded-lg border">
         <summary className="cursor-pointer px-4 py-3 font-medium">{group.label}<span className="ml-2 text-sm text-muted-foreground">{items.length}</span></summary>
-        {items.length ? <Table className="min-w-[860px]">
+        {items.length ? <Table className="min-w-[940px]">
           <TableHeader><TableRow>
             <TableHead>강의</TableHead><TableHead>강사</TableHead><TableHead>기수</TableHead><TableHead>웨비나 날짜</TableHead>
-            <TableHead className="text-right">출연 채널</TableHead><TableHead className="text-right">출연 확정</TableHead><TableHead className="text-right">촬영 일정 미확정</TableHead>
+            <TableHead className="text-right">출연 채널</TableHead><TableHead className="text-right">출연 확정</TableHead><TableHead className="text-right">업로드 완료</TableHead><TableHead className="text-right">촬영 일정 미확정</TableHead>
           </TableRow></TableHeader>
           <TableBody>{items.map((course) => <TableRow key={course.id}>
             <TableCell><Link className="font-medium hover:underline" href={`/services/youtube-management/${course.id}`}>{course.name}</Link></TableCell>
             <TableCell>{course.instructor_name || "—"}</TableCell><TableCell>{course.cohort || "—"}</TableCell>
             <TableCell><time dateTime={course.free_webinar_at || undefined}>{formatWebinarDate(course.free_webinar_at)}</time></TableCell>
-            <TableCell className="text-right">{course.appearanceCount}개</TableCell><TableCell className="text-right">{course.confirmedAppearanceCount}개</TableCell>
+            <TableCell className="text-right">{course.appearanceCount}개</TableCell><TableCell className="text-right">{course.confirmedAppearanceCount}개</TableCell><TableCell className="text-right">{course.uploadCompletedCount}개</TableCell>
             <TableCell className="text-right">{course.filmingAlert.deadlineReached
               ? course.filmingAlert.alertCount > 0
                 ? <Badge variant="destructive">{course.filmingAlert.alertCount}건</Badge>

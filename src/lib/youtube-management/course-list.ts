@@ -7,10 +7,11 @@ export const YOUTUBE_COURSE_GROUPS = [
 
 type YoutubeCourseGroupKey = (typeof YOUTUBE_COURSE_GROUPS)[number]["key"];
 
-export function countYoutubeAppearances(appearances: readonly { request_status: string }[]) {
+export function countYoutubeAppearances(appearances: readonly { request_status: string; upload_date?: string | null }[]) {
   return {
     appearanceCount: appearances.length,
     confirmedAppearanceCount: appearances.filter((appearance) => appearance.request_status === "confirmed").length,
+    uploadCompletedCount: appearances.filter((appearance) => Boolean(appearance.upload_date)).length,
   };
 }
 

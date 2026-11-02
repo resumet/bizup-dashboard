@@ -8,6 +8,7 @@ import { briefSchema, type MediaData } from "./model";
 import { loadLandingUtms } from "@/lib/course-landing-utms/server";
 import { resolveLandingUtm, youtubeLandingUtms } from "./utm";
 import { parseYoutubeShortPathCode } from "./short-link";
+import { loadYoutubeFilmingAlertSettings } from "./settings-server";
 
 export class MediaError extends Error { constructor(message:string,readonly status=400){super(message);} }
 export const privateHeaders = {"Cache-Control":"private, no-store", "X-Robots-Tag":"noindex, nofollow", "Referrer-Policy":"no-referrer"};
@@ -34,15 +35,16 @@ export async function mediaMember(courseId:string){
 }
 export async function loadMedia(courseId:string):Promise<MediaData>{
   const {admin,course}=await mediaMember(courseId);
-  const [settings,appearances,channels,landingUtms]=await Promise.all([
+  const [settings,appearances,channels,landingUtms,filmingAlertSettings]=await Promise.all([
     admin.from("course_youtube_settings").select("public_enabled,public_token,public_short_code,brief_enabled,brief_token,brief_short_code,brief,brief_revision,notion_page_id,notion_url,notion_public_url,notion_synced_revision").eq("course_id",courseId).single(),
     admin.from("course_youtube_appearances").select("id,revision,channel_name,channel_url,video_url,landing_utm,request_status,filming_date,upload_date,filming_confirmed,is_internal,note,respondent").eq("course_id",courseId).order("sort_order").order("created_at"),
     admin.from("youtube_analyzed_channels").select("channel,position").eq("workspace_id",course.workspace_id).order("position",{ascending:false}).limit(500),
     loadLandingUtms(admin,courseId),
+    loadYoutubeFilmingAlertSettings(course.workspace_id,admin),
   ]);
   if(settings.error || appearances.error || channels.error)throw new MediaError("유튜브 관리 데이터를 불러오지 못했습니다.",500);
   const youtubeUtms=youtubeLandingUtms(landingUtms);
-  return {course,settings:{...settings.data,brief:briefSchema.parse(settings.data.brief)},appearances:appearances.data.map(row=>({...row,landing_utm:resolveLandingUtm(row.channel_name,row.landing_utm,youtubeUtms)})),landingUtms:youtubeUtms,suggestions:buildYoutubeChannelSuggestions(channels.data??[])};
+  return {course,settings:{...settings.data,brief:briefSchema.parse(settings.data.brief)},appearances:appearances.data.map(row=>({...row,landing_utm:resolveLandingUtm(row.channel_name,row.landing_utm,youtubeUtms)})),landingUtms:youtubeUtms,suggestions:buildYoutubeChannelSuggestions(channels.data??[]),filmingAlertWeeks:filmingAlertSettings.filmingAlertWeeks};
 }
 export const getPublicYoutubeShare = cache(async (token:string,kind:"brief"|"schedule") => {
   if(!/^[a-f0-9]{48}$/.test(token))throw new MediaError("공개되지 않았거나 만료된 주소입니다.",404);
