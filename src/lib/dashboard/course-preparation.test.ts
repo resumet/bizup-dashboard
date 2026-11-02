@@ -4,6 +4,7 @@ import test from "node:test";
 import { buildDashboardCoursePreparation } from "./course-preparation";
 import type { InstagramPreparationInput } from "./instagram-preparation";
 import type { WbsCourse, WbsScheduleItem } from "@/lib/course-wbs/types";
+import type { YoutubePreparationSummary } from "./youtube-preparation";
 
 function course(id: string, status: WbsCourse["status"] = "ongoing"): WbsCourse {
   return {
@@ -124,4 +125,26 @@ test("인스타그램 운영 미설정은 주의, 업로드 일정 지연은 위
   assert.equal(result.find((item) => item.id === "not-configured")?.status, "warning");
   assert.equal(result.find((item) => item.id === "at-risk")?.status, "danger");
   assert.equal(result.find((item) => item.id === "at-risk")?.instagram?.uploadShortfallCount, 1);
+});
+
+test("관리자 기준을 넘긴 유튜브 촬영 일정 미확정 강의를 위험으로 표시한다", () => {
+  const youtube = new Map<string, YoutubePreparationSummary>([["youtube-risk", {
+    appearanceCount: 3,
+    confirmedAppearanceCount: 2,
+    filmingConfirmedCount: 1,
+    uploadCompletedCount: 1,
+    filmingAlertCount: 1,
+    filmingAlertWeeks: 4,
+  }]]);
+  const result = buildDashboardCoursePreparation(
+    [course("youtube-risk")],
+    [{ courseId: "youtube-risk", items: [task("future", "2026-11-20", "2026-11-21")] }],
+    [],
+    "2026-10-31",
+    undefined,
+    youtube,
+  );
+
+  assert.equal(result[0].status, "danger");
+  assert.deepEqual(result[0].youtube, youtube.get("youtube-risk"));
 });

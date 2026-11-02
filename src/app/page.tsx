@@ -13,6 +13,7 @@ import { loadCourseWbsBootstrap } from "@/lib/course-wbs/server";
 import { formatDashboardCohort, formatDashboardWebinarDate } from "@/lib/dashboard/course-metadata";
 import { buildDashboardCoursePreparation } from "@/lib/dashboard/course-preparation";
 import { loadDashboardInstagramPreparation } from "@/lib/dashboard/instagram-preparation-server";
+import { loadDashboardYoutubePreparation } from "@/lib/dashboard/youtube-preparation-server";
 import { activeExternalMarketingCourses } from "@/lib/dashboard/external-marketing";
 import { loadDashboardLeaves } from "@/lib/dashboard/leaves-server";
 import { loadDashboardMenuSearchKeywordSettings } from "@/lib/admin/menu-search-keywords-storage";
@@ -41,11 +42,12 @@ export default async function HomePage() {
 
   const today = koreaToday();
   const range = { from: today, to: today };
-  const [tripReportsResult, coursesResult, wbsResult, instagramPreparationResult, eventsResult, webinarsResult, leavesResult, externalMarketingResult, menuSearchResult] = await Promise.allSettled([
+  const [tripReportsResult, coursesResult, wbsResult, instagramPreparationResult, youtubePreparationResult, eventsResult, webinarsResult, leavesResult, externalMarketingResult, menuSearchResult] = await Promise.allSettled([
     loadBusinessTripDashboardSummary(context.workspaceId),
     getCachedCourseSummaries(context.workspaceId),
     loadCourseWbsBootstrap(context.workspaceId),
     loadDashboardInstagramPreparation(context.workspaceId),
+    loadDashboardYoutubePreparation(context.workspaceId, today),
     loadCalendarEvents(context.supabase, context.workspaceId, range),
     loadCalendarWebinars(context.supabase, context.workspaceId, range),
     loadDashboardLeaves(context, today),
@@ -53,7 +55,7 @@ export default async function HomePage() {
     loadDashboardMenuSearchKeywordSettings(context.workspaceId),
   ]);
 
-  const errors: Partial<Record<"tripReports" | "courses" | "wbs" | "instagramPreparation" | "schedules" | "leaves" | "externalMarketing", string>> = {};
+  const errors: Partial<Record<"tripReports" | "courses" | "wbs" | "instagramPreparation" | "youtubePreparation" | "schedules" | "leaves" | "externalMarketing", string>> = {};
 
   const businessTrips = tripReportsResult.status === "fulfilled"
     ? tripReportsResult.value
@@ -96,6 +98,7 @@ export default async function HomePage() {
       wbsResult.value.template.items,
       today,
       instagramPreparationResult.status === "fulfilled" ? instagramPreparationResult.value : undefined,
+      youtubePreparationResult.status === "fulfilled" ? youtubePreparationResult.value : undefined,
     ).map(({ webinarAt, ...course }) => ({
       ...course,
       cohort: formatDashboardCohort(course.cohort),
@@ -131,6 +134,9 @@ export default async function HomePage() {
   }
   if (instagramPreparationResult.status === "rejected") {
     errors.instagramPreparation = errorMessage("인스타그램 운영");
+  }
+  if (youtubePreparationResult.status === "rejected") {
+    errors.youtubePreparation = errorMessage("유튜브 출연");
   }
 
   const schedules: DashboardSchedule[] = [];

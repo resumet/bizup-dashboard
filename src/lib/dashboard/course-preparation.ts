@@ -6,6 +6,7 @@ import {
   type InstagramPreparationInput,
   type InstagramPreparationSummary,
 } from "./instagram-preparation";
+import type { YoutubePreparationSummary } from "./youtube-preparation";
 
 export type CoursePreparationStatus = "danger" | "warning" | "normal" | "complete";
 
@@ -36,6 +37,7 @@ export type CoursePreparationSummary = {
   upcomingCount: number;
   wbsMissing: boolean;
   instagram: InstagramPreparationSummary | null;
+  youtube: YoutubePreparationSummary | null;
   status: CoursePreparationStatus;
   nextTask: CoursePreparationNextTask | null;
 };
@@ -78,6 +80,7 @@ export function buildDashboardCoursePreparation(
   templateItems: WbsItem[],
   today: string,
   instagramByCourse?: ReadonlyMap<string, InstagramPreparationInput>,
+  youtubeByCourse?: ReadonlyMap<string, YoutubePreparationSummary>,
 ): CoursePreparationSummary[] {
   const attention = buildWbsAttention(courses, entries, today, templateItems);
   const entriesByCourse = new Map(entries.map((entry) => [entry.courseId, entry]));
@@ -110,12 +113,13 @@ export function buildDashboardCoursePreparation(
             today,
           )
         : null;
+      const youtube = youtubeByCourse?.get(course.id) ?? null;
       const overallProgress = instagram
         ? Math.round((progress.progress + instagram.progress) / 2)
         : progress.progress;
 
       let status: CoursePreparationStatus = "normal";
-      if (wbsMissing || overdueCount > 0 || missingCount > 0 || instagram?.isAtRisk) status = "danger";
+      if (wbsMissing || overdueCount > 0 || missingCount > 0 || instagram?.isAtRisk || (youtube?.filmingAlertCount ?? 0) > 0) status = "danger";
       else if (
         progress.total > 0
         && progress.completed === progress.total
@@ -158,6 +162,7 @@ export function buildDashboardCoursePreparation(
         upcomingCount,
         wbsMissing,
         instagram,
+        youtube,
         status,
         nextTask,
         courseOrder,

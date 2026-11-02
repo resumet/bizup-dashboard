@@ -16,6 +16,7 @@ import {
   MapPin,
   NotebookPen,
   PlaneTakeoff,
+  Video,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -80,7 +81,7 @@ type DashboardData = {
   schedules: DashboardSchedule[];
   leaves: DashboardLeave[];
   externalMarketing: DashboardExternalMarketingCourse[];
-  errors: Partial<Record<"tripReports" | "courses" | "wbs" | "instagramPreparation" | "schedules" | "leaves" | "externalMarketing", string>>;
+  errors: Partial<Record<"tripReports" | "courses" | "wbs" | "instagramPreparation" | "youtubePreparation" | "schedules" | "leaves" | "externalMarketing", string>>;
 };
 
 const numberFormatter = new Intl.NumberFormat("ko-KR");
@@ -174,10 +175,12 @@ function CoursePreparationSection({
   courses,
   error,
   instagramError,
+  youtubeError,
 }: {
   courses: DashboardCoursePreparation[];
   error?: string;
   instagramError?: string;
+  youtubeError?: string;
 }) {
   const dangerCount = courses.filter((course) => course.status === "danger").length;
   const achievableCount = courses.filter((course) => course.status === "normal" || course.status === "complete").length;
@@ -187,11 +190,13 @@ function CoursePreparationSection({
   const instagramAttentionCount = courses.filter((course) => (
     course.instagram && (!course.instagram.configured || course.instagram.isAtRisk)
   )).length;
+  const youtubeAttentionCount = courses.filter((course) => (course.youtube?.filmingAlertCount ?? 0) > 0).length;
   const summaries = [
     { label: "진행 강의", value: courses.length, icon: ListChecks, className: "text-blue-700 bg-blue-50" },
     { label: "전체 진행률", value: `${overallProgress}%`, icon: Gauge, className: "text-violet-700 bg-violet-50" },
     { label: "달성 가능", value: achievableCount, icon: CircleCheckBig, className: achievableCount ? "text-emerald-700 bg-emerald-50" : "text-slate-600 bg-slate-100" },
     { label: "인스타 주의", value: instagramAttentionCount, icon: Camera, className: instagramAttentionCount ? "text-rose-700 bg-rose-50" : "text-slate-600 bg-slate-100" },
+    { label: "유튜브 주의", value: youtubeAttentionCount, icon: Video, className: youtubeAttentionCount ? "text-red-700 bg-red-50" : "text-slate-600 bg-slate-100" },
   ];
 
   return (
@@ -207,6 +212,7 @@ function CoursePreparationSection({
               <Badge variant="secondary" className="bg-violet-50 text-violet-700">전체 {overallProgress}%</Badge>
               <Badge variant="secondary" className={dangerCount ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600"}>달성 어려움 {numberFormatter.format(dangerCount)}</Badge>
               <Badge variant="secondary" className={instagramAttentionCount ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600"}>인스타 주의 {numberFormatter.format(instagramAttentionCount)}</Badge>
+              <Badge variant="secondary" className={youtubeAttentionCount ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600"}>유튜브 주의 {numberFormatter.format(youtubeAttentionCount)}</Badge>
             </span>
           )}
           <span className={error ? "ml-auto sm:ml-0" : "ml-auto lg:ml-0"}>
@@ -223,7 +229,13 @@ function CoursePreparationSection({
                   {instagramError} WBS 기준 준비도만 표시합니다.
                 </div>
               ) : null}
-              <dl className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+              {youtubeError ? (
+                <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
+                  {youtubeError} 유튜브 현황을 제외하고 표시합니다.
+                </div>
+              ) : null}
+              <dl className="grid grid-cols-2 gap-2.5 lg:grid-cols-5">
                 {summaries.map(({ label, value, icon: Icon, className }) => (
                   <div key={label} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
                     <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${className}`}>
@@ -248,6 +260,7 @@ function CoursePreparationSection({
                     { label: "일정 미정", count: course.undatedCount, className: "bg-slate-100 text-slate-700" },
                     { label: "7일 이내", count: course.upcomingCount, className: "bg-blue-50 text-blue-700" },
                     { label: "인스타 지연", count: course.instagram?.uploadShortfallCount ?? 0, className: "bg-rose-50 text-rose-700" },
+                    { label: "유튜브 촬영 미확정", count: course.youtube?.filmingAlertCount ?? 0, className: "bg-red-50 text-red-700" },
                   ].filter((signal) => signal.count > 0);
 
                   return (
@@ -289,7 +302,7 @@ function CoursePreparationSection({
                         </div>
                       </div>
 
-                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
                         <Link
                           href={`/services/course-wbs?courseId=${encodeURIComponent(course.id)}`}
                           className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 transition-colors hover:border-blue-300 hover:bg-blue-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
@@ -316,6 +329,24 @@ function CoursePreparationSection({
                               : course.instagram.configured
                                 ? `업로드 ${course.instagram.uploadCompletedCount}/${course.instagram.totalContentCount} · 체크 ${course.instagram.checklistCompletedCount}/${course.instagram.checklistTotalCount}`
                                 : "계정과 진행 건수를 설정해 주세요"}
+                          </p>
+                        </Link>
+                        <Link
+                          href={`/services/youtube-management/${encodeURIComponent(course.id)}`}
+                          className="rounded-lg border border-red-200 bg-red-50/60 p-2.5 transition-colors hover:border-red-300 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-red-800">강사 유튜브</span>
+                            <strong className="tabular-nums text-red-950">
+                              {course.youtube === null ? "조회 실패" : `확정 ${course.youtube.confirmedAppearanceCount}/${course.youtube.appearanceCount}`}
+                            </strong>
+                          </div>
+                          <p className="mt-1 text-red-700/80">
+                            {course.youtube === null
+                              ? "출연 데이터를 확인할 수 없음"
+                              : course.youtube.appearanceCount
+                                ? `촬영 ${course.youtube.filmingConfirmedCount} · 업로드 ${course.youtube.uploadCompletedCount}`
+                                : "등록된 출연 채널 없음"}
                           </p>
                         </Link>
                       </div>
@@ -389,7 +420,7 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
 
         <DashboardMenuSearch courses={data.searchCourses} customKeywords={data.menuSearchKeywords} />
 
-        <CoursePreparationSection courses={data.preparationCourses} error={data.errors.wbs} instagramError={data.errors.instagramPreparation} />
+        <CoursePreparationSection courses={data.preparationCourses} error={data.errors.wbs} instagramError={data.errors.instagramPreparation} youtubeError={data.errors.youtubePreparation} />
 
         <div className="grid gap-5 lg:grid-cols-2">
           <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
