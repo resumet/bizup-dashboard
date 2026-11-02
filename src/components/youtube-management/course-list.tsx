@@ -75,7 +75,7 @@ export function YoutubeCourseList({ courses, embedded = false }: { courses: Yout
       </div>
       <div className="rounded-lg border bg-card p-4">
         <p className="text-sm text-muted-foreground">알림 기준</p>
-        <p className="mt-1 text-lg font-semibold">무료강의 5주 전</p>
+        <p className="mt-1 text-lg font-semibold">무료강의 4주 전</p>
       </div>
     </section>
     <Input aria-label="강의 검색" placeholder="강의명, 강사명, 기수 검색" value={search} onChange={(event) => setSearch(event.target.value)} />

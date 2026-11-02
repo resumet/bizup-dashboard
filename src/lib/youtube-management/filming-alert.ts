@@ -1,7 +1,7 @@
 import { toKoreaDate } from "@/lib/course-operations/schedule";
 import { getWebinarDayDifference } from "@/lib/course-operations/webinar-proximity";
 
-export const YOUTUBE_FILMING_ALERT_DAYS = 35;
+export const YOUTUBE_FILMING_ALERT_DAYS = 28;
 
 type FilmingScheduleAppearance = {
   request_status: string;
