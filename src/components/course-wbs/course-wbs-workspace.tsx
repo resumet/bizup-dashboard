@@ -247,7 +247,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   const [dropTarget, setDropTarget] = useState<{ id: string; position: "before" | "after" } | null>(null);
   const [hasWbs, setHasWbs] = useState(false);
   const [updatedAt, setUpdatedAt] = useState("");
-  const [view, setView] = useState<"list" | "compact" | "gantt">("list");
+  const [view, setView] = useState<"list" | "compact" | "gantt">("compact");
   const [loading, setLoading] = useState(true);
   const [loadingWbs, setLoadingWbs] = useState(false);
   const [courseReady, setCourseReady] = useState(false);
@@ -487,6 +487,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
     setUpdatedAt("");
     setDirty(false);
     setCourseReady(false);
+    setView("compact");
     clearFeedback();
     const url = new URL(window.location.href);
     if (id) url.searchParams.set("courseId", id);
@@ -692,8 +693,8 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
       <section className="min-w-0" aria-label="강의별 해야할일 항목">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex rounded-lg border bg-background p-1" role="group" aria-label="보기 방식">
-              <Button size="sm" variant={view === "list" ? "secondary" : "ghost"} onClick={() => setView("list")} aria-pressed={view === "list"}><ClipboardList /> 목록</Button>
               <Button size="sm" variant={view === "compact" ? "secondary" : "ghost"} onClick={() => setView("compact")} aria-pressed={view === "compact"}><ClipboardList /> 간소화목록</Button>
+              <Button size="sm" variant={view === "list" ? "secondary" : "ghost"} onClick={() => setView("list")} aria-pressed={view === "list"}><ClipboardList /> 목록</Button>
               <Button size="sm" variant={view === "gantt" ? "secondary" : "ghost"} onClick={() => setView("gantt")} aria-pressed={view === "gantt"}><CalendarDays /> 간트 차트</Button>
             </div>
             {view === "compact" ? <p className="text-xs text-muted-foreground">완료 여부를 변경한 뒤 강의별 해야할일 저장을 눌러 주세요.</p> : null}
