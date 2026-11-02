@@ -108,19 +108,30 @@ export function SupplyRequestList({
             <p>신청한 비품이 없습니다.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <Table className="min-w-[1360px]">
+          <div className="[&>[data-slot=table-container]]:overflow-x-hidden">
+            <Table className="w-full table-fixed">
+              <colgroup>
+                <col className="w-[9%]" />
+                <col className="w-[6%]" />
+                <col className="w-[10%]" />
+                <col className="w-[22%]" />
+                <col className="w-[8%]" />
+                <col className="w-[11%]" />
+                <col className="w-[15%]" />
+                <col className="w-[9.5%]" />
+                <col className="w-[9.5%]" />
+              </colgroup>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-32 pl-4">신청 날짜</TableHead>
-                  <TableHead className="w-28">신청자</TableHead>
-                  <TableHead className="min-w-44">비품 이름</TableHead>
-                  <TableHead className="min-w-72">구매링크</TableHead>
-                  <TableHead className="w-32 text-right">가격</TableHead>
-                  <TableHead className="min-w-64">신청 목적</TableHead>
-                  <TableHead className="min-w-52">비고</TableHead>
-                  <TableHead className="w-36">승인 여부</TableHead>
-                  <TableHead className="w-36 pr-4">구매 여부</TableHead>
+                  <TableHead className="pl-4">신청 날짜</TableHead>
+                  <TableHead>신청자</TableHead>
+                  <TableHead>비품 이름</TableHead>
+                  <TableHead>구매링크</TableHead>
+                  <TableHead className="text-right">가격</TableHead>
+                  <TableHead>신청 목적</TableHead>
+                  <TableHead>비고</TableHead>
+                  <TableHead>승인 여부</TableHead>
+                  <TableHead className="pr-4">구매 여부</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -130,11 +141,11 @@ export function SupplyRequestList({
                   return (
                     <TableRow key={item.id}>
                       <TableCell className="pl-4 whitespace-nowrap">{dateFormatter.format(new Date(item.requestedAt))}</TableCell>
-                      <TableCell className="font-medium whitespace-nowrap">{item.requesterName}</TableCell>
-                      <TableCell className="font-medium">{item.itemName}</TableCell>
+                      <TableCell className="truncate font-medium" title={item.requesterName}>{item.requesterName}</TableCell>
+                      <TableCell className="truncate font-medium" title={item.itemName}>{item.itemName}</TableCell>
                       <TableCell>
                         {item.purchaseUrl ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex min-w-0 items-center gap-2">
                             <span className="min-w-0 flex-1 truncate text-muted-foreground" title={item.purchaseUrl}>
                               {item.purchaseUrl}
                             </span>
@@ -148,11 +159,11 @@ export function SupplyRequestList({
                         ) : "-"}
                       </TableCell>
                       <TableCell className="text-right whitespace-nowrap">{priceFormatter.format(item.priceKrw)}원</TableCell>
-                      <TableCell className="max-w-80 whitespace-pre-wrap">{item.purpose}</TableCell>
-                      <TableCell className="max-w-72 whitespace-pre-wrap text-muted-foreground">{item.note || "-"}</TableCell>
+                      <TableCell className="break-words whitespace-pre-wrap">{item.purpose}</TableCell>
+                      <TableCell className="break-words whitespace-pre-wrap text-muted-foreground">{item.note || "-"}</TableCell>
                       <TableCell>
                         {canManage ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex min-w-0 items-center gap-1">
                             <Select
                               value={item.approvalStatus}
                               onValueChange={(value) => updateRequest(item, {
@@ -161,7 +172,7 @@ export function SupplyRequestList({
                               }, "approval")}
                               disabled={Boolean(busy) || item.purchased}
                             >
-                              <SelectTrigger size="sm" aria-label={`${item.itemName} 승인 여부`}>
+                              <SelectTrigger size="sm" className="min-w-0 flex-1 px-2" aria-label={`${item.itemName} 승인 여부`}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -176,7 +187,7 @@ export function SupplyRequestList({
                       </TableCell>
                       <TableCell className="pr-4">
                         {canManage ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex min-w-0 items-center gap-1">
                             <Select
                               value={item.purchased ? "purchased" : "pending"}
                               onValueChange={(value) => updateRequest(item, {
@@ -185,7 +196,7 @@ export function SupplyRequestList({
                               }, "purchase")}
                               disabled={Boolean(busy) || item.approvalStatus !== "approved"}
                             >
-                              <SelectTrigger size="sm" aria-label={`${item.itemName} 구매 여부`}>
+                              <SelectTrigger size="sm" className="min-w-0 flex-1 px-2" aria-label={`${item.itemName} 구매 여부`}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>

@@ -53,7 +53,7 @@ function UrlDialog({value,onChange,title,disabled,notify,icon=false}:{value:stri
   </Dialog>;
 }
 
-export function AppearanceEditor({initial,publicMode=false,suggestions=[],landingUtms=[],addRequest=0,onSave,onDelete}:{initial:Appearance[];publicMode?:boolean;suggestions?:Array<{channelName:string;channelUrl:string}>;landingUtms?:LandingUtm[];addRequest?:number;onSave:(row:Appearance)=>Promise<Appearance>;onDelete?:(row:Appearance)=>Promise<void>}){
+export function AppearanceEditor({initial,publicMode=false,suggestions=[],landingUtms=[],addRequest=0,onSave,onDelete,onSaved,onDeleted}:{initial:Appearance[];publicMode?:boolean;suggestions?:Array<{channelName:string;channelUrl:string}>;landingUtms?:LandingUtm[];addRequest?:number;onSave:(row:Appearance)=>Promise<Appearance>;onDelete?:(row:Appearance)=>Promise<void>;onSaved?:(row:Appearance)=>void;onDeleted?:(id:string)=>void}){
   const [rows,setRows]=useState(initial);
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState("");
@@ -66,7 +66,7 @@ export function AppearanceEditor({initial,publicMode=false,suggestions=[],landin
   function update(index:number,patch:Partial<Appearance>){setRows(current=>current.map((row,i)=>i===index?{...row,...patch}:row));}
   async function save(row:Appearance,index:number) {
     setBusy(true); setMessage("");
-    try { update(index,await onSave(row));setMessage("출연 정보를 저장했습니다."); }
+    try { const saved=await onSave(row);update(index,saved);onSaved?.(saved);setMessage("출연 정보를 저장했습니다."); }
     catch(error){setMessage(error instanceof Error?error.message:"저장하지 못했습니다.");}
     finally{setBusy(false);}
   }
@@ -105,7 +105,7 @@ export function AppearanceEditor({initial,publicMode=false,suggestions=[],landin
               <TableCell><UrlDialog title="게시된 영상 주소" value={row.video_url} disabled={busy} onChange={value=>update(index,{video_url:value})} notify={setMessage} /></TableCell>
               <TableCell>
                 <form id={formId} className="flex justify-end gap-1" onSubmit={event=>{event.preventDefault();void save(row,index);}}>
-                  {!publicMode&&<Button type="button" size="icon-sm" variant="ghost" disabled={busy} aria-label={`${index+1}번 출연 삭제`} onClick={async()=>{if(!window.confirm("출연 정보를 삭제하시겠습니까?"))return;setBusy(true);try{if(row.id&&onDelete)await onDelete(row);setRows(current=>current.filter((_,i)=>i!==index));setMessage("삭제했습니다.");}catch(error){setMessage(error instanceof Error?error.message:"삭제하지 못했습니다.");}finally{setBusy(false);}}}><Trash2 /></Button>}
+                  {!publicMode&&<Button type="button" size="icon-sm" variant="ghost" disabled={busy} aria-label={`${index+1}번 출연 삭제`} onClick={async()=>{if(!window.confirm("출연 정보를 삭제하시겠습니까?"))return;setBusy(true);try{if(row.id&&onDelete)await onDelete(row);setRows(current=>current.filter((_,i)=>i!==index));if(row.id)onDeleted?.(row.id);setMessage("삭제했습니다.");}catch(error){setMessage(error instanceof Error?error.message:"삭제하지 못했습니다.");}finally{setBusy(false);}}}><Trash2 /></Button>}
                   <Button type="submit" variant="outline" size="sm" disabled={busy}>{busy?"저장 중…":"저장"}</Button>
                 </form>
               </TableCell>

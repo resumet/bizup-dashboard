@@ -1,13 +1,17 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { ExternalLink, Plus } from "lucide-react";
+import { AlertTriangle, ExternalLink, Plus } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AppearanceEditor, BriefEditor, MediaNotice, mediaRequest } from "./editors";
 import type { Appearance, MediaData } from "@/lib/youtube-management/model";
+import { formatYoutubeFilmingDeadline, getYoutubeFilmingAlert } from "@/lib/youtube-management/filming-alert";
 import { youtubeShortPath } from "@/lib/youtube-management/short-link";
-export function YoutubeWorkspace({initial,initialTab="schedule",embedded=false}:{initial:MediaData;initialTab?:"schedule"|"brief";embedded?:boolean}){
+export function YoutubeWorkspace({initial,initialTab="schedule",embedded=false,todayKoreaDate}:{initial:MediaData;initialTab?:"schedule"|"brief";embedded?:boolean;todayKoreaDate:string}){
   const [settings,setSettings]=useState(initial.settings);const [tab,setTab]=useState<"schedule"|"brief">(initialTab);const [busy,setBusy]=useState(false);const [message,setMessage]=useState("");const [appearanceAddRequest,setAppearanceAddRequest]=useState(0);
+  const [savedAppearances,setSavedAppearances]=useState(initial.appearances);
+  const filmingAlert=getYoutubeFilmingAlert(initial.course.free_webinar_at,savedAppearances,todayKoreaDate);
   const endpoint=`/api/youtube-management/${initial.course.id}`;
   const enabled=tab==="brief"?settings.brief_enabled:settings.public_enabled;
   const token=tab==="brief"?settings.brief_token:settings.public_token;
@@ -23,6 +27,7 @@ export function YoutubeWorkspace({initial,initialTab="schedule",embedded=false}:
       <Button asChild variant="outline"><a href={`/services/course-operations/${initial.course.id}`} target="_blank" rel="noopener noreferrer" aria-label="강의 상세보기 (새 창)">강의 상세보기<ExternalLink /></a></Button>
     </div> : null}
     <h1 className="text-2xl font-semibold">{initial.course.instructor_name} · {initial.course.name}{initial.course.cohort?` · ${initial.course.cohort}`:""}</h1>
+    {filmingAlert.alertCount>0?<Alert variant="destructive" className="border-destructive/40 bg-destructive/5 px-4 py-3"><AlertTriangle /><AlertTitle>촬영 일정 미확정 {filmingAlert.alertCount}건</AlertTitle><AlertDescription>무료강의 5주 전인 <time dateTime={filmingAlert.deadlineDate??undefined}>{formatYoutubeFilmingDeadline(filmingAlert.deadlineDate)}</time>까지 촬영 일정이 확정되지 않은 출연이 있습니다.</AlertDescription></Alert>:null}
     <div className="flex flex-wrap gap-2" role="tablist" aria-label="유튜브 관리 항목"><Button role="tab" aria-selected={tab==="schedule"} variant={tab==="schedule"?"default":"outline"} onClick={()=>setTab("schedule")}>출연 및 촬영 일정</Button><Button role="tab" aria-selected={tab==="brief"} variant={tab==="brief"?"default":"outline"} onClick={()=>setTab("brief")}>출연 요청기획서</Button></div>
     <div className="flex flex-wrap items-center justify-end gap-2">
       <span className="mr-auto text-sm">{enabled?"공개 · 외부 작성 허용":"비공개 · 외부 작성 비활성화"}</span>
@@ -35,7 +40,7 @@ export function YoutubeWorkspace({initial,initialTab="schedule",embedded=false}:
       </>}
     </div>
     <div hidden={tab!=="schedule"}>
-      <AppearanceEditor initial={initial.appearances} suggestions={initial.suggestions} landingUtms={initial.landingUtms} addRequest={appearanceAddRequest} onSave={async(row)=>mediaRequest(endpoint,{action:"appearance",id:row.id||undefined,revision:row.revision,appearance:row}) as Promise<Appearance>} onDelete={async(row)=>{await mediaRequest(endpoint,{action:"delete",id:row.id,revision:row.revision});}} />
+      <AppearanceEditor initial={initial.appearances} suggestions={initial.suggestions} landingUtms={initial.landingUtms} addRequest={appearanceAddRequest} onSave={async(row)=>mediaRequest(endpoint,{action:"appearance",id:row.id||undefined,revision:row.revision,appearance:row}) as Promise<Appearance>} onDelete={async(row)=>{await mediaRequest(endpoint,{action:"delete",id:row.id,revision:row.revision});}} onSaved={(saved)=>setSavedAppearances(current=>current.some(row=>row.id===saved.id)?current.map(row=>row.id===saved.id?saved:row):[...current,saved])} onDeleted={(id)=>setSavedAppearances(current=>current.filter(row=>row.id!==id))} />
     </div>
     <div hidden={tab!=="brief"} className="space-y-5">
       <div className="flex flex-wrap items-center justify-end gap-2">

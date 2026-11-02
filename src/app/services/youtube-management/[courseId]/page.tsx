@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
 import { YoutubeWorkspace } from "@/components/youtube-management/workspace";
+import { toKoreaDate } from "@/lib/course-operations/schedule";
 import { loadMedia, MediaError } from "@/lib/youtube-management/server";
 
 export default async function YoutubeManagementCoursePage({
@@ -20,5 +21,5 @@ export default async function YoutubeManagementCoursePage({
   });
   const { tab } = await searchParams;
 
-  return <YoutubeWorkspace initial={initial} initialTab={tab === "brief" ? "brief" : "schedule"} />;
+  return <YoutubeWorkspace initial={initial} initialTab={tab === "brief" ? "brief" : "schedule"} todayKoreaDate={toKoreaDate(new Date().toISOString())} />;
 }
