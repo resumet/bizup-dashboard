@@ -39,7 +39,7 @@ export function getYoutubeFilmingAlert(
     daysUntilWebinar !== null && daysUntilWebinar <= YOUTUBE_FILMING_ALERT_DAYS;
   const unconfirmedCount = appearances.filter(
     (appearance) =>
-      appearance.request_status !== "declined" &&
+      appearance.request_status === "confirmed" &&
       !(appearance.filming_confirmed === true && appearance.filming_date),
   ).length;
 
