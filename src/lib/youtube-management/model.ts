@@ -9,7 +9,7 @@ export const BRIEF_FIELDS = [
   { key: "studentResults", section: "2. 강의 및 콘텐츠 소개", label: "주요 수강생 성과 사례" },
   { key: "strengths", section: "2. 강의 및 콘텐츠 소개", label: "강의·콘텐츠 강점 또는 차별점" },
   { key: "onlineChannels", section: "3. 온라인 채널 정보", label: "운영 중인 유튜브·인스타그램·블로그 링크" },
-  { key: "previousAppearances", section: "3. 온라인 채널 정보", label: "이전 출연 영상 또는 프로필 사진 링크" },
+  { key: "previousAppearances", section: "3. 온라인 채널 정보", label: "이전출연영상 목록" },
   { key: "desiredChannels", section: "4. 출연 관련 희망 사항", label: "출연 희망 채널 및 개수" },
   { key: "goals", section: "4. 출연 관련 희망 사항", label: "이번 출연을 통해 기대하는 바" },
   { key: "concept", section: "4. 출연 관련 희망 사항", label: "희망 촬영 컨셉 및 레퍼런스" },
