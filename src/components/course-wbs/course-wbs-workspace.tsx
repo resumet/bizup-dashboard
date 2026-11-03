@@ -230,6 +230,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   const [wbsSummaries, setWbsSummaries] = useState<WbsSummary[]>([]);
   const [schedules, setSchedules] = useState<WbsScheduleEntry[]>([]);
   const [selectedScheduleItem, setSelectedScheduleItem] = useState<WbsItemSelection | null>(null);
+  const [taskDialogItemId, setTaskDialogItemId] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<WbsCourse | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -260,7 +261,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   const [today, setToday] = useState(() => toKoreaDate(new Date().toISOString()));
   const loadSequence = useRef(0);
   const addedItemId = useRef<string | null>(null);
-  const titleInputs = useRef(new Map<string, HTMLInputElement>());
+  const titleInputs = useRef(new Map<string, HTMLButtonElement>());
 
   const loadCourse = useCallback(async (id: string) => {
     const sequence = ++loadSequence.current;
@@ -340,6 +341,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   const webinarDate = webinarDateFromTimestamp(course?.webinarAt ?? null);
   const itemProgress = wbsProgress(items, today);
   const sortedItems = useMemo(() => sortWbsItemsByStartDate(items), [items]);
+  const taskDialogItem = items.find((item) => item.id === taskDialogItemId) ?? null;
   const ownerPeople = useMemo(() => selectablePeople([...employeeNames, ...people], inactivePeople)
     .sort((a, b) => a.localeCompare(b, "ko")), [employeeNames, people, inactivePeople]);
   const stakeholderPeople = useMemo(() => selectablePeople(people, inactivePeople), [people, inactivePeople]);
@@ -716,7 +718,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
                 <tbody>
                   {sortedItems.map((item, index) => <tr key={item.id} className={`border-t ${isPastItem(item, today) ? "bg-muted/60" : item.id === WEBINAR_ITEM_ID ? "bg-primary/5" : ""}`}>
                     <td className="px-4 py-3 text-center"><input type="checkbox" className="size-4 accent-primary" checked={item.completed} onChange={(event) => editItem(item.id, { completed: event.target.checked })} aria-label={`${item.title || `${index + 1}번째 항목`} 완료`} disabled={saving} /></td>
-                    <td className={`px-4 py-3 font-medium ${item.completed ? "text-muted-foreground line-through" : ""}`}><button type="button" onClick={() => setSelectedScheduleItem(item)} aria-pressed={selectedScheduleItem?.id === item.id} className="text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{item.title || "—"}</button><div className="mt-1"><WbsTaskLink item={item} courseId={courseId} templateItems={template?.items} /></div></td>
+                    <td className={`px-4 py-3 font-medium ${item.completed ? "text-muted-foreground line-through" : ""}`}><button type="button" onClick={() => { setSelectedScheduleItem(item); setTaskDialogItemId(item.id); }} className="text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{item.title || "—"}</button><div className="mt-1"><WbsTaskLink item={item} courseId={courseId} templateItems={template?.items} /></div></td>
                     <td className="px-4 py-3">{item.owner || "—"}</td>
                     <td className="px-4 py-3">{item.stakeholders || "—"}</td>
                     <td className="whitespace-nowrap px-4 py-3 tabular-nums">{item.startDate ? <time dateTime={item.startDate}>{item.startDate}</time> : "—"}</td>
@@ -747,10 +749,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
                       <div className="flex items-start gap-2">
                         <span draggable={!saving} onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", item.id); setDraggedItemId(item.id); setDropTarget(null); }} onDragEnd={() => { setDraggedItemId(null); setDropTarget(null); }} title="드래그하여 순서 변경" aria-hidden="true" className="flex h-10 w-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground active:cursor-grabbing"><GripVertical className="size-4" /></span>
                         <div className="min-w-0 flex-1">
-                          <Input ref={(element) => {
-                            if (element) titleInputs.current.set(item.id, element);
-                            else titleInputs.current.delete(item.id);
-                          }} value={item.title} onFocus={() => setSelectedScheduleItem(item)} onChange={(event) => editItem(item.id, { title: event.target.value })} placeholder="업무 제목" aria-label={`${index + 1}번째 업무 제목`} className={item.completed ? "line-through" : ""} disabled={saving || item.id === WEBINAR_ITEM_ID} />
+                          <button ref={(element) => { if (element) titleInputs.current.set(item.id, element); else titleInputs.current.delete(item.id); }} type="button" onClick={() => { setSelectedScheduleItem(item); setTaskDialogItemId(item.id); }} className={`min-h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-left text-sm transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${item.completed ? "line-through text-muted-foreground" : ""}`}>{item.title || "업무 제목 없음"}</button>
                           {item.id === WEBINAR_ITEM_ID ? <p className="mt-1 text-xs text-muted-foreground">날짜는 강의 상세의 무료웨비나 일정과 연결됩니다.</p> : null}
                           <Textarea value={item.description ?? ""} onChange={(event) => editItem(item.id, { description: event.target.value })} placeholder="업무 설명 또는 세부 체크 내용" aria-label={`${index + 1}번째 업무 설명`} rows={2} className="mt-2 min-h-14 resize-y text-xs" disabled={saving} />
                           <div className="mt-2"><WbsTaskLink item={item} courseId={courseId} templateItems={template?.items} /></div>
@@ -801,6 +800,29 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
       {courseReady ? <WbsStartSchedule courses={courses} entries={scheduleEntries} options={scheduleOptions} selected={selectedScheduleItem} onSelect={setSelectedScheduleItem} today={today} onSelectCourse={selectCourse} /> : null}
     </>}
     </div>
+    <Dialog open={Boolean(taskDialogItem)} onOpenChange={(open) => { if (!open && !saving) setTaskDialogItemId(null); }}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader><DialogTitle>해야할일 상세</DialogTitle></DialogHeader>
+        {taskDialogItem ? <div className="space-y-4">
+          <label className="block space-y-2 text-sm font-medium">할일명
+            <Input value={taskDialogItem.title} onChange={(event) => editItem(taskDialogItem.id, { title: event.target.value })} disabled={saving || taskDialogItem.id === WEBINAR_ITEM_ID} />
+          </label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block space-y-2 text-sm font-medium">담당자
+              <PeoplePicker value={taskDialogItem.owner} people={ownerPeople} disabled={saving} label="업무 담당자" onChange={(value) => editItem(taskDialogItem.id, { owner: value })} />
+            </label>
+            <label className="block space-y-2 text-sm font-medium">관계자
+              <PeoplePicker value={taskDialogItem.stakeholders} people={stakeholderPeople} disabled={saving} label="업무 관계자" onChange={(value) => editItem(taskDialogItem.id, { stakeholders: value })} />
+            </label>
+          </div>
+          <label className="block space-y-2 text-sm font-medium">상세 설명
+            <Textarea value={taskDialogItem.description ?? ""} onChange={(event) => editItem(taskDialogItem.id, { description: event.target.value })} rows={7} className="resize-y" disabled={saving} placeholder="업무의 상세 내용과 확인 사항을 입력하세요." />
+          </label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="size-4 accent-primary" checked={taskDialogItem.completed} onChange={(event) => editItem(taskDialogItem.id, { completed: event.target.checked })} disabled={saving} /> 완료</label>
+        </div> : null}
+        <DialogFooter><Button variant="outline" disabled={saving} onClick={() => setTaskDialogItemId(null)}>닫기</Button><Button disabled={saving || !dirty} onClick={() => void saveWbs()}>{saving ? <LoaderCircle className="animate-spin" /> : <Save />} 저장</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
     <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
       <DialogContent aria-describedby={undefined} className="sm:max-w-lg">
         <DialogHeader><DialogTitle>WBS 만들기</DialogTitle></DialogHeader>
