@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useDeferredValue, useId, useState } from "react";
-import { ArrowRight, BookOpenCheck, ChevronDown, Search, X } from "lucide-react";
+import { useDeferredValue, useEffect, useId, useState } from "react";
+import { ArrowRight, BookOpenCheck, CalendarDays, ChevronDown, Search, X } from "lucide-react";
 
 import { DashboardCourseOptions } from "@/components/dashboard/dashboard-course-options";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { filterDashboardCourses, filterDashboardMenus, type DashboardCourseSearchItem, type DashboardMenuCustomKeywords } from "@/lib/dashboard/menu-search";
+import type { CalendarSearchResult } from "@/lib/shared-calendar/types";
 
 const MENU_CHIP_COLORS = [
   "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100 hover:text-sky-950",
@@ -31,10 +32,44 @@ export function DashboardMenuSearch({
 }) {
   const inputId = useId();
   const [query, setQuery] = useState("");
+  const [calendarResults, setCalendarResults] = useState<CalendarSearchResult[]>([]);
+  const [calendarPending, setCalendarPending] = useState(false);
+  const [calendarError, setCalendarError] = useState("");
   const deferredQuery = useDeferredValue(query);
   const menus = filterDashboardMenus(deferredQuery, customKeywords).slice(0, 8);
   const courseResults = filterDashboardCourses(courses, deferredQuery);
   const hasQuery = query.trim().length > 0;
+
+  function updateQuery(value: string) {
+    setQuery(value);
+    if (!value.trim()) {
+      setCalendarResults([]);
+      setCalendarPending(false);
+      setCalendarError("");
+    } else {
+      setCalendarPending(true);
+      setCalendarError("");
+    }
+  }
+
+  useEffect(() => {
+    const keyword = deferredQuery.trim();
+    if (!keyword) return;
+    const controller = new AbortController();
+    void fetch(`/api/shared-calendar/search?q=${encodeURIComponent(keyword)}`, { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        const body = await response.json() as { message?: string; results?: CalendarSearchResult[] };
+        if (!response.ok) throw new Error(body.message || "공용 캘린더 일정을 검색하지 못했습니다.");
+        setCalendarResults(body.results ?? []);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.name === "AbortError") return;
+        setCalendarResults([]);
+        setCalendarError(error instanceof Error ? error.message : "공용 캘린더 일정을 검색하지 못했습니다.");
+      })
+      .finally(() => { if (!controller.signal.aborted) setCalendarPending(false); });
+    return () => controller.abort();
+  }, [deferredQuery]);
 
   return (
     <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-label="메뉴 및 강사 검색">
@@ -46,11 +81,11 @@ export function DashboardMenuSearch({
           type="search"
           className="h-12 border-slate-200 bg-slate-50 pr-12 pl-11 text-base md:text-base"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => updateQuery(event.target.value)}
           placeholder="강사명 또는 메뉴명을 검색하세요"
           autoComplete="off"
         />
-        {query ? <Button type="button" variant="ghost" size="icon-sm" className="absolute top-1/2 right-2 -translate-y-1/2" aria-label="검색어 지우기" onClick={() => setQuery("")}><X /></Button> : null}
+        {query ? <Button type="button" variant="ghost" size="icon-sm" className="absolute top-1/2 right-2 -translate-y-1/2" aria-label="검색어 지우기" onClick={() => updateQuery("")}><X /></Button> : null}
       </div>
 
       <div className="mt-4" aria-live="polite">
@@ -90,6 +125,20 @@ export function DashboardMenuSearch({
           </DropdownMenu>)}
         </div>
       </div> : hasQuery && !menus.length ? <p className="mt-4 text-sm text-muted-foreground">‘{query.trim()}’에 맞는 강사나 강의를 찾지 못했습니다.</p> : null}
+      {hasQuery && (calendarPending || calendarResults.length > 0 || calendarError) ? <div className="mt-5 border-t pt-4">
+        <p className="mb-3 text-xs font-semibold tracking-wide text-slate-500">공용 캘린더 일정</p>
+        {calendarPending ? <p className="text-sm text-muted-foreground">일정을 검색하는 중입니다.</p> : calendarError ? <p className="text-sm text-destructive">{calendarError}</p> : <div className="grid gap-3 xl:grid-cols-2">
+          {calendarResults.slice(0, 6).map((event) => <Link key={`${event.source}:${event.id}`} href={`/calendar?date=${encodeURIComponent(event.event_date)}`} className="group flex items-start gap-3 rounded-xl border border-slate-200 p-3.5 transition-colors hover:border-violet-300 hover:bg-violet-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2">
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-violet-50 text-violet-700"><CalendarDays className="size-4" aria-hidden="true" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold text-slate-900 group-hover:text-violet-700">{event.title}</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">{event.event_date.replaceAll("-", ".")} · {event.time_label} · {event.detail_label}</span>
+              {event.location_label ? <span className="mt-0.5 block truncate text-xs text-muted-foreground">{event.location_label}</span> : null}
+            </span>
+            <ArrowRight className="mt-1 size-4 shrink-0 text-slate-400 group-hover:text-violet-600" aria-hidden="true" />
+          </Link>)}
+        </div>}
+      </div> : null}
     </section>
   );
 }

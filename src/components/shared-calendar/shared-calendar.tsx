@@ -18,11 +18,11 @@ const COLORS: Record<string, string> = {
   external_marketing_creative: "bg-orange-100 text-orange-950",
 };
 
-export function SharedCalendar({ today, currentUserId, initialEvents, initialSources = [], initialSourcesWarning = "", initialTypes, courses, initialError, initialCourseId, isAdmin = false }: {
-  today: string; currentUserId: string; initialEvents: CalendarEvent[]; initialSources?: CalendarSourceEvent[]; initialSourcesWarning?: string; initialTypes: MeetingType[]; courses: CalendarCourse[]; initialError?: string; initialCourseId?: string; isAdmin?: boolean;
+export function SharedCalendar({ today, initialDate = today, currentUserId, initialEvents, initialSources = [], initialSourcesWarning = "", initialTypes, courses, initialError, initialCourseId, isAdmin = false }: {
+  today: string; initialDate?: string; currentUserId: string; initialEvents: CalendarEvent[]; initialSources?: CalendarSourceEvent[]; initialSourcesWarning?: string; initialTypes: MeetingType[]; courses: CalendarCourse[]; initialError?: string; initialCourseId?: string; isAdmin?: boolean;
 }) {
-  const [month, setMonth] = useState(today.slice(0, 7));
-  const [selectedDate, setSelectedDate] = useState(today);
+  const [month, setMonth] = useState(initialDate.slice(0, 7));
+  const [selectedDate, setSelectedDate] = useState(initialDate);
   const [events, setEvents] = useState(initialEvents);
   const [sources, setSources] = useState(initialSources);
   const [sourcesWarning, setSourcesWarning] = useState(initialSourcesWarning);
@@ -77,7 +77,7 @@ export function SharedCalendar({ today, currentUserId, initialEvents, initialSou
 
   useEffect(() => {
     if (!pendingSearchResult || loading || month !== pendingSearchResult.event_date.slice(0, 7)) return;
-    setDetails(pendingSearchResult); setPendingSearchResult(null);
+    queueMicrotask(() => { setDetails(pendingSearchResult); setPendingSearchResult(null); });
   }, [loading, month, pendingSearchResult]);
 
   function moveMonth(offset: number) {

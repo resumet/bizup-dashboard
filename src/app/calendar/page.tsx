@@ -2,18 +2,19 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { SharedCalendar } from "@/components/shared-calendar/shared-calendar";
-import { koreaToday, monthDays, uuidSchema } from "@/lib/shared-calendar/calendar";
+import { isDateKey, koreaToday, monthDays, uuidSchema } from "@/lib/shared-calendar/calendar";
 import { CalendarError, calendarContext, loadCalendarCourses, loadCalendarEvents, loadMeetingTypes } from "@/lib/shared-calendar/server";
 import { loadCalendarSources } from "@/lib/shared-calendar/sources-server";
 
-export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ courseId?: string }> }) {
+export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ courseId?: string; date?: string }> }) {
   const context = await calendarContext().catch((error: unknown) => {
     if (error instanceof CalendarError && error.status === 401) redirect("/login");
     throw error;
   });
-  const { courseId } = await searchParams;
+  const { courseId, date } = await searchParams;
   const today = koreaToday();
-  const days = monthDays(today.slice(0, 7));
+  const initialDate = isDateKey(date ?? "") ? date! : today;
+  const days = monthDays(initialDate.slice(0, 7));
   const result = await Promise.all([
     loadCalendarEvents(context.supabase, context.workspaceId, { from: days[0], to: days[41] }),
     loadMeetingTypes(context.supabase, context.workspaceId),
@@ -27,7 +28,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         <h1 className="text-2xl font-semibold">공용캘린더</h1>
         {context.isAdmin ? <Button asChild variant="outline" size="sm"><Link href="/admin/calendar">회의 항목 추가</Link></Button> : null}
       </div>
-      <SharedCalendar today={today} currentUserId={context.user.id} initialEvents={result.events} initialSources={result.sources} initialSourcesWarning={result.sourcesWarning} initialTypes={result.types} courses={result.courses} initialError={result.error} initialCourseId={selectedCourse} isAdmin={context.isAdmin} />
+      <SharedCalendar today={today} initialDate={initialDate} currentUserId={context.user.id} initialEvents={result.events} initialSources={result.sources} initialSourcesWarning={result.sourcesWarning} initialTypes={result.types} courses={result.courses} initialError={result.error} initialCourseId={selectedCourse} isAdmin={context.isAdmin} />
     </div>
   </main>;
 }
