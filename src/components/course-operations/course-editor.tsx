@@ -119,6 +119,8 @@ type CourseLinkFieldKey =
   | "paymentLink"
   | "inquiryLink"
   | "curriculumLink"
+  | "preBlogLink1"
+  | "preBlogLink2"
   | "freeGiftLink"
   | "courseViewingLink"
   | "courseMaterialsLink"
@@ -133,10 +135,15 @@ const COURSE_LINKS: Array<{ field: CourseLinkFieldKey; label: string }> = [
   { field: "paymentLink", label: "결제링크" },
   { field: "inquiryLink", label: "문의하기 링크" },
   { field: "curriculumLink", label: "커리큘럼 보기 링크" },
-  { field: "freeGiftLink", label: "무료강의 수강 선물받기 링크" },
   { field: "courseViewingLink", label: "강의 시청하기 링크" },
   { field: "courseMaterialsLink", label: "강사자료 폴더" },
   { field: "courseCanvaLink", label: "교안(캔바)" },
+];
+
+const PROMOTION_CONTENT_LINKS: Array<{ field: CourseLinkFieldKey; label: string }> = [
+  { field: "preBlogLink1", label: "사전 블로그 링크 1" },
+  { field: "preBlogLink2", label: "사전 블로그 링크 2" },
+  { field: "freeGiftLink", label: "사후 세일즈 링크" },
 ];
 
 function getOpenableLink(value: string) {
@@ -837,6 +844,8 @@ export function CourseOperationsEditor({
               paymentLink: draft.paymentLink,
               inquiryLink: draft.inquiryLink,
               curriculumLink: draft.curriculumLink,
+              preBlogLink1: draft.preBlogLink1,
+              preBlogLink2: draft.preBlogLink2,
               freeGiftLink: draft.freeGiftLink,
               courseViewingLink: draft.courseViewingLink,
               options: draft.options,
@@ -1187,6 +1196,25 @@ export function CourseOperationsEditor({
             </Card>
           </>
         </div>
+
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle>홍보콘텐츠</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-x-8 gap-y-5 lg:grid-cols-2">
+              {PROMOTION_CONTENT_LINKS.map((item) => (
+                <CourseLinkInput
+                  key={item.field}
+                  field={item.field}
+                  label={item.label}
+                  value={draft[item.field]}
+                  onChange={updateField}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader className="border-b">

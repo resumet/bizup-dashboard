@@ -34,6 +34,8 @@ const EMPTY_DRAFT: CourseOperationsDraft = {
   paymentLink: "",
   inquiryLink: "https://m.site.naver.com/281dJ",
   curriculumLink: "",
+  preBlogLink1: "",
+  preBlogLink2: "",
   freeGiftLink: "",
   courseViewingLink: "",
   courseMaterialsLink: "",

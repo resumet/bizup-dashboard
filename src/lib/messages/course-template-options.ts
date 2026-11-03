@@ -33,7 +33,7 @@ const COURSE_LINK_FIELDS = [
   ["payment_link", "결제링크"],
   ["inquiry_link", "문의하기 링크"],
   ["curriculum_link", "커리큘럼 보기 링크"],
-  ["free_gift_link", "무료강의 수강 선물받기 링크"],
+  ["free_gift_link", "사후 세일즈 링크"],
   ["course_viewing_link", "강의 시청하기 링크"],
 ] as const satisfies ReadonlyArray<readonly [keyof MessageCourse, string]>;
 

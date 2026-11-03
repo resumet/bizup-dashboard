@@ -9,7 +9,7 @@ const COURSE_LINKS = [
   ["payment_link", "결제링크"],
   ["inquiry_link", "문의하기 링크"],
   ["curriculum_link", "커리큘럼 보기 링크"],
-  ["free_gift_link", "무료강의 수강 선물받기 링크"],
+  ["free_gift_link", "사후 세일즈 링크"],
   ["course_viewing_link", "강의 시청하기 링크"],
   ["course_materials_link", "강의자료"],
 ] as const;

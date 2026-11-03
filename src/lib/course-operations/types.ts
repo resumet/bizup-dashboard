@@ -60,6 +60,8 @@ export type CourseOperationsDraft = {
   paymentLink: string;
   inquiryLink: string;
   curriculumLink: string;
+  preBlogLink1: string;
+  preBlogLink2: string;
   freeGiftLink: string;
   courseViewingLink: string;
   courseMaterialsLink: string;

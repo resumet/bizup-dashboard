@@ -6,7 +6,7 @@ export const MESSAGE_30_LINK_LABELS = [
   "✅ 수강 신청 링크 ✅",
   "👉 결제 및 수강 문의하기",
   "💘 커리큘럼 보기",
-  "💌 무료강의 수강 선물 받기",
+  "💌 사후 세일즈 링크",
 ] as const;
 
 function stripUrls(message: string) {

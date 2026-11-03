@@ -9,7 +9,7 @@ export const WBS_COURSE_LINK_FIELDS = [
   { key: "payment_link", label: "결제링크" },
   { key: "inquiry_link", label: "문의하기 링크" },
   { key: "curriculum_link", label: "커리큘럼 보기 링크" },
-  { key: "free_gift_link", label: "무료강의 수강 선물받기 링크" },
+  { key: "free_gift_link", label: "사후 세일즈 링크" },
   { key: "course_viewing_link", label: "강의 시청하기 링크" },
   { key: "course_materials_link", label: "강의자료 링크" },
 ] as const;

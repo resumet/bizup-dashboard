@@ -52,7 +52,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
   const { data: course, error: courseError } = await supabase
     .from("courses")
     .select(
-      "id,name,instructor_name,cohort,banner_image_path,free_webinar_at,starts_at,landing_page_link,free_kakao_room_1_link,free_kakao_room_2_link,paid_kakao_room_link,communication_room_link,payment_link,inquiry_link,curriculum_link,free_gift_link,course_viewing_link,course_materials_link,course_canva_link,custom_links,free_address_book_id,required_tasks,updated_at",
+      "id,name,instructor_name,cohort,banner_image_path,free_webinar_at,starts_at,landing_page_link,free_kakao_room_1_link,free_kakao_room_2_link,paid_kakao_room_link,communication_room_link,payment_link,inquiry_link,curriculum_link,pre_blog_link_1,pre_blog_link_2,free_gift_link,course_viewing_link,course_materials_link,course_canva_link,custom_links,free_address_book_id,required_tasks,updated_at",
     )
     .eq("id", courseId)
     .maybeSingle();
@@ -123,6 +123,8 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
     paymentLink: course.payment_link,
     inquiryLink: course.inquiry_link,
     curriculumLink: course.curriculum_link,
+    preBlogLink1: course.pre_blog_link_1 ?? "",
+    preBlogLink2: course.pre_blog_link_2 ?? "",
     freeGiftLink: course.free_gift_link,
     courseViewingLink: course.course_viewing_link,
     courseMaterialsLink: course.course_materials_link,

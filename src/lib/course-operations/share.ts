@@ -37,6 +37,8 @@ export type CourseShareData = {
   paymentLink: string;
   inquiryLink: string;
   curriculumLink: string;
+  preBlogLink1: string;
+  preBlogLink2: string;
   freeGiftLink: string;
   courseViewingLink: string;
   options: Array<{ name: string; listPrice: string; salePrice: string }>;
@@ -92,7 +94,9 @@ function linkSection(data: CourseShareData) {
     ["결제링크", data.paymentLink],
     ["문의하기 링크", data.inquiryLink],
     ["커리큘럼 보기 링크", data.curriculumLink],
-    ["무료강의 수강 선물받기 링크", data.freeGiftLink],
+    ["사전 블로그 링크 1", data.preBlogLink1],
+    ["사전 블로그 링크 2", data.preBlogLink2],
+    ["사후 세일즈 링크", data.freeGiftLink],
     ["강의 시청하기 링크", data.courseViewingLink],
   ].filter((entry) => entry[1].trim());
   return [

@@ -213,6 +213,8 @@ export async function PATCH(
         payment_link: input.paymentLink,
         inquiry_link: input.inquiryLink,
         curriculum_link: input.curriculumLink,
+        pre_blog_link_1: input.preBlogLink1,
+        pre_blog_link_2: input.preBlogLink2,
         free_gift_link: input.freeGiftLink,
         course_viewing_link: input.courseViewingLink,
         course_materials_link: input.courseMaterialsLink,

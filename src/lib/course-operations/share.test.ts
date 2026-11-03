@@ -23,6 +23,8 @@ const data: CourseShareData = {
   paymentLink: "https://example.com/payment",
   inquiryLink: "",
   curriculumLink: "",
+  preBlogLink1: "",
+  preBlogLink2: "",
   freeGiftLink: "",
   courseViewingLink: "",
   options: [{ name: "기본반", listPrice: "500000", salePrice: "390000" }],
