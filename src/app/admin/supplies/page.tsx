@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { SupplyRequestList } from "@/components/hr/supply-request-list";
 import { loadSupplyRequests, requireSupplyRequestContext } from "@/lib/supply-requests/server";
+import { loadWorkspacePeople } from "@/lib/work-tasks/server";
 
 export default async function AdminSupplyRequestsPage() {
   const context = await requireSupplyRequestContext().catch((error: unknown) => {
@@ -11,12 +12,19 @@ export default async function AdminSupplyRequestsPage() {
   });
   if (!context.isAdmin) notFound();
 
-  const requests = await loadSupplyRequests(context);
+  const [requests, people] = await Promise.all([
+    loadSupplyRequests(context),
+    loadWorkspacePeople(context.workspaceId),
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-6 p-5 sm:p-7 lg:p-9">
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">비품 관리</h1>
-      <SupplyRequestList initialRequests={requests} canManage />
+      <SupplyRequestList
+        initialRequests={requests}
+        canManage
+        assignees={people.map((person) => ({ id: person.id, name: person.name }))}
+      />
     </div>
   );
 }

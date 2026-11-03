@@ -4,6 +4,8 @@ export type SupplyRequest = {
   id: string;
   requesterId: string | null;
   requesterName: string;
+  assigneeId: string | null;
+  assigneeName: string;
   itemName: string;
   purchaseUrl: string | null;
   priceKrw: number;
@@ -27,5 +29,10 @@ export type SupplyRequestCommand =
   | {
       action: "purchase";
       purchased: boolean;
+      version: number;
+    }
+  | {
+      action: "assignee";
+      assigneeId: string;
       version: number;
     };

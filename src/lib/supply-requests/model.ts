@@ -31,6 +31,11 @@ export const supplyRequestCommandSchema = z.discriminatedUnion("action", [
     purchased: z.boolean(),
     version: z.number().int().positive(),
   }).strict(),
+  z.object({
+    action: z.literal("assignee"),
+    assigneeId: z.uuid(),
+    version: z.number().int().positive(),
+  }).strict(),
 ]);
 
 export type SupplyRequestState = {
@@ -40,6 +45,8 @@ export type SupplyRequestState = {
 };
 
 export type SupplyRequestUpdate = {
+  assignee_id?: string | null;
+  assignee_name?: string;
   approval_status?: SupplyApprovalStatus;
   reviewed_by?: string | null;
   reviewed_at?: string | null;
@@ -58,6 +65,12 @@ export function buildSupplyRequestUpdate(
   actorId: string,
   now: string,
 ): SupplyRequestUpdate {
+  if (command.action === "assignee") {
+    return {
+      version: current.version + 1,
+      updated_at: now,
+    };
+  }
   if (command.action === "approval") {
     if (current.purchased && command.status !== "approved") {
       throw new SupplyRequestConflictError("구매 완료된 비품은 승인 상태를 변경할 수 없습니다.");

@@ -12,6 +12,15 @@ const emptyPage: NotificationPage = { items: [], hasMore: false, nextCursor: nul
 const labels = { instagram: "인스타그램", youtube_brief: "유튜브 요청기획서", youtube_schedule: "유튜브 촬영 일정" };
 const dateFormat = new Intl.DateTimeFormat("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Seoul" });
 
+function notificationLabel(kind: MediaNotification["kind"]) {
+  if (kind === "leave_request") return "휴가 신청";
+  if (kind === "calendar_event") return "일정 등록";
+  if (kind === "youtube_channel") return "유튜브 채널 등록";
+  if (kind === "external_ad_performance") return "외부광고 성과";
+  if (kind === "supply_request") return "비품 구매신청";
+  return labels[kind];
+}
+
 export async function notificationRequest<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, cache: "no-store" });
   const body = await response.json();
@@ -142,7 +151,7 @@ function NotificationSection({section,page,count,saving,loading,more,onRead,onMo
     {!page.items.length && <p className="px-4 py-6 text-center text-sm text-muted-foreground">{section === "unread" ? "읽지 않은 알림이 없습니다." : "읽은 알림이 없습니다."}</p>}
     <ul className="divide-y">{page.items.map(item => <li key={item.id} className={section === "unread" ? "bg-blue-50/40 dark:bg-blue-950/15" : ""}>
       <button type="button" className="block w-full space-y-2 px-4 pt-3 pb-2 text-left hover:bg-muted/50 disabled:opacity-60" disabled={!!saving} onClick={() => void onRead(item, true)}>
-        <span className="flex items-center gap-2 text-xs text-muted-foreground">{!item.readAt && <span className="size-1.5 rounded-full bg-blue-600" />}{labels[item.kind]}<time className="ml-auto" dateTime={item.createdAt}>{dateFormat.format(new Date(item.createdAt))}</time></span>
+        <span className="flex items-center gap-2 text-xs text-muted-foreground">{!item.readAt && <span className="size-1.5 rounded-full bg-blue-600" />}{notificationLabel(item.kind)}<time className="ml-auto" dateTime={item.createdAt}>{dateFormat.format(new Date(item.createdAt))}</time></span>
         <span className="block text-sm font-medium break-words">{item.title}</span>
         <span className="block text-sm leading-6 whitespace-pre-wrap break-words text-muted-foreground">{item.message}</span>
       </button>

@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildSupplyRequestUpdate,
   createSupplyRequestSchema,
+  supplyRequestCommandSchema,
   SupplyRequestConflictError,
 } from "./model";
 
@@ -84,4 +85,17 @@ test("승인 전 구매 완료와 구매 후 승인 취소를 차단한다", () 
     status: "rejected",
     version: 3,
   }, ACTOR, NOW), SupplyRequestConflictError);
+});
+
+test("담당자 변경은 유효한 UUID와 새 버전으로만 요청한다", () => {
+  assert.equal(supplyRequestCommandSchema.safeParse({
+    action: "assignee",
+    assigneeId: ACTOR,
+    version: 2,
+  }).success, true);
+  assert.equal(supplyRequestCommandSchema.safeParse({
+    action: "assignee",
+    assigneeId: "invalid",
+    version: 2,
+  }).success, false);
 });

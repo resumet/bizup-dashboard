@@ -25,7 +25,10 @@ import type { SupplyApprovalStatus, SupplyRequest, SupplyRequestCommand } from "
 
 type SupplyRequestCommandWithoutVersion =
   | Omit<Extract<SupplyRequestCommand, { action: "approval" }>, "version">
-  | Omit<Extract<SupplyRequestCommand, { action: "purchase" }>, "version">;
+  | Omit<Extract<SupplyRequestCommand, { action: "purchase" }>, "version">
+  | Omit<Extract<SupplyRequestCommand, { action: "assignee" }>, "version">;
+
+type SupplyAssignee = { id: string; name: string };
 
 const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul",
@@ -65,9 +68,11 @@ async function readJson(response: Response) {
 export function SupplyRequestList({
   initialRequests,
   canManage,
+  assignees = [],
 }: {
   initialRequests: SupplyRequest[];
   canManage: boolean;
+  assignees?: SupplyAssignee[];
 }) {
   const [requests, setRequests] = useState(initialRequests);
   const [busy, setBusy] = useState("");
@@ -113,18 +118,20 @@ export function SupplyRequestList({
               <colgroup>
                 <col className="w-[9%]" />
                 <col className="w-[6%]" />
+                <col className="w-[9%]" />
                 <col className="w-[10%]" />
-                <col className="w-[22%]" />
-                <col className="w-[8%]" />
-                <col className="w-[11%]" />
-                <col className="w-[15%]" />
-                <col className="w-[9.5%]" />
-                <col className="w-[9.5%]" />
+                <col className="w-[18%]" />
+                <col className="w-[7%]" />
+                <col className="w-[10%]" />
+                <col className="w-[13%]" />
+                <col className="w-[9%]" />
+                <col className="w-[9%]" />
               </colgroup>
               <TableHeader>
                 <TableRow>
                   <TableHead className="pl-4">신청 날짜</TableHead>
                   <TableHead>신청자</TableHead>
+                  <TableHead>담당자</TableHead>
                   <TableHead>비품 이름</TableHead>
                   <TableHead>구매링크</TableHead>
                   <TableHead className="text-right">가격</TableHead>
@@ -138,10 +145,30 @@ export function SupplyRequestList({
                 {requests.map((item) => {
                   const approvalBusy = busy === `${item.id}:approval`;
                   const purchaseBusy = busy === `${item.id}:purchase`;
+                  const assigneeBusy = busy === `${item.id}:assignee`;
                   return (
                     <TableRow key={item.id}>
                       <TableCell className="pl-4 whitespace-nowrap">{dateFormatter.format(new Date(item.requestedAt))}</TableCell>
                       <TableCell className="truncate font-medium" title={item.requesterName}>{item.requesterName}</TableCell>
+                      <TableCell>
+                        {canManage ? (
+                          <div className="flex min-w-0 items-center gap-1">
+                            <Select
+                              value={item.assigneeId ?? undefined}
+                              onValueChange={(assigneeId) => updateRequest(item, { action: "assignee", assigneeId }, "assignee")}
+                              disabled={Boolean(busy)}
+                            >
+                              <SelectTrigger size="sm" className="min-w-0 flex-1 px-2" aria-label={`${item.itemName} 담당자`}>
+                                <SelectValue placeholder="미지정" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {assignees.map((person) => <SelectItem key={person.id} value={person.id}>{person.name}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            {assigneeBusy ? <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" aria-hidden="true" /> : null}
+                          </div>
+                        ) : <span className="block truncate font-medium" title={item.assigneeName}>{item.assigneeName}</span>}
+                      </TableCell>
                       <TableCell className="truncate font-medium" title={item.itemName}>{item.itemName}</TableCell>
                       <TableCell>
                         {item.purchaseUrl ? (

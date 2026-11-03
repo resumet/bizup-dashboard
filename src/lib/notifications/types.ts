@@ -1,6 +1,6 @@
 export type MediaNotification = {
   id: string;
-  kind: "instagram" | "youtube_brief" | "youtube_schedule";
+  kind: "youtube_brief" | "youtube_schedule" | "leave_request" | "calendar_event" | "youtube_channel" | "external_ad_performance" | "supply_request";
   title: string;
   message: string;
   href: string;
