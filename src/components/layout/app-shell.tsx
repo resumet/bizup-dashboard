@@ -351,7 +351,7 @@ export function AppShell({
         <div className="ml-auto"><UserAccountMenu email={email} name={userName} /></div>
       </header>
 
-      <div className="sticky top-16 z-30 border-b bg-white/95 px-4 py-2 backdrop-blur lg:hidden"><GlobalDashboardSearch /></div>
+      {pathname !== "/" ? <div className="sticky top-16 z-30 border-b bg-white/95 px-4 py-2 backdrop-blur lg:hidden"><GlobalDashboardSearch /></div> : null}
 
       {mobileMenuOpen ? (
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="전체 메뉴">
@@ -389,7 +389,7 @@ export function AppShell({
           sidebarCollapsed ? "lg:pl-0" : "lg:pl-(--app-sidebar-width)",
         )}
       >
-        <header className="sticky top-0 z-30 hidden h-16 items-center border-b bg-white/95 px-5 backdrop-blur lg:flex"><GlobalDashboardSearch /></header>
+        {pathname !== "/" ? <header className="sticky top-0 z-30 hidden h-16 items-center justify-center border-b bg-white/95 px-5 backdrop-blur lg:flex"><GlobalDashboardSearch /></header> : null}
         {children}
       </div>
     </div>
