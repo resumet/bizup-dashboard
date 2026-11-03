@@ -16,6 +16,7 @@ import { CommonLinksManager } from "@/components/admin/common-links-manager";
 import { CalendarMeetingTypesManager } from "@/components/admin/calendar-meeting-types-manager";
 import { MenuSearchKeywordsManager } from "@/components/admin/menu-search-keywords-manager";
 import { YoutubeFilmingAlertSettingsManager } from "@/components/admin/youtube-filming-alert-settings-manager";
+import { DashboardAlertCompletions } from "@/components/admin/dashboard-alert-completions";
 import { loadDashboardMenuSearchKeywordSettings } from "@/lib/admin/menu-search-keywords-storage";
 import { calendarContext, loadMeetingTypes } from "@/lib/shared-calendar/server";
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
@@ -121,6 +122,11 @@ export default async function AdminUsersPage({
           : "계정 정보를 불러오지 못했습니다.",
     }),
   );
+  const completedAlerts = await createClient().then(async () => {
+    const context = await calendarContext(true);
+    const { data } = await context.supabase.from("dashboard_preparation_alert_completions").select("id,title,description,due_date,completed_at").eq("workspace_id", context.workspaceId).order("completed_at", { ascending: false }).limit(10);
+    return (data ?? []).map((item) => ({ id: item.id, title: item.title, description: item.description, dueDate: item.due_date, completedAt: item.completed_at }));
+  }).catch(() => []);
 
   const sortedUsers = result.users.toSorted((left, right) => {
     const leftIsSuperAdmin = isSuperAdminEmail(left.email);
@@ -173,7 +179,7 @@ export default async function AdminUsersPage({
       </header>
 
       <div className="mx-auto max-w-[1900px] space-y-6 px-5 py-8 lg:px-8">
-        <Button asChild variant="outline"><Link href="/admin/dashboard-alerts">완료된 사전 준비 알림</Link></Button>
+        <section><div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-semibold">완료된 사전 준비 알림</h2><Button asChild variant="outline" size="sm"><Link href="/admin/dashboard-alerts">더보기</Link></Button></div><Card><CardContent className="p-5"><DashboardAlertCompletions initialItems={completedAlerts} /></CardContent></Card></section>
         <CommonLinksManager />
         <MenuSearchKeywordsManager initialSettings={adminSettings.menuSearchSettings} loadError={adminSettings.menuSearchError} />
         <YoutubeFilmingAlertSettingsManager initialSettings={adminSettings.youtubeFilmingAlertSettings} loadError={adminSettings.youtubeFilmingAlertError} />

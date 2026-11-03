@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 
 import { UserAccountMenu } from "@/components/auth/user-account-menu";
+import { CommonLinksDrawer } from "@/components/layout/common-links-drawer";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { GlobalDashboardSearch } from "@/components/layout/global-dashboard-search";
 import { Button } from "@/components/ui/button";
@@ -194,6 +195,7 @@ function SidebarContent({
         </div>
       </nav>
       <div className="shrink-0 border-t border-white/10 p-3 [&_button]:text-slate-200 [&_button:hover]:bg-white/10 [&_button:hover]:text-white">
+        <CommonLinksDrawer />
         <UserAccountMenu email={email} name={userName} showDetailLabel />
       </div>
     </div>
