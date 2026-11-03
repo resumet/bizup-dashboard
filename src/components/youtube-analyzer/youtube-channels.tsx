@@ -435,6 +435,18 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     {emailStatusError && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{emailStatusError}</p>}
     {stopAllMessage && <p role="status" className="rounded-md border bg-muted/30 p-3 text-sm">{stopAllMessage}</p>}
 
+    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {(["up","down"] as const).flatMap(direction=>([7,15] as const).map(period=>{
+        const channels = runs.filter(run=>!run.excluded_from_updates).filter(run=>{
+          const recent = [...(run.recent_videos ?? [])].sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id));
+          if (recent.length < period * 2) return false;
+          const average = (videos: Video[]) => videos.reduce((sum,video)=>sum+video.views,0)/videos.length;
+          return direction === "up" ? average(recent.slice(0,period)) > average(recent.slice(period,period*2)) : average(recent.slice(0,period)) < average(recent.slice(period,period*2));
+        });
+        return <section key={`${direction}-${period}`} className="rounded-xl border bg-muted/20 p-4"><h2 className="font-semibold">최근 {period}개 조회수 {direction === "up" ? "상승" : "하락"} 채널</h2>{channels.length ? <div className="mt-3 space-y-2">{channels.map(run=><button type="button" key={run.channel_id} className="flex w-full items-center gap-2 text-left text-sm hover:underline" onClick={()=>openDetail(run)}>{run.channel.thumbnail ? <Image unoptimized src={run.channel.thumbnail} alt="" width={28} height={28} className="size-7 rounded-full" referrerPolicy="no-referrer"/> : <span className="size-7 rounded-full bg-muted"/>}<span className="min-w-0 truncate">{run.channel.name}</span></button>)}</div> : <p className="mt-3 text-sm text-muted-foreground">해당 채널이 없습니다.</p>}</section>;
+      }))}
+    </section>
+
     <section className="space-y-4 border-t pt-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
