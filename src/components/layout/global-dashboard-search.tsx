@@ -37,6 +37,7 @@ export function GlobalDashboardSearch() {
   const resultsId = useId();
   const pathname = usePathname();
   const root = useRef<HTMLDivElement>(null);
+  const resultsPanel = useRef<HTMLDivElement>(null);
   const searchTargets = useRef<Array<HTMLElement | null>>([]);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -96,6 +97,22 @@ export function GlobalDashboardSearch() {
   }, []);
 
   useEffect(() => {
+    if (!open || activeIndex < 0) return;
+    const panel = resultsPanel.current;
+    const target = searchTargets.current[activeIndex];
+    if (!panel || !target) return;
+
+    const panelBounds = panel.getBoundingClientRect();
+    const targetBounds = target.getBoundingClientRect();
+    const padding = 12;
+    if (targetBounds.top < panelBounds.top + padding) {
+      panel.scrollBy({ top: targetBounds.top - panelBounds.top - padding, behavior: "smooth" });
+    } else if (targetBounds.bottom > panelBounds.bottom - padding) {
+      panel.scrollBy({ top: targetBounds.bottom - panelBounds.bottom + padding, behavior: "smooth" });
+    }
+  }, [activeIndex, open]);
+
+  useEffect(() => {
     const keyword = deferred.trim();
     if (!keyword) {
       return;
@@ -126,11 +143,11 @@ export function GlobalDashboardSearch() {
       <label htmlFor={inputId} className="sr-only">메뉴 또는 강사 검색</label>
       <div className="relative">
         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
-        <Input id={inputId} type="search" role="combobox" aria-expanded={open} aria-controls={open ? resultsId : undefined} aria-activedescendant={activeIndex >= 0 ? `${resultsId}-item-${activeIndex}` : undefined} className="h-9 border-slate-200 bg-slate-50 pl-9 pr-9" placeholder="강사명 또는 메뉴명 검색" value={query} autoComplete="off" onFocus={() => { setOpen(true); if (activeIndex < 0) setActiveIndex(0); }} onChange={(event) => { setQuery(event.target.value); setOpen(true); setActiveIndex(0); }} onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); setActiveIndex(-1); } else if (event.key === "ArrowDown") { event.preventDefault(); setOpen(true); moveActiveIndex(1); } else if (event.key === "ArrowUp") { event.preventDefault(); setOpen(true); moveActiveIndex(-1); } else if (event.key === "Enter" && open && activeIndex >= 0) { event.preventDefault(); activateCurrentResult(); } }} />
+        <Input id={inputId} type="search" role="combobox" aria-expanded={open} aria-controls={open ? resultsId : undefined} aria-activedescendant={activeIndex >= 0 ? `${resultsId}-item-${activeIndex}` : undefined} className="h-9 border-slate-200 bg-slate-50 pl-9 pr-9" placeholder="강사명 또는 메뉴명 검색" value={query} autoComplete="off" onFocus={() => { setOpen(true); if (activeIndex < 0) setActiveIndex(0); }} onChange={(event) => { setQuery(event.target.value); setOpen(true); setActiveIndex(0); }} onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); setActiveIndex(-1); } else if (event.key === "ArrowDown" || event.key === "ArrowRight") { event.preventDefault(); setOpen(true); moveActiveIndex(1); } else if (event.key === "ArrowUp" || event.key === "ArrowLeft") { event.preventDefault(); setOpen(true); moveActiveIndex(-1); } else if (event.key === "Enter" && open && activeIndex >= 0) { event.preventDefault(); activateCurrentResult(); } }} />
         {query ? <Button type="button" variant="ghost" size="icon-sm" className="absolute top-1/2 right-1 -translate-y-1/2" aria-label="검색어 지우기" onClick={() => setQuery("")}><X /></Button> : null}
       </div>
       {open ? (
-        <div id={resultsId} role="listbox" className="absolute top-[calc(100%+0.5rem)] z-50 max-h-[min(32rem,calc(100dvh-5rem))] w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+        <div ref={resultsPanel} id={resultsId} role="listbox" className="absolute top-[calc(100%+0.5rem)] z-50 max-h-[min(32rem,calc(100dvh-5rem))] w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
           <section>
             <div className="mb-2 flex items-center justify-between gap-3">
               <p className="text-xs font-semibold text-slate-500">{hasQuery ? "추천 메뉴" : "자주 찾는 메뉴"}</p>
