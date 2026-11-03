@@ -25,7 +25,7 @@ async function save(batchId: string, channel: Channel, started: string, videos: 
   const { error } = await createAdminClient().rpc("save_youtube_channel", { p_batch:batchId, p_channel:channel, p_metrics:calculate(videos), p_warnings:warnings, p_started:started, p_videos:videos });
   if (error) throw new Error("SAVE_ERROR");
 }
-async function batchState(batchId: string, count: number, finish = false) {
+async function batchState(batchId: string, count?: number, finish = false) {
   "use step";
   const admin = createAdminClient();
   let status = "running";
@@ -34,7 +34,18 @@ async function batchState(batchId: string, count: number, finish = false) {
     if (error) throw new Error("SAVE_ERROR");
     status = data.every(r=>r.status === "completed") ? "completed" : data.some(r=>r.status === "completed") ? "partial" : "failed";
   }
-  const { error } = await admin.from("youtube_analysis_batches").update({ unique_channel_count:count, status, ...(finish ? { completed_at:new Date().toISOString() } : {}) }).eq("id",batchId);
+  const { error } = await admin.from("youtube_analysis_batches").update({ ...(count === undefined ? {} : { unique_channel_count:count }), status, ...(finish ? { completed_at:new Date().toISOString() } : {}) }).eq("id",batchId);
+  if (error) throw new Error("SAVE_ERROR");
+}
+async function stopRequested(batchId: string) {
+  "use step";
+  const { data, error } = await createAdminClient().from("youtube_analysis_batches").select("stop_requested").eq("id",batchId).maybeSingle();
+  if (error) throw new Error("SAVE_ERROR");
+  return data?.stop_requested === true;
+}
+async function pauseBatch(batchId: string) {
+  "use step";
+  const { error } = await createAdminClient().from("youtube_analysis_batches").update({ status:"paused", paused_at:new Date().toISOString() }).eq("id",batchId);
   if (error) throw new Error("SAVE_ERROR");
 }
 async function failBatch(batchId: string) {
@@ -49,7 +60,7 @@ export async function youtubeAnalysisWorkflow(batchId: string, requests: { id:st
   "use workflow";
   try {
   const groups = new Map<string,{ channel:Channel; ids:string[] }>();
-  await batchState(batchId,0);
+  await batchState(batchId);
   for (const request of requests) {
     await updateRequest(batchId,[request.id],"resolving");
     const result = await resolve(request.input_url);
@@ -61,8 +72,11 @@ export async function youtubeAnalysisWorkflow(batchId: string, requests: { id:st
   }
   await batchState(batchId,groups.size);
   const queue = [...groups.values()];
-  for (let i=0;i<queue.length;i+=concurrency) {
-    await Promise.all(queue.slice(i,i+concurrency).map(async ({channel,ids}) => {
+  for (const {channel,ids} of queue) {
+      if (await stopRequested(batchId)) {
+        await pauseBatch(batchId);
+        return;
+      }
       try {
         const started = new Date().toISOString();
         await updateRequest(batchId,ids,"fetching_videos");
@@ -85,7 +99,6 @@ export async function youtubeAnalysisWorkflow(batchId: string, requests: { id:st
         const code = error instanceof Error && errorMessages[error.message] ? error.message : "API_ERROR";
         await updateRequest(batchId,ids,"failed",channel.id,code);
       }
-    }));
   }
   await batchState(batchId,groups.size,true);
   } catch {

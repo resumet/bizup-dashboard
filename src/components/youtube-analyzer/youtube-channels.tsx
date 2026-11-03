@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff, ExternalLink, LoaderCircle, Mail, Play, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { ExternalLink, LoaderCircle, Mail, Pause, Play, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { ChannelDetailsEditor } from "@/components/youtube-analyzer/channel-details-editor";
 import { EmailDraftSettings } from "@/components/youtube-analyzer/email-draft-settings";
 import { YoutubeVideoTrendChart } from "@/components/youtube-analyzer/youtube-video-trend-chart";
@@ -17,7 +17,7 @@ import { sortChannels, type ChannelSort, type SortDirection } from "@/lib/youtub
 
 type CategoryFilter = "all" | "uncategorized" | ChannelCategory;
 type CustomMetric = "views" | "comments" | "likes";
-type CustomPeriod = 3 | 7 | 14 | 20 | 30;
+type CustomPeriod = 3 | 7 | 15 | 30;
 
 const number = (n: number | null | undefined) => n == null ? "-" : Math.round(n).toLocaleString("ko-KR");
 const date = (s: string) => new Date(s).toLocaleString("ko-KR");
@@ -28,12 +28,12 @@ const statuses: Record<string,string> = {
   fetching_videos:"영상 수집 중", calculating:"통계 계산 중", saving:"저장 중", completed:"완료",
   partial:"일부 완료", failed:"실패",
 };
-const active = (batch: Batch | null) => !!batch && ["pending","running"].includes(batch.status);
+const active = (batch: Batch | null) => !!batch && ["pending","running","pausing"].includes(batch.status);
 
 function customAverage(run: Analysis, metric: CustomMetric, period: CustomPeriod) {
-  const suffix = metric === "views" ? "" : metric === "comments" ? "Comments" : "Likes";
-  const value = run.metrics[`recent${period}${suffix}` as keyof Analysis["metrics"]];
-  return typeof value === "number" ? value : null;
+  const since = Date.now() - period * 24 * 60 * 60 * 1000;
+  const values = (run.recent_videos ?? []).filter(video=>Date.parse(video.publishedAt) >= since).map(video=>metric === "views" ? video.views : metric === "comments" ? video.comments : video.likes).filter((value): value is number=>typeof value === "number");
+  return values.length ? values.reduce((sum,value)=>sum+value,0)/values.length : null;
 }
 
 function sortCustomChannels(runs: Analysis[], metric: CustomMetric, period: CustomPeriod, direction: SortDirection) {
@@ -77,13 +77,14 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   const [engagementMessage,setEngagementMessage] = useState("");
   const [engagementError,setEngagementError] = useState("");
   const [reanalyzingAll,setReanalyzingAll] = useState(false);
+  const [reanalysisOpen,setReanalysisOpen] = useState(false);
+  const [reanalysisSummary,setReanalysisSummary] = useState<{eligibleCount:number;resumable:{id:string;input_count:number;status:string;created_at:string;paused_at:string|null}|null}>({eligibleCount:0,resumable:null});
   const [reanalysisError,setReanalysisError] = useState("");
   const [categoryFilter,setCategoryFilter] = useState<CategoryFilter>("all");
-  const [showInvalidChannels,setShowInvalidChannels] = useState(true);
   const [sortBy,setSortBy] = useState<ChannelSort>("position");
   const [sortDirection,setSortDirection] = useState<SortDirection>("desc");
   const [customMetric,setCustomMetric] = useState<CustomMetric>("views");
-  const [customPeriod,setCustomPeriod] = useState<CustomPeriod>(20);
+  const [customPeriod,setCustomPeriod] = useState<CustomPeriod>(7);
   const [appliedCustomSort,setAppliedCustomSort] = useState<{ metric: CustomMetric; period: CustomPeriod } | null>(null);
   const [loadingAll,setLoadingAll] = useState(false);
   const [allLoaded,setAllLoaded] = useState(false);
@@ -101,13 +102,12 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   const [deleteTarget,setDeleteTarget] = useState<Analysis | null>(null);
   const [deleting,setDeleting] = useState(false);
   const [deleteError,setDeleteError] = useState("");
-  const requiresAll=sortBy!=="position" || categoryFilter!=="all";
+  const requiresAll=true;
   const visibleRuns=useMemo(()=>{
-    const filtered = runs.filter(run=>(showInvalidChannels || !run.excluded_from_updates) && (categoryFilter==="all" || (categoryFilter==="uncategorized" ? run.category===null : run.category===categoryFilter)));
-    return sortBy === "custom" && appliedCustomSort
-      ? sortCustomChannels(filtered, appliedCustomSort.metric, appliedCustomSort.period, sortDirection)
-      : sortChannels(filtered, sortBy, sortDirection);
-  },[runs,showInvalidChannels,categoryFilter,sortBy,sortDirection,appliedCustomSort]);
+    const valid = runs.filter(run=>!run.excluded_from_updates && (categoryFilter==="all" || (categoryFilter==="uncategorized" ? run.category===null : run.category===categoryFilter)));
+    const sorted = sortBy === "custom" && appliedCustomSort ? sortCustomChannels(valid, appliedCustomSort.metric, appliedCustomSort.period, sortDirection) : sortChannels(valid, sortBy, sortDirection);
+    return [...sorted,...runs.filter(run=>run.excluded_from_updates).sort((a,b)=>a.position-b.position || a.channel_id.localeCompare(b.channel_id))];
+  },[runs,categoryFilter,sortBy,sortDirection,appliedCustomSort]);
   const urls = inputs(text);
   const invalid = urls.flatMap(url => {
     try { parseSource(url); return []; }
@@ -153,6 +153,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
         setRequests(data.requests ?? []);
         setEmailSettings(data.emailSettings ?? DEFAULT_YOUTUBE_EMAIL_SETTINGS);
         setEmailCourses(data.emailCourses ?? []);
+        setReanalysisSummary(data.reanalysis ?? {eligibleCount:0,resumable:null});
         setError("");
         setLoading(false);
         setLoadingAll(false);
@@ -177,6 +178,15 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
       .catch(e=>{if(!controller.signal.aborted) setDetailError(e instanceof Error ? e.message : "영상 조회 실패");});
     return ()=>controller.abort();
   },[detail]);
+
+  useEffect(() => {
+    if (!reanalyzeBatch || !batchId || !active(batch)) return;
+    const stop = () => {
+      void fetch("/api/youtube-channels", { method:"PATCH", headers:{"Content-Type":"application/json"}, keepalive:true, body:JSON.stringify({reanalysisAction:"stop",batchId}) });
+    };
+    window.addEventListener("pagehide",stop);
+    return () => window.removeEventListener("pagehide",stop);
+  },[reanalyzeBatch,batchId,batch]);
 
   function watchBatch(id: string, reanalyze = false) {
     window.history.pushState(null,"",`?batchId=${id}${reanalyze ? "&reanalyze=1" : ""}`);
@@ -231,15 +241,22 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     } finally { setSubmitting(false); }
   }
 
-  async function reanalyzeStoredChannels() {
+  async function reanalyzeStoredChannels(action: "start" | "restart" | "resume") {
     setReanalyzingAll(true);
     setReanalysisError("");
     try {
-      const result=await api("",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({reanalyzeAll:true})});
+      const result=await api("",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({reanalyzeAll:true,reanalysisAction:action,...(action==="resume" ? {batchId:reanalysisSummary.resumable?.id} : {})})});
+      setReanalysisOpen(false);
       watchBatch(result.batchId,true);
     } catch(e) {
       setReanalysisError(e instanceof Error ? e.message : "저장된 채널 재분석을 시작하지 못했습니다.");
     } finally { setReanalyzingAll(false); }
+  }
+
+  async function stopReanalysis() {
+    if (!batchId) return;
+    try { await api("",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({reanalysisAction:"stop",batchId})}); setRevision(value=>value+1); }
+    catch (caught) { setReanalysisError(caught instanceof Error ? caught.message : "재분석 중단을 요청하지 못했습니다."); }
   }
 
   async function refreshEngagement() {
@@ -339,7 +356,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
 
   function resetCustomSort() {
     setCustomMetric("views");
-    setCustomPeriod(20);
+    setCustomPeriod(7);
     setAppliedCustomSort(null);
     changeSort("position");
   }
@@ -378,15 +395,27 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
 
   return <main className="mx-auto min-h-screen max-w-[1900px] space-y-6 px-4 py-6 sm:px-8">
     <div className="flex flex-wrap items-center justify-end gap-4 pb-5">
-      <div className="flex flex-wrap items-center gap-2"><Button variant="outline" asChild><a href="https://app.notion.com/p/546dedee10858312b94e818475d3d9bf" target="_blank" rel="noopener noreferrer"><ExternalLink className="size-4"/>시스템 노바 출연료/RS</a></Button><Button variant="outline" disabled={reanalyzingAll || refreshingEngagement || submitting || analysisPending || loading || !runs.length} onClick={()=>void reanalyzeStoredChannels()} title="저장된 모든 채널을 다시 분석해 숏츠 제외 기준을 적용합니다.">{reanalyzingAll ? <LoaderCircle className="size-4 animate-spin"/> : <RefreshCw className="size-4"/>}숏츠 제외 재분석</Button><Button variant="outline" disabled={refreshingEngagement || reanalyzingAll || analysisPending} onClick={()=>void refreshEngagement()} title="저장된 영상 데이터로 모든 채널의 평균 댓글·좋아요를 다시 계산합니다.">{refreshingEngagement ? <LoaderCircle className="size-4 animate-spin"/> : <RefreshCw className="size-4"/>}전체 평균 갱신 (임시)</Button><EmailDraftSettings settings={emailSettings} onSaved={setEmailSettings}/><Button onClick={openAddDialog}>{analysisPending ? <LoaderCircle className="size-4 animate-spin"/> : <Plus className="size-4"/>}{analysisPending ? "분석 중" : "채널 추가"}</Button><Button variant="outline" size="icon" title="새로고침" aria-label="새로고침" onClick={()=>setRevision(value=>value+1)}><RefreshCw className="size-4"/></Button></div>
+      <div className="flex flex-wrap items-center gap-2"><Button variant="outline" asChild><a href="https://app.notion.com/p/546dedee10858312b94e818475d3d9bf" target="_blank" rel="noopener noreferrer"><ExternalLink className="size-4"/>시스템 노바 출연료/RS</a></Button><Button variant="outline" disabled={reanalyzingAll || refreshingEngagement || submitting || analysisPending || loading || !runs.length} onClick={()=>setReanalysisOpen(true)}><RefreshCw className="size-4"/>채널 재분석</Button><Button variant="outline" disabled={refreshingEngagement || reanalyzingAll || analysisPending} onClick={()=>void refreshEngagement()}>{refreshingEngagement ? <LoaderCircle className="size-4 animate-spin"/> : <RefreshCw className="size-4"/>}전체 평균 갱신 (임시)</Button><EmailDraftSettings settings={emailSettings} onSaved={setEmailSettings}/><Button onClick={openAddDialog}>{analysisPending ? <LoaderCircle className="size-4 animate-spin"/> : <Plus className="size-4"/>}{analysisPending ? "분석 중" : "채널 추가"}</Button><Button variant="outline" size="icon" title="새로고침" aria-label="새로고침" onClick={()=>setRevision(value=>value+1)}><RefreshCw className="size-4"/></Button></div>
     </div>
 
     {error && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
     {reanalysisError && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{reanalysisError}</p>}
-    {reanalyzeBatch && batchId && <p role="status" className="rounded-md border bg-muted/30 p-3 text-sm">{batch ? <>저장된 채널 재분석: {statuses[batch.status] ?? batch.status} · 처리 {completed} / {batch.input_count}개{batch.status==="completed" ? " · 숏츠 제외 기준 적용 완료" : ""}</> : "저장된 채널 재분석 요청을 확인하는 중입니다."}</p>}
+    {reanalyzeBatch && batchId && <p role="status" className="flex flex-wrap items-center gap-3 rounded-md border bg-muted/30 p-3 text-sm">{batch ? <>채널 재분석: {statuses[batch.status] ?? batch.status} · 전체 진행 {completed} / {batch.input_count}개 · 현재 {requests.find(request=>["resolving","fetching_channel","fetching_videos","saving"].includes(request.status))?.input_url ?? "다음 채널 대기 중"}</> : "채널 재분석 요청을 확인하는 중입니다."}{active(batch) ? <Button variant="outline" size="sm" onClick={()=>void stopReanalysis()}><Pause className="size-4"/>중단</Button> : null}</p>}
     {engagementError && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{engagementError}</p>}
     {engagementMessage && <p role="status" className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{engagementMessage}</p>}
     {emailStatusError && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{emailStatusError}</p>}
+
+    <section className="grid gap-3 sm:grid-cols-2">
+      {([7,15] as const).map(period=>{
+        const declines = runs.filter(run=>!run.excluded_from_updates).filter(run=>{
+          const recent = [...(run.recent_videos ?? [])].sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id));
+          if (recent.length < period * 2) return false;
+          const average = (videos: Video[]) => videos.reduce((sum,video)=>sum+video.views,0)/videos.length;
+          return average(recent.slice(0,period)) < average(recent.slice(period,period*2));
+        });
+        return <div key={period} className="rounded-xl border bg-muted/20 p-4"><h2 className="font-semibold">최근 {period}개 조회수 하락 채널</h2><p className="mt-3 text-sm">{declines.length ? declines.map(run=>run.channel.name).join(", ") : "해당 채널이 없습니다."}</p></div>;
+      })}
+    </section>
 
     <section className="space-y-4 border-t pt-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -395,10 +424,6 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
           <p className="mt-1 text-sm text-muted-foreground">새 분석에서는 숏츠를 제외합니다. 기존 채널에도 적용하려면 상단의 숏츠 제외 재분석을 실행하세요.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" size="sm" aria-pressed={!showInvalidChannels} onClick={()=>setShowInvalidChannels(show=>!show)}>
-            {showInvalidChannels ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            {showInvalidChannels ? "유효하지 않은 채널 숨기기" : "유효하지 않은 채널 보기"}
-          </Button>
           <label htmlFor="youtube-channel-category-filter" className="text-sm font-medium">분류</label>
           <select id="youtube-channel-category-filter" className="h-9 max-w-56 rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" value={categoryFilter} onChange={event=>changeCategoryFilter(event.target.value as CategoryFilter)}>
             <option value="all">전체 분류</option>
@@ -422,13 +447,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
           </select>}
         </div>
       </div>
-      {sortBy === "custom" ? <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-muted/20 p-3">
-        <div className="space-y-1.5"><label htmlFor="youtube-custom-metric" className="text-xs font-medium text-muted-foreground">지표</label><select id="youtube-custom-metric" value={customMetric} onChange={event=>setCustomMetric(event.target.value as CustomMetric)} className="block h-9 rounded-md border border-input bg-background px-3 text-sm"><option value="views">조회수</option><option value="comments">댓글</option><option value="likes">좋아요</option></select></div>
-        <div className="space-y-1.5"><label htmlFor="youtube-custom-period" className="text-xs font-medium text-muted-foreground">최근 영상</label><select id="youtube-custom-period" value={customPeriod} onChange={event=>setCustomPeriod(Number(event.target.value) as CustomPeriod)} className="block h-9 rounded-md border border-input bg-background px-3 text-sm">{([3,7,14,20,30] as CustomPeriod[]).map(period=><option key={period} value={period}>최근 {period}개</option>)}</select></div>
-        <Button type="button" size="sm" onClick={applyCustomSort}>적용</Button>
-        <Button type="button" variant="outline" size="sm" onClick={resetCustomSort}>초기화</Button>
-        {appliedCustomSort ? <p className="self-center text-xs text-muted-foreground">{appliedCustomSort.metric === "views" ? "조회수" : appliedCustomSort.metric === "comments" ? "댓글" : "좋아요"} · 최근 {appliedCustomSort.period}개 평균</p> : <p className="self-center text-xs text-muted-foreground">조건을 고른 뒤 적용해 주세요.</p>}
-      </div> : null}
+      {sortBy === "custom" ? <div className="space-y-3 rounded-xl border bg-muted/20 p-3">{(["views","comments","likes"] as CustomMetric[]).map(metric=><div key={metric} className="flex flex-wrap items-center gap-2"><span className="w-12 text-sm font-medium">{metric === "views" ? "조회수" : metric === "comments" ? "댓글" : "좋아요"}</span>{([3,7,15,30] as CustomPeriod[]).map(period=><Button key={period} type="button" size="sm" variant={appliedCustomSort?.metric===metric && appliedCustomSort.period===period ? "default" : "outline"} onClick={()=>{setCustomMetric(metric);setCustomPeriod(period);setAppliedCustomSort({metric,period});setSortDirection("desc");}}>{period}일 이내 높은 순</Button>)}</div>)}<Button type="button" variant="ghost" size="sm" onClick={resetCustomSort}>초기화</Button></div> : null}
       {loading || loadingAll ? <p role="status" className="flex items-center gap-2 py-10 text-sm"><LoaderCircle className="size-4 animate-spin"/>{loadingAll ? "전체 채널을 불러오는 중입니다." : "분석 목록을 불러오는 중입니다."}</p> : requiresAll && !allLoaded ? <div className="flex items-center gap-3 border-y py-8 text-sm"><span>전체 채널을 불러오지 못했습니다.</span><Button variant="outline" size="sm" onClick={()=>{setLoadingAll(true);setRevision(value=>value+1);}}>다시 시도</Button></div> : !runs.length ? <p className="border-y py-12 text-center text-muted-foreground">{active(batch) ? "첫 번째 채널 분석을 기다리고 있습니다." : "분석한 채널이 없습니다."}</p> : !visibleRuns.length ? <p className="border-y py-12 text-center text-muted-foreground">선택한 필터에 해당하는 채널이 없습니다.</p> : <div className="overflow-x-auto rounded-md border">
         <table className="w-full min-w-[1660px] text-sm">
           <thead className="bg-muted/60"><tr>{["채널 / 주소","이메일 / 발송","출연료","RS(%)","전체 / 분석 영상","구독자","조회수","댓글","좋아요","최근 영상 조회수 변화","관리"].map(heading=><th key={heading} className="whitespace-nowrap px-3 py-3 text-left font-medium">{heading}</th>)}</tr></thead>
@@ -449,6 +468,19 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
       </div>}
       {!requiresAll && hasMore && <Button variant="outline" disabled={loadingMore} onClick={loadMore}>{loadingMore ? <LoaderCircle className="size-4 animate-spin"/> : null}더 불러오기</Button>}
     </section>
+
+    <Dialog open={reanalysisOpen} onOpenChange={setReanalysisOpen}>
+      <DialogContent className="sm:max-w-md" showCloseButton={!reanalyzingAll}>
+        <DialogHeader><DialogTitle>채널 재분석</DialogTitle><DialogDescription>유효하지 않은 채널을 제외한 {number(reanalysisSummary.eligibleCount)}개 채널을 한 개씩 순서대로 분석합니다.</DialogDescription></DialogHeader>
+        {reanalysisSummary.resumable ? <div className="rounded-lg border bg-muted/30 p-3 text-sm">이전 분석이 {number(reanalysisSummary.resumable.input_count)}개 중 일부까지 완료되었습니다. 12시간 안에는 완료된 채널을 건너뛰고 이어서 진행할 수 있습니다.</div> : null}
+        {reanalysisError ? <p role="alert" className="text-sm text-destructive">{reanalysisError}</p> : null}
+        <DialogFooter>
+          <DialogClose asChild><Button variant="outline" disabled={reanalyzingAll}>취소</Button></DialogClose>
+          {reanalysisSummary.resumable ? <Button variant="outline" disabled={reanalyzingAll} onClick={()=>void reanalyzeStoredChannels("restart")}>처음부터 재분석</Button> : null}
+          <Button disabled={reanalyzingAll || !reanalysisSummary.eligibleCount} onClick={()=>void reanalyzeStoredChannels(reanalysisSummary.resumable ? "resume" : "start")}>{reanalyzingAll ? <LoaderCircle className="size-4 animate-spin"/> : <Play className="size-4"/>}{reanalysisSummary.resumable ? "이어서 재분석" : "재분석 시작"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <Dialog open={emailTarget!==null} onOpenChange={(open)=>{if(!open){setEmailTarget(null);setEmailComposeError("");}}}>
       <DialogContent className="sm:max-w-lg">

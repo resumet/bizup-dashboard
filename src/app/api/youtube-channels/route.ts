@@ -64,6 +64,15 @@ async function storedChannelUrls(admin: SupabaseClient, workspaceId: string) {
   return urls;
 }
 
+async function reanalysisSummary(admin: SupabaseClient, workspaceId: string) {
+  const [channels, resumable] = await Promise.all([
+    admin.from("youtube_analyzed_channels").select("channel_id", { count:"exact", head:true }).eq("workspace_id",workspaceId).eq("excluded_from_updates",false),
+    admin.from("youtube_analysis_batches").select("id,input_count,status,created_at,paused_at").eq("workspace_id",workspaceId).eq("is_reanalysis",true).eq("status","paused").gte("paused_at",new Date(Date.now()-12*60*60*1000).toISOString()).order("paused_at",{ascending:false}).limit(1).maybeSingle(),
+  ]);
+  if (channels.error || resumable.error) throw channels.error ?? resumable.error;
+  return { eligibleCount:channels.count ?? 0, resumable:resumable.data };
+}
+
 async function batchRequests(admin: SupabaseClient, batchId: string) {
   const requests: Record<string,unknown>[] = [];
   for (let offset=0;;offset+=pageSize) {
@@ -152,7 +161,8 @@ export async function GET(request: Request) {
       .eq("workspace_id",workspaceId)
       .eq("status", DEFAULT_SELECTABLE_COURSE_STATUS)
       .order("free_webinar_at",{ascending:false});
-    const [result,batch,requests,emailSettingsResult,coursesResult] = await Promise.all([channelsQuery,batchQuery,requestsQuery,emailSettingsQuery,coursesQuery]);
+    const summaryQuery = reanalysisSummary(admin,workspaceId);
+    const [result,batch,requests,emailSettingsResult,coursesResult,reanalysis] = await Promise.all([channelsQuery,batchQuery,requestsQuery,emailSettingsQuery,coursesQuery,summaryQuery]);
     if (batch.error || requests.error || coursesResult.error) throw batch.error ?? requests.error ?? coursesResult.error;
     if (emailSettingsResult.error && !/PGRST20[45]|42P01/u.test(emailSettingsResult.error.code ?? "")) {
       throw emailSettingsResult.error;
@@ -219,6 +229,7 @@ export async function GET(request: Request) {
       requests:requests.data,
       emailSettings:emailSettingsResult.data ?? DEFAULT_YOUTUBE_EMAIL_SETTINGS,
       emailCourses:sortByNearestWebinar(coursesResult.data ?? []),
+      reanalysis,
     });
   } catch(error) { return failure(error); }
 }
@@ -233,16 +244,31 @@ export async function POST(request: Request) {
     const reanalyzeAll = fields?.reanalyzeAll === true;
     let urls: string[];
     if (reanalyzeAll) {
-      if (Object.keys(fields).length !== 1) return NextResponse.json({error:"잘못된 입력입니다."},{status:400});
+      const action = fields?.reanalysisAction;
+      if (action === "resume") {
+        const batchId = fields?.batchId;
+        if (typeof batchId !== "string" || !uuid.test(batchId)) return NextResponse.json({error:"재개할 분석을 찾을 수 없습니다."},{status:400});
+        const batch = await admin.from("youtube_analysis_batches").select("id,created_at,status").eq("id",batchId).eq("workspace_id",workspaceId).eq("is_reanalysis",true).eq("status","paused").maybeSingle();
+        if (batch.error) throw batch.error;
+        if (!batch.data || Date.now()-new Date(batch.data.created_at).getTime() > 12*60*60*1000) return NextResponse.json({error:"재개 가능한 분석이 없습니다. 처음부터 다시 시작해 주세요."},{status:400});
+        const pending = await admin.from("youtube_analysis_requests").select("id,input_url,input_order").eq("batch_id",batchId).in("status",["pending","resolving","fetching_channel","fetching_videos","saving"]).order("input_order");
+        if (pending.error) throw pending.error;
+        if (!pending.data.length) return NextResponse.json({error:"재개할 채널이 없습니다."},{status:400});
+        const reset = await admin.from("youtube_analysis_batches").update({status:"pending",stop_requested:false,paused_at:null,completed_at:null}).eq("id",batchId);
+        if (reset.error) throw reset.error;
+        await start(youtubeAnalysisWorkflow,[batchId,pending.data,1]);
+        return NextResponse.json({batchId,resumed:true},{status:202});
+      }
+      if (action !== "start" && action !== "restart") return NextResponse.json({error:"재분석 시작 방법을 선택해 주세요."},{status:400});
       urls = await storedChannelUrls(admin,workspaceId);
-      if (!urls.length) return NextResponse.json({error:"재분석할 채널이 없습니다."},{status:400});
+      if (!urls.length) return NextResponse.json({error:"재분석할 유효 채널이 없습니다."},{status:400});
     } else {
       if (typeof fields?.urls !== "string" || fields.urls.length > 100_000) return NextResponse.json({error:"URL 입력이 올바르지 않습니다."},{status:400});
       urls = inputs(fields.urls);
       const max = setting("MAX_URLS_PER_BATCH",50,200);
       if (!urls.length || urls.length > max || urls.some(s=>s.length>2000)) return NextResponse.json({error:`URL을 1~${max}개 입력해 주세요.`},{status:400});
     }
-    const {data:batch,error} = await admin.from("youtube_analysis_batches").insert({workspace_id:workspaceId,created_by:user.id,input_count:urls.length}).select("id").single();
+    const {data:batch,error} = await admin.from("youtube_analysis_batches").insert({workspace_id:workspaceId,created_by:user.id,input_count:urls.length,is_reanalysis:reanalyzeAll}).select("id").single();
     if(error) throw error;
     try {
       const requests: {id:string;input_url:string;input_order:number}[] = [];
@@ -253,7 +279,7 @@ export async function POST(request: Request) {
         if (inserted.error) throw inserted.error;
         requests.push(...inserted.data);
       }
-      await start(youtubeAnalysisWorkflow,[batch.id,requests,setting("MAX_CONCURRENT_CHANNELS",3,5)]);
+      await start(youtubeAnalysisWorkflow,[batch.id,requests,reanalyzeAll ? 1 : setting("MAX_CONCURRENT_CHANNELS",3,5)]);
     } catch {
       await admin.from("youtube_analysis_requests").update({status:"failed",error_code:"START_ERROR"}).eq("batch_id",batch.id);
       await admin.from("youtube_analysis_batches").update({status:"failed",completed_at:new Date().toISOString()}).eq("id",batch.id);
@@ -272,6 +298,13 @@ export async function PATCH(request: Request) {
       return NextResponse.json({error:"잘못된 입력입니다."},{status:400});
     }
     const fields = body as Record<string,unknown>;
+    if (fields.reanalysisAction === "stop") {
+      const batchId = fields.batchId;
+      if (typeof batchId !== "string" || !uuid.test(batchId)) return NextResponse.json({error:"중단할 분석을 찾을 수 없습니다."},{status:400});
+      const result = await admin.from("youtube_analysis_batches").update({stop_requested:true,status:"pausing"}).eq("id",batchId).eq("workspace_id",workspaceId).eq("is_reanalysis",true).in("status",["pending","running"]);
+      if (result.error) throw result.error;
+      return NextResponse.json({batchId,stopping:true});
+    }
     const {channelId} = fields;
     if (typeof channelId !== "string" || !channelId.trim() || channelId.length > 128) {
       return NextResponse.json({error:"채널 입력이 올바르지 않습니다."},{status:400});
