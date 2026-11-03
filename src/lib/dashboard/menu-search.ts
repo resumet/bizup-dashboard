@@ -51,6 +51,7 @@ export const DASHBOARD_MENU_SEARCH_ITEMS: readonly DashboardMenuSearchItem[] = [
   { label: "카카오톡 태그 자동 관리자", href: "/services/tools", group: "유용한 도구들", keywords: ["카카오 오픈톡", "카카오 오픈채팅", "태그 관리"] },
   { label: "노바 정산서 검증", href: "/services/nova-settlement-validator", group: "유용한 도구들" },
   { label: "영상 대본 추출", href: "/extras", group: "유용한 도구들", keywords: ["부가 기능", "부가기능", "대본"] },
+  { label: "링크 모음", href: "/services/tools/links", group: "유용한 도구들", keywords: ["공통 링크", "바로가기", "온라인 도구 링크"] },
 ];
 
 export function normalizeDashboardSearchText(value: string) {
