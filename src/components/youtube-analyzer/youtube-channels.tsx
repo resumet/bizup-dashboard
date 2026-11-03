@@ -77,6 +77,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   const [engagementMessage,setEngagementMessage] = useState("");
   const [engagementError,setEngagementError] = useState("");
   const [reanalyzingAll,setReanalyzingAll] = useState(false);
+  const [reanalyzingChannelId,setReanalyzingChannelId] = useState<string | null>(null);
   const [reanalysisOpen,setReanalysisOpen] = useState(false);
   const [reanalysisSummary,setReanalysisSummary] = useState<{eligibleCount:number;resumable:{id:string;input_count:number;status:string;created_at:string;paused_at:string|null}|null}>({eligibleCount:0,resumable:null});
   const [reanalysisError,setReanalysisError] = useState("");
@@ -250,6 +251,19 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     } catch(e) {
       setReanalysisError(e instanceof Error ? e.message : "저장된 채널 재분석을 시작하지 못했습니다.");
     } finally { setReanalyzingAll(false); }
+  }
+
+  async function reanalyzeChannel(run: Analysis) {
+    setReanalyzingChannelId(run.channel_id);
+    setDetailError("");
+    try {
+      const result = await api("", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({urls:run.channel.url}) }) as {batchId:string};
+      watchBatch(result.batchId);
+    } catch (caught) {
+      setDetailError(caught instanceof Error ? caught.message : "채널 재분석을 시작하지 못했습니다.");
+    } finally {
+      setReanalyzingChannelId(null);
+    }
   }
 
   async function stopReanalysis() {
@@ -535,7 +549,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
 
     <Dialog open={!!detail} onOpenChange={open=>{if(!open) setDetail(null);}}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
-        <DialogHeader><DialogTitle>{detail?.channel.name}</DialogTitle><DialogDescription>최근 분석 영상 {Math.min(detail?.metrics.count ?? 0,50)}개 · {detail ? date(detail.last_analyzed_at) : ""} 기준</DialogDescription></DialogHeader>
+        <DialogHeader><div className="flex flex-wrap items-center justify-between gap-3"><DialogTitle>{detail?.channel.name}</DialogTitle>{detail ? <Button type="button" size="sm" disabled={reanalyzingChannelId===detail.channel_id || active(batch)} onClick={()=>void reanalyzeChannel(detail)}>{reanalyzingChannelId===detail.channel_id ? <LoaderCircle className="size-4 animate-spin"/> : <RefreshCw className="size-4"/>}채널 재분석</Button> : null}</div><DialogDescription>최근 분석 영상 {Math.min(detail?.metrics.count ?? 0,50)}개 · {detail ? date(detail.last_analyzed_at) : ""} 기준</DialogDescription></DialogHeader>
         {detail && <section aria-label="최고 조회 영상 요약" className="grid gap-3 sm:grid-cols-3">
           <div className="min-w-0 rounded-lg border bg-muted/20 p-4"><p className="text-xs text-muted-foreground">최고 조회 영상</p>{detail.metrics.top ? <a href={`https://www.youtube.com/watch?v=${detail.metrics.top.id}`} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-start gap-1.5 break-words font-medium text-blue-700 hover:underline">{detail.metrics.top.title}<ExternalLink className="mt-0.5 size-3.5 shrink-0" /></a> : <p className="mt-2 font-medium">-</p>}</div>
           <div className="rounded-lg border bg-muted/20 p-4"><p className="text-xs text-muted-foreground">최고 조회수</p><p className="mt-2 text-xl font-semibold tabular-nums">{number(detail.metrics.top?.views)}</p></div>
