@@ -173,6 +173,7 @@ export default async function AdminUsersPage({
       </header>
 
       <div className="mx-auto max-w-[1900px] space-y-6 px-5 py-8 lg:px-8">
+        <Button asChild variant="outline"><Link href="/admin/dashboard-alerts">완료된 사전 준비 알림</Link></Button>
         <CommonLinksManager />
         <MenuSearchKeywordsManager initialSettings={adminSettings.menuSearchSettings} loadError={adminSettings.menuSearchError} />
         <YoutubeFilmingAlertSettingsManager initialSettings={adminSettings.youtubeFilmingAlertSettings} loadError={adminSettings.youtubeFilmingAlertError} />

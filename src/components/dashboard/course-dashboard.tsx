@@ -33,6 +33,8 @@ import type { CoursePreparationSummary } from "@/lib/dashboard/course-preparatio
 import type { DashboardLeave } from "@/lib/dashboard/leaves";
 import type { DashboardCourseSearchItem, DashboardMenuCustomKeywords } from "@/lib/dashboard/menu-search";
 import type { BusinessTripDashboardSummary } from "@/lib/business-trip-reports/types";
+import type { PreparationAlert } from "@/lib/dashboard/preparation-alerts";
+import { PreparationAlertList } from "@/components/dashboard/preparation-alert-list";
 
 export type DashboardCourse = {
   id: string;
@@ -81,6 +83,7 @@ type DashboardData = {
   schedules: DashboardSchedule[];
   leaves: DashboardLeave[];
   externalMarketing: DashboardExternalMarketingCourse[];
+  preparationAlerts: PreparationAlert[];
   errors: Partial<Record<"tripReports" | "courses" | "wbs" | "instagramPreparation" | "youtubePreparation" | "schedules" | "leaves" | "externalMarketing", string>>;
 };
 
@@ -429,7 +432,7 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
 
         <DashboardMenuSearch courses={data.searchCourses} customKeywords={data.menuSearchKeywords} />
 
-        <CoursePreparationSection courses={data.preparationCourses} error={data.errors.wbs} instagramError={data.errors.instagramPreparation} youtubeError={data.errors.youtubePreparation} />
+        <PreparationAlertList initialAlerts={data.preparationAlerts} />
 
         <div className="grid gap-5 lg:grid-cols-2">
           <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">

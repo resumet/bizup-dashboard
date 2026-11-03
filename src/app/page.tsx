@@ -22,6 +22,8 @@ import { formatCalendarTime, formatLocation, koreaToday } from "@/lib/shared-cal
 import { calendarContext, loadCalendarEvents } from "@/lib/shared-calendar/server";
 import { loadCalendarWebinars } from "@/lib/shared-calendar/sources-server";
 import { loadBusinessTripDashboardSummary } from "@/lib/business-trip-reports/server";
+import { buildPreparationAlerts } from "@/lib/dashboard/preparation-alerts";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 function errorMessage(section: string) {
   return `${section} 정보를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.`;
@@ -42,7 +44,10 @@ export default async function HomePage() {
 
   const today = koreaToday();
   const range = { from: today, to: today };
-  const [tripReportsResult, coursesResult, wbsResult, instagramPreparationResult, youtubePreparationResult, eventsResult, webinarsResult, leavesResult, externalMarketingResult, menuSearchResult] = await Promise.allSettled([
+  const alertAdmin = createAdminClient();
+  const alertRangeEnd = new Date(`${today}T00:00:00Z`);
+  alertRangeEnd.setUTCDate(alertRangeEnd.getUTCDate() + 2);
+  const [tripReportsResult, coursesResult, wbsResult, instagramPreparationResult, youtubePreparationResult, eventsResult, webinarsResult, leavesResult, externalMarketingResult, menuSearchResult, alertEventsResult, alertCompletionsResult] = await Promise.allSettled([
     loadBusinessTripDashboardSummary(context.workspaceId),
     getCachedCourseSummaries(context.workspaceId),
     loadCourseWbsBootstrap(context.workspaceId),
@@ -53,6 +58,8 @@ export default async function HomePage() {
     loadDashboardLeaves(context, today),
     loadExternalMarketingProjects(context.workspaceId),
     loadDashboardMenuSearchKeywordSettings(context.workspaceId),
+    context.supabase.from("shared_calendar_events").select("id,title,event_date,meeting_type:shared_calendar_meeting_types(name)").eq("workspace_id", context.workspaceId).gte("event_date", today).lte("event_date", alertRangeEnd.toISOString().slice(0, 10)),
+    alertAdmin.from("dashboard_preparation_alert_completions").select("alert_key").eq("workspace_id", context.workspaceId),
   ]);
 
   const errors: Partial<Record<"tripReports" | "courses" | "wbs" | "instagramPreparation" | "youtubePreparation" | "schedules" | "leaves" | "externalMarketing", string>> = {};
@@ -173,6 +180,13 @@ export default async function HomePage() {
     : [];
   if (externalMarketingResult.status === "rejected") errors.externalMarketing = errorMessage("외부 마케팅");
 
+  const preparationAlerts = coursesResult.status === "fulfilled" ? buildPreparationAlerts({
+    today,
+    courses: loadedCourses,
+    events: alertEventsResult.status === "fulfilled" && !alertEventsResult.value.error ? alertEventsResult.value.data ?? [] : [],
+    completedKeys: new Set(alertCompletionsResult.status === "fulfilled" && !alertCompletionsResult.value.error ? (alertCompletionsResult.value.data ?? []).map((row) => row.alert_key) : []),
+  }) : [];
+
   return (
     <CourseDashboard
       data={{
@@ -187,6 +201,7 @@ export default async function HomePage() {
         schedules,
         leaves,
         externalMarketing,
+        preparationAlerts,
         errors,
       }}
     />
