@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Eye, EyeOff, ExternalLink, LoaderCircle, Mail, Play, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { ChannelDetailsEditor } from "@/components/youtube-analyzer/channel-details-editor";
 import { EmailDraftSettings } from "@/components/youtube-analyzer/email-draft-settings";
+import { YoutubeVideoTrendChart } from "@/components/youtube-analyzer/youtube-video-trend-chart";
 import { buildGmailComposeWithAccountChooser } from "@/lib/youtube-analyzer/gmail";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,6 +16,8 @@ import { CHANNEL_CATEGORIES, DEFAULT_YOUTUBE_EMAIL_SETTINGS, inputs, parseSource
 import { sortChannels, type ChannelSort, type SortDirection } from "@/lib/youtube-analyzer/sort";
 
 type CategoryFilter = "all" | "uncategorized" | ChannelCategory;
+type CustomMetric = "views" | "comments" | "likes";
+type CustomPeriod = 3 | 7 | 14 | 20 | 30;
 
 const number = (n: number | null | undefined) => n == null ? "-" : Math.round(n).toLocaleString("ko-KR");
 const date = (s: string) => new Date(s).toLocaleString("ko-KR");
@@ -26,6 +29,23 @@ const statuses: Record<string,string> = {
   partial:"일부 완료", failed:"실패",
 };
 const active = (batch: Batch | null) => !!batch && ["pending","running"].includes(batch.status);
+
+function customAverage(run: Analysis, metric: CustomMetric, period: CustomPeriod) {
+  const suffix = metric === "views" ? "" : metric === "comments" ? "Comments" : "Likes";
+  const value = run.metrics[`recent${period}${suffix}` as keyof Analysis["metrics"]];
+  return typeof value === "number" ? value : null;
+}
+
+function sortCustomChannels(runs: Analysis[], metric: CustomMetric, period: CustomPeriod, direction: SortDirection) {
+  return [...runs].sort((left, right) => {
+    const leftValue = customAverage(left, metric, period);
+    const rightValue = customAverage(right, metric, period);
+    if (leftValue === null && rightValue !== null) return 1;
+    if (rightValue === null && leftValue !== null) return -1;
+    if (leftValue !== null && rightValue !== null && leftValue !== rightValue) return direction === "desc" ? rightValue - leftValue : leftValue - rightValue;
+    return left.position - right.position || left.channel_id.localeCompare(right.channel_id);
+  });
+}
 
 async function api(path = "", init?: RequestInit) {
   const response = await fetch(`/api/youtube-channels${path}`, {cache:"no-store",...init});
@@ -62,6 +82,9 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   const [showInvalidChannels,setShowInvalidChannels] = useState(true);
   const [sortBy,setSortBy] = useState<ChannelSort>("position");
   const [sortDirection,setSortDirection] = useState<SortDirection>("desc");
+  const [customMetric,setCustomMetric] = useState<CustomMetric>("views");
+  const [customPeriod,setCustomPeriod] = useState<CustomPeriod>(20);
+  const [appliedCustomSort,setAppliedCustomSort] = useState<{ metric: CustomMetric; period: CustomPeriod } | null>(null);
   const [loadingAll,setLoadingAll] = useState(false);
   const [allLoaded,setAllLoaded] = useState(false);
   const [emailSettings,setEmailSettings] = useState<YoutubeEmailSettings>(DEFAULT_YOUTUBE_EMAIL_SETTINGS);
@@ -79,7 +102,12 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   const [deleting,setDeleting] = useState(false);
   const [deleteError,setDeleteError] = useState("");
   const requiresAll=sortBy!=="position" || categoryFilter!=="all";
-  const visibleRuns=useMemo(()=>sortChannels(runs.filter(run=>(showInvalidChannels || !run.excluded_from_updates) && (categoryFilter==="all" || (categoryFilter==="uncategorized" ? run.category===null : run.category===categoryFilter))),sortBy,sortDirection),[runs,showInvalidChannels,categoryFilter,sortBy,sortDirection]);
+  const visibleRuns=useMemo(()=>{
+    const filtered = runs.filter(run=>(showInvalidChannels || !run.excluded_from_updates) && (categoryFilter==="all" || (categoryFilter==="uncategorized" ? run.category===null : run.category===categoryFilter)));
+    return sortBy === "custom" && appliedCustomSort
+      ? sortCustomChannels(filtered, appliedCustomSort.metric, appliedCustomSort.period, sortDirection)
+      : sortChannels(filtered, sortBy, sortDirection);
+  },[runs,showInvalidChannels,categoryFilter,sortBy,sortDirection,appliedCustomSort]);
   const urls = inputs(text);
   const invalid = urls.flatMap(url => {
     try { parseSource(url); return []; }
@@ -301,6 +329,19 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     }
     setSortDirection("desc");
     setSortBy(next);
+    if (next !== "custom") setAppliedCustomSort(null);
+  }
+
+  function applyCustomSort() {
+    setAppliedCustomSort({ metric:customMetric, period:customPeriod });
+    setSortDirection("desc");
+  }
+
+  function resetCustomSort() {
+    setCustomMetric("views");
+    setCustomPeriod(20);
+    setAppliedCustomSort(null);
+    changeSort("position");
   }
 
   function openEmailComposer(run: Analysis) {
@@ -370,9 +411,10 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
             <option value="subscribers">구독자 수</option>
             <option value="topViews">최고 조회수</option>
             <option value="exclude1">최고 1개 제외 평균</option>
-            <option value="recent20">최근 20개 평균</option>
-            <option value="recent30Comments">최근 30개 평균 댓글</option>
-            <option value="recent30Likes">최근 30개 평균 좋아요</option>
+            <option value="recent20">조회수 · 최근 20개</option>
+            <option value="recent30Comments">댓글 · 최근 30개</option>
+            <option value="recent30Likes">좋아요 · 최근 30개</option>
+            <option value="custom">커스텀 정렬</option>
           </select>
           {sortBy!=="position" && <select aria-label="정렬 방향" className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" value={sortDirection} onChange={event=>setSortDirection(event.target.value as SortDirection)}>
             <option value="desc">높은 순</option>
@@ -380,9 +422,16 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
           </select>}
         </div>
       </div>
+      {sortBy === "custom" ? <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-muted/20 p-3">
+        <div className="space-y-1.5"><label htmlFor="youtube-custom-metric" className="text-xs font-medium text-muted-foreground">지표</label><select id="youtube-custom-metric" value={customMetric} onChange={event=>setCustomMetric(event.target.value as CustomMetric)} className="block h-9 rounded-md border border-input bg-background px-3 text-sm"><option value="views">조회수</option><option value="comments">댓글</option><option value="likes">좋아요</option></select></div>
+        <div className="space-y-1.5"><label htmlFor="youtube-custom-period" className="text-xs font-medium text-muted-foreground">최근 영상</label><select id="youtube-custom-period" value={customPeriod} onChange={event=>setCustomPeriod(Number(event.target.value) as CustomPeriod)} className="block h-9 rounded-md border border-input bg-background px-3 text-sm">{([3,7,14,20,30] as CustomPeriod[]).map(period=><option key={period} value={period}>최근 {period}개</option>)}</select></div>
+        <Button type="button" size="sm" onClick={applyCustomSort}>적용</Button>
+        <Button type="button" variant="outline" size="sm" onClick={resetCustomSort}>초기화</Button>
+        {appliedCustomSort ? <p className="self-center text-xs text-muted-foreground">{appliedCustomSort.metric === "views" ? "조회수" : appliedCustomSort.metric === "comments" ? "댓글" : "좋아요"} · 최근 {appliedCustomSort.period}개 평균</p> : <p className="self-center text-xs text-muted-foreground">조건을 고른 뒤 적용해 주세요.</p>}
+      </div> : null}
       {loading || loadingAll ? <p role="status" className="flex items-center gap-2 py-10 text-sm"><LoaderCircle className="size-4 animate-spin"/>{loadingAll ? "전체 채널을 불러오는 중입니다." : "분석 목록을 불러오는 중입니다."}</p> : requiresAll && !allLoaded ? <div className="flex items-center gap-3 border-y py-8 text-sm"><span>전체 채널을 불러오지 못했습니다.</span><Button variant="outline" size="sm" onClick={()=>{setLoadingAll(true);setRevision(value=>value+1);}}>다시 시도</Button></div> : !runs.length ? <p className="border-y py-12 text-center text-muted-foreground">{active(batch) ? "첫 번째 채널 분석을 기다리고 있습니다." : "분석한 채널이 없습니다."}</p> : !visibleRuns.length ? <p className="border-y py-12 text-center text-muted-foreground">선택한 필터에 해당하는 채널이 없습니다.</p> : <div className="overflow-x-auto rounded-md border">
-        <table className="w-full min-w-[1550px] text-sm">
-          <thead className="bg-muted/60"><tr>{["채널 / 주소","이메일 / 발송","출연료","RS(%)","전체 / 분석 영상","구독자","최근 20개 평균","최근 30개 평균 댓글","최근 30개 평균 좋아요","등록 / 업데이트","관리"].map(heading=><th key={heading} className="whitespace-nowrap px-3 py-3 text-left font-medium">{heading}</th>)}</tr></thead>
+        <table className="w-full min-w-[1660px] text-sm">
+          <thead className="bg-muted/60"><tr>{["채널 / 주소","이메일 / 발송","출연료","RS(%)","전체 / 분석 영상","구독자","조회수","댓글","좋아요","최근 영상 조회수 변화","관리"].map(heading=><th key={heading} className="whitespace-nowrap px-3 py-3 text-left font-medium">{heading}</th>)}</tr></thead>
           <tbody>{visibleRuns.map(run=><tr key={run.channel_id} className={`border-t align-top transition-colors ${run.excluded_from_updates ? "bg-muted/70 text-muted-foreground hover:bg-muted/80" : "hover:bg-muted/20"}`}>
             <td className="min-w-60 max-w-72 px-3 py-4"><a href={run.channel.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-semibold hover:underline">{run.channel.thumbnail && <Image unoptimized src={run.channel.thumbnail} alt="" width={36} height={36} className={`size-9 rounded-full ${run.excluded_from_updates ? "grayscale opacity-60" : ""}`} referrerPolicy="no-referrer"/>}<span className="break-words">{run.channel.name}</span><ExternalLink className="size-3 shrink-0"/></a><a href={run.channel.url} target="_blank" rel="noreferrer" className="mt-2 block break-all text-xs text-muted-foreground hover:underline">{displayUrl(run.channel.url)}</a><p className="mt-3 text-xs text-muted-foreground">분류: <span className={run.excluded_from_updates ? "font-medium" : "font-medium text-foreground"}>{run.category ?? "-"}</span></p>{run.excluded_from_updates ? <p className="mt-2 inline-flex rounded-full border bg-background/70 px-2 py-1 text-xs font-medium">유효하지 않은 채널 · 업데이트 제외</p> : null}<div className="mt-2"><ChannelDetailsEditor run={run} onSaved={updateDetails}/></div>{run.warnings.map(warning=><p key={warning} className="mt-2 text-xs text-amber-800">{warning}</p>)}</td>
             <td className="min-w-72 px-3 py-4"><div className="flex items-start gap-3"><div className="min-w-0 flex-1">{run.email ? <button type="button" title="메일에 사용할 강의 선택" className="flex items-start gap-1.5 break-all text-left text-sm text-primary hover:underline" onClick={()=>openEmailComposer(run)}><Mail className="mt-0.5 size-3.5 shrink-0" />{run.email}</button> : <span className="text-muted-foreground">-</span>}</div><label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground" title="출연신청 메일 발송 여부"><Checkbox checked={run.appearance_request_email_sent} disabled={emailStatusSaving.has(run.channel_id)} aria-label={`${run.channel.name} 출연신청 메일 발송 여부`} onCheckedChange={(checked)=>void updateAppearanceRequestEmailSent(run,checked===true)} /><span>발송</span></label></div></td>
@@ -390,10 +439,10 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
             <td className="whitespace-nowrap px-3 py-4 text-right tabular-nums">{run.rs_percent == null ? "-" : `${run.rs_percent}%`}</td>
             <td className="px-3 py-4 tabular-nums">{number(run.channel.reported)} / {number(run.metrics.count)}</td>
             <td className="px-3 py-4 tabular-nums">{run.channel.subscribers===null ? "비공개" : number(run.channel.subscribers)}</td>
-            <td className="px-3 py-4 text-right tabular-nums">{number(run.metrics.recent20)}<span className="mt-1 block text-xs text-muted-foreground">{run.metrics.samples[2]}개</span></td>
-            <td className="px-3 py-4 text-right tabular-nums">{number(run.metrics.recent30Comments)}</td>
-            <td className="px-3 py-4 text-right tabular-nums">{number(run.metrics.recent30Likes)}</td>
-            <td className="min-w-44 px-3 py-4 text-xs leading-5"><span className="block">등록 {date(run.first_analyzed_at)}</span><span>업데이트 {date(run.last_analyzed_at)}</span></td>
+            <td className="min-w-32 px-3 py-4 text-right tabular-nums"><span className="block text-xs text-muted-foreground">최근 3개</span>{number(run.metrics.recent3)}<span className="mt-2 block text-xs text-muted-foreground">최근 7개</span>{number(run.metrics.recent7)}<span className="mt-2 block text-xs text-muted-foreground">최근 20개</span>{number(run.metrics.recent20)}</td>
+            <td className="min-w-32 px-3 py-4 text-right tabular-nums"><span className="block text-xs text-muted-foreground">최근 3개</span>{number(run.metrics.recent3Comments)}<span className="mt-2 block text-xs text-muted-foreground">최근 7개</span>{number(run.metrics.recent7Comments)}<span className="mt-2 block text-xs text-muted-foreground">최근 20개</span>{number(run.metrics.recent20Comments)}</td>
+            <td className="min-w-32 px-3 py-4 text-right tabular-nums"><span className="block text-xs text-muted-foreground">최근 3개</span>{number(run.metrics.recent3Likes)}<span className="mt-2 block text-xs text-muted-foreground">최근 7개</span>{number(run.metrics.recent7Likes)}<span className="mt-2 block text-xs text-muted-foreground">최근 20개</span>{number(run.metrics.recent20Likes)}</td>
+            <td className="min-w-52 px-3 py-4"><YoutubeVideoTrendChart videos={run.recent_videos ?? []} compact /></td>
             <td className="px-3 py-4"><div className="flex items-center gap-1"><Button variant="outline" size="sm" onClick={()=>openDetail(run)}>더보기</Button><Button variant="ghost" size="icon-sm" aria-label={`${run.channel.name} 삭제`} title="채널 삭제" disabled={active(batch)} onClick={()=>{setDeleteError("");setDeleteTarget(run);}}><Trash2 className="size-4"/></Button></div></td>
           </tr>)}</tbody>
         </table>
@@ -458,6 +507,10 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
           <div className="rounded-lg border bg-muted/20 p-4"><p className="text-xs text-muted-foreground">최고 조회수</p><p className="mt-2 text-xl font-semibold tabular-nums">{number(detail.metrics.top?.views)}</p></div>
           <div className="rounded-lg border bg-muted/20 p-4"><p className="text-xs text-muted-foreground">최고 1개 제외 평균 조회수</p><p className="mt-2 text-xl font-semibold tabular-nums">{number(detail.metrics.exclude1)}</p></div>
         </section>}
+        {detail ? <section className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_15rem]">
+          <div>{videos === null ? <div className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">조회수 변화를 불러오는 중입니다.</div> : <YoutubeVideoTrendChart videos={videos ?? []} />}</div>
+          <div className="rounded-xl border bg-muted/20 p-4 text-sm leading-6"><p className="text-xs text-muted-foreground">분석 이력</p><p className="mt-2">등록 {date(detail.first_analyzed_at)}</p><p>업데이트 {date(detail.last_analyzed_at)}</p></div>
+        </section> : null}
         {detail?.memo ? <section aria-label="채널 메모" className="rounded-lg border bg-muted/20 p-4"><p className="text-xs text-muted-foreground">메모</p><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{detail.memo}</p></section> : null}
         {detailError ? <p role="alert" className="text-red-700">{detailError}</p> : videos===null ? <p>영상을 불러오는 중입니다.</p> : !videos.length ? <p>분석된 공개 영상이 없습니다.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[540px] text-sm"><thead><tr>{["영상","게시일","조회수","좋아요","댓글"].map(heading=><th key={heading} className="border-b p-2 text-left">{heading}</th>)}</tr></thead><tbody>{videos.map(video=><tr key={video.id}><td className="max-w-96 border-b p-2"><a className="text-blue-700 hover:underline" href={`https://www.youtube.com/watch?v=${video.id}`} target="_blank" rel="noreferrer">{video.title}</a></td><td className="whitespace-nowrap border-b p-2">{new Date(video.publishedAt).toLocaleDateString("ko-KR")}</td>{[video.views,video.likes,video.comments].map((value,index)=><td key={index} className="border-b p-2 text-right tabular-nums">{number(value)}</td>)}</tr>)}</tbody></table></div>}
       </DialogContent>

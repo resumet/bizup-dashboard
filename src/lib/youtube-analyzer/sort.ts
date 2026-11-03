@@ -1,6 +1,6 @@
 import type { Analysis } from "./model";
 
-export type ChannelSort = "position" | "subscribers" | "topViews" | "exclude1" | "recent20" | "recent30Comments" | "recent30Likes";
+export type ChannelSort = "position" | "subscribers" | "topViews" | "exclude1" | "recent20" | "recent30Comments" | "recent30Likes" | "custom";
 export type SortDirection = "desc" | "asc";
 
 function sortValue(run: Analysis, sort: ChannelSort): number | null {
@@ -11,6 +11,7 @@ function sortValue(run: Analysis, sort: ChannelSort): number | null {
     case "recent20": return run.metrics.recent20;
     case "recent30Comments": return run.metrics.recent30Comments ?? null;
     case "recent30Likes": return run.metrics.recent30Likes ?? null;
+    case "custom": return null;
     case "position": return null;
   }
 }

@@ -51,6 +51,17 @@ test("recent 30 engagement averages use publication order and available statisti
   assert.equal(calculate([{...video("zero",1),likes:0,comments:0}]).recent30Likes,0);
   assert.equal(calculate([{...video("zero",1),likes:0,comments:0}]).recent30Comments,0);
 });
+test("recent metric windows calculate views, comments, and likes independently", () => {
+  const rows=Array.from({length:22},(_,index)=>({
+    ...video(String(index),index + 1,new Date(Date.UTC(2026,0,index + 1)).toISOString()),
+    likes:index + 10,
+    comments:index + 100,
+  }));
+  const result=calculate(rows);
+  assert.equal(result.recent3,(22 + 21 + 20) / 3);
+  assert.equal(result.recent7Likes,(31 + 30 + 29 + 28 + 27 + 26 + 25) / 7);
+  assert.equal(result.recent20Comments,(121 + 120 + 119 + 118 + 117 + 116 + 115 + 114 + 113 + 112 + 111 + 110 + 109 + 108 + 107 + 106 + 105 + 104 + 103 + 102) / 20);
+});
 test("email draft fields preserve formatting and enforce storage limits", () => {
   assert.equal(normalizeYoutubeEmailSubject("  출연 제안  "),"출연 제안");
   assert.equal(normalizeYoutubeEmailSubject("  "),null);

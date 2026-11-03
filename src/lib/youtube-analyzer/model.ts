@@ -30,12 +30,40 @@ export function calculate(videos: Video[]) {
   const recent = [...videos].sort((a,b) => b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id));
   const ranked = [...videos].sort((a,b) => b.views-a.views || b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id));
   const avg = (rows: Video[]) => rows.length ? rows.reduce((sum,v) => sum+v.views, 0)/rows.length : null;
+  const recent3 = recent.slice(0,3);
+  const recent7 = recent.slice(0,7);
+  const recent14 = recent.slice(0,14);
+  const recent20 = recent.slice(0,20);
   const recent30 = recent.slice(0,30);
   const avgAvailable = (values: (number | null)[]) => {
     const available = values.filter((value): value is number => value !== null);
     return available.length ? available.reduce((sum,value) => sum+value,0)/available.length : null;
   };
-  return { count: videos.length, top: ranked[0] ?? null, exclude1: avg(ranked.slice(1)), exclude3: avg(ranked.slice(3)), recent5: avg(recent.slice(0,5)), recent10: avg(recent.slice(0,10)), recent20: avg(recent.slice(0,20)), recent30Likes: avgAvailable(recent30.map(video => video.likes)), recent30Comments: avgAvailable(recent30.map(video => video.comments)), recent30Count: recent30.length, samples: [5,10,20].map(n => Math.min(n,videos.length)) };
+  return {
+    count: videos.length,
+    top: ranked[0] ?? null,
+    exclude1: avg(ranked.slice(1)),
+    exclude3: avg(ranked.slice(3)),
+    recent3: avg(recent3),
+    recent5: avg(recent.slice(0,5)),
+    recent7: avg(recent7),
+    recent10: avg(recent.slice(0,10)),
+    recent14: avg(recent14),
+    recent20: avg(recent20),
+    recent30: avg(recent30),
+    recent3Likes: avgAvailable(recent3.map(video => video.likes)),
+    recent7Likes: avgAvailable(recent7.map(video => video.likes)),
+    recent14Likes: avgAvailable(recent14.map(video => video.likes)),
+    recent20Likes: avgAvailable(recent20.map(video => video.likes)),
+    recent30Likes: avgAvailable(recent30.map(video => video.likes)),
+    recent3Comments: avgAvailable(recent3.map(video => video.comments)),
+    recent7Comments: avgAvailable(recent7.map(video => video.comments)),
+    recent14Comments: avgAvailable(recent14.map(video => video.comments)),
+    recent20Comments: avgAvailable(recent20.map(video => video.comments)),
+    recent30Comments: avgAvailable(recent30.map(video => video.comments)),
+    recent30Count: recent30.length,
+    samples: [5,10,20].map(n => Math.min(n,videos.length)),
+  };
 }
 export type Metrics = Omit<ReturnType<typeof calculate>, "top"> & { top: Video | null };
 export const EMAIL_SIGNATURE_MODES = ["gmail_default", "custom"] as const;
@@ -74,7 +102,7 @@ export const CHANNEL_CATEGORIES = [
   "하이클래스",
 ] as const;
 export type ChannelCategory = (typeof CHANNEL_CATEGORIES)[number];
-export type Analysis = { position: number; channel_id: string; channel: Channel; email: string | null; appearance_request_email_sent: boolean; category: ChannelCategory | null; appearance_fee: number | null; rs_percent: number | null; memo: string | null; excluded_from_updates: boolean; metrics: Metrics; warnings: string[]; first_analyzed_at: string; last_analyzed_at: string };
+export type Analysis = { position: number; channel_id: string; channel: Channel; email: string | null; appearance_request_email_sent: boolean; category: ChannelCategory | null; appearance_fee: number | null; rs_percent: number | null; memo: string | null; excluded_from_updates: boolean; metrics: Metrics; recent_videos?: Video[]; warnings: string[]; first_analyzed_at: string; last_analyzed_at: string };
 export function normalizeChannelCategory(value: unknown): ChannelCategory | null {
   if (value === null || value === "") return null;
   if (typeof value !== "string" || !CHANNEL_CATEGORIES.includes(value as ChannelCategory)) throw new Error("INVALID_CATEGORY");

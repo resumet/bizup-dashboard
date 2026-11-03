@@ -20,10 +20,22 @@ function run(id: string, position: number, values: { subscribers: number | null;
       top: values.top === null ? null : { id: `${id}-video`, title: id, publishedAt: "2026-01-01", views: values.top, likes: null, comments: null },
       exclude1: values.exclude1,
       exclude3: null,
+      recent3: null,
       recent5: null,
+      recent7: null,
       recent10: null,
+      recent14: null,
       recent20: values.recent20,
+      recent30: null,
+      recent3Likes: null,
+      recent7Likes: null,
+      recent14Likes: null,
+      recent20Likes: null,
       recent30Likes: values.recent30Likes,
+      recent3Comments: null,
+      recent7Comments: null,
+      recent14Comments: null,
+      recent20Comments: null,
       recent30Comments: values.recent30Comments,
       recent30Count: 0,
       samples: [0, 0, 0],
@@ -42,7 +54,7 @@ const runs = [
 ];
 
 test("each channel metric sorts high first, with missing values last and ties in registration order", () => {
-  const expected: Record<Exclude<ChannelSort, "position">, string[]> = {
+  const expected: Record<Exclude<ChannelSort, "position" | "custom">, string[]> = {
     subscribers: ["second", "first", "third", "unknown"],
     topViews: ["third", "first", "second", "unknown"],
     exclude1: ["second", "first", "third", "unknown"],
@@ -50,7 +62,7 @@ test("each channel metric sorts high first, with missing values last and ties in
     recent30Comments: ["first", "third", "second", "unknown"],
     recent30Likes: ["second", "first", "third", "unknown"],
   };
-  for (const sort of Object.keys(expected) as Array<Exclude<ChannelSort, "position">>) {
+  for (const sort of Object.keys(expected) as Array<Exclude<ChannelSort, "position" | "custom">>) {
     assert.deepEqual(sortChannels(runs, sort).map(item => item.channel_id), expected[sort]);
   }
   assert.deepEqual(runs.map(item => item.channel_id), ["first", "second", "third", "unknown"]);

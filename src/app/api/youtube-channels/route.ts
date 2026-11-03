@@ -6,7 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireCourseOperationsMembership, requireCourseOperationsUser } from "@/lib/course-operations/server";
-import { DEFAULT_YOUTUBE_EMAIL_SETTINGS, inputs, normalizeAppearanceFee, normalizeAppearanceRequestEmailSent, normalizeChannelCategory, normalizeChannelEmail, normalizeChannelMemo, normalizeExcludedFromUpdates, normalizeRsPercent } from "@/lib/youtube-analyzer/model";
+import { calculate, DEFAULT_YOUTUBE_EMAIL_SETTINGS, inputs, normalizeAppearanceFee, normalizeAppearanceRequestEmailSent, normalizeChannelCategory, normalizeChannelEmail, normalizeChannelMemo, normalizeExcludedFromUpdates, normalizeRsPercent, type Video } from "@/lib/youtube-analyzer/model";
 import { setting } from "@/lib/youtube-analyzer/api";
 import { youtubeAnalysisWorkflow } from "@/workflows/youtube-analysis";
 
@@ -77,6 +77,37 @@ async function batchRequests(admin: SupabaseClient, batchId: string) {
     if (data.length < pageSize) break;
   }
   return requests;
+}
+
+type RecentVideoRow = { channel_id: string; video_id: string; published_at: string; data: Video };
+
+async function withRecentVideos(admin: SupabaseClient, workspaceId: string, rows: Record<string, unknown>[]) {
+  const channelIds = rows.map((row) => String(row.channel_id)).filter(Boolean);
+  if (!channelIds.length) return rows;
+  const videos = await admin.rpc("youtube_channel_recent_videos", {
+    p_workspace_id: workspaceId,
+    p_channel_ids: channelIds,
+    p_limit: 30,
+  });
+  if (videos.error) throw videos.error;
+  const byChannel = new Map<string, Video[]>();
+  for (const row of (videos.data ?? []) as RecentVideoRow[]) {
+    const video = row.data;
+    if (!video || typeof video !== "object" || typeof video.id !== "string") continue;
+    const list = byChannel.get(row.channel_id) ?? [];
+    list.push(video);
+    byChannel.set(row.channel_id, list);
+  }
+  return rows.map((row) => {
+    const recentVideos = byChannel.get(String(row.channel_id)) ?? [];
+    if (!recentVideos.length) return { ...row, recent_videos: [] };
+    const metrics = row.metrics && typeof row.metrics === "object" ? row.metrics as Record<string, unknown> : {};
+    return {
+      ...row,
+      metrics: { ...metrics, ...calculate(recentVideos) },
+      recent_videos: recentVideos.slice(0, 20),
+    };
+  });
 }
 
 export async function GET(request: Request) {
@@ -180,8 +211,9 @@ export async function GET(request: Request) {
       }
     } else if (result.error) throw result.error;
     if (batchId && !batch.data) return NextResponse.json({error:"분석 요청을 찾을 수 없습니다."},{status:404});
+    const hydratedRows = await withRecentVideos(admin, workspaceId, rows!.slice(0, 200));
     return NextResponse.json({
-      runs:rows!.slice(0,200),
+      runs:hydratedRows,
       hasMore:rows!.length>200,
       batch:batch.data,
       requests:requests.data,
