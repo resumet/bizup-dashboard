@@ -98,6 +98,7 @@ type Props = {
   accessToken?: string;
   document?: CourseDocumentDetail;
   fixedTitle?: boolean;
+  fixedTitleText?: string;
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -259,7 +260,7 @@ function ToolbarButton({
   );
 }
 
-export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, document, fixedTitle = false }: Props) {
+export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, document, fixedTitle = false, fixedTitleText }: Props) {
   const initialDocument = useMemo(() => {
     const original = document?.content ?? [];
     const blocks = repairCourseDocumentCallouts(original);
@@ -573,6 +574,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
   const currentLineHeight = typeof editor?.getAttributes("textStyle").lineHeight === "string"
     ? editor.getAttributes("textStyle").lineHeight
     : "default";
+  const displayTitle = fixedTitleText?.trim() || title;
   void selectionRevision;
 
   return (
@@ -754,13 +756,13 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
         <section className="min-h-[46rem] min-w-0 overflow-hidden rounded-xl border bg-background shadow-sm">
           {preview ? (
             <div className="mx-auto w-full max-w-3xl px-6 py-12 sm:px-12">
-              <h1 className="mb-10 text-4xl font-bold tracking-tight text-balance sm:text-5xl">{title || "제목 없음"}</h1>
+              <h1 className="mb-10 whitespace-pre-wrap break-words text-4xl font-bold tracking-tight text-balance sm:text-5xl">{displayTitle || "제목 없음"}</h1>
               <DocumentRenderer blocks={blocks} />
             </div>
           ) : (
             <div className="mx-auto w-full max-w-none px-6 py-10 sm:px-12 lg:px-16 lg:py-14">
               {fixedTitle ? (
-                <h1 className="py-2 text-4xl font-bold tracking-tight text-balance sm:text-5xl">{title}</h1>
+                <h1 className="py-2 whitespace-pre-wrap break-words text-4xl font-bold tracking-tight text-balance sm:text-5xl">{displayTitle}</h1>
               ) : (
                 <Input
                   value={title}

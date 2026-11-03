@@ -93,6 +93,10 @@ export function visibleExternalInstagramMaterials(materials: CourseDocumentMater
   return materials.filter((material) => !material.dmNotRequired && material.title.trim());
 }
 
+export function instagramExternalEditorTitle(dmMaterialDescription: string, documentTitle: string) {
+  return dmMaterialDescription.trim() || documentTitle;
+}
+
 export function mergeInstagramFilmingDates(
   materials: CourseDocumentMaterial[],
   updates: Array<

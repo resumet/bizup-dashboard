@@ -10,6 +10,7 @@ import {
   courseDocumentReferencePlanningNumberSchema,
   courseDocumentMaterials,
   instagramBulkFilmingSelectablePositions,
+  instagramExternalEditorTitle,
   mergeInstagramFilmingDates,
   parseInstagramBulkTitles,
   visibleExternalInstagramMaterials,
@@ -102,6 +103,11 @@ test("외부 공개 목록은 제목이 있고 DM 자료가 필요한 항목만 
   ], 3);
 
   assert.deepEqual(visibleExternalInstagramMaterials(materials).map((material) => material.position), [1]);
+});
+
+test("외부 편집 화면은 DM 자료 텍스트를 제목으로 사용하고 빈 값은 문서 제목으로 대체한다", () => {
+  assert.equal(instagramExternalEditorTitle("  댓글 작성 후\n자료 확인  ", "기존 문서 제목"), "댓글 작성 후\n자료 확인");
+  assert.equal(instagramExternalEditorTitle("   ", "기존 문서 제목"), "기존 문서 제목");
 });
 
 test("일괄 제목은 줄 순서를 유지하고 끝의 빈 줄만 제거한다", () => {
