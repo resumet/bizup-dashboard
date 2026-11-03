@@ -298,6 +298,15 @@ export async function PATCH(request: Request) {
       return NextResponse.json({error:"잘못된 입력입니다."},{status:400});
     }
     const fields = body as Record<string,unknown>;
+    if (fields.analysisAction === "stopAll") {
+      const result = await admin.from("youtube_analysis_batches")
+        .update({stop_requested:true,status:"pausing"})
+        .eq("workspace_id",workspaceId)
+        .in("status",["pending","running"])
+        .select("id");
+      if (result.error) throw result.error;
+      return NextResponse.json({stoppingCount:result.data.length});
+    }
     if (fields.reanalysisAction === "stop") {
       const batchId = fields.batchId;
       if (typeof batchId !== "string" || !uuid.test(batchId)) return NextResponse.json({error:"중단할 분석을 찾을 수 없습니다."},{status:400});

@@ -77,6 +77,8 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   const [engagementMessage,setEngagementMessage] = useState("");
   const [engagementError,setEngagementError] = useState("");
   const [reanalyzingAll,setReanalyzingAll] = useState(false);
+  const [stoppingAll,setStoppingAll] = useState(false);
+  const [stopAllMessage,setStopAllMessage] = useState("");
   const [reanalyzingChannelId,setReanalyzingChannelId] = useState<string | null>(null);
   const [reanalysisOpen,setReanalysisOpen] = useState(false);
   const [reanalysisSummary,setReanalysisSummary] = useState<{eligibleCount:number;resumable:{id:string;input_count:number;status:string;created_at:string;paused_at:string|null}|null}>({eligibleCount:0,resumable:null});
@@ -272,6 +274,18 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     catch (caught) { setReanalysisError(caught instanceof Error ? caught.message : "재분석 중단을 요청하지 못했습니다."); }
   }
 
+  async function stopAllAnalyses() {
+    setStoppingAll(true);
+    setStopAllMessage("");
+    try {
+      const result=await api("",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({analysisAction:"stopAll"})}) as {stoppingCount:number};
+      setStopAllMessage(result.stoppingCount ? `${number(result.stoppingCount)}개 분석 작업에 중단을 요청했습니다.` : "현재 실행 중인 분석 작업이 없습니다.");
+      setRevision(value=>value+1);
+    } catch(caught) {
+      setStopAllMessage(caught instanceof Error ? caught.message : "전체 중단을 요청하지 못했습니다.");
+    } finally { setStoppingAll(false); }
+  }
+
   async function refreshEngagement() {
     setRefreshingEngagement(true);
     setEngagementMessage("");
@@ -410,7 +424,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
 
   return <main className="mx-auto min-h-screen max-w-[1900px] space-y-6 px-4 py-6 sm:px-8">
     <div className="flex flex-wrap items-center justify-end gap-4 pb-5">
-      <div className="flex flex-wrap items-center gap-2"><Button variant="outline" asChild><a href="https://app.notion.com/p/546dedee10858312b94e818475d3d9bf" target="_blank" rel="noopener noreferrer"><ExternalLink className="size-4"/>시스템 노바 출연료/RS</a></Button><Button variant="outline" disabled={reanalyzingAll || refreshingEngagement || submitting || analysisPending || loading || !runs.length} onClick={()=>setReanalysisOpen(true)}><RefreshCw className="size-4"/>채널 재분석</Button><Button variant="outline" disabled={refreshingEngagement || reanalyzingAll || analysisPending} onClick={()=>void refreshEngagement()}>{refreshingEngagement ? <LoaderCircle className="size-4 animate-spin"/> : <RefreshCw className="size-4"/>}전체 평균 갱신 (임시)</Button><EmailDraftSettings settings={emailSettings} onSaved={setEmailSettings}/><Button onClick={openAddDialog}>{analysisPending ? <LoaderCircle className="size-4 animate-spin"/> : <Plus className="size-4"/>}{analysisPending ? "분석 중" : "채널 추가"}</Button><Button variant="outline" size="icon" title="새로고침" aria-label="새로고침" onClick={()=>setRevision(value=>value+1)}><RefreshCw className="size-4"/></Button></div>
+      <div className="flex flex-wrap items-center gap-2"><Button variant="outline" asChild><a href="https://app.notion.com/p/546dedee10858312b94e818475d3d9bf" target="_blank" rel="noopener noreferrer"><ExternalLink className="size-4"/>시스템 노바 출연료/RS</a></Button><Button variant="outline" disabled={reanalyzingAll || refreshingEngagement || submitting || analysisPending || loading || !runs.length} onClick={()=>setReanalysisOpen(true)}><RefreshCw className="size-4"/>채널 재분석</Button><Button variant="destructive" disabled={stoppingAll} onClick={()=>void stopAllAnalyses()}>{stoppingAll ? <LoaderCircle className="size-4 animate-spin"/> : <Pause className="size-4"/>}전체 분석 중단 (임시)</Button><Button variant="outline" disabled={refreshingEngagement || reanalyzingAll || analysisPending} onClick={()=>void refreshEngagement()}>{refreshingEngagement ? <LoaderCircle className="size-4 animate-spin"/> : <RefreshCw className="size-4"/>}전체 평균 갱신 (임시)</Button><EmailDraftSettings settings={emailSettings} onSaved={setEmailSettings}/><Button onClick={openAddDialog}>{analysisPending ? <LoaderCircle className="size-4 animate-spin"/> : <Plus className="size-4"/>}{analysisPending ? "분석 중" : "채널 추가"}</Button><Button variant="outline" size="icon" title="새로고침" aria-label="새로고침" onClick={()=>setRevision(value=>value+1)}><RefreshCw className="size-4"/></Button></div>
     </div>
 
     {error && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
@@ -419,18 +433,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     {engagementError && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{engagementError}</p>}
     {engagementMessage && <p role="status" className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{engagementMessage}</p>}
     {emailStatusError && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{emailStatusError}</p>}
-
-    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {(["down","up"] as const).flatMap(direction=>([7,15] as const).map(period=>{
-        const declines = runs.filter(run=>!run.excluded_from_updates).filter(run=>{
-          const recent = [...(run.recent_videos ?? [])].sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id));
-          if (recent.length < period * 2) return false;
-          const average = (videos: Video[]) => videos.reduce((sum,video)=>sum+video.views,0)/videos.length;
-          return direction === "up" ? average(recent.slice(0,period)) > average(recent.slice(period,period*2)) : average(recent.slice(0,period)) < average(recent.slice(period,period*2));
-        });
-        return <div key={`${direction}-${period}`} className="rounded-xl border bg-muted/20 p-4"><h2 className="font-semibold">최근 {period}개 조회수 {direction === "up" ? "상승" : "하락"} 채널</h2><p className="mt-3 text-sm">{declines.length ? declines.map(run=>run.channel.name).join(", ") : "해당 채널이 없습니다."}</p></div>;
-      }))}
-    </section>
+    {stopAllMessage && <p role="status" className="rounded-md border bg-muted/30 p-3 text-sm">{stopAllMessage}</p>}
 
     <section className="space-y-4 border-t pt-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
