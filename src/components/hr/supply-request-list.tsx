@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink, Loader2, PackageOpen } from "lucide-react";
+import { ExternalLink, Loader2, PackageOpen, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -96,6 +96,29 @@ export function SupplyRequestList({
     }
   }
 
+  async function deleteRequest(item: SupplyRequest) {
+    if (busy) return;
+    const message = item.purchased
+      ? `“${item.itemName}” 신청을 삭제하면 구매 완료로 연결된 입출금 비용도 함께 삭제됩니다. 계속할까요?`
+      : `“${item.itemName}” 신청 내역을 삭제할까요?`;
+    if (!window.confirm(message)) return;
+
+    setBusy(`${item.id}:delete`);
+    setError("");
+    try {
+      const response = await fetch(`/api/hr/supplies/${item.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({})) as { message?: string };
+        throw new Error(body.message ?? "신청 내역을 삭제하지 못했습니다.");
+      }
+      setRequests((current) => current.filter((request) => request.id !== item.id));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "신청 내역을 삭제하지 못했습니다.");
+    } finally {
+      setBusy("");
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="border-b">
@@ -126,6 +149,7 @@ export function SupplyRequestList({
                 <col className="w-[13%]" />
                 <col className="w-[9%]" />
                 <col className="w-[9%]" />
+                {canManage ? <col className="w-[7%]" /> : null}
               </colgroup>
               <TableHeader>
                 <TableRow>
@@ -139,6 +163,7 @@ export function SupplyRequestList({
                   <TableHead>비고</TableHead>
                   <TableHead>승인 여부</TableHead>
                   <TableHead className="pr-4">구매 여부</TableHead>
+                  {canManage ? <TableHead className="pr-4 text-center">삭제</TableHead> : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -146,6 +171,7 @@ export function SupplyRequestList({
                   const approvalBusy = busy === `${item.id}:approval`;
                   const purchaseBusy = busy === `${item.id}:purchase`;
                   const assigneeBusy = busy === `${item.id}:assignee`;
+                  const deleteBusy = busy === `${item.id}:delete`;
                   return (
                     <TableRow key={item.id}>
                       <TableCell className="pl-4 whitespace-nowrap">{dateFormatter.format(new Date(item.requestedAt))}</TableCell>
@@ -235,6 +261,21 @@ export function SupplyRequestList({
                           </div>
                         ) : <PurchaseBadge purchased={item.purchased} />}
                       </TableCell>
+                      {canManage ? (
+                        <TableCell className="pr-4 text-center">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="text-destructive hover:text-destructive"
+                            aria-label={`${item.itemName} 신청 내역 삭제`}
+                            disabled={Boolean(busy)}
+                            onClick={() => void deleteRequest(item)}
+                          >
+                            {deleteBusy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Trash2 aria-hidden="true" />}
+                          </Button>
+                        </TableCell>
+                      ) : null}
                     </TableRow>
                   );
                 })}

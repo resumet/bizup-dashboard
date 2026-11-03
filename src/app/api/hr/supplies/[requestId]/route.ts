@@ -1,6 +1,7 @@
 import { SupplyRequestConflictError, supplyRequestCommandSchema } from "@/lib/supply-requests/model";
 import {
   requireSupplyRequestContext,
+  deleteSupplyRequest,
   SupplyRequestServerError,
   updateSupplyRequest,
 } from "@/lib/supply-requests/server";
@@ -43,6 +44,33 @@ export async function PATCH(
         : error instanceof Error
           ? error.message
           : "비품 신청 상태를 변경하지 못했습니다.";
+    return Response.json({ message }, { status });
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  context: { params: Promise<{ requestId: string }> },
+) {
+  try {
+    const { requestId } = await context.params;
+    if (!UUID.test(requestId)) {
+      return Response.json({ message: "비품 신청 내역을 확인해 주세요." }, { status: 400 });
+    }
+    const supplyContext = await requireSupplyRequestContext();
+    await deleteSupplyRequest(supplyContext, requestId);
+    return new Response(null, { status: 204 });
+  } catch (error) {
+    const status = error instanceof Error && error.message === "UNAUTHORIZED"
+      ? 401
+      : error instanceof SupplyRequestServerError
+        ? error.status
+        : 500;
+    const message = error instanceof Error && error.message === "UNAUTHORIZED"
+      ? "로그인이 필요합니다."
+      : error instanceof Error
+        ? error.message
+        : "비품 신청 내역을 삭제하지 못했습니다.";
     return Response.json({ message }, { status });
   }
 }

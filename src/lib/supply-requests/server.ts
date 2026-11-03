@@ -207,3 +207,27 @@ export async function updateSupplyRequest(
   });
   return request;
 }
+
+export async function deleteSupplyRequest(
+  context: SupplyRequestContext,
+  requestId: string,
+) {
+  if (!context.isAdmin) {
+    throw new SupplyRequestServerError("관리자만 비품 신청 내역을 삭제할 수 있습니다.", 403);
+  }
+
+  const { data, error } = await context.admin
+    .from("supply_requests")
+    .delete()
+    .eq("workspace_id", context.workspaceId)
+    .eq("id", requestId)
+    .select("id,item_name,purchased")
+    .maybeSingle();
+  if (error) throw databaseError(error.message);
+  if (!data) throw new SupplyRequestServerError("비품 신청 내역을 찾을 수 없습니다.", 404);
+
+  await audit(context.admin, context.workspaceId, context.user.id, "supply_request.deleted", data.id, {
+    itemName: data.item_name,
+    purchased: data.purchased,
+  });
+}
