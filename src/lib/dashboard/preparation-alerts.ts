@@ -8,7 +8,7 @@ export type PreparationAlert = {
   dueDate: string;
 };
 
-type CalendarAlertEvent = { id: string; title: string; event_date: string; meeting_type: { name: string } | null };
+type CalendarAlertEvent = { id: string; title: string; event_date: string; meeting_type: { name: string } | { name: string }[] | null };
 
 function shiftDate(date: string, days: number) {
   const value = new Date(`${date}T00:00:00Z`);
@@ -23,7 +23,8 @@ export function buildPreparationAlerts({ today, events, courses, completedKeys }
 }) {
   const alerts: PreparationAlert[] = [];
   for (const event of events) {
-    const text = `${event.title} ${event.meeting_type?.name ?? ""}`.replaceAll(" ", "");
+    const meetingType = Array.isArray(event.meeting_type) ? event.meeting_type[0] : event.meeting_type;
+    const text = `${event.title} ${meetingType?.name ?? ""}`.replaceAll(" ", "");
     const dueDate = shiftDate(event.event_date, -2);
     if (dueDate > today || event.event_date < today) continue;
     const isInstagram = text.includes("인스타") && text.includes("촬영");
