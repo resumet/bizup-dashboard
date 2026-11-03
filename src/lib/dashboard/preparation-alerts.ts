@@ -25,11 +25,11 @@ export function buildPreparationAlerts({ today, events, courses, completedKeys }
   for (const event of events) {
     const meetingType = Array.isArray(event.meeting_type) ? event.meeting_type[0] : event.meeting_type;
     const text = `${event.title} ${meetingType?.name ?? ""}`.replaceAll(" ", "");
-    const dueDate = shiftDate(event.event_date, -2);
-    if (dueDate > today || event.event_date < today) continue;
     const isInstagram = text.includes("인스타") && text.includes("촬영");
     const isAd = text.includes("광고") && text.includes("촬영");
     if (!isInstagram && !isAd) continue;
+    const dueDate = shiftDate(event.event_date, isInstagram ? -3 : -4);
+    if (dueDate > today || event.event_date < today) continue;
     const type = isInstagram ? "instagram_filming_plan" : "ad_filming_plan";
     const key = `calendar:${event.id}:${type}`;
     if (!completedKeys.has(key)) alerts.push({ key, type, dueDate, title: isInstagram ? "인스타그램 기획 확인" : "광고 촬영 기획 확인", description: `${event.event_date} ${event.title} 일정 전 기획 완료 여부를 확인해 주세요.` });
@@ -37,14 +37,15 @@ export function buildPreparationAlerts({ today, events, courses, completedKeys }
   for (const course of courses.filter((course) => course.status === "ongoing")) {
     const date = webinarDate(course.free_webinar_at);
     if (!date || date < today) continue;
-    for (const [type, taskKey, offset, title] of [
-      ["webinar_assets", "free-webinar-assets", 25, "광고 소재 준비 확인"],
-      ["course_materials", "course-materials", 21, "교안 준비 확인"],
+    for (const [type, taskKey, title] of [
+      ["webinar_assets", "free-webinar-assets", "광고 소재 준비 확인"],
+      ["course_materials", "course-materials", "교안 준비 확인"],
     ] as const) {
       const task = course.required_tasks.find((item) => item.key === taskKey);
-      const dueDate = shiftDate(date, -offset);
+      const dueDate = shiftDate(date, -28);
+      const endDate = type === "webinar_assets" ? (task?.dueDate || shiftDate(date, -21)) : date;
       const key = `course:${course.id}:${type}`;
-      if (!task?.completed && dueDate <= today && !completedKeys.has(key)) alerts.push({ key, type, dueDate, title, description: `${course.instructor_name || course.name} · 웨비나 ${date} 전 준비 상태를 확인해 주세요.` });
+      if (!task?.completed && dueDate <= today && today <= endDate && !completedKeys.has(key)) alerts.push({ key, type, dueDate, title, description: `${course.instructor_name || course.name} · 웨비나 ${date} 전 준비 상태를 확인해 주세요.` });
     }
   }
   return alerts.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.title.localeCompare(b.title, "ko"));

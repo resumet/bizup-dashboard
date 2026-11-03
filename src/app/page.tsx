@@ -46,7 +46,7 @@ export default async function HomePage() {
   const range = { from: today, to: today };
   const alertAdmin = createAdminClient();
   const alertRangeEnd = new Date(`${today}T00:00:00Z`);
-  alertRangeEnd.setUTCDate(alertRangeEnd.getUTCDate() + 2);
+  alertRangeEnd.setUTCDate(alertRangeEnd.getUTCDate() + 4);
   const [tripReportsResult, coursesResult, wbsResult, instagramPreparationResult, youtubePreparationResult, eventsResult, webinarsResult, leavesResult, externalMarketingResult, menuSearchResult, alertEventsResult, alertCompletionsResult] = await Promise.allSettled([
     loadBusinessTripDashboardSummary(context.workspaceId),
     getCachedCourseSummaries(context.workspaceId),
