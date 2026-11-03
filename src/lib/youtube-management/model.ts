@@ -4,6 +4,7 @@ import type { YoutubeFilmingAlertWeeks } from "./settings";
 
 export const BRIEF_FIELDS = [
   { key: "basicInfo", section: "1. 기본 정보", label: "이름 및 활동명, 강사님 연락처" },
+  { key: "profilePhoto", section: "1. 기본 정보", label: "프로필 사진 링크" },
   { key: "topic", section: "2. 강의 및 콘텐츠 소개", label: "주요 강의 주제 및 내용" },
   { key: "studentResults", section: "2. 강의 및 콘텐츠 소개", label: "주요 수강생 성과 사례" },
   { key: "strengths", section: "2. 강의 및 콘텐츠 소개", label: "강의·콘텐츠 강점 또는 차별점" },
