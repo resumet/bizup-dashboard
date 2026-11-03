@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useDeferredValue, useEffect, useId, useState } from "react";
+import { useDeferredValue, useEffect, useId, useRef, useState } from "react";
 import { ArrowRight, BookOpenCheck, CalendarDays, ChevronDown, Search, X } from "lucide-react";
 
 import { DashboardCourseOptions } from "@/components/dashboard/dashboard-course-options";
@@ -31,7 +31,11 @@ export function DashboardMenuSearch({
   customKeywords: DashboardMenuCustomKeywords;
 }) {
   const inputId = useId();
+  const resultsId = useId();
+  const resultsPanel = useRef<HTMLDivElement>(null);
+  const searchTargets = useRef<Array<HTMLElement | null>>([]);
   const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [calendarResults, setCalendarResults] = useState<CalendarSearchResult[]>([]);
   const [calendarPending, setCalendarPending] = useState(false);
   const [calendarError, setCalendarError] = useState("");
@@ -39,9 +43,12 @@ export function DashboardMenuSearch({
   const menus = filterDashboardMenus(deferredQuery, customKeywords).slice(0, 8);
   const courseResults = filterDashboardCourses(courses, deferredQuery);
   const hasQuery = query.trim().length > 0;
+  const calendarItems = hasQuery ? calendarResults.slice(0, 6) : [];
+  const resultCount = menus.length + (hasQuery ? courseResults.length + calendarItems.length : 0);
 
   function updateQuery(value: string) {
     setQuery(value);
+    setActiveIndex(0);
     if (!value.trim()) {
       setCalendarResults([]);
       setCalendarPending(false);
@@ -51,6 +58,37 @@ export function DashboardMenuSearch({
       setCalendarError("");
     }
   }
+
+  function moveActiveIndex(direction: 1 | -1) {
+    if (!resultCount) return;
+    setActiveIndex((current) => {
+      if (current < 0) return direction === 1 ? 0 : resultCount - 1;
+      return (current + direction + resultCount) % resultCount;
+    });
+  }
+
+  function activateCurrentResult() {
+    const target = searchTargets.current[activeIndex];
+    if (!target) return;
+    target.focus();
+    target.click();
+  }
+
+  useEffect(() => {
+    if (activeIndex < 0) return;
+    const panel = resultsPanel.current;
+    const target = searchTargets.current[activeIndex];
+    if (!panel || !target) return;
+
+    const panelBounds = panel.getBoundingClientRect();
+    const targetBounds = target.getBoundingClientRect();
+    const padding = 12;
+    if (targetBounds.top < panelBounds.top + padding) {
+      panel.scrollBy({ top: targetBounds.top - panelBounds.top - padding, behavior: "smooth" });
+    } else if (targetBounds.bottom > panelBounds.bottom - padding) {
+      panel.scrollBy({ top: targetBounds.bottom - panelBounds.bottom + padding, behavior: "smooth" });
+    }
+  }, [activeIndex]);
 
   useEffect(() => {
     const keyword = deferredQuery.trim();
@@ -81,28 +119,46 @@ export function DashboardMenuSearch({
           type="search"
           className="h-12 border-slate-200 bg-slate-50 pr-12 pl-11 text-base md:text-base"
           value={query}
+          role="combobox"
+          aria-expanded="true"
+          aria-controls={resultsId}
+          aria-activedescendant={activeIndex >= 0 ? `${resultsId}-item-${activeIndex}` : undefined}
+          onFocus={() => { if (activeIndex < 0) setActiveIndex(0); }}
           onChange={(event) => updateQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+              event.preventDefault();
+              moveActiveIndex(1);
+            } else if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
+              event.preventDefault();
+              moveActiveIndex(-1);
+            } else if (event.key === "Enter" && activeIndex >= 0) {
+              event.preventDefault();
+              activateCurrentResult();
+            }
+          }}
           placeholder="강사명 또는 메뉴명을 검색하세요"
           autoComplete="off"
         />
         {query ? <Button type="button" variant="ghost" size="icon-sm" className="absolute top-1/2 right-2 -translate-y-1/2" aria-label="검색어 지우기" onClick={() => updateQuery("")}><X /></Button> : null}
       </div>
 
-      <div className="mt-4" aria-live="polite">
+      <div ref={resultsPanel} id={resultsId} role="listbox" className="mt-4 max-h-[min(32rem,calc(100dvh-10rem))] overflow-y-auto pr-1" aria-live="polite">
         <p className="mb-2 text-xs font-semibold tracking-wide text-slate-500">{hasQuery ? "추천 메뉴" : "자주 찾는 메뉴"}</p>
         {menus.length ? <div className="flex flex-wrap gap-2">
-          {menus.map((menu, index) => <Button key={menu.href} variant="outline" size="sm" className={`h-auto min-h-9 ${MENU_CHIP_COLORS[index % MENU_CHIP_COLORS.length]}`} asChild>
-            <Link href={menu.href}><span>{menu.label}</span><ArrowRight className="size-3.5 opacity-60" /></Link>
+          {menus.map((menu, index) => <Button key={menu.href} variant="outline" size="sm" className={`h-auto min-h-9 ${MENU_CHIP_COLORS[index % MENU_CHIP_COLORS.length]} ${activeIndex === index ? "ring-2 ring-slate-900 ring-offset-1" : ""}`} asChild>
+            <Link id={`${resultsId}-item-${index}`} ref={(node) => { searchTargets.current[index] = node; }} role="option" aria-selected={activeIndex === index} href={menu.href} onMouseEnter={() => setActiveIndex(index)}><span>{menu.label}</span><ArrowRight className="size-3.5 opacity-60" /></Link>
           </Button>)}
         </div> : <p className="text-sm text-muted-foreground">일치하는 메뉴가 없습니다.</p>}
-      </div>
 
       {hasQuery && courseResults.length ? <div className="mt-5 border-t pt-4">
         <p className="mb-3 text-xs font-semibold tracking-wide text-slate-500">강사·강의 추천</p>
         <div className="grid gap-3 xl:grid-cols-2">
-          {courseResults.map((course) => <DropdownMenu key={course.id}>
+          {courseResults.map((course, courseIndex) => {
+            const index = menus.length + courseIndex;
+            return <DropdownMenu key={course.id}>
             <DropdownMenuTrigger asChild>
-              <button type="button" aria-label={`${course.name} 이동 메뉴 열기`} className="group flex w-full items-start gap-3 rounded-xl border border-slate-200 p-3.5 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 data-[state=open]:border-blue-300 data-[state=open]:bg-blue-50/60">
+              <button id={`${resultsId}-item-${index}`} ref={(node) => { searchTargets.current[index] = node; }} role="option" aria-selected={activeIndex === index} type="button" aria-label={`${course.name} 이동 메뉴 열기`} onMouseEnter={() => setActiveIndex(index)} className={`group flex w-full items-start gap-3 rounded-xl border border-slate-200 p-3.5 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 data-[state=open]:border-blue-300 data-[state=open]:bg-blue-50/60 ${activeIndex === index ? "border-slate-900 ring-2 ring-slate-900 ring-offset-1" : ""}`}>
                 <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-700"><BookOpenCheck className="size-4" aria-hidden="true" /></span>
                 <span className="min-w-0 flex-1">
                   <span className="flex min-w-0 items-center gap-2">
@@ -122,13 +178,16 @@ export function DashboardMenuSearch({
               </button>
             </DropdownMenuTrigger>
             <DashboardCourseOptions courseId={course.id} />
-          </DropdownMenu>)}
+          </DropdownMenu>;
+          })}
         </div>
       </div> : hasQuery && !menus.length ? <p className="mt-4 text-sm text-muted-foreground">‘{query.trim()}’에 맞는 강사나 강의를 찾지 못했습니다.</p> : null}
       {hasQuery && (calendarPending || calendarResults.length > 0 || calendarError) ? <div className="mt-5 border-t pt-4">
         <p className="mb-3 text-xs font-semibold tracking-wide text-slate-500">공용 캘린더 일정</p>
-        {calendarPending ? <p className="text-sm text-muted-foreground">일정을 검색하는 중입니다.</p> : calendarError ? <p className="text-sm text-destructive">{calendarError}</p> : <div className="grid gap-3 xl:grid-cols-2">
-          {calendarResults.slice(0, 6).map((event) => <Link key={`${event.source}:${event.id}`} href={`/calendar?date=${encodeURIComponent(event.event_date)}`} className="group flex items-start gap-3 rounded-xl border border-slate-200 p-3.5 transition-colors hover:border-violet-300 hover:bg-violet-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2">
+          {calendarPending ? <p className="text-sm text-muted-foreground">일정을 검색하는 중입니다.</p> : calendarError ? <p className="text-sm text-destructive">{calendarError}</p> : <div className="grid gap-3 xl:grid-cols-2">
+          {calendarItems.map((event, calendarIndex) => {
+            const index = menus.length + courseResults.length + calendarIndex;
+            return <Link id={`${resultsId}-item-${index}`} ref={(node) => { searchTargets.current[index] = node; }} role="option" aria-selected={activeIndex === index} key={`${event.source}:${event.id}`} href={`/calendar?date=${encodeURIComponent(event.event_date)}`} onMouseEnter={() => setActiveIndex(index)} className={`group flex items-start gap-3 rounded-xl border border-slate-200 p-3.5 transition-colors hover:border-violet-300 hover:bg-violet-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 ${activeIndex === index ? "border-slate-900 ring-2 ring-slate-900 ring-offset-1" : ""}`}>
             <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-violet-50 text-violet-700"><CalendarDays className="size-4" aria-hidden="true" /></span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-semibold text-slate-900 group-hover:text-violet-700">{event.title}</span>
@@ -136,9 +195,11 @@ export function DashboardMenuSearch({
               {event.location_label ? <span className="mt-0.5 block truncate text-xs text-muted-foreground">{event.location_label}</span> : null}
             </span>
             <ArrowRight className="mt-1 size-4 shrink-0 text-slate-400 group-hover:text-violet-600" aria-hidden="true" />
-          </Link>)}
+          </Link>;
+          })}
         </div>}
       </div> : null}
+      </div>
     </section>
   );
 }
