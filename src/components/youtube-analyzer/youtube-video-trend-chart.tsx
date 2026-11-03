@@ -1,21 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Video } from "@/lib/youtube-analyzer/model";
 
 type YoutubeVideoTrendChartProps = {
   videos: Video[];
   compact?: boolean;
+  channelId?: string;
 };
 
 const number = (value: number) => Math.round(value).toLocaleString("ko-KR");
 
-export function YoutubeVideoTrendChart({ videos, compact = false }: YoutubeVideoTrendChartProps) {
+export function YoutubeVideoTrendChart({ videos, compact = false, channelId }: YoutubeVideoTrendChartProps) {
   const [selectedId,setSelectedId] = useState<string | null>(null);
-  const recent = [...videos]
+  const [fallbackVideos,setFallbackVideos] = useState<Video[] | null>(null);
+
+  useEffect(() => {
+    if (videos.length || !channelId) return;
+    const controller = new AbortController();
+    fetch(`/api/youtube-channels?channelId=${encodeURIComponent(channelId)}`, { cache:"no-store", signal:controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("recent videos request failed");
+        const data = await response.json() as { videos?: Video[] };
+        if (!controller.signal.aborted) setFallbackVideos(Array.isArray(data.videos) ? data.videos : []);
+      })
+      .catch(() => { if (!controller.signal.aborted) setFallbackVideos([]); });
+    return () => controller.abort();
+  }, [videos,channelId]);
+
+  const sourceVideos = videos.length ? videos : (fallbackVideos ?? []);
+  const recent = [...sourceVideos]
     .sort((left, right) => left.publishedAt.localeCompare(right.publishedAt) || left.id.localeCompare(right.id))
     .slice(-40);
-  if (!recent.length) return <p className={compact ? "text-xs text-muted-foreground" : "py-12 text-center text-sm text-muted-foreground"}>표시할 최근 영상이 없습니다.</p>;
+  if (!recent.length) return <p className={compact ? "text-xs text-muted-foreground" : "py-12 text-center text-sm text-muted-foreground"}>{fallbackVideos === null && !videos.length && channelId ? "최근 영상을 불러오는 중입니다." : "표시할 최근 영상이 없습니다."}</p>;
 
   const values = recent.map((video) => video.views);
   const maximum = Math.max(...values, 1);

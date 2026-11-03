@@ -89,6 +89,7 @@ const DASHBOARD_QUICK_LINKS = [
   { label: "근태", href: "/hr/leave", icon: CalendarCheck2 },
   { label: "업무일지", href: "/hr", icon: NotebookPen },
   { label: "팀일정", href: "/calendar", icon: CalendarRange },
+  { label: "강의일정 플래너", href: "/services/course-schedule-planner", icon: CalendarClock },
   { label: "출장보고서", href: "/services/business-trip-reports", icon: PlaneTakeoff },
 ] as const;
 
