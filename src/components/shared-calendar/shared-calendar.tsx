@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 const COLORS: Record<string, string> = {
   instructor_zoom: "bg-blue-100 text-blue-900", rehearsal: "bg-amber-100 text-amber-950",
   webinar: "bg-violet-100 text-violet-900", weekly_meeting: "bg-emerald-100 text-emerald-900",
+  youtube_filming: "bg-rose-100 text-rose-950",
   external_marketing_creative: "bg-orange-100 text-orange-950",
 };
 
