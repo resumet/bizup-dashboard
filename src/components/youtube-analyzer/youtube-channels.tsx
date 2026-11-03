@@ -51,6 +51,7 @@ function upwardTrend(run: Analysis) {
   const recentVideos = [...(run.recent_videos ?? [])]
     .sort((left, right) => left.publishedAt.localeCompare(right.publishedAt) || left.id.localeCompare(right.id))
     .slice(-40);
+  if (recentVideos.slice(-5).some((video) => video.views <= 10_000)) return null;
   const videos = [...recentVideos]
     .sort((left, right) => left.views - right.views || left.publishedAt.localeCompare(right.publishedAt) || left.id.localeCompare(right.id))
     .slice(2, -2)
@@ -466,7 +467,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     {stopAllMessage && <p role="status" className="rounded-md border bg-muted/30 p-3 text-sm">{stopAllMessage}</p>}
 
     <section aria-labelledby="upward-channel-recommendations" className="border-y border-emerald-200/70 bg-emerald-50/35 py-4 dark:border-emerald-900/70 dark:bg-emerald-950/15">
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2"><h2 id="upward-channel-recommendations" className="font-semibold text-emerald-950 dark:text-emerald-100">우상향 추천 채널</h2><p className="text-xs text-emerald-800/80 dark:text-emerald-200/80">최근 최대 40개에서 최고·최저 조회수 각 2개 제외</p></div>
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2"><h2 id="upward-channel-recommendations" className="font-semibold text-emerald-950 dark:text-emerald-100">우상향 추천 채널</h2><p className="text-xs text-emerald-800/80 dark:text-emerald-200/80">최근 5개 모두 1만 회 초과 · 최고·최저 각 2개 제외</p></div>
       {upwardRecommendations.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{upwardRecommendations.map(({run,trend}, index) => {
         const colors = ["border-sky-200 bg-sky-50 text-sky-950 hover:bg-sky-100", "border-emerald-200 bg-emerald-50 text-emerald-950 hover:bg-emerald-100", "border-amber-200 bg-amber-50 text-amber-950 hover:bg-amber-100", "border-rose-200 bg-rose-50 text-rose-950 hover:bg-rose-100", "border-violet-200 bg-violet-50 text-violet-950 hover:bg-violet-100"];
         return <button type="button" key={run.channel_id} onClick={()=>openDetail(run)} className={`group rounded-xl border p-3 text-left transition-colors dark:border-white/10 dark:bg-white/5 dark:text-foreground dark:hover:bg-white/10 ${colors[index]}`}><div className="flex items-center gap-2.5"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-white/75 text-xs font-bold tabular-nums shadow-sm dark:bg-background/50">{index+1}</span>{run.channel.thumbnail ? <Image unoptimized src={run.channel.thumbnail} alt="" width={36} height={36} className="size-9 rounded-full" referrerPolicy="no-referrer"/> : <span className="size-9 shrink-0 rounded-full bg-background/60"/>}<span className="min-w-0"><span className="block truncate text-sm font-semibold">{run.channel.name}</span><span className="mt-0.5 block text-xs opacity-75">제외 후 영상 {trend.sampleCount}개 · 영상당 +{trend.percentPerVideo.toFixed(1)}%</span></span></div></button>;
