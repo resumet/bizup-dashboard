@@ -87,7 +87,7 @@ async function withRecentVideos(admin: SupabaseClient, workspaceId: string, rows
   const videos = await admin.rpc("youtube_channel_recent_videos", {
     p_workspace_id: workspaceId,
     p_channel_ids: channelIds,
-    p_limit: 30,
+    p_limit: 50,
   });
   if (videos.error) throw videos.error;
   const byChannel = new Map<string, Video[]>();
@@ -105,7 +105,7 @@ async function withRecentVideos(admin: SupabaseClient, workspaceId: string, rows
     return {
       ...row,
       metrics: { ...metrics, ...calculate(recentVideos) },
-      recent_videos: recentVideos.slice(0, 20),
+      recent_videos: recentVideos.slice(0, 50),
     };
   });
 }
@@ -124,7 +124,7 @@ export async function GET(request: Request) {
       const channel = await admin.from("youtube_analyzed_channels").select("channel_id").eq("workspace_id",workspaceId).eq("channel_id",channelId).maybeSingle();
       if (channel.error) throw channel.error;
       if (!channel.data) return NextResponse.json({ error:"분석한 채널을 찾을 수 없습니다." },{status:404});
-      const result = await admin.from("youtube_channel_videos").select("data").eq("workspace_id",workspaceId).eq("channel_id",channelId).order("published_at",{ascending:false}).order("video_id").limit(30);
+      const result = await admin.from("youtube_channel_videos").select("data").eq("workspace_id",workspaceId).eq("channel_id",channelId).order("published_at",{ascending:false}).order("video_id").limit(50);
       if (result.error) throw result.error;
       return NextResponse.json({ videos:result.data.map(row=>row.data) });
     }

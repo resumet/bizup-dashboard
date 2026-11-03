@@ -2,7 +2,7 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {youtubeAnalysisWorkflow} from "../../workflows/youtube-analysis";
 
-test("workflow paginates all uploads, deduplicates channels per batch, and recollects on reanalysis",async()=>{
+test("workflow collects up to 50 recent eligible uploads, deduplicates channels per batch, and recollects on reanalysis",async()=>{
   const original=globalThis.fetch;
   const env={...process.env};
   process.env.YOUTUBE_API_KEY="test";
@@ -24,7 +24,7 @@ test("workflow paginates all uploads, deduplicates channels per batch, and recol
       }
       const ids=url.searchParams.get("id")!.split(",");
       assert.ok(ids.length<=50);
-      return Response.json({items:ids.map(id=>({id,snippet:{title:id,channelId,publishedAt:"2026-01-01T00:00:00Z"},contentDetails:{duration:id==="v60" ? "PT2M" : "PT10M"},player:{embedWidth:id==="v60" ? 405 : 720,embedHeight:id==="v60" ? 720 : 405},statistics:{viewCount:id==="v60" ? "100000" : "100",likeCount:"5",commentCount:"3"},status:{privacyStatus:"public"}}))});
+      return Response.json({items:ids.map(id=>({id,snippet:{title:id,channelId,publishedAt:"2026-01-01T00:00:00Z"},contentDetails:{duration:id==="v10" ? "PT2M" : "PT10M"},player:{embedWidth:id==="v10" ? 405 : 720,embedHeight:id==="v10" ? 720 : 405},statistics:{viewCount:id==="v10" ? "100000" : "100",likeCount:"5",commentCount:"3"},status:{privacyStatus:"public"}}))});
     }
     assert.equal(url.hostname,"supabase.test");
     const body=init?.body ? JSON.parse(String(init.body)) : null;
@@ -48,11 +48,11 @@ test("workflow paginates all uploads, deduplicates channels per batch, and recol
     const input=[{id:"1",input_url:"https://youtube.com/@test"},{id:"2",input_url:`https://youtube.com/channel/${channelId}`},{id:"3",input_url:"invalid"}];
     await youtubeAnalysisWorkflow("batch-a",input,3);
     assert.equal(saved.length,1);
-    assert.equal((saved[0].p_videos as {id:string}[]).length,119);
-    assert.equal((saved[0].p_videos as {id:string}[]).some(video=>video.id==="v60"),false);
+    assert.equal((saved[0].p_videos as {id:string}[]).length,50);
+    assert.equal((saved[0].p_videos as {id:string}[]).some(video=>video.id==="v10"),false);
     const metrics=saved[0].p_metrics as {count:number;top:{id:string};recent20:number;recent30Likes:number;recent30Comments:number;recent30Count:number};
-    assert.equal(metrics.count,119);
-    assert.notEqual(metrics.top.id,"v60");
+    assert.equal(metrics.count,50);
+    assert.notEqual(metrics.top.id,"v10");
     assert.equal(metrics.recent20,100);
     assert.equal(metrics.recent30Likes,5);
     assert.equal(metrics.recent30Comments,3);
@@ -62,7 +62,7 @@ test("workflow paginates all uploads, deduplicates channels per batch, and recol
     assert.equal(states.at(-1),"partial");
     await youtubeAnalysisWorkflow("batch-b",input,3);
     assert.equal(saved.length,2);
-    assert.deepEqual(pages,["0","1","2","0","1","2"]);
+    assert.deepEqual(pages,["0","1","0","1"]);
     assert.equal(saved[1].p_batch,"batch-b");
   } finally {
     globalThis.fetch=original;

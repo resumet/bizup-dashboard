@@ -2,6 +2,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveChannel, videoPage } from "@/lib/youtube-analyzer/api";
 import { calculate, errorMessages, type Channel, type Video } from "@/lib/youtube-analyzer/model";
 
+const MAX_RECENT_VIDEOS = 50;
+
 async function updateRequest(batchId: string, ids: string[], status: string, channelId?: string, code?: string) {
   "use step";
   const { error } = await createAdminClient().from("youtube_analysis_requests").update({ status, ...(channelId ? { resolved_channel_id: channelId } : {}), ...(code ? { error_code: code } : {}) }).eq("batch_id",batchId).in("id",ids);
@@ -73,9 +75,12 @@ export async function youtubeAnalysisWorkflow(batchId: string, requests: { id:st
           token=page.next;
           if (token && tokens.has(token)) throw new Error("API_ERROR");
           if (token) tokens.add(token);
-        } while (token);
+        } while (token && videos.size < MAX_RECENT_VIDEOS);
         await updateRequest(batchId,ids,"saving");
-        await save(batchId,channel,started,[...videos.values()]);
+        const recentVideos = [...videos.values()]
+          .sort((left,right) => right.publishedAt.localeCompare(left.publishedAt) || left.id.localeCompare(right.id))
+          .slice(0,MAX_RECENT_VIDEOS);
+        await save(batchId,channel,started,recentVideos);
       } catch (error) {
         const code = error instanceof Error && errorMessages[error.message] ? error.message : "API_ERROR";
         await updateRequest(batchId,ids,"failed",channel.id,code);
