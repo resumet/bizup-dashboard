@@ -47,6 +47,19 @@ function sortCustomChannels(runs: Analysis[], metric: CustomMetric, period: Cust
   });
 }
 
+function upwardTrend(run: Analysis) {
+  const videos = [...(run.recent_videos ?? [])]
+    .sort((left, right) => left.publishedAt.localeCompare(right.publishedAt) || left.id.localeCompare(right.id))
+    .slice(-40);
+  if (videos.length < 8) return null;
+  const average = videos.reduce((sum, video) => sum + video.views, 0) / videos.length;
+  const meanIndex = (videos.length - 1) / 2;
+  const denominator = videos.reduce((sum, _, index) => sum + (index - meanIndex) ** 2, 0);
+  const slope = videos.reduce((sum, video, index) => sum + (index - meanIndex) * (video.views - average), 0) / denominator;
+  if (!Number.isFinite(slope) || slope <= 0 || average <= 0) return null;
+  return { sampleCount: videos.length, percentPerVideo: slope / average * 100 };
+}
+
 async function api(path = "", init?: RequestInit) {
   const response = await fetch(`/api/youtube-channels${path}`, {cache:"no-store",...init});
   const data = await response.json();
@@ -113,6 +126,15 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   },[runs,categoryFilter,sortBy,sortDirection,appliedCustomSort]);
   const reanalysisTargets = useMemo(
     () => runs.filter((run) => !run.excluded_from_updates).sort((left, right) => left.position - right.position || left.channel_id.localeCompare(right.channel_id)),
+    [runs],
+  );
+  const upwardRecommendations = useMemo(
+    () => runs
+      .filter((run) => !run.excluded_from_updates)
+      .map((run) => ({ run, trend: upwardTrend(run) }))
+      .filter((item): item is { run: Analysis; trend: NonNullable<ReturnType<typeof upwardTrend>> } => item.trend !== null)
+      .sort((left, right) => right.trend.percentPerVideo - left.trend.percentPerVideo || left.run.position - right.run.position)
+      .slice(0, 5),
     [runs],
   );
   const urls = inputs(text);
@@ -438,6 +460,14 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     {engagementMessage && <p role="status" className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{engagementMessage}</p>}
     {emailStatusError && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{emailStatusError}</p>}
     {stopAllMessage && <p role="status" className="rounded-md border bg-muted/30 p-3 text-sm">{stopAllMessage}</p>}
+
+    <section aria-labelledby="upward-channel-recommendations" className="border-y border-emerald-200/70 bg-emerald-50/35 py-4 dark:border-emerald-900/70 dark:bg-emerald-950/15">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2"><h2 id="upward-channel-recommendations" className="font-semibold text-emerald-950 dark:text-emerald-100">우상향 추천 채널</h2><p className="text-xs text-emerald-800/80 dark:text-emerald-200/80">최근 최대 40개 영상의 조회수 추세 기준</p></div>
+      {upwardRecommendations.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{upwardRecommendations.map(({run,trend}, index) => {
+        const colors = ["border-sky-200 bg-sky-50 text-sky-950 hover:bg-sky-100", "border-emerald-200 bg-emerald-50 text-emerald-950 hover:bg-emerald-100", "border-amber-200 bg-amber-50 text-amber-950 hover:bg-amber-100", "border-rose-200 bg-rose-50 text-rose-950 hover:bg-rose-100", "border-violet-200 bg-violet-50 text-violet-950 hover:bg-violet-100"];
+        return <button type="button" key={run.channel_id} onClick={()=>openDetail(run)} className={`group rounded-xl border p-3 text-left transition-colors dark:border-white/10 dark:bg-white/5 dark:text-foreground dark:hover:bg-white/10 ${colors[index]}`}><div className="flex items-center gap-2.5"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-white/75 text-xs font-bold tabular-nums shadow-sm dark:bg-background/50">{index+1}</span>{run.channel.thumbnail ? <Image unoptimized src={run.channel.thumbnail} alt="" width={36} height={36} className="size-9 rounded-full" referrerPolicy="no-referrer"/> : <span className="size-9 shrink-0 rounded-full bg-background/60"/>}<span className="min-w-0"><span className="block truncate text-sm font-semibold">{run.channel.name}</span><span className="mt-0.5 block text-xs opacity-75">영상 {trend.sampleCount}개 · 영상당 +{trend.percentPerVideo.toFixed(1)}%</span></span></div></button>;
+      })}</div> : <p className="text-sm text-muted-foreground">우상향 추세를 계산할 채널 데이터가 아직 충분하지 않습니다.</p>}
+    </section>
 
     <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {(["up","down"] as const).flatMap(direction=>([7,15] as const).map(period=>{
