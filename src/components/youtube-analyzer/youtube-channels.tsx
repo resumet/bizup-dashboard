@@ -246,7 +246,6 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     setReanalysisError("");
     try {
       const result=await api("",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({reanalyzeAll:true,reanalysisAction:action,...(action==="resume" ? {batchId:reanalysisSummary.resumable?.id} : {})})});
-      setReanalysisOpen(false);
       watchBatch(result.batchId,true);
     } catch(e) {
       setReanalysisError(e instanceof Error ? e.message : "저장된 채널 재분석을 시작하지 못했습니다.");
@@ -391,6 +390,8 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
   }
 
   const completed=requests.filter(request=>["completed","failed"].includes(request.status)).length;
+  const currentRequest=requests.find(request=>["resolving","fetching_channel","fetching_videos","saving"].includes(request.status)) ?? null;
+  const currentRun=currentRequest?.resolved_channel_id ? runs.find(run=>run.channel_id===currentRequest.resolved_channel_id) ?? null : null;
   const analysisPending=!!batchId && (!batch || active(batch));
 
   return <main className="mx-auto min-h-screen max-w-[1900px] space-y-6 px-4 py-6 sm:px-8">
@@ -405,16 +406,16 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     {engagementMessage && <p role="status" className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{engagementMessage}</p>}
     {emailStatusError && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{emailStatusError}</p>}
 
-    <section className="grid gap-3 sm:grid-cols-2">
-      {([7,15] as const).map(period=>{
+    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {(["down","up"] as const).flatMap(direction=>([7,15] as const).map(period=>{
         const declines = runs.filter(run=>!run.excluded_from_updates).filter(run=>{
           const recent = [...(run.recent_videos ?? [])].sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id));
           if (recent.length < period * 2) return false;
           const average = (videos: Video[]) => videos.reduce((sum,video)=>sum+video.views,0)/videos.length;
-          return average(recent.slice(0,period)) < average(recent.slice(period,period*2));
+          return direction === "up" ? average(recent.slice(0,period)) > average(recent.slice(period,period*2)) : average(recent.slice(0,period)) < average(recent.slice(period,period*2));
         });
-        return <div key={period} className="rounded-xl border bg-muted/20 p-4"><h2 className="font-semibold">최근 {period}개 조회수 하락 채널</h2><p className="mt-3 text-sm">{declines.length ? declines.map(run=>run.channel.name).join(", ") : "해당 채널이 없습니다."}</p></div>;
-      })}
+        return <div key={`${direction}-${period}`} className="rounded-xl border bg-muted/20 p-4"><h2 className="font-semibold">최근 {period}개 조회수 {direction === "up" ? "상승" : "하락"} 채널</h2><p className="mt-3 text-sm">{declines.length ? declines.map(run=>run.channel.name).join(", ") : "해당 채널이 없습니다."}</p></div>;
+      }))}
     </section>
 
     <section className="space-y-4 border-t pt-5">
@@ -471,13 +472,14 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
 
     <Dialog open={reanalysisOpen} onOpenChange={setReanalysisOpen}>
       <DialogContent className="sm:max-w-md" showCloseButton={!reanalyzingAll}>
-        <DialogHeader><DialogTitle>채널 재분석</DialogTitle><DialogDescription>유효하지 않은 채널을 제외한 {number(reanalysisSummary.eligibleCount)}개 채널을 한 개씩 순서대로 분석합니다.</DialogDescription></DialogHeader>
-        {reanalysisSummary.resumable ? <div className="rounded-lg border bg-muted/30 p-3 text-sm">이전 분석이 {number(reanalysisSummary.resumable.input_count)}개 중 일부까지 완료되었습니다. 12시간 안에는 완료된 채널을 건너뛰고 이어서 진행할 수 있습니다.</div> : null}
+        <DialogHeader><DialogTitle>채널 재분석</DialogTitle><DialogDescription>{active(batch) ? "채널을 한 개씩 순서대로 분석하고 있습니다." : `유효하지 않은 채널을 제외한 ${number(reanalysisSummary.eligibleCount)}개 채널을 한 개씩 순서대로 분석합니다.`}</DialogDescription></DialogHeader>
+        {active(batch) ? <div className="space-y-4"><div className="rounded-lg border bg-muted/30 p-3"><div className="flex items-center justify-between gap-3"><span className="font-medium">전체 진행률</span><span className="tabular-nums">{completed} / {batch?.input_count ?? 0}</span></div><progress className="mt-3 h-2 w-full accent-primary" value={completed} max={batch?.input_count ?? 1}/></div><div className="rounded-lg border p-4">{currentRun ? <div className="flex items-center gap-3">{currentRun.channel.thumbnail ? <Image unoptimized src={currentRun.channel.thumbnail} alt="" width={48} height={48} className="size-12 rounded-full" referrerPolicy="no-referrer"/> : <div className="size-12 rounded-full bg-muted"/>}<div className="min-w-0"><p className="truncate font-semibold">{currentRun.channel.name}</p><p className="mt-1 text-xs text-muted-foreground">전체 영상 {number(currentRun.channel.reported)}개 · 구독자 {currentRun.channel.subscribers===null ? "비공개" : `${number(currentRun.channel.subscribers)}명`}</p></div></div> : <p className="text-sm text-muted-foreground">채널 정보를 확인하는 중입니다.</p>}<p className="mt-4 text-sm font-medium">현재 작업: {currentRequest ? (statuses[currentRequest.status] ?? currentRequest.status) : "다음 채널 대기 중"}</p>{currentRequest ? <p className="mt-1 break-all text-xs text-muted-foreground">{currentRequest.input_url}</p> : null}</div></div> : <>{reanalysisSummary.resumable ? <div className="rounded-lg border bg-muted/30 p-3 text-sm">이전 분석이 {number(reanalysisSummary.resumable.input_count)}개 중 일부까지 완료되었습니다. 12시간 안에는 완료된 채널을 건너뛰고 이어서 진행할 수 있습니다.</div> : null}</>}
         {reanalysisError ? <p role="alert" className="text-sm text-destructive">{reanalysisError}</p> : null}
         <DialogFooter>
+          {active(batch) ? <Button variant="outline" onClick={()=>void stopReanalysis()}><Pause className="size-4"/>중단</Button> : null}
           <DialogClose asChild><Button variant="outline" disabled={reanalyzingAll}>취소</Button></DialogClose>
-          {reanalysisSummary.resumable ? <Button variant="outline" disabled={reanalyzingAll} onClick={()=>void reanalyzeStoredChannels("restart")}>처음부터 재분석</Button> : null}
-          <Button disabled={reanalyzingAll || !reanalysisSummary.eligibleCount} onClick={()=>void reanalyzeStoredChannels(reanalysisSummary.resumable ? "resume" : "start")}>{reanalyzingAll ? <LoaderCircle className="size-4 animate-spin"/> : <Play className="size-4"/>}{reanalysisSummary.resumable ? "이어서 재분석" : "재분석 시작"}</Button>
+          {!active(batch) && reanalysisSummary.resumable ? <Button variant="outline" disabled={reanalyzingAll} onClick={()=>void reanalyzeStoredChannels("restart")}>처음부터 재분석</Button> : null}
+          {!active(batch) ? <Button disabled={reanalyzingAll || !reanalysisSummary.eligibleCount} onClick={()=>void reanalyzeStoredChannels(reanalysisSummary.resumable ? "resume" : "start")}>{reanalyzingAll ? <LoaderCircle className="size-4 animate-spin"/> : <Play className="size-4"/>}{reanalysisSummary.resumable ? "이어서 재분석" : "재분석 시작"}</Button> : null}
         </DialogFooter>
       </DialogContent>
     </Dialog>
