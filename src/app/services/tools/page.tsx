@@ -9,6 +9,7 @@ import {
   Download,
   ExternalLink,
   FileSpreadsheet,
+  Link2,
   MessageCircleMore,
   MonitorPlay,
   RadioTower,
@@ -23,9 +24,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import { TOOL_HUB_ITEMS } from "@/lib/tools/hub";
-import { loadCommonLinks } from "@/lib/admin/common-links-storage";
-import { isSuperAdminEmail } from "@/lib/admin/access";
-import { CommonLinksCards } from "@/components/tools/common-links-cards";
 import {
   formatReleaseAssetLabel,
   formatReleaseAssetSize,
@@ -159,10 +157,9 @@ const toolAppearance: Record<
 export default async function ToolsPage() {
   const user = await getAuthenticatedUser(await createClient());
   if (!user) redirect("/login");
-  const [recorderRelease, kakaoTagManagerRelease, commonLinks] = await Promise.all([
+  const [recorderRelease, kakaoTagManagerRelease] = await Promise.all([
     getLatestGitHubRelease(YOUTUBE_LIVE_RECORDER_REPOSITORY),
     getLatestGitHubRelease(KAKAO_TAG_MANAGER_REPOSITORY),
-    loadCommonLinks(),
   ]);
 
   return (
@@ -209,12 +206,8 @@ export default async function ToolsPage() {
                 </Link>
               );
             })}
+            <Link href="/services/tools/links" className="group rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"><Card className="h-full transition-colors group-hover:border-primary/35 group-hover:bg-muted/20"><CardContent className="flex min-h-32 flex-col items-center justify-center gap-3 p-5 text-center"><span className="grid size-12 shrink-0 place-items-center rounded-xl bg-blue-500/10 text-blue-700"><Link2 className="size-6" aria-hidden="true" /></span><h3 className="font-semibold leading-snug tracking-tight">링크 모음</h3></CardContent></Card></Link>
           </div>
-        </section>
-
-        <section className="space-y-4" aria-labelledby="common-links-heading">
-          <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="common-links-heading" className="text-lg font-semibold">링크 모음</h2>{isSuperAdminEmail(user.email) ? <Button variant="outline" size="sm" asChild><Link href="/admin/users">링크 관리</Link></Button> : null}</div>
-          <CommonLinksCards links={commonLinks} />
         </section>
 
         <section className="space-y-4" aria-labelledby="downloads-heading">

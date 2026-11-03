@@ -1,0 +1,15 @@
+"use client";
+
+import { useState } from "react";
+import { Copy, ExternalLink, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import type { CommonLink } from "@/lib/admin/common-links";
+
+export function LinksPage({initialLinks,canManage}:{initialLinks:CommonLink[];canManage:boolean}){
+  const [links,setLinks]=useState(initialLinks);const [open,setOpen]=useState(false);const [label,setLabel]=useState("");const [url,setUrl]=useState("");const [saving,setSaving]=useState(false);const [error,setError]=useState("");
+  async function copy(value:string){try{await navigator.clipboard.writeText(value);}catch{setError("링크를 복사하지 못했습니다.");}}
+  async function add(){const next=[...links,{label,url}];setSaving(true);setError("");try{const response=await fetch("/api/common-links",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(next)});const body=await response.json();if(!response.ok)throw new Error(body.message||"링크를 저장하지 못했습니다.");setLinks(body.links);setLabel("");setUrl("");setOpen(false);}catch(reason){setError(reason instanceof Error?reason.message:"링크를 저장하지 못했습니다.");}finally{setSaving(false);}}
+  return <div className="space-y-4"><div className="flex justify-end">{canManage?<Button onClick={()=>{setError("");setOpen(true);}}><Plus />링크 추가</Button>:null}</div><div className="overflow-hidden rounded-lg border"><ul className="divide-y">{links.map((link,index)=><li key={`${link.label}-${link.url}-${index}`} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="font-medium">{link.label}</p><p className="mt-1 truncate text-sm text-muted-foreground" title={link.url}>{link.url}</p></div><div className="flex shrink-0 gap-2"><Button size="sm" asChild><a href={link.url} target="_blank" rel="noopener noreferrer"><ExternalLink />바로가기</a></Button><Button size="sm" variant="outline" onClick={()=>void copy(link.url)}><Copy />복사</Button></div></li>)}</ul>{!links.length?<p className="p-8 text-center text-sm text-muted-foreground">등록된 링크가 없습니다.</p>:null}</div>{error&&!open?<p role="alert" className="text-sm text-destructive">{error}</p>:null}<Dialog open={open} onOpenChange={value=>{if(!saving)setOpen(value);}}><DialogContent aria-describedby={undefined}><DialogHeader><DialogTitle>링크 추가</DialogTitle></DialogHeader><div className="space-y-3"><Input placeholder="링크 이름" maxLength={80} value={label} disabled={saving} onChange={event=>setLabel(event.target.value)} /><Input placeholder="https://" type="url" maxLength={2048} value={url} disabled={saving} onChange={event=>setUrl(event.target.value)} />{error?<p role="alert" className="text-sm text-destructive">{error}</p>:null}</div><DialogFooter><Button type="button" variant="outline" disabled={saving} onClick={()=>setOpen(false)}>취소</Button><Button type="button" disabled={saving||!label.trim()||!url.trim()} onClick={()=>void add()}>{saving?"저장 중…":"추가"}</Button></DialogFooter></DialogContent></Dialog></div>;
+}
