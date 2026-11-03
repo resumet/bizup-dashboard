@@ -12,8 +12,13 @@ type YoutubePreparationCourseRow = {
   id: string;
   free_webinar_at: string | null;
   course_youtube_appearances: YoutubePreparationAppearance[] | null;
-  course_youtube_settings: { appearance_not_required: boolean }[] | null;
+  course_youtube_settings: { appearance_not_required: boolean } | { appearance_not_required: boolean }[] | null;
 };
+
+function appearanceNotRequired(settings: YoutubePreparationCourseRow["course_youtube_settings"]) {
+  const setting = Array.isArray(settings) ? settings[0] : settings;
+  return setting?.appearance_not_required === true;
+}
 
 export async function loadDashboardYoutubePreparation(workspaceId: string, today: string) {
   const admin = createAdminClient();
@@ -37,7 +42,7 @@ export async function loadDashboardYoutubePreparation(workspaceId: string, today
         course.course_youtube_appearances ?? [],
         today,
         settings.filmingAlertWeeks,
-        course.course_youtube_settings?.[0]?.appearance_not_required ?? false,
+        appearanceNotRequired(course.course_youtube_settings),
       ),
     ]),
   );

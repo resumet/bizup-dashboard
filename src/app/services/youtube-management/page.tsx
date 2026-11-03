@@ -27,7 +27,8 @@ export default async function YoutubeManagementPage() {
       filmingAlertWeeks={filmingAlertSettings.filmingAlertWeeks}
       courses={sortByNearestWebinar(data ?? []).map((course) => {
         const appearances = course.course_youtube_appearances ?? [];
-        const appearanceNotRequired = course.course_youtube_settings?.[0]?.appearance_not_required ?? false;
+        const settings = course.course_youtube_settings as unknown as { appearance_not_required: boolean } | { appearance_not_required: boolean }[] | null;
+        const appearanceNotRequired = (Array.isArray(settings) ? settings[0] : settings)?.appearance_not_required === true;
         const filmingAlert = getYoutubeFilmingAlert(course.free_webinar_at, appearances, undefined, filmingAlertSettings.filmingAlertWeeks);
         return {
           ...course,
