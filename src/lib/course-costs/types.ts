@@ -95,6 +95,7 @@ export type CourseCost = {
   createdAt: string;
   updatedBy: string;
   updatedAt: string;
+  cashLedgerEntryId: string | null;
   attachments: CourseCostAttachment[];
 };
 
@@ -112,6 +113,7 @@ export type CourseCostInput = Omit<
   | "createdAt"
   | "updatedBy"
   | "updatedAt"
+  | "cashLedgerEntryId"
   | "attachments"
   | "calculationDetails"
 > & { version?: number; calculationDetails?: CourseCostCalculationDetails | null };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
-import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardPaste, ExternalLink, FileImage, GripVertical, Loader2, Paperclip, PencilLine, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
+import { AlertTriangle, BookOpenCheck, CalendarDays, CheckCircle2, ClipboardPaste, ExternalLink, FileImage, GripVertical, Loader2, Paperclip, PencilLine, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +26,7 @@ import {
 
 type FixedBurden = Exclude<CourseCostBurden, "UNCLASSIFIED">;
 type CostResponse = { costs: CourseCost[]; locked: boolean };
-type CostDraft = { key: string; id: string | null; value: CourseCostInput; attachments: CourseCostAttachment[] };
+type CostDraft = { key: string; id: string | null; value: CourseCostInput; attachments: CourseCostAttachment[]; cashLedgerEntryId: string | null };
 type DeletedCost = { id: string; version: number };
 
 const BURDENS: Array<{ value: FixedBurden; label: string }> = [
@@ -100,7 +100,7 @@ function editableCost(cost: CourseCost, sectionBurden?: FixedBurden): CourseCost
 }
 
 function draftsFromCosts(costs: CourseCost[]): CostDraft[] {
-  return costs.map((cost) => ({ key: cost.id, id: cost.id, value: editableCost(cost), attachments: cost.attachments }));
+  return costs.map((cost) => ({ key: cost.id, id: cost.id, value: editableCost(cost), attachments: cost.attachments, cashLedgerEntryId: cost.cashLedgerEntryId }));
 }
 
 function belongsToSection(value: CourseCostInput, burdenType: FixedBurden) {
@@ -188,14 +188,14 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
     const latest = new Map(body.costs.map((cost) => [cost.id, cost]));
     setDrafts((current) => current.map((draft) => {
       const serverCost = draft.id ? latest.get(draft.id) : undefined;
-      return serverCost ? { ...draft, attachments: serverCost.attachments } : draft;
+      return serverCost ? { ...draft, attachments: serverCost.attachments, cashLedgerEntryId: serverCost.cashLedgerEntryId } : draft;
     }));
     setNotice(message);
   }
 
   function addDraft(burdenType: FixedBurden, categoryCode = "CUSTOM", name = "") {
     const key = crypto.randomUUID();
-    setDrafts((current) => [...current, { key, id: null, value: emptyInput(burdenType, categoryCode, name), attachments: [] }]);
+    setDrafts((current) => [...current, { key, id: null, value: emptyInput(burdenType, categoryCode, name), attachments: [], cashLedgerEntryId: null }]);
     setDirtyKeys((current) => new Set(current).add(key));
     setNotice("");
   }
@@ -234,7 +234,7 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
         key,
         id: null,
         value: { ...emptyInput("SHARED", "YOUTUBE_RS", "유튜브 RS"), ...patch },
-        attachments: [],
+        attachments: [], cashLedgerEntryId: null,
       }]);
       setDirtyKeys((current) => new Set(current).add(key));
       setNotice("");
@@ -262,7 +262,7 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
         key,
         id: null,
         value: { ...emptyInput("COMPANY", "YOUTUBE_FIXED", "유튜브 출연료"), ...patch },
-        attachments: [],
+        attachments: [], cashLedgerEntryId: null,
       }]);
       setDirtyKeys((current) => new Set(current).add(key));
       setNotice("");
@@ -465,6 +465,22 @@ function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onEditC
     setAttachmentError("");
   }
 
+  async function recordInCashLedger() {
+    if (!draft.id) {
+      onError("비용 변경사항을 먼저 저장한 후 입출금 장부에 기록해 주세요.");
+      return;
+    }
+    onBusy(true);
+    onError("");
+    try {
+      onApply(await request(`/api/course-operations/${courseId}/costs/${draft.id}/cash-ledger`, { method: "POST" }), "광고집행비를 입출금 장부에 기록했습니다.");
+    } catch (reason) {
+      onError(reason instanceof Error ? reason.message : "광고집행비를 입출금 장부에 기록하지 못했습니다.");
+    } finally {
+      onBusy(false);
+    }
+  }
+
   async function upload() {
     if (!draft.id || !pendingFiles.length) return;
     onBusy(true);
@@ -517,6 +533,7 @@ function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onEditC
       <Paperclip className="size-4"/>{draft.attachments.length ? <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-blue-600 text-[10px] text-white">{draft.attachments.length}</span> : null}
     </Button>
     <Button type="button" size="icon" variant="outline" className="size-10 shrink-0 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-300" title="비용 삭제" aria-label={`${draft.value.name || "새 비용"} 삭제`} disabled={busy} onClick={onDelete}><Trash2/></Button>
+    {draft.value.categoryCode === "AD_OPERATION" ? <Button type="button" size="icon" variant="outline" className="size-10 shrink-0 border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300" title={draft.id ? (draft.cashLedgerEntryId ? "입출금 장부 기록을 최신 비용으로 갱신" : "입출금 장부에 기록") : "비용 변경사항을 먼저 저장한 후 장부에 기록할 수 있습니다."} aria-label={`${draft.value.name || "광고집행비"} 입출금 장부에 기록`} disabled={busy || !draft.id} onClick={() => void recordInCashLedger()}><BookOpenCheck className="size-4"/></Button> : null}
     {draft.value.calculationDetails ? <Button type="button" size="icon" variant="outline" className="size-10 shrink-0" title={`${draft.value.name} 상세 내역 보기 및 수정`} aria-label={`${draft.value.name} 상세 내역 보기 및 수정`} disabled={busy} onClick={onEditCalculation}><PencilLine/></Button> : null}
   </div>;
 

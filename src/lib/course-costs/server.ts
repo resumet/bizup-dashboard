@@ -38,6 +38,13 @@ export async function loadCourseCosts(
     ? await admin.from("course_cost_attachments").select("*").in("course_cost_id", costIds)
     : { data: [], error: null };
   if (attachmentError) throw new Error(`비용 증빙 조회 실패: ${attachmentError.code}`);
+  const { data: ledgerEntries, error: ledgerError } = costIds.length
+    ? await admin.from("cash_ledger_entries").select("id,course_cost_id").in("course_cost_id", costIds)
+    : { data: [], error: null };
+  if (ledgerError) throw new Error(`장부 기록 조회 실패: ${ledgerError.code}`);
+  const ledgerEntryByCostId = new Map((ledgerEntries ?? []).flatMap((entry) =>
+    typeof entry.course_cost_id === "string" ? [[entry.course_cost_id, entry.id as string]] : [],
+  ));
   const attachmentItems = await Promise.all((attachments ?? []).map(async (item): Promise<CourseCostAttachment> => ({
     id: item.id,
     originalName: item.original_name,
@@ -59,6 +66,7 @@ export async function loadCourseCosts(
     companyShareAmount: Number(item.company_share_amount), instructorShareAmount: Number(item.instructor_share_amount),
     includeInSettlement: item.include_in_settlement, note: item.note, calculationDetails: item.calculation_details ?? null, migratedFrom: item.migrated_from,
     version: item.version, createdBy: item.created_by, createdAt: item.created_at, updatedBy: item.updated_by, updatedAt: item.updated_at,
+    cashLedgerEntryId: ledgerEntryByCostId.get(item.id as string) ?? null,
     attachments: attachmentItems.filter((attachment) => attachmentCostId.get(attachment.id) === item.id),
   }));
 }
