@@ -95,7 +95,7 @@ export type CourseCost = {
   createdAt: string;
   updatedBy: string;
   updatedAt: string;
-  cashLedgerEntryId: string | null;
+  cashLedgerEntryId?: string | null;
   attachments: CourseCostAttachment[];
 };
 

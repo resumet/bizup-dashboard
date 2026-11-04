@@ -100,7 +100,7 @@ function editableCost(cost: CourseCost, sectionBurden?: FixedBurden): CourseCost
 }
 
 function draftsFromCosts(costs: CourseCost[]): CostDraft[] {
-  return costs.map((cost) => ({ key: cost.id, id: cost.id, value: editableCost(cost), attachments: cost.attachments, cashLedgerEntryId: cost.cashLedgerEntryId }));
+  return costs.map((cost) => ({ key: cost.id, id: cost.id, value: editableCost(cost), attachments: cost.attachments, cashLedgerEntryId: cost.cashLedgerEntryId ?? null }));
 }
 
 function belongsToSection(value: CourseCostInput, burdenType: FixedBurden) {
@@ -188,7 +188,7 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
     const latest = new Map(body.costs.map((cost) => [cost.id, cost]));
     setDrafts((current) => current.map((draft) => {
       const serverCost = draft.id ? latest.get(draft.id) : undefined;
-      return serverCost ? { ...draft, attachments: serverCost.attachments, cashLedgerEntryId: serverCost.cashLedgerEntryId } : draft;
+      return serverCost ? { ...draft, attachments: serverCost.attachments, cashLedgerEntryId: serverCost.cashLedgerEntryId ?? null } : draft;
     }));
     setNotice(message);
   }
