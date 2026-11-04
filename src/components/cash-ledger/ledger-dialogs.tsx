@@ -68,7 +68,7 @@ export function PartiesDialog({ parties, onClose, onSaved }: { parties: Party[];
   </DialogContent></Dialog>;
 }
 
-export function EntryDialog({ entry, state, onClose, onSaved, onManageParties, openAttachments = false }: { entry: Entry | null; state: LedgerState; openAttachments?: boolean; onClose: () => void; onSaved: () => Promise<void>; onManageParties: () => void }) {
+export function EntryDialog({ entry, state, onClose, onSaved, onRefresh, onManageParties, openAttachments = false }: { entry: Entry | null; state: LedgerState; openAttachments?: boolean; onClose: () => void; onSaved: (change: { entry: Entry; party?: Party }) => void | Promise<void>; onRefresh: () => Promise<void>; onManageParties: () => void }) {
   const [requestId] = useState(() => crypto.randomUUID());
   const [identity, setIdentity] = useState(entry ? { id: entry.id, version: entry.version } : null);
   const [draft, setDraft] = useState({ kind: entry?.kind ?? "expense", title: entry?.title ?? "", partyId: entry?.partyId ?? "", courseId: entry?.courseId ?? "", entryDate: entry?.entryDate ?? (today() < state.settings!.startDate ? state.settings!.startDate : today()), note: entry?.note ?? "" });
@@ -100,35 +100,38 @@ export function EntryDialog({ entry, state, onClose, onSaved, onManageParties, o
     let saved = false;
     try {
       let partyId = draft.partyId;
+      let createdParty: Party | undefined;
       if (partyId === NEW_RECEIPT_PARTY) {
         const validated = entrySchema.omit({ partyId: true }).safeParse({ ...draft, courseId: draft.courseId || null, amount: Number(amount.replaceAll(",", "")) });
         if (!validated.success) throw new Error(validated.error.issues[0]?.message ?? "입력값을 확인해 주세요.");
         if (draft.entryDate < state.settings!.startDate) throw new Error("기록 시작일 이전의 내역은 저장할 수 없습니다.");
         const result = await ledgerRequest("/parties/resolve", "POST", { name: newPartyName });
         const created = result.party as Party;
-        partyId = created.id; setResolvedParty(created); setNewPartyName(""); setDraft(current => ({ ...current, partyId: created.id }));
+        partyId = created.id; createdParty = created; setResolvedParty(created); setNewPartyName(""); setDraft(current => ({ ...current, partyId: created.id }));
       }
       const response = await ledgerRequest(`/entries${identity ? `/${identity.id}` : ""}`, identity ? "PATCH" : "POST", { ...draft, partyId, requestId, courseId: draft.courseId || null, amount: Number(amount.replaceAll(",", "")), version: identity?.version });
-      const updated = response.entry as { id: string; version: number }; setIdentity(updated); saved = true;
-      for (const file of files) {
+      const updated = response.entry as Entry; setIdentity(updated); saved = true;
+      await onSaved({ entry: updated, party: createdParty });
+      const hasNewFiles = files.length > 0;
+      await Promise.all(files.map(async file => {
         const body = new FormData(); body.set("file", file);
         await ledgerRequest(`/entries/${updated.id}/attachments`, "POST", body);
-        setFiles(current => current.filter(item => item !== file));
-      }
-      await onSaved(); onClose();
+      }));
+      setFiles([]);
+      if (hasNewFiles) void onRefresh().catch(() => {});
+      onClose();
     } catch (failure) {
-      if (saved) await onSaved().catch(() => {});
       setError(`${saved ? "입출금 내역은 저장되었습니다. 남은 파일은 다시 저장해 주세요. " : ""}${(failure as Error).message}`);
     } finally { pending.current = false; setBusy(false); }
   }
   async function remove() {
     if (!identity || pending.current) return; pending.current = true; setBusy(true); setError("");
-    try { await ledgerRequest(`/entries/${identity.id}`, "DELETE", { version: identity.version }); await onSaved(); onClose(); }
+    try { await ledgerRequest(`/entries/${identity.id}`, "DELETE", { version: identity.version }); await onRefresh(); onClose(); }
     catch (failure) { setError((failure as Error).message); } finally { pending.current = false; setBusy(false); }
   }
   async function removeAttachment(id: string) {
     if (!identity || pending.current) return; pending.current = true; setBusy(true); setError("");
-    try { await ledgerRequest(`/entries/${identity.id}/attachments/${id}`, "DELETE"); await onSaved(); }
+    try { await ledgerRequest(`/entries/${identity.id}/attachments/${id}`, "DELETE"); await onRefresh(); }
     catch (failure) { setError((failure as Error).message); } finally { pending.current = false; setBusy(false); }
   }
   return <><Dialog open onOpenChange={open => { if (!open && !locked) onClose(); }}><DialogContent aria-describedby={undefined} className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl" showCloseButton={!locked}>

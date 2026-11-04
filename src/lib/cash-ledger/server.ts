@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
-import { attachmentType, entrySchema, idSchema, partySchema, settingsSchema, versionSchema, type LedgerState, type LedgerCourse } from "./model";
+import { attachmentType, entrySchema, idSchema, partySchema, settingsSchema, versionSchema, type Entry, type LedgerState, type LedgerCourse } from "./model";
 import { normalizePartyName } from "./receipt";
 
 const BUCKET = "cash-ledger-evidence";
@@ -47,6 +47,10 @@ export async function readBody(request: Request) {
 type PartyRow = { id: string; name: string; bank_name: string; account_number: string; account_holder: string; note: string; version: number };
 type EntryRow = { id: string; entry_number: number; kind: "income" | "expense"; title: string; party_id: string; course_id: string | null; amount: number; entry_date: string; note: string; version: number };
 type AttachmentRow = { id: string; entry_id: string; original_name: string; file_size: number; mime_type: string };
+const ENTRY_COLUMNS = "id,entry_number,kind,title,party_id,course_id,amount,entry_date,note,version";
+function entryFromRow(entry: EntryRow): Entry {
+  return { id: entry.id, number: Number(entry.entry_number), kind: entry.kind, title: entry.title, partyId: entry.party_id, courseId: entry.course_id, amount: Number(entry.amount), entryDate: entry.entry_date, note: entry.note, version: entry.version };
+}
 async function allRows<Row>(ctx: Context, table: string, columns = "*") {
   const rows: Row[] = [];
   for (let offset = 0; ; offset += 500) {
@@ -65,7 +69,7 @@ export async function loadState(ctx: Context): Promise<LedgerState> {
   return {
     settings: settings.data ? { startDate: settings.data.start_date, openingBalance: Number(settings.data.opening_balance), version: settings.data.version } : null,
     parties: parties.map(p => ({ id: p.id, name: p.name, bankName: p.bank_name, accountNumber: p.account_number, accountHolder: p.account_holder, note: p.note, version: p.version })).sort((a, b) => a.name.localeCompare(b.name, "ko")),
-    entries: entries.map(e => ({ id: e.id, number: Number(e.entry_number), kind: e.kind, title: e.title, partyId: e.party_id, courseId: e.course_id, amount: Number(e.amount), entryDate: e.entry_date, note: e.note, version: e.version })),
+    entries: entries.map(entryFromRow),
     courses: sortByNearestWebinar(courses).map(c => ({ id: c.id, name: c.name, status: c.status, instructor_name: c.instructor_name, cohort: c.cohort })),
     attachments: attachments.map(a => ({ id: a.id, entryId: a.entry_id, name: a.original_name, size: a.file_size, mimeType: a.mime_type })),
   };
@@ -102,18 +106,18 @@ export async function saveEntry(ctx: Context, input: unknown, id?: string) {
   const requestId = id ? undefined : idSchema.parse((input as { requestId?: unknown }).requestId);
   const patch = { kind: value.kind, title: value.title, party_id: value.partyId, course_id: value.courseId, amount: value.amount, entry_date: value.entryDate, note: value.note };
   const result = id
-    ? await ctx.db.from("cash_ledger_entries").update(patch).eq("id", idSchema.parse(id)).eq("workspace_id", ctx.workspaceId).eq("version", versionSchema.parse((input as { version?: unknown }).version)).select("id,version").maybeSingle()
-    : await ctx.db.from("cash_ledger_entries").insert({ ...patch, id: requestId, workspace_id: ctx.workspaceId }).select("id,version").single();
+    ? await ctx.db.from("cash_ledger_entries").update(patch).eq("id", idSchema.parse(id)).eq("workspace_id", ctx.workspaceId).eq("version", versionSchema.parse((input as { version?: unknown }).version)).select(ENTRY_COLUMNS).maybeSingle()
+    : await ctx.db.from("cash_ledger_entries").insert({ ...patch, id: requestId, workspace_id: ctx.workspaceId }).select(ENTRY_COLUMNS).single();
   // A lost response may cause the same create request to be retried. Never duplicate a payment.
   if (!id && result.error?.code === "23505") {
     const previous = await ctx.db.from("cash_ledger_entries").select("*").eq("id", requestId!).eq("workspace_id", ctx.workspaceId).maybeSingle();
     check(previous.error);
     if (previous.data && Object.entries(patch).every(([key, expected]) => previous.data[key] === expected)) {
-      return { id: previous.data.id as string, version: previous.data.version as number };
+      return entryFromRow(previous.data as EntryRow);
     }
   }
   check(result.error); if (!result.data) throw new LedgerError("내역이 수정되거나 삭제되었습니다. 새로고침 후 다시 시도해 주세요.", 409);
-  return result.data as { id: string; version: number };
+  return entryFromRow(result.data as EntryRow);
 }
 export async function requireEntry(ctx: Context, id: string) {
   const result = await ctx.db.from("cash_ledger_entries").select("id").eq("id", idSchema.parse(id)).eq("workspace_id", ctx.workspaceId).maybeSingle();
