@@ -2,9 +2,9 @@ import "server-only";
 
 import {
   DEFAULT_INSTRUCTOR_CONTRACT_TEMPLATE,
-  isInstructorContractTemplate,
   type InstructorContractTemplate,
 } from "@/lib/contracts/instructor-contract";
+import { parseInstructorContractTemplate } from "@/lib/contracts/instructor-contract-validation";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function loadInstructorContractTemplate(workspaceId: string) {
@@ -14,9 +14,8 @@ export async function loadInstructorContractTemplate(workspaceId: string) {
     .eq("workspace_id", workspaceId)
     .maybeSingle();
   if (error) throw error;
-  return isInstructorContractTemplate(data?.template)
-    ? data.template
-    : DEFAULT_INSTRUCTOR_CONTRACT_TEMPLATE;
+  return parseInstructorContractTemplate(data?.template)
+    ?? DEFAULT_INSTRUCTOR_CONTRACT_TEMPLATE;
 }
 
 export async function saveInstructorContractTemplate(
@@ -30,5 +29,7 @@ export async function saveInstructorContractTemplate(
     .select("template")
     .single();
   if (error) throw error;
-  return data.template as InstructorContractTemplate;
+  const savedTemplate = parseInstructorContractTemplate(data.template);
+  if (!savedTemplate) throw new Error("저장된 계약서 템플릿 형식이 올바르지 않습니다.");
+  return savedTemplate;
 }

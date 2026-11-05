@@ -81,7 +81,7 @@ import {
   richTextDocumentToBlocks,
   repairCourseDocumentCallouts,
 } from "@/lib/course-documents/rich-text";
-import { normalizeNotionCalloutNodes, normalizeRichTextPasteHtml, notionCalloutPasteDocument } from "@/lib/course-documents/rich-text-paste";
+import { normalizeNotionCalloutNodes, normalizeRichTextPasteHtml, notionCalloutPasteDocument, plainTextLines } from "@/lib/course-documents/rich-text-paste";
 import type {
   CourseDocumentBlock,
   CourseDocumentDetail,
@@ -92,13 +92,15 @@ import { cn } from "@/lib/utils";
 import { PdfImportDialog } from "./pdf-import-dialog";
 
 type Props = {
-  mode: "admin" | "external";
-  courseId: string;
+  mode: "admin" | "external" | "contract";
+  courseId?: string;
   courseName: string;
   accessToken?: string;
   document?: CourseDocumentDetail;
   fixedTitle?: boolean;
   fixedTitleText?: string;
+  initialContent?: CourseDocumentBlock[];
+  onSaveContent?: (content: CourseDocumentBlock[]) => Promise<void>;
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -260,12 +262,22 @@ function ToolbarButton({
   );
 }
 
-export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, document, fixedTitle = false, fixedTitleText }: Props) {
+export function CourseDocumentEditor({
+  mode,
+  courseId,
+  courseName,
+  accessToken,
+  document,
+  fixedTitle = false,
+  fixedTitleText,
+  initialContent,
+  onSaveContent,
+}: Props) {
   const initialDocument = useMemo(() => {
-    const original = document?.content ?? [];
+    const original = mode === "contract" ? initialContent ?? [] : document?.content ?? [];
     const blocks = repairCourseDocumentCallouts(original);
     return { blocks, repaired: blocks !== original, content: blocksToRichTextDocument(blocks) as JSONContent };
-  }, [document?.content]);
+  }, [document?.content, initialContent, mode]);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<Editor | null>(null);
   const dirtyRef = useRef(initialDocument.repaired);
@@ -302,8 +314,11 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
       formData.set("file", file);
       let endpoint = `/api/write/${accessToken}/images`;
       if (mode === "admin") {
+        if (!courseId) throw new Error("강의 정보를 확인해 주세요.");
         endpoint = "/api/instagram-management/images";
         formData.set("courseId", courseId);
+      } else if (mode === "contract") {
+        endpoint = "/api/contracts/images";
       }
       const response = await fetch(endpoint, { method: "POST", body: formData });
       const body = await response.json() as { url?: string; message?: string };
@@ -350,7 +365,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
       LineHeight,
       Highlight,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Placeholder.configure({ placeholder: "본문을 입력하거나 이미지를 붙여넣으세요" }),
+      Placeholder.configure({ placeholder: mode === "contract" ? "계약서 원문을 입력하거나 붙여넣으세요" : "본문을 입력하거나 이미지를 붙여넣으세요" }),
       ButtonLink,
       Callout,
       BlockIdentity,
@@ -358,8 +373,8 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
     content: initialDocument.content,
     editorProps: {
       attributes: {
-        class: "course-rich-text-editor",
-        "aria-label": "문서 본문",
+        class: cn("course-rich-text-editor", mode === "contract" && "contract-rich-text-editor"),
+        "aria-label": mode === "contract" ? "계약서 템플릿 원문" : "문서 본문",
       },
       transformPastedHTML: normalizeRichTextPasteHtml,
       transformPasted: (slice, view, plainText) => {
@@ -375,7 +390,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
         const callouts = plainText ? null : notionCalloutPasteDocument(text);
         const content = callouts
           ? schema.nodeFromJSON(callouts).content
-          : Fragment.from(text.split(/(?:\r\n?|\n)+/u).map((line) => (
+          : Fragment.from(plainTextLines(text).map((line) => (
             schema.nodes.paragraph.create(null, line ? schema.text(line, context.marks()) : undefined)
           )));
         return Slice.maxOpen(content);
@@ -416,7 +431,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
     onDestroy: () => {
       editorRef.current = null;
     },
-  }, [document?.id, uploadImage]);
+  }, [document?.id, mode, uploadImage]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -520,8 +535,18 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
     setError("");
     setNotice("");
     try {
-      if (!title.trim()) throw new Error("문서 제목을 입력해 주세요.");
+      if (mode !== "contract" && !title.trim()) throw new Error("문서 제목을 입력해 주세요.");
       const normalizedBlocks = editor ? editorBlocks(editor) : blocks;
+      if (!normalizedBlocks.length) throw new Error(mode === "contract" ? "계약서 원문을 입력해 주세요." : "문서 본문을 입력해 주세요.");
+      if (mode === "contract") {
+        if (!onSaveContent) throw new Error("계약서 템플릿 저장 기능을 준비하지 못했습니다.");
+        await onSaveContent(normalizedBlocks);
+        setBlocks(normalizedBlocks);
+        dirtyRef.current = false;
+        setDirty(false);
+        setNotice("저장했습니다.");
+        return;
+      }
       const gateIndex = normalizedBlocks.findIndex((block) => block.id === leadGateAfterBlockId);
       const normalizedLeadGateAfterBlockId = gateIndex >= 0 && gateIndex < normalizedBlocks.length - 1
         ? leadGateAfterBlockId
@@ -605,7 +630,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
               setNotice("PDF 내용을 본문 끝에 추가했습니다. 검토한 뒤 저장해 주세요.");
             }} /> : null}
             <Button type="button" size="sm" variant="ghost" onClick={() => setPreview((value) => !value)}><Eye />{preview ? "편집" : "미리보기"}</Button>
-            <Button type="button" size="sm" onClick={() => void save()} disabled={saving || uploading || (!dirty && Boolean(document))}>{saving ? <Loader2 className="animate-spin" /> : <Save />}{saving ? "저장 중" : "저장"}</Button>
+            <Button type="button" size="sm" onClick={() => void save()} disabled={saving || uploading || (!dirty && (Boolean(document) || mode === "contract"))}>{saving ? <Loader2 className="animate-spin" /> : <Save />}{saving ? "저장 중" : "저장"}</Button>
           </div>
         </div>
 
@@ -752,16 +777,16 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
       {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
       {notice ? <Alert><AlertDescription>{notice}</AlertDescription></Alert> : null}
 
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_15rem]">
+      <div className={cn("grid items-start gap-5", mode !== "contract" && "xl:grid-cols-[minmax(0,1fr)_15rem]")}>
         <section className="min-h-[46rem] min-w-0 overflow-hidden rounded-xl border bg-background shadow-sm">
           {preview ? (
             <div className="mx-auto w-full max-w-3xl px-6 py-12 sm:px-12">
-              <h1 className="mb-10 whitespace-pre-wrap break-words text-4xl font-bold tracking-tight text-balance sm:text-5xl">{displayTitle || "제목 없음"}</h1>
-              <DocumentRenderer blocks={blocks} />
+              {mode !== "contract" ? <h1 className="mb-10 whitespace-pre-wrap break-words text-4xl font-bold tracking-tight text-balance sm:text-5xl">{displayTitle || "제목 없음"}</h1> : null}
+              <DocumentRenderer blocks={blocks} variant={mode === "contract" ? "contract" : "default"} />
             </div>
           ) : (
             <div className="mx-auto w-full max-w-none px-6 py-10 sm:px-12 lg:px-16 lg:py-14">
-              {fixedTitle ? (
+              {mode === "contract" ? null : fixedTitle ? (
                 <h1 className="py-2 whitespace-pre-wrap break-words text-4xl font-bold tracking-tight text-balance sm:text-5xl">{displayTitle}</h1>
               ) : (
                 <Input
@@ -779,7 +804,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
                   className="h-auto rounded-none border-0 bg-transparent px-0 py-2 text-4xl font-bold tracking-tight shadow-none placeholder:text-muted-foreground/45 focus-visible:border-transparent focus-visible:ring-0 sm:text-5xl dark:bg-transparent"
                 />
               )}
-              <EditorContent editor={editor} className="mt-8" />
+              <EditorContent editor={editor} className={mode === "contract" ? "" : "mt-8"} />
             </div>
           )}
 
@@ -788,7 +813,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
           </footer>
         </section>
 
-        <aside className="space-y-5 rounded-xl border bg-background p-4 xl:sticky xl:top-28">
+        {mode !== "contract" ? <aside className="space-y-5 rounded-xl border bg-background p-4 xl:sticky xl:top-28">
           <h2 className="font-semibold">문서 설정</h2>
           {mode === "admin" ? (
             <div className="space-y-2">
@@ -810,7 +835,7 @@ export function CourseDocumentEditor({ mode, courseId, courseName, accessToken, 
           ) : null}
 
           {document?.slug && status === "published" ? <Button asChild variant="outline" className="w-full"><a href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><Eye />공개 페이지</a></Button> : null}
-        </aside>
+        </aside> : null}
       </div>
 
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>

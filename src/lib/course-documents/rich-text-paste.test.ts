@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { normalizeNotionCalloutNodes, notionCalloutPasteDocument } from "./rich-text-paste";
+import { normalizeNotionCalloutNodes, notionCalloutPasteDocument, plainTextLines } from "./rich-text-paste";
 import { blocksToRichTextDocument, repairCourseDocumentCallouts, richTextDocumentToBlocks } from "./rich-text";
 import type { RichTextNode } from "./types";
 import { courseDocumentContentSchema } from "./validation";
+
+test("일반 텍스트 붙여넣기는 빈 줄과 연속 공백을 그대로 유지한다", () => {
+  assert.deepEqual(plainTextLines("  첫 줄  \r\n\r\n둘째  줄\n"), ["  첫 줄  ", "", "둘째  줄", ""]);
+});
 
 test("노션에서 텍스트로 복사한 콜아웃의 태그를 숨기고 이모지, 굵기, 줄바꿈을 보존한다", () => {
   const document = notionCalloutPasteDocument(

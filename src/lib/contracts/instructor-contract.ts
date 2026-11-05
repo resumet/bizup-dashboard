@@ -1,3 +1,5 @@
+import type { CourseDocumentBlock, RichTextNode } from "@/lib/course-documents/types";
+
 export type InstructorContractValues = {
   instructorName: string;
   lectureName: string;
@@ -13,9 +15,14 @@ export type InstructorContractSection = {
   paragraphs: string[];
 };
 
-export type InstructorContractTemplate = {
+export type LegacyInstructorContractTemplate = {
   introduction: string;
   sections: InstructorContractSection[];
+};
+
+export type InstructorContractTemplate = {
+  version: 2;
+  content: CourseDocumentBlock[];
 };
 
 export const COMPANY_CONTRACT_DETAILS = {
@@ -39,7 +46,7 @@ export function getContractEndDate(startDate: string, durationYears: number) {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
-export const DEFAULT_INSTRUCTOR_CONTRACT_TEMPLATE: InstructorContractTemplate = {
+const LEGACY_DEFAULT_INSTRUCTOR_CONTRACT_TEMPLATE: LegacyInstructorContractTemplate = {
   introduction: "㈜비즈업클래스(이하 “회사”라 한다)와 {{instructorName}} (이하 “강사”라 한다) 간에 강의 모객 관련 협의 계약을 체결하고 상호존중의 입장에서 신의에 따라 성실히 계약상의 의무를 이행하고 완수할 것을 확약하며 계약의 증거로서 이 계약서를 2부 작성하여 각각 서명 날인한 후 “회사”와 “강사” 각 1부씩 보관한다.",
   sections: [
   {
@@ -177,16 +184,190 @@ export const DEFAULT_INSTRUCTOR_CONTRACT_TEMPLATE: InstructorContractTemplate = 
   ],
 };
 
-export function isInstructorContractTemplate(value: unknown): value is InstructorContractTemplate {
-  if (!value || typeof value !== "object") return false;
-  const template = value as Partial<InstructorContractTemplate>;
-  return typeof template.introduction === "string"
-    && Array.isArray(template.sections)
-    && template.sections.length > 0
-    && template.sections.every((section) => (
-      Boolean(section)
-      && typeof section.title === "string"
-      && Array.isArray(section.paragraphs)
-      && section.paragraphs.every((paragraph) => typeof paragraph === "string")
-    ));
+function contractBlockId(index: number) {
+  return `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
+}
+
+function textNode(text: string, bold = false): RichTextNode {
+  return {
+    type: "text",
+    text,
+    ...(bold ? { marks: [{ type: "bold" as const }] } : {}),
+  };
+}
+
+function paragraphNode(text = "", bold = false): RichTextNode {
+  return {
+    type: "paragraph",
+    ...(text ? { content: [textNode(text, bold)] } : {}),
+  };
+}
+
+function tableCell(lines: Array<{ text: string; bold?: boolean }>): RichTextNode {
+  return {
+    type: "tableCell",
+    attrs: { colspan: 1, rowspan: 1, colwidth: null },
+    content: lines.map((line) => paragraphNode(line.text, line.bold)),
+  };
+}
+
+function tableRow(cells: RichTextNode[]): RichTextNode {
+  return { type: "tableRow", content: cells };
+}
+
+function circledNumber(index: number) {
+  return index < 20 ? String.fromCodePoint(0x2460 + index) : `${index + 1}.`;
+}
+
+export function legacyInstructorContractTemplateToContent(
+  template: LegacyInstructorContractTemplate,
+): CourseDocumentBlock[] {
+  let blockIndex = 0;
+  const nextId = () => contractBlockId(blockIndex += 1);
+  const content: CourseDocumentBlock[] = [
+    { id: nextId(), type: "heading1", content: "비즈업클래스 강사 계약서" },
+    { id: nextId(), type: "paragraph", content: template.introduction },
+  ];
+
+  const summaryId = nextId();
+  content.push({
+    id: summaryId,
+    type: "rich_text",
+    content: {
+      type: "table",
+      attrs: { blockId: summaryId },
+      content: [
+        tableRow([
+          tableCell([{ text: "계약기간", bold: true }]),
+          tableCell([{ text: "{{contractPeriod}}" }]),
+        ]),
+        tableRow([
+          tableCell([{ text: "강의명", bold: true }]),
+          tableCell([{ text: "{{lectureName}}" }]),
+        ]),
+      ],
+    },
+  });
+
+  for (const section of template.sections) {
+    content.push({ id: nextId(), type: "heading2", content: section.title });
+    for (const [paragraphIndex, paragraph] of section.paragraphs.entries()) {
+      content.push({
+        id: nextId(),
+        type: "paragraph",
+        content: `${circledNumber(paragraphIndex)} ${paragraph}`,
+      });
+    }
+  }
+
+  const signatureId = nextId();
+  content.push({
+    id: signatureId,
+    type: "rich_text",
+    content: {
+      type: "table",
+      attrs: { blockId: signatureId },
+      content: [
+        tableRow([
+          tableCell([
+            { text: "“회사”", bold: true },
+            { text: "상호 {{companyName}}" },
+            { text: "주소 {{companyAddress}}" },
+            { text: "대표이사 {{companyRepresentative}} (인)" },
+          ]),
+          tableCell([
+            { text: "“강사”", bold: true },
+            { text: "성명 {{instructorName}} (인)" },
+            { text: "주소 {{address}}" },
+            { text: "전화번호 {{phone}}" },
+            { text: "이메일 {{email}}" },
+          ]),
+        ]),
+      ],
+    },
+  });
+
+  return content;
+}
+
+export const DEFAULT_INSTRUCTOR_CONTRACT_TEMPLATE: InstructorContractTemplate = {
+  version: 2,
+  content: legacyInstructorContractTemplateToContent(LEGACY_DEFAULT_INSTRUCTOR_CONTRACT_TEMPLATE),
+};
+
+function displayContractValue(value: string, fallback: string) {
+  return value.trim() || fallback;
+}
+
+export function replaceInstructorContractVariables(
+  text: string,
+  values: InstructorContractValues,
+) {
+  const endDate = getContractEndDate(values.startDate, values.durationYears);
+  const startDate = getKoreanDate(values.startDate) || "시작일 입력 예정";
+  const formattedEndDate = getKoreanDate(endDate) || "종료일 입력 예정";
+  const replacements: Record<string, string> = {
+    instructorName: displayContractValue(values.instructorName, "강사명"),
+    lectureName: displayContractValue(values.lectureName, "강의명"),
+    startDate,
+    endDate: formattedEndDate,
+    contractPeriod: `${startDate} ~ ${formattedEndDate} (${values.durationYears || 1}년간)`,
+    durationYears: String(values.durationYears || 1),
+    address: displayContractValue(values.address, "입력 예정"),
+    phone: displayContractValue(values.phone, "입력 예정"),
+    email: displayContractValue(values.email, "입력 예정"),
+    companyName: COMPANY_CONTRACT_DETAILS.name,
+    companyAddress: COMPANY_CONTRACT_DETAILS.address,
+    companyRepresentative: COMPANY_CONTRACT_DETAILS.representative,
+  };
+
+  return text.replace(/\{\{([a-zA-Z]+)\}\}/gu, (token, key: string) => replacements[key] ?? token);
+}
+
+function replaceNodeVariables(node: RichTextNode, values: InstructorContractValues): RichTextNode {
+  const attrs = node.attrs ? { ...node.attrs } : undefined;
+  if (attrs) {
+    for (const key of ["label", "alt", "title"] as const) {
+      if (typeof attrs[key] === "string") {
+        attrs[key] = replaceInstructorContractVariables(attrs[key], values);
+      }
+    }
+  }
+  return {
+    ...node,
+    ...(attrs ? { attrs } : {}),
+    ...(typeof node.text === "string"
+      ? { text: replaceInstructorContractVariables(node.text, values) }
+      : {}),
+    ...(node.content
+      ? { content: node.content.map((child) => replaceNodeVariables(child, values)) }
+      : {}),
+  };
+}
+
+export function renderInstructorContractTemplate(
+  template: InstructorContractTemplate,
+  values: InstructorContractValues,
+): CourseDocumentBlock[] {
+  return template.content.map((block): CourseDocumentBlock => {
+    if (block.type === "heading1" || block.type === "heading2" || block.type === "paragraph") {
+      return { ...block, content: replaceInstructorContractVariables(block.content, values) };
+    }
+    if (block.type === "unordered_list" || block.type === "ordered_list") {
+      return {
+        ...block,
+        items: block.items.map((item) => replaceInstructorContractVariables(item, values)),
+      };
+    }
+    if (block.type === "rich_text") {
+      return { ...block, content: replaceNodeVariables(block.content, values) };
+    }
+    if (block.type === "image") {
+      return { ...block, alt: replaceInstructorContractVariables(block.alt, values) };
+    }
+    if (block.type === "link" || block.type === "cta") {
+      return { ...block, label: replaceInstructorContractVariables(block.label, values) };
+    }
+    return block;
+  });
 }

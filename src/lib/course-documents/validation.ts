@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { RichTextNode } from "./types";
 
 const blockIdSchema = z.uuid("블록 식별자가 올바르지 않습니다.");
-const textSchema = z.string().trim().max(20_000, "블록 내용은 20,000자까지 입력할 수 있습니다.");
+const textSchema = z.string().max(20_000, "블록 내용은 20,000자까지 입력할 수 있습니다.");
 const safeUrlSchema = z
   .string()
   .trim()
@@ -26,7 +26,7 @@ const textBlockSchema = z.object({
 const listBlockSchema = z.object({
   id: blockIdSchema,
   type: z.enum(["unordered_list", "ordered_list"]),
-  items: z.array(z.string().trim().max(2_000)).max(100),
+  items: z.array(z.string().max(2_000)).max(100),
 });
 
 const imageBlockSchema = z.object({

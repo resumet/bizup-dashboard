@@ -4,6 +4,9 @@ import Image from "next/image";
 import type { CourseDocumentBlock, RichTextMark, RichTextNode } from "@/lib/course-documents/types";
 import { DEFAULT_CALLOUT_ICON } from "@/lib/course-documents/callout";
 import { repairCourseDocumentCallouts } from "@/lib/course-documents/rich-text";
+import { cn } from "@/lib/utils";
+
+type DocumentRendererVariant = "default" | "contract";
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/gu;
 const ALLOWED_FONT_SIZES = new Set(["12px", "14px", "16px", "18px", "20px", "24px", "28px", "32px", "40px", "48px"]);
@@ -66,7 +69,7 @@ function textBlockStyle(attrs: RichTextNode["attrs"]): CSSProperties | undefined
   return textAlign ? { textAlign } : undefined;
 }
 
-function renderRichTextNode(node: RichTextNode, key: string): ReactNode {
+function renderRichTextNode(node: RichTextNode, key: string, variant: DocumentRendererVariant): ReactNode {
   if (node.type === "text") return applyMarks(node.text ?? "", node.marks, key);
   if (node.type === "hardBreak") return <br key={key} />;
   if (node.type === "horizontalRule") return <hr key={key} className="my-10 border-black/10" />;
@@ -85,7 +88,7 @@ function renderRichTextNode(node: RichTextNode, key: string): ReactNode {
     return <p key={key} className="py-3 text-center"><a className="inline-flex min-h-12 items-center justify-center rounded-xl bg-primary px-6 font-semibold text-primary-foreground transition-opacity hover:opacity-90" href={href} target="_blank" rel="noopener noreferrer">{label}</a></p>;
   }
 
-  const children = node.content?.map((child, index) => renderRichTextNode(child, `${key}-${index}`)) ?? null;
+  const children = node.content?.map((child, index) => renderRichTextNode(child, `${key}-${index}`, variant)) ?? null;
   if (node.type === "callout") return (
     <div key={key} className="course-document-callout" data-course-document-callout="" data-icon={typeof node.attrs?.icon === "string" ? node.attrs.icon : DEFAULT_CALLOUT_ICON}>
       <span className="course-document-callout-icon" aria-hidden="true">{typeof node.attrs?.icon === "string" ? node.attrs.icon : DEFAULT_CALLOUT_ICON}</span>
@@ -94,17 +97,17 @@ function renderRichTextNode(node: RichTextNode, key: string): ReactNode {
   );
   if (node.type === "table") {
     return (
-      <div key={key} className="my-7 overflow-x-auto rounded-xl border">
-        <table className="w-full min-w-[32rem] border-collapse text-left text-sm"><tbody>{children}</tbody></table>
+      <div key={key} className={cn("overflow-x-auto border", variant === "contract" ? "my-4 rounded" : "my-7 rounded-xl")}>
+        <table className={cn("w-full border-collapse text-left", variant === "contract" ? "text-[13px]" : "min-w-[32rem] text-sm")}><tbody>{children}</tbody></table>
       </div>
     );
   }
   if (node.type === "tableRow") return <tr key={key} className="border-b last:border-b-0">{children}</tr>;
   if (node.type === "tableHeader") {
-    return <th key={key} colSpan={typeof node.attrs?.colspan === "number" ? node.attrs.colspan : 1} rowSpan={typeof node.attrs?.rowspan === "number" ? node.attrs.rowspan : 1} className="border-r bg-muted/60 px-3 py-2.5 text-center font-semibold last:border-r-0">{children}</th>;
+    return <th key={key} colSpan={typeof node.attrs?.colspan === "number" ? node.attrs.colspan : 1} rowSpan={typeof node.attrs?.rowspan === "number" ? node.attrs.rowspan : 1} className={cn("border-r bg-muted/60 text-center font-semibold last:border-r-0", variant === "contract" ? "px-2 py-1.5" : "px-3 py-2.5")}>{children}</th>;
   }
   if (node.type === "tableCell") {
-    return <td key={key} colSpan={typeof node.attrs?.colspan === "number" ? node.attrs.colspan : 1} rowSpan={typeof node.attrs?.rowspan === "number" ? node.attrs.rowspan : 1} className="border-r px-3 py-2.5 align-top last:border-r-0">{children}</td>;
+    return <td key={key} colSpan={typeof node.attrs?.colspan === "number" ? node.attrs.colspan : 1} rowSpan={typeof node.attrs?.rowspan === "number" ? node.attrs.rowspan : 1} className={cn("border-r align-top last:border-r-0", variant === "contract" ? "px-2 py-1.5" : "px-3 py-2.5")}>{children}</td>;
   }
   if (node.type === "taskList") return <ul key={key} className="list-none space-y-2 p-0">{children}</ul>;
   if (node.type === "taskItem") {
@@ -118,29 +121,38 @@ function renderRichTextNode(node: RichTextNode, key: string): ReactNode {
   }
   if (node.type === "heading") {
     const style = textBlockStyle(node.attrs);
+    if (variant === "contract") {
+      if (node.attrs?.level === 1) return <h1 key={key} style={style} className="py-2 text-center text-2xl font-bold tracking-[-0.04em]">{children}</h1>;
+      if (node.attrs?.level === 2) return <h2 key={key} style={style} className="pt-5 text-base font-bold">{children}</h2>;
+      return <h3 key={key} style={style} className="pt-4 text-[15px] font-semibold">{children}</h3>;
+    }
     if (node.attrs?.level === 1) return <h2 key={key} style={style} className="pt-5 text-3xl font-bold tracking-tight text-balance sm:text-4xl">{children}</h2>;
     if (node.attrs?.level === 2) return <h3 key={key} style={style} className="pt-4 text-2xl font-semibold tracking-tight text-balance">{children}</h3>;
     return <h4 key={key} style={style} className="pt-3 text-xl font-semibold tracking-tight text-balance">{children}</h4>;
   }
-  if (node.type === "paragraph") return <p key={key} style={textBlockStyle(node.attrs)} className="min-h-4 whitespace-pre-wrap leading-8 text-pretty">{children}</p>;
-  if (node.type === "bulletList") return <ul key={key} className="list-disc space-y-2 pl-6 leading-7">{children}</ul>;
-  if (node.type === "orderedList") return <ol key={key} className="list-decimal space-y-2 pl-6 leading-7">{children}</ol>;
+  if (node.type === "paragraph") return <p key={key} style={textBlockStyle(node.attrs)} className={cn("whitespace-pre-wrap", variant === "contract" ? "min-h-[1.78em] break-words leading-[1.78]" : "min-h-4 leading-8 text-pretty")}>{children}</p>;
+  if (node.type === "bulletList") return <ul key={key} className={cn("list-disc pl-6", variant === "contract" ? "space-y-0 leading-[1.78]" : "space-y-2 leading-7")}>{children}</ul>;
+  if (node.type === "orderedList") return <ol key={key} className={cn("list-decimal pl-6", variant === "contract" ? "space-y-0 leading-[1.78]" : "space-y-2 leading-7")}>{children}</ol>;
   if (node.type === "listItem") return <li key={key} className="pl-1">{children}</li>;
   if (node.type === "blockquote") return <blockquote key={key} className="border-l-3 border-primary/35 pl-5 text-muted-foreground">{children}</blockquote>;
   if (node.type === "codeBlock") return <pre key={key} className="overflow-x-auto rounded-xl bg-neutral-950 p-5 font-mono text-sm leading-7 text-neutral-100"><code>{children}</code></pre>;
   return null;
 }
 
-export function DocumentRenderer({ blocks }: { blocks: CourseDocumentBlock[] }) {
+export function DocumentRenderer({ blocks, variant = "default" }: { blocks: CourseDocumentBlock[]; variant?: DocumentRendererVariant }) {
   return (
-    <div className="space-y-6">
+    <div className={variant === "contract" ? "space-y-0" : "space-y-6"}>
       {repairCourseDocumentCallouts(blocks).map((block) => {
-        if (block.type === "rich_text") return renderRichTextNode(block.content, block.id);
-        if (block.type === "heading1") return <h2 key={block.id} className="pt-4 text-3xl font-bold tracking-tight text-balance sm:text-4xl">{block.content}</h2>;
-        if (block.type === "heading2") return <h3 key={block.id} className="pt-3 text-2xl font-semibold tracking-tight text-balance">{block.content}</h3>;
-        if (block.type === "paragraph") return <p key={block.id} className="whitespace-pre-wrap leading-8 text-pretty">{linkedText(block.content)}</p>;
-        if (block.type === "unordered_list") return <ul key={block.id} className="list-disc space-y-2 pl-6 leading-7">{block.items.filter(Boolean).map((item, index) => <li key={`${block.id}-${index}`}>{linkedText(item)}</li>)}</ul>;
-        if (block.type === "ordered_list") return <ol key={block.id} className="list-decimal space-y-2 pl-6 leading-7">{block.items.filter(Boolean).map((item, index) => <li key={`${block.id}-${index}`}>{linkedText(item)}</li>)}</ol>;
+        if (block.type === "rich_text") return renderRichTextNode(block.content, block.id, variant);
+        if (block.type === "heading1") return variant === "contract"
+          ? <h1 key={block.id} className="py-2 text-center text-2xl font-bold tracking-[-0.04em]">{block.content}</h1>
+          : <h2 key={block.id} className="pt-4 text-3xl font-bold tracking-tight text-balance sm:text-4xl">{block.content}</h2>;
+        if (block.type === "heading2") return variant === "contract"
+          ? <h2 key={block.id} className="pt-5 text-base font-bold">{block.content}</h2>
+          : <h3 key={block.id} className="pt-3 text-2xl font-semibold tracking-tight text-balance">{block.content}</h3>;
+        if (block.type === "paragraph") return <p key={block.id} className={cn("whitespace-pre-wrap", variant === "contract" ? "min-h-[1.78em] break-words leading-[1.78]" : "leading-8 text-pretty")}>{linkedText(block.content)}</p>;
+        if (block.type === "unordered_list") return <ul key={block.id} className={cn("list-disc pl-6", variant === "contract" ? "space-y-0 leading-[1.78]" : "space-y-2 leading-7")}>{block.items.filter(Boolean).map((item, index) => <li key={`${block.id}-${index}`}>{linkedText(item)}</li>)}</ul>;
+        if (block.type === "ordered_list") return <ol key={block.id} className={cn("list-decimal pl-6", variant === "contract" ? "space-y-0 leading-[1.78]" : "space-y-2 leading-7")}>{block.items.filter(Boolean).map((item, index) => <li key={`${block.id}-${index}`}>{linkedText(item)}</li>)}</ol>;
         if (block.type === "image") return <figure key={block.id} className="overflow-hidden rounded-2xl border bg-muted/20"><Image src={block.url} alt={block.alt} width={1200} height={675} sizes="(max-width: 768px) 100vw, 768px" className="h-auto w-full object-contain" unoptimized /></figure>;
         if (block.type === "link") return <p key={block.id}><a className="font-medium text-primary underline underline-offset-4" href={block.url} target="_blank" rel="noopener noreferrer">{block.label}</a></p>;
         if (block.type === "cta") return <p key={block.id} className="py-2 text-center"><a className="inline-flex min-h-12 items-center justify-center rounded-xl bg-primary px-6 font-semibold text-primary-foreground transition-opacity hover:opacity-90" href={block.url} target="_blank" rel="noopener noreferrer">{block.label}</a></p>;

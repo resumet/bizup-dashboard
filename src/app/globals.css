@@ -145,7 +145,17 @@
   .course-rich-text-editor p {
     min-height: 1.75rem;
     line-height: 1.9;
+    white-space: pre-wrap;
     text-wrap: pretty;
+  }
+
+  .contract-rich-text-editor > * + * {
+    margin-top: 0;
+  }
+
+  .contract-rich-text-editor p {
+    min-height: 1.9em;
+    text-wrap: wrap;
   }
 
   .course-rich-text-editor h1,

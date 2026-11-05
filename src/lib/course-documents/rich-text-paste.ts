@@ -12,6 +12,10 @@ const CHECKBOX_SELECTOR = [
 const CHECKED_TEXT_PATTERN = /^\s*(?:☑|✅|✔|✓|\[x\])\s*/iu;
 const UNCHECKED_TEXT_PATTERN = /^\s*(?:☐|□|\[\s\])\s*/u;
 
+export function plainTextLines(text: string) {
+  return text.replace(/\r\n?/gu, "\n").split("\n");
+}
+
 function calloutParagraphs(text: string, markdown: boolean): RichTextNode[] {
   if (markdown) return calloutMarkdownBlocks(text);
   return text.replace(/^\n|\n$/gu, "").split("\n").map((line) => ({
