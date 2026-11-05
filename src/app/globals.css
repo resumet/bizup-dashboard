@@ -164,6 +164,7 @@
     margin-top: 2rem;
     font-weight: 700;
     letter-spacing: -0.035em;
+    white-space: pre-wrap;
     text-wrap: balance;
   }
 

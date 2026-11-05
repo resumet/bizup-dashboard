@@ -82,6 +82,7 @@ import {
   repairCourseDocumentCallouts,
 } from "@/lib/course-documents/rich-text";
 import { normalizeNotionCalloutNodes, normalizeRichTextPasteHtml, notionCalloutPasteDocument, plainTextLines } from "@/lib/course-documents/rich-text-paste";
+import { indentSelectionWithThreeSpaces } from "@/lib/course-documents/tab-indent";
 import type {
   CourseDocumentBlock,
   CourseDocumentDetail,
@@ -177,6 +178,19 @@ const BlockIdentity = Extension.create({
         return changed ? transaction : null;
       },
     })];
+  },
+});
+
+const ThreeSpaceTabIndent = Extension.create({
+  name: "threeSpaceTabIndent",
+  priority: 1000,
+  addKeyboardShortcuts() {
+    return {
+      Tab: () => indentSelectionWithThreeSpaces(
+        this.editor.state,
+        (transaction) => this.editor.view.dispatch(transaction),
+      ),
+    };
   },
 });
 
@@ -369,6 +383,7 @@ export function CourseDocumentEditor({
       ButtonLink,
       Callout,
       BlockIdentity,
+      ThreeSpaceTabIndent,
     ],
     content: initialDocument.content,
     editorProps: {

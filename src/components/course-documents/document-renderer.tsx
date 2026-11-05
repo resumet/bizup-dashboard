@@ -122,13 +122,13 @@ function renderRichTextNode(node: RichTextNode, key: string, variant: DocumentRe
   if (node.type === "heading") {
     const style = textBlockStyle(node.attrs);
     if (variant === "contract") {
-      if (node.attrs?.level === 1) return <h1 key={key} style={style} className="py-2 text-center text-2xl font-bold tracking-[-0.04em]">{children}</h1>;
-      if (node.attrs?.level === 2) return <h2 key={key} style={style} className="pt-5 text-base font-bold">{children}</h2>;
-      return <h3 key={key} style={style} className="pt-4 text-[15px] font-semibold">{children}</h3>;
+      if (node.attrs?.level === 1) return <h1 key={key} style={style} className="whitespace-pre-wrap py-2 text-center text-2xl font-bold tracking-[-0.04em]">{children}</h1>;
+      if (node.attrs?.level === 2) return <h2 key={key} style={style} className="whitespace-pre-wrap pt-5 text-base font-bold">{children}</h2>;
+      return <h3 key={key} style={style} className="whitespace-pre-wrap pt-4 text-[15px] font-semibold">{children}</h3>;
     }
-    if (node.attrs?.level === 1) return <h2 key={key} style={style} className="pt-5 text-3xl font-bold tracking-tight text-balance sm:text-4xl">{children}</h2>;
-    if (node.attrs?.level === 2) return <h3 key={key} style={style} className="pt-4 text-2xl font-semibold tracking-tight text-balance">{children}</h3>;
-    return <h4 key={key} style={style} className="pt-3 text-xl font-semibold tracking-tight text-balance">{children}</h4>;
+    if (node.attrs?.level === 1) return <h2 key={key} style={style} className="whitespace-pre-wrap pt-5 text-3xl font-bold tracking-tight text-balance sm:text-4xl">{children}</h2>;
+    if (node.attrs?.level === 2) return <h3 key={key} style={style} className="whitespace-pre-wrap pt-4 text-2xl font-semibold tracking-tight text-balance">{children}</h3>;
+    return <h4 key={key} style={style} className="whitespace-pre-wrap pt-3 text-xl font-semibold tracking-tight text-balance">{children}</h4>;
   }
   if (node.type === "paragraph") return <p key={key} style={textBlockStyle(node.attrs)} className={cn("whitespace-pre-wrap", variant === "contract" ? "min-h-[1.78em] break-words leading-[1.78]" : "min-h-4 leading-8 text-pretty")}>{children}</p>;
   if (node.type === "bulletList") return <ul key={key} className={cn("list-disc pl-6", variant === "contract" ? "space-y-0 leading-[1.78]" : "space-y-2 leading-7")}>{children}</ul>;
@@ -145,11 +145,11 @@ export function DocumentRenderer({ blocks, variant = "default" }: { blocks: Cour
       {repairCourseDocumentCallouts(blocks).map((block) => {
         if (block.type === "rich_text") return renderRichTextNode(block.content, block.id, variant);
         if (block.type === "heading1") return variant === "contract"
-          ? <h1 key={block.id} className="py-2 text-center text-2xl font-bold tracking-[-0.04em]">{block.content}</h1>
-          : <h2 key={block.id} className="pt-4 text-3xl font-bold tracking-tight text-balance sm:text-4xl">{block.content}</h2>;
+          ? <h1 key={block.id} className="whitespace-pre-wrap py-2 text-center text-2xl font-bold tracking-[-0.04em]">{block.content}</h1>
+          : <h2 key={block.id} className="whitespace-pre-wrap pt-4 text-3xl font-bold tracking-tight text-balance sm:text-4xl">{block.content}</h2>;
         if (block.type === "heading2") return variant === "contract"
-          ? <h2 key={block.id} className="pt-5 text-base font-bold">{block.content}</h2>
-          : <h3 key={block.id} className="pt-3 text-2xl font-semibold tracking-tight text-balance">{block.content}</h3>;
+          ? <h2 key={block.id} className="whitespace-pre-wrap pt-5 text-base font-bold">{block.content}</h2>
+          : <h3 key={block.id} className="whitespace-pre-wrap pt-3 text-2xl font-semibold tracking-tight text-balance">{block.content}</h3>;
         if (block.type === "paragraph") return <p key={block.id} className={cn("whitespace-pre-wrap", variant === "contract" ? "min-h-[1.78em] break-words leading-[1.78]" : "leading-8 text-pretty")}>{linkedText(block.content)}</p>;
         if (block.type === "unordered_list") return <ul key={block.id} className={cn("list-disc pl-6", variant === "contract" ? "space-y-0 leading-[1.78]" : "space-y-2 leading-7")}>{block.items.filter(Boolean).map((item, index) => <li key={`${block.id}-${index}`}>{linkedText(item)}</li>)}</ul>;
         if (block.type === "ordered_list") return <ol key={block.id} className={cn("list-decimal pl-6", variant === "contract" ? "space-y-0 leading-[1.78]" : "space-y-2 leading-7")}>{block.items.filter(Boolean).map((item, index) => <li key={`${block.id}-${index}`}>{linkedText(item)}</li>)}</ol>;
