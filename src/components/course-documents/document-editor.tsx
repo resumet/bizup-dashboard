@@ -102,6 +102,7 @@ type Props = {
   fixedTitleText?: string;
   initialContent?: CourseDocumentBlock[];
   onSaveContent?: (content: CourseDocumentBlock[]) => Promise<void>;
+  allowSaveWhenClean?: boolean;
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -286,6 +287,7 @@ export function CourseDocumentEditor({
   fixedTitleText,
   initialContent,
   onSaveContent,
+  allowSaveWhenClean = false,
 }: Props) {
   const initialDocument = useMemo(() => {
     const original = mode === "contract" ? initialContent ?? [] : document?.content ?? [];
@@ -645,7 +647,7 @@ export function CourseDocumentEditor({
               setNotice("PDF 내용을 본문 끝에 추가했습니다. 검토한 뒤 저장해 주세요.");
             }} /> : null}
             <Button type="button" size="sm" variant="ghost" onClick={() => setPreview((value) => !value)}><Eye />{preview ? "편집" : "미리보기"}</Button>
-            <Button type="button" size="sm" onClick={() => void save()} disabled={saving || uploading || (!dirty && (Boolean(document) || mode === "contract"))}>{saving ? <Loader2 className="animate-spin" /> : <Save />}{saving ? "저장 중" : "저장"}</Button>
+            <Button type="button" size="sm" onClick={() => void save()} disabled={saving || uploading || (!allowSaveWhenClean && !dirty && (Boolean(document) || mode === "contract"))}>{saving ? <Loader2 className="animate-spin" /> : <Save />}{saving ? "저장 중" : "저장"}</Button>
           </div>
         </div>
 

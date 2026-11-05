@@ -27,6 +27,32 @@ export type InstructorContractTemplate = {
   content: CourseDocumentBlock[];
 };
 
+export type InstructorContractTemplateRecord = {
+  id: string;
+  name: string;
+  template: InstructorContractTemplate;
+  createdAt: string | null;
+  updatedAt: string | null;
+  isBuiltIn?: boolean;
+};
+
+export type InstructorContractListItem = {
+  id: string;
+  title: string;
+  templateName: string;
+  instructorName: string;
+  lectureName: string;
+  createdByName: string;
+  createdAt: string;
+};
+
+export type InstructorContractDetail = InstructorContractListItem & {
+  values: InstructorContractValues;
+  renderedContent: CourseDocumentBlock[];
+};
+
+export const BUILT_IN_INSTRUCTOR_CONTRACT_TEMPLATE_ID = "built-in";
+
 export const COMPANY_CONTRACT_DETAILS = {
   name: "주식회사 비즈업클래스",
   address: "서울특별시 강남구 테헤란로 25길 6-9, 석암빌딩 4층 409호",
@@ -301,6 +327,50 @@ function displayContractValue(value: string, fallback: string) {
   return value.trim() || fallback;
 }
 
+export function normalizeContractNumberInput(value: string) {
+  const digits = value.replace(/[^0-9]/gu, "");
+  return digits.replace(/^0+(?=[0-9])/u, "");
+}
+
+export function formatContractNumber(value: string) {
+  const digits = normalizeContractNumberInput(value);
+  return digits ? digits.replace(/\B(?=(?:[0-9]{3})+(?![0-9]))/gu, ",") : "";
+}
+
+const KOREAN_DIGITS = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"] as const;
+const KOREAN_SMALL_UNITS = ["", "십", "백", "천"] as const;
+const KOREAN_LARGE_UNITS = ["", "만", "억", "조", "경", "해"] as const;
+
+function koreanFourDigitGroup(value: string) {
+  const padded = value.padStart(4, "0");
+  let result = "";
+  for (let index = 0; index < padded.length; index += 1) {
+    const digit = Number(padded[index]);
+    if (!digit) continue;
+    const unitIndex = padded.length - index - 1;
+    result += `${digit === 1 && unitIndex > 0 ? "" : KOREAN_DIGITS[digit]}${KOREAN_SMALL_UNITS[unitIndex]}`;
+  }
+  return result;
+}
+
+export function formatContractAmountInKorean(value: string) {
+  const digits = normalizeContractNumberInput(value).replace(/^0+(?=[0-9])/u, "");
+  if (!digits) return "";
+  if (/^0+$/u.test(digits)) return "영 원";
+
+  const groups: string[] = [];
+  for (let end = digits.length; end > 0; end -= 4) {
+    groups.push(digits.slice(Math.max(0, end - 4), end));
+  }
+  if (groups.length > KOREAN_LARGE_UNITS.length) return `${formatContractNumber(digits)} 원`;
+
+  const parts = groups.map((group, index) => {
+    const text = koreanFourDigitGroup(group);
+    return text ? `${text}${KOREAN_LARGE_UNITS[index]}` : "";
+  }).filter(Boolean).reverse();
+  return `${parts.join("")} 원`;
+}
+
 export function replaceInstructorContractVariables(
   text: string,
   values: InstructorContractValues,
@@ -312,7 +382,7 @@ export function replaceInstructorContractVariables(
     instructorName: displayContractValue(values.instructorName, "강사명"),
     lectureName: displayContractValue(values.lectureName, "강의명"),
     instagram_number_of_reels: displayContractValue(values.instagramNumberOfReels, "입력 예정"),
-    instagram_value_of_reels: displayContractValue(values.instagramValueOfReels, "입력 예정"),
+    instagram_value_of_reels: displayContractValue(formatContractNumber(values.instagramValueOfReels), "입력 예정"),
     startDate,
     endDate: formattedEndDate,
     contractPeriod: `${startDate} ~ ${formattedEndDate} (${values.durationYears || 1}년간)`,

@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   DEFAULT_INSTRUCTOR_CONTRACT_TEMPLATE,
+  formatContractAmountInKorean,
+  formatContractNumber,
   getContractEndDate,
   getKoreanDate,
   renderInstructorContractTemplate,
@@ -30,6 +32,14 @@ test("계약 종료일은 시작일 기준 입력한 연수를 더한다", () =>
 
 test("계약 날짜를 읽기 쉬운 한국어 날짜로 표시한다", () => {
   assert.equal(getKoreanDate("2026-11-05"), "2026년 11월 5일");
+});
+
+test("인스타그램 릴스 대행 금액을 쉼표와 한글 금액으로 표시한다", () => {
+  assert.equal(formatContractNumber("1500000"), "1,500,000");
+  assert.equal(formatContractNumber("1,500,000원"), "1,500,000");
+  assert.equal(formatContractAmountInKorean("1500000"), "백오십만 원");
+  assert.equal(formatContractAmountInKorean("100000000"), "일억 원");
+  assert.equal(formatContractAmountInKorean("0"), "영 원");
 });
 
 test("기존 조항형 템플릿은 전체 원문 편집 형식으로 변환한다", () => {
@@ -82,7 +92,7 @@ test("인스타그램 릴스 대행 갯수와 금액 변수를 입력값으로 �
   const [rendered] = renderInstructorContractTemplate(template, values);
   assert.equal(rendered.type, "rich_text");
   if (rendered.type !== "rich_text") return;
-  assert.equal(rendered.content.content?.[0]?.text, "릴스 대행: 12개\n대행 금액: 1500000원");
+  assert.equal(rendered.content.content?.[0]?.text, "릴스 대행: 12개\n대행 금액: 1,500,000원");
 });
 
 test("기본 템플릿은 전체 본문과 입력 변수 영역을 포함한다", () => {
