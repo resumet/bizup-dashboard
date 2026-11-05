@@ -182,7 +182,7 @@ export function InstructorContractWriter({ initialTemplate = DEFAULT_INSTRUCTOR_
       </div>
 
       <Dialog open={templateEditorOpen} onOpenChange={setTemplateEditorOpen}>
-        <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-4xl overflow-y-auto p-0" showCloseButton={!savingTemplate}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-none sm:w-[70vw] max-h-[calc(100dvh-2rem)] overflow-y-auto p-0" showCloseButton={!savingTemplate}>
           <DialogHeader className="border-b px-6 py-5"><DialogTitle>계약서 템플릿 수정</DialogTitle><DialogDescription>강사명은 <code>{"{{instructorName}}"}</code>, 강의명은 <code>{"{{lectureName}}"}</code>으로 입력하면 계약서 작성 시 자동으로 바뀝니다.</DialogDescription></DialogHeader>
           <div className="space-y-6 px-6 py-5">
             <div className="space-y-2"><Label htmlFor="template-introduction">계약서 서문</Label><Textarea id="template-introduction" rows={5} value={draftTemplate.introduction} onChange={(event) => setDraftTemplate((current) => ({ ...current, introduction: event.target.value }))} /></div>
