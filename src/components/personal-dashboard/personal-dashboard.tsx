@@ -10,10 +10,7 @@ import {
   NotebookPen,
   PackagePlus,
   PlaneTakeoff,
-  Plus,
   Send,
-  StickyNote,
-  Trash2,
   UserRoundCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -47,7 +44,6 @@ import {
 } from "@/lib/personal-dashboard/tasks";
 import type {
   ExecutiveAssignment,
-  PersonalDashboardMemo,
   PersonalDashboardPerson,
 } from "@/lib/personal-dashboard/types";
 import { cn } from "@/lib/utils";
@@ -104,20 +100,16 @@ export function PersonalDashboard({
   userId,
   userName,
   isSuperAdmin,
-  initialMemos,
   initialAssignments,
   people,
 }: {
   userId: string;
   userName: string;
   isSuperAdmin: boolean;
-  initialMemos: PersonalDashboardMemo[];
   initialAssignments: ExecutiveAssignment[];
   people: PersonalDashboardPerson[];
 }) {
   const assignmentInputRef = useRef<HTMLTextAreaElement>(null);
-  const [memos, setMemos] = useState(initialMemos);
-  const [memoDraft, setMemoDraft] = useState("");
   const [assignments, setAssignments] = useState(initialAssignments);
   const [assignmentText, setAssignmentText] = useState("");
   const [selectedAssignee, setSelectedAssignee] = useState<PersonalDashboardPerson | null>(null);
@@ -126,7 +118,6 @@ export function PersonalDashboard({
   const [completionTaskId, setCompletionTaskId] = useState<string | null>(null);
   const [completionReport, setCompletionReport] = useState("");
   const [busy, setBusy] = useState("");
-  const [memoError, setMemoError] = useState("");
   const [assignmentError, setAssignmentError] = useState("");
   const [taskError, setTaskError] = useState("");
 
@@ -143,41 +134,6 @@ export function PersonalDashboard({
   const completionTask = completionTaskId
     ? assignments.find((assignment) => assignment.id === completionTaskId) ?? null
     : null;
-
-  async function createMemo(event: FormEvent) {
-    event.preventDefault();
-    if (!memoDraft.trim() || busy) return;
-    setBusy("memo-create");
-    setMemoError("");
-    try {
-      const memo = await readJson<PersonalDashboardMemo>(await fetch("/api/personal-dashboard/memos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: memoDraft }),
-      }));
-      setMemos((current) => [memo, ...current]);
-      setMemoDraft("");
-    } catch (error) {
-      setMemoError(error instanceof Error ? error.message : "메모를 저장하지 못했습니다.");
-    } finally {
-      setBusy("");
-    }
-  }
-
-  async function deleteMemo(id: string) {
-    if (busy) return;
-    setBusy(`memo-${id}`);
-    setMemoError("");
-    try {
-      const response = await fetch(`/api/personal-dashboard/memos/${id}`, { method: "DELETE" });
-      if (!response.ok) await readJson(response);
-      setMemos((current) => current.filter((memo) => memo.id !== id));
-    } catch (error) {
-      setMemoError(error instanceof Error ? error.message : "메모를 삭제하지 못했습니다.");
-    } finally {
-      setBusy("");
-    }
-  }
 
   function updateAssignmentText(value: string, cursor: number) {
     setAssignmentText(value);
@@ -388,50 +344,6 @@ export function PersonalDashboard({
             </CardContent>
           </Card>
         ) : null}
-
-        <Card className="bg-white shadow-sm">
-          <CardHeader>
-            <SectionTitle icon={StickyNote}>메모 목록</SectionTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <form className="space-y-2" onSubmit={(event) => void createMemo(event)}>
-              <Textarea
-                value={memoDraft}
-                maxLength={2000}
-                rows={3}
-                placeholder="기억할 내용을 적어 주세요"
-                aria-label="새 개인 메모"
-                onChange={(event) => setMemoDraft(event.target.value)}
-              />
-              <div className="flex justify-end">
-                <Button type="submit" size="sm" disabled={!memoDraft.trim() || busy === "memo-create"}>
-                  {busy === "memo-create" ? <Loader2 className="animate-spin" /> : <Plus />}
-                  메모 추가
-                </Button>
-              </div>
-            </form>
-            {memoError ? <ErrorMessage>{memoError}</ErrorMessage> : null}
-            <div className="space-y-2">
-              {memos.length ? memos.map((memo) => (
-                <article key={memo.id} className="flex items-start gap-3 rounded-xl border bg-slate-50/70 p-3.5">
-                  <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm leading-6">{memo.content}</p>
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="ghost"
-                    aria-label="메모 삭제"
-                    disabled={busy === `memo-${memo.id}`}
-                    onClick={() => void deleteMemo(memo.id)}
-                  >
-                    {busy === `memo-${memo.id}` ? <Loader2 className="animate-spin" /> : <Trash2 />}
-                  </Button>
-                </article>
-              )) : (
-                <p className="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">저장된 메모가 없습니다.</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
 
         <Card className="bg-white shadow-sm">
           <CardHeader>

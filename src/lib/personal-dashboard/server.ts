@@ -6,7 +6,6 @@ import { loadWorkspacePeople } from "@/lib/work-tasks/server";
 import type {
   ExecutiveAssignment,
   ExecutiveAssignmentStatus,
-  PersonalDashboardMemo,
   PersonalDashboardPerson,
 } from "./types";
 
@@ -39,19 +38,11 @@ export async function loadPersonalDashboard(input: LoadPersonalDashboardInput) {
     .limit(500);
   if (!input.isSuperAdmin) taskQuery = taskQuery.eq("assignee_id", input.userId);
 
-  const [memoResult, taskResult, people] = await Promise.all([
-    input.admin
-      .from("personal_dashboard_memos")
-      .select("id,content,created_at,updated_at")
-      .eq("workspace_id", input.workspaceId)
-      .eq("user_id", input.userId)
-      .order("created_at", { ascending: false })
-      .limit(100),
+  const [taskResult, people] = await Promise.all([
     taskQuery,
     loadWorkspacePeople(input.workspaceId),
   ]);
 
-  if (memoResult.error) throw new Error(`개인 메모 조회 실패: ${memoResult.error.code}`);
   if (taskResult.error) throw new Error(`개인 할일 조회 실패: ${taskResult.error.code}`);
 
   const peopleById = new Map(people.map((person) => [person.id, person.name]));
@@ -66,7 +57,6 @@ export async function loadPersonalDashboard(input: LoadPersonalDashboardInput) {
   }));
 
   return {
-    memos: (memoResult.data ?? []) as PersonalDashboardMemo[],
     assignments,
     people: peopleOptions,
   };

@@ -1,12 +1,5 @@
 export type ExecutiveAssignmentStatus = "created" | "assigned" | "completed";
 
-export type PersonalDashboardMemo = {
-  id: string;
-  content: string;
-  created_at: string;
-  updated_at: string;
-};
-
 export type PersonalDashboardPerson = {
   id: string;
   name: string;

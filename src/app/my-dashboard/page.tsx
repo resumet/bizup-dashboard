@@ -34,7 +34,6 @@ export default async function MyDashboardPage() {
       userId={context.user.id}
       userName={context.user.displayName ?? "사용자"}
       isSuperAdmin={context.isSuperAdmin}
-      initialMemos={data.memos}
       initialAssignments={data.assignments}
       people={data.people}
     />

@@ -64,6 +64,7 @@ test("대표 배정 할일은 기존 업무 테이블에서 할당·완료보고
       "supabase/migrations_archive/20260929/202609190005_work_task_edit_command.sql",
       "supabase/migrations/20261105132457_personal_dashboards.sql",
       "supabase/migrations/20261105140500_executive_assignment_personnel_guard.sql",
+      "supabase/migrations/20261105144356_remove_personal_dashboard_memos.sql",
     ]) {
       await db.exec(await readFile(migration, "utf8"));
     }
@@ -162,15 +163,10 @@ test("대표 배정 할일은 기존 업무 테이블에서 할당·완료보고
       /퇴직한 직원/,
     );
 
-    await db.query(
-      "insert into public.personal_dashboard_memos(workspace_id,user_id,content) values($1,$2,$3)",
-      [workspaceId, employeeId, "개인 메모"],
+    const memoTable = await db.query<{ table_name: string | null }>(
+      "select to_regclass('public.personal_dashboard_memos')::text table_name",
     );
-    const memos = await db.query<{ content: string }>(
-      "select content from public.personal_dashboard_memos where user_id=$1",
-      [employeeId],
-    );
-    assert.deepEqual(memos.rows, [{ content: "개인 메모" }]);
+    assert.equal(memoTable.rows[0].table_name, null);
   } finally {
     await db.close();
   }
