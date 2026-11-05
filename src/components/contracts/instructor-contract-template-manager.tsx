@@ -6,7 +6,6 @@ import { useState } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -125,20 +124,29 @@ export function InstructorContractTemplateManager({
       {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
 
       {templates.length ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {templates.map((template) => (
-            <Card key={template.id} className="py-0">
-              <CardContent className="flex items-start justify-between gap-4 p-5">
-                <button type="button" className="min-w-0 flex-1 text-left" onClick={() => openTemplate(template)}>
-                  <span className="flex items-center gap-2 font-semibold hover:text-primary hover:underline">
-                    <FileText className="size-4 shrink-0" aria-hidden="true" />
-                    <span className="truncate">{template.name}</span>
-                  </span>
-                  <span className="mt-2 block text-xs text-muted-foreground">
-                    {template.updatedAt ? `${dateTime.format(new Date(template.updatedAt))} 수정` : "기본 템플릿"}
-                  </span>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div aria-hidden="true" className="hidden grid-cols-[minmax(0,1fr)_13rem_6rem] items-center gap-4 border-b bg-muted/40 px-5 py-3 text-xs font-medium text-muted-foreground sm:grid">
+            <span>템플릿 이름</span>
+            <span>최근 수정</span>
+            <span className="text-right">관리</span>
+          </div>
+          <ul className="divide-y">
+            {templates.map((template) => (
+              <li
+                key={template.id}
+                className="grid gap-3 px-4 py-4 transition-colors hover:bg-muted/30 focus-within:bg-muted/30 sm:grid-cols-[minmax(0,1fr)_13rem_6rem] sm:items-center sm:gap-4 sm:px-5"
+              >
+                <button type="button" className="flex min-w-0 items-center gap-2 text-left font-semibold hover:text-primary hover:underline" onClick={() => openTemplate(template)}>
+                  <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <span className="truncate">{template.name}</span>
                 </button>
-                <div className="flex shrink-0 gap-1">
+                <div className="text-sm text-muted-foreground">
+                  <span className="mr-2 sm:sr-only">최근 수정</span>
+                  <span className="whitespace-nowrap">
+                    {template.updatedAt ? dateTime.format(new Date(template.updatedAt)) : "기본 템플릿"}
+                  </span>
+                </div>
+                <div className="flex justify-end gap-1">
                   <Button type="button" size="icon-sm" variant="ghost" aria-label={`${template.name} 수정`} onClick={() => openTemplate(template)}>
                     <Pencil aria-hidden="true" />
                   </Button>
@@ -154,9 +162,9 @@ export function InstructorContractTemplateManager({
                     {deletingId === template.id ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Trash2 aria-hidden="true" />}
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              </li>
+            ))}
+          </ul>
         </div>
       ) : (
         <div className="flex min-h-72 flex-col items-center justify-center gap-3 rounded-xl border border-dashed px-6 text-center text-muted-foreground">

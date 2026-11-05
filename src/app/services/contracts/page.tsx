@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { BackLink } from "@/components/layout/back-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   InstructorContractError,
   loadInstructorContracts,
@@ -52,25 +51,53 @@ export default async function ContractsPage() {
         </div>
 
         {contracts.length ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {contracts.map((contract) => (
-              <Card key={contract.id} className="py-0 transition-shadow hover:shadow-md">
-                <CardContent className="space-y-4 p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <Link className="min-w-0 font-semibold leading-6 hover:text-primary hover:underline" href={`/services/contracts/${contract.id}`}>
-                      {contract.title}
+          <div className="overflow-hidden rounded-xl border bg-card">
+            <div aria-hidden="true" className="hidden grid-cols-[minmax(15rem,2fr)_minmax(8rem,1fr)_minmax(8rem,1fr)_minmax(10rem,1.2fr)_minmax(7rem,0.8fr)_10rem] gap-4 border-b bg-muted/40 px-5 py-3 text-xs font-medium text-muted-foreground xl:grid">
+              <span>계약서</span>
+              <span>템플릿</span>
+              <span>강사명</span>
+              <span>강의명</span>
+              <span>작성자</span>
+              <span>작성 시간</span>
+            </div>
+            <ul className="divide-y">
+              {contracts.map((contract) => (
+                <li
+                  key={contract.id}
+                  className="grid gap-x-4 gap-y-3 px-4 py-4 transition-colors hover:bg-muted/30 focus-within:bg-muted/30 sm:grid-cols-2 sm:px-5 xl:grid-cols-[minmax(15rem,2fr)_minmax(8rem,1fr)_minmax(8rem,1fr)_minmax(10rem,1.2fr)_minmax(7rem,0.8fr)_10rem] xl:items-center"
+                >
+                  <div className="min-w-0 sm:col-span-2 xl:col-span-1">
+                    <Link
+                      className="flex min-w-0 items-center gap-2 font-semibold leading-6 hover:text-primary hover:underline"
+                      href={`/services/contracts/${contract.id}`}
+                    >
+                      <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                      <span className="truncate">{contract.title}</span>
                     </Link>
-                    <Badge variant="secondary" className="shrink-0">{contract.templateName}</Badge>
                   </div>
-                  <dl className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
-                    <dt className="text-muted-foreground">강사명</dt><dd className="truncate">{contract.instructorName || "-"}</dd>
-                    <dt className="text-muted-foreground">강의명</dt><dd className="truncate">{contract.lectureName || "-"}</dd>
-                    <dt className="text-muted-foreground">작성자</dt><dd className="truncate">{contract.createdByName}</dd>
-                    <dt className="text-muted-foreground">작성 시간</dt><dd className="whitespace-nowrap">{dateTime.format(new Date(contract.createdAt))}</dd>
-                  </dl>
-                </CardContent>
-              </Card>
-            ))}
+                  <div className="min-w-0">
+                    <span className="mb-1 block text-xs text-muted-foreground xl:sr-only">템플릿</span>
+                    <Badge variant="secondary" className="max-w-full"><span className="truncate">{contract.templateName}</span></Badge>
+                  </div>
+                  <div className="min-w-0 text-sm">
+                    <span className="mb-1 block text-xs text-muted-foreground xl:sr-only">강사명</span>
+                    <span className="block truncate">{contract.instructorName || "-"}</span>
+                  </div>
+                  <div className="min-w-0 text-sm">
+                    <span className="mb-1 block text-xs text-muted-foreground xl:sr-only">강의명</span>
+                    <span className="block truncate">{contract.lectureName || "-"}</span>
+                  </div>
+                  <div className="min-w-0 text-sm">
+                    <span className="mb-1 block text-xs text-muted-foreground xl:sr-only">작성자</span>
+                    <span className="block truncate">{contract.createdByName}</span>
+                  </div>
+                  <div className="text-sm">
+                    <span className="mb-1 block text-xs text-muted-foreground xl:sr-only">작성 시간</span>
+                    <span className="whitespace-nowrap">{dateTime.format(new Date(contract.createdAt))}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         ) : (
           <div className="flex min-h-72 flex-col items-center justify-center gap-3 rounded-xl border border-dashed px-6 text-center text-muted-foreground">
