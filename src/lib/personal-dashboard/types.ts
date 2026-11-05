@@ -25,14 +25,3 @@ export type ExecutiveAssignment = {
   created_at: string;
   updated_at: string;
 };
-
-export type PersonalWbsTask = {
-  courseId: string;
-  courseName: string;
-  instructorName: string;
-  cohort: string;
-  itemId: string;
-  title: string;
-  scheduledDate: string;
-  href: string;
-};

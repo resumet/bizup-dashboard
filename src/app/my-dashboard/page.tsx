@@ -26,7 +26,6 @@ export default async function MyDashboardPage() {
     admin: context.admin,
     workspaceId: context.workspaceId,
     userId: context.user.id,
-    userDisplayName: context.user.displayName,
     isSuperAdmin: context.isSuperAdmin,
   });
 
@@ -38,8 +37,6 @@ export default async function MyDashboardPage() {
       initialMemos={data.memos}
       initialAssignments={data.assignments}
       people={data.people}
-      wbsTasks={data.wbsTasks}
-      wbsError={data.wbsError}
     />
   );
 }

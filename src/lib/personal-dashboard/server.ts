@@ -2,15 +2,12 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { formatDashboardCohort } from "@/lib/dashboard/course-metadata";
-import { loadCourseWbsBootstrap } from "@/lib/course-wbs/server";
 import { loadWorkspacePeople } from "@/lib/work-tasks/server";
 import type {
   ExecutiveAssignment,
   ExecutiveAssignmentStatus,
   PersonalDashboardMemo,
   PersonalDashboardPerson,
-  PersonalWbsTask,
 } from "./types";
 
 type ExecutiveAssignmentRow = {
@@ -29,42 +26,8 @@ type LoadPersonalDashboardInput = {
   admin: SupabaseClient;
   workspaceId: string;
   userId: string;
-  userDisplayName?: string;
   isSuperAdmin: boolean;
 };
-
-function normalizedPersonName(value: string) {
-  return value.trim().toLocaleLowerCase("ko-KR");
-}
-
-function assignedWbsTasks(
-  bootstrap: Awaited<ReturnType<typeof loadCourseWbsBootstrap>>,
-  aliases: Set<string>,
-) {
-  const schedulesByCourse = new Map(
-    bootstrap.schedules.map((entry) => [entry.courseId, entry.items]),
-  );
-  const tasks: PersonalWbsTask[] = [];
-
-  for (const course of bootstrap.courses) {
-    if (course.status !== "ongoing") continue;
-    for (const item of schedulesByCourse.get(course.id) ?? []) {
-      if (item.completed || !aliases.has(normalizedPersonName(item.owner))) continue;
-      tasks.push({
-        courseId: course.id,
-        courseName: course.name,
-        instructorName: course.instructorName,
-        cohort: formatDashboardCohort(course.cohort),
-        itemId: item.id,
-        title: item.title,
-        scheduledDate: item.dueDate || item.startDate,
-        href: `/services/course-wbs?courseId=${encodeURIComponent(course.id)}`,
-      });
-    }
-  }
-
-  return tasks;
-}
 
 export async function loadPersonalDashboard(input: LoadPersonalDashboardInput) {
   let taskQuery = input.admin
@@ -76,10 +39,7 @@ export async function loadPersonalDashboard(input: LoadPersonalDashboardInput) {
     .limit(500);
   if (!input.isSuperAdmin) taskQuery = taskQuery.eq("assignee_id", input.userId);
 
-  const wbsPromise = loadCourseWbsBootstrap(input.workspaceId)
-    .then((value) => ({ value, error: "" }))
-    .catch(() => ({ value: null, error: "강의별 할일을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요." }));
-  const [memoResult, taskResult, people, wbsResult] = await Promise.all([
+  const [memoResult, taskResult, people] = await Promise.all([
     input.admin
       .from("personal_dashboard_memos")
       .select("id,content,created_at,updated_at")
@@ -89,7 +49,6 @@ export async function loadPersonalDashboard(input: LoadPersonalDashboardInput) {
       .limit(100),
     taskQuery,
     loadWorkspacePeople(input.workspaceId),
-    wbsPromise,
   ]);
 
   if (memoResult.error) throw new Error(`개인 메모 조회 실패: ${memoResult.error.code}`);
@@ -106,24 +65,9 @@ export async function loadPersonalDashboard(input: LoadPersonalDashboardInput) {
     assignee_name: peopleById.get(task.assignee_id) ?? "사용자",
   }));
 
-  const currentPerson = people.find((person) => person.id === input.userId);
-  const aliases = new Set(
-    [
-      currentPerson?.name,
-      ...(currentPerson?.accountNames ?? []),
-      input.userDisplayName,
-    ]
-      .filter((name): name is string => Boolean(name?.trim()))
-      .map(normalizedPersonName),
-  );
-
-  const wbsTasks = wbsResult.value ? assignedWbsTasks(wbsResult.value, aliases) : [];
-
   return {
     memos: (memoResult.data ?? []) as PersonalDashboardMemo[],
     assignments,
     people: peopleOptions,
-    wbsTasks,
-    wbsError: wbsResult.error,
   };
 }

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import {
-  BriefcaseBusiness,
   CalendarCheck2,
   CheckCircle2,
   ClipboardList,
@@ -50,7 +49,6 @@ import type {
   ExecutiveAssignment,
   PersonalDashboardMemo,
   PersonalDashboardPerson,
-  PersonalWbsTask,
 } from "@/lib/personal-dashboard/types";
 import { cn } from "@/lib/utils";
 
@@ -90,16 +88,6 @@ function dateTimeLabel(value: string | null) {
   }).format(new Date(value));
 }
 
-function scheduleLabel(value: string) {
-  if (!value) return "일정 미정";
-  return new Intl.DateTimeFormat("ko-KR", {
-    timeZone: "Asia/Seoul",
-    month: "short",
-    day: "numeric",
-    weekday: "short",
-  }).format(new Date(`${value}T00:00:00+09:00`));
-}
-
 function ErrorMessage({ children }: { children: string }) {
   return <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{children}</p>;
 }
@@ -119,8 +107,6 @@ export function PersonalDashboard({
   initialMemos,
   initialAssignments,
   people,
-  wbsTasks,
-  wbsError,
 }: {
   userId: string;
   userName: string;
@@ -128,8 +114,6 @@ export function PersonalDashboard({
   initialMemos: PersonalDashboardMemo[];
   initialAssignments: ExecutiveAssignment[];
   people: PersonalDashboardPerson[];
-  wbsTasks: PersonalWbsTask[];
-  wbsError: string;
 }) {
   const assignmentInputRef = useRef<HTMLTextAreaElement>(null);
   const [memos, setMemos] = useState(initialMemos);
@@ -150,28 +134,12 @@ export function PersonalDashboard({
     if (!activeMention) return [];
     const query = activeMention.query.trim().toLocaleLowerCase("ko-KR");
     return people
-      .filter((person) => !query || person.name.toLocaleLowerCase("ko-KR").includes(query))
-      .slice(0, 8);
+      .filter((person) => !query || person.name.toLocaleLowerCase("ko-KR").includes(query));
   }, [activeMention, people]);
   const myAssignments = useMemo(
     () => assignments.filter((assignment) => assignment.assignee_id === userId),
     [assignments, userId],
   );
-  const groupedWbsTasks = useMemo(() => {
-    const groups: Array<{ courseId: string; courseName: string; instructorName: string; cohort: string; tasks: PersonalWbsTask[] }> = [];
-    for (const task of wbsTasks) {
-      const previous = groups.at(-1);
-      if (previous?.courseId === task.courseId) previous.tasks.push(task);
-      else groups.push({
-        courseId: task.courseId,
-        courseName: task.courseName,
-        instructorName: task.instructorName,
-        cohort: task.cohort,
-        tasks: [task],
-      });
-    }
-    return groups;
-  }, [wbsTasks]);
   const completionTask = completionTaskId
     ? assignments.find((assignment) => assignment.id === completionTaskId) ?? null
     : null;
@@ -230,16 +198,30 @@ export function PersonalDashboard({
     });
   }
 
+  function moveHighlightedPerson(direction: 1 | -1) {
+    if (!mentionSuggestions.length) return;
+    const nextIndex = (
+      highlightedPersonIndex + direction + mentionSuggestions.length
+    ) % mentionSuggestions.length;
+    const nextPerson = mentionSuggestions[nextIndex];
+    setHighlightedPersonIndex(nextIndex);
+    requestAnimationFrame(() => {
+      document.getElementById(`assignment-person-${nextPerson.id}`)?.scrollIntoView({
+        block: "nearest",
+      });
+    });
+  }
+
   function handleAssignmentKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (activeMention && mentionSuggestions.length) {
       if (event.key === "ArrowDown") {
         event.preventDefault();
-        setHighlightedPersonIndex((current) => (current + 1) % mentionSuggestions.length);
+        moveHighlightedPerson(1);
         return;
       }
       if (event.key === "ArrowUp") {
         event.preventDefault();
-        setHighlightedPersonIndex((current) => (current - 1 + mentionSuggestions.length) % mentionSuggestions.length);
+        moveHighlightedPerson(-1);
         return;
       }
       if (event.key === "Enter" && !event.shiftKey) {
@@ -340,7 +322,7 @@ export function PersonalDashboard({
         </section>
 
         {isSuperAdmin ? (
-          <Card className="border-blue-200 bg-white shadow-sm">
+          <Card className="relative z-30 overflow-visible border-blue-200 bg-white shadow-sm">
             <CardHeader>
               <SectionTitle icon={Send}>할일 배정</SectionTitle>
             </CardHeader>
@@ -360,11 +342,14 @@ export function PersonalDashboard({
                       ? `assignment-person-${mentionSuggestions[highlightedPersonIndex]?.id ?? mentionSuggestions[0].id}`
                       : undefined}
                     onChange={(event) => updateAssignmentText(event.target.value, event.target.selectionStart)}
-                    onClick={(event) => setActiveMention(findActiveMention(event.currentTarget.value, event.currentTarget.selectionStart))}
+                    onClick={(event) => {
+                      setActiveMention(findActiveMention(event.currentTarget.value, event.currentTarget.selectionStart));
+                      setHighlightedPersonIndex(0);
+                    }}
                     onKeyDown={handleAssignmentKeyDown}
                   />
                   {activeMention ? (
-                    <div id="assignment-people" role="listbox" aria-label="할일 담당자" className="absolute inset-x-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-xl border bg-white p-1 shadow-lg">
+                    <div id="assignment-people" role="listbox" aria-label="할일 담당자" className="absolute inset-x-0 top-full z-50 mt-2 max-h-80 overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5">
                       {mentionSuggestions.length ? mentionSuggestions.map((person, index) => (
                         <button
                           key={person.id}
@@ -373,8 +358,10 @@ export function PersonalDashboard({
                           role="option"
                           aria-selected={index === highlightedPersonIndex}
                           className={cn(
-                            "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm",
-                            index === highlightedPersonIndex ? "bg-blue-50 text-blue-800" : "hover:bg-slate-50",
+                            "flex min-h-11 w-full scroll-my-1 items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors focus-visible:bg-blue-700 focus-visible:text-white focus-visible:outline-none",
+                            index === highlightedPersonIndex
+                              ? "bg-blue-700 text-white shadow-sm"
+                              : "text-slate-900 hover:bg-slate-100",
                           )}
                           onMouseDown={(event) => event.preventDefault()}
                           onMouseEnter={() => setHighlightedPersonIndex(index)}
@@ -402,79 +389,49 @@ export function PersonalDashboard({
           </Card>
         ) : null}
 
-        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-          <Card className="bg-white shadow-sm">
-            <CardHeader>
-              <SectionTitle icon={StickyNote}>메모 목록</SectionTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <form className="space-y-2" onSubmit={(event) => void createMemo(event)}>
-                <Textarea
-                  value={memoDraft}
-                  maxLength={2000}
-                  rows={3}
-                  placeholder="기억할 내용을 적어 주세요"
-                  aria-label="새 개인 메모"
-                  onChange={(event) => setMemoDraft(event.target.value)}
-                />
-                <div className="flex justify-end">
-                  <Button type="submit" size="sm" disabled={!memoDraft.trim() || busy === "memo-create"}>
-                    {busy === "memo-create" ? <Loader2 className="animate-spin" /> : <Plus />}
-                    메모 추가
-                  </Button>
-                </div>
-              </form>
-              {memoError ? <ErrorMessage>{memoError}</ErrorMessage> : null}
-              <div className="space-y-2">
-                {memos.length ? memos.map((memo) => (
-                  <article key={memo.id} className="flex items-start gap-3 rounded-xl border bg-slate-50/70 p-3.5">
-                    <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm leading-6">{memo.content}</p>
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      aria-label="메모 삭제"
-                      disabled={busy === `memo-${memo.id}`}
-                      onClick={() => void deleteMemo(memo.id)}
-                    >
-                      {busy === `memo-${memo.id}` ? <Loader2 className="animate-spin" /> : <Trash2 />}
-                    </Button>
-                  </article>
-                )) : (
-                  <p className="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">저장된 메모가 없습니다.</p>
-                )}
+        <Card className="bg-white shadow-sm">
+          <CardHeader>
+            <SectionTitle icon={StickyNote}>메모 목록</SectionTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <form className="space-y-2" onSubmit={(event) => void createMemo(event)}>
+              <Textarea
+                value={memoDraft}
+                maxLength={2000}
+                rows={3}
+                placeholder="기억할 내용을 적어 주세요"
+                aria-label="새 개인 메모"
+                onChange={(event) => setMemoDraft(event.target.value)}
+              />
+              <div className="flex justify-end">
+                <Button type="submit" size="sm" disabled={!memoDraft.trim() || busy === "memo-create"}>
+                  {busy === "memo-create" ? <Loader2 className="animate-spin" /> : <Plus />}
+                  메모 추가
+                </Button>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white shadow-sm">
-            <CardHeader>
-              <SectionTitle icon={BriefcaseBusiness}>강의별 할일 목록</SectionTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {wbsError ? <ErrorMessage>{wbsError}</ErrorMessage> : groupedWbsTasks.length ? groupedWbsTasks.map((group) => (
-                <section key={group.courseId} className="overflow-hidden rounded-xl border">
-                  <div className="border-b bg-slate-50 px-4 py-3">
-                    <h3 className="font-semibold text-slate-950">{group.courseName}</h3>
-                    <p className="mt-1 text-xs text-muted-foreground">{group.instructorName || "강사 미정"} · {group.cohort || "기수 미정"}</p>
-                  </div>
-                  <ul className="divide-y">
-                    {group.tasks.map((task) => (
-                      <li key={task.itemId} className="flex items-start justify-between gap-4 px-4 py-3">
-                        <Link href={task.href} className="min-w-0 break-words text-sm font-medium text-blue-700 hover:underline">
-                          {task.title}
-                        </Link>
-                        <span className="shrink-0 text-xs text-muted-foreground">{scheduleLabel(task.scheduledDate)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
+            </form>
+            {memoError ? <ErrorMessage>{memoError}</ErrorMessage> : null}
+            <div className="space-y-2">
+              {memos.length ? memos.map((memo) => (
+                <article key={memo.id} className="flex items-start gap-3 rounded-xl border bg-slate-50/70 p-3.5">
+                  <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm leading-6">{memo.content}</p>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label="메모 삭제"
+                    disabled={busy === `memo-${memo.id}`}
+                    onClick={() => void deleteMemo(memo.id)}
+                  >
+                    {busy === `memo-${memo.id}` ? <Loader2 className="animate-spin" /> : <Trash2 />}
+                  </Button>
+                </article>
               )) : (
-                <p className="rounded-xl border border-dashed px-4 py-12 text-center text-sm text-muted-foreground">나에게 배정된 강의 할일이 없습니다.</p>
+                <p className="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">저장된 메모가 없습니다.</p>
               )}
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="bg-white shadow-sm">
           <CardHeader>
