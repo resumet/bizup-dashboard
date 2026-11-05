@@ -8,7 +8,7 @@ export async function GET(
     const { admin, workspaceId } = await requireWorkTaskContext();
     const { id } = await params;
     const { data: task } = await admin.from("work_tasks").select("id")
-      .eq("id", id).eq("workspace_id", workspaceId).maybeSingle();
+      .eq("id", id).eq("workspace_id", workspaceId).eq("task_kind", "daily").maybeSingle();
     if (!task) return Response.json({ message: "업무를 찾을 수 없습니다." }, { status: 404 });
     const { data, error } = await admin.from("work_task_events").select("*")
       .eq("task_id", id).order("created_at", { ascending: false });

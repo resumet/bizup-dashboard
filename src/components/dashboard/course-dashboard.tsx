@@ -412,7 +412,12 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
       <div className="mx-auto max-w-[1600px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
         <div className="mb-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <h1 className="text-3xl font-semibold tracking-[-0.035em] text-slate-950">{data.userName}님 안녕하세요.</h1>
+            <h1 className="text-3xl font-semibold tracking-[-0.035em] text-slate-950">
+              <Link href="/my-dashboard" className="rounded-sm text-blue-700 underline decoration-blue-300 underline-offset-4 transition-colors hover:text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2">
+                {data.userName}
+              </Link>
+              님 안녕하세요.
+            </h1>
             <nav aria-label="업무 빠른 이동" className="flex flex-wrap items-center gap-2">
               {DASHBOARD_QUICK_LINKS.map(({ label, href, icon: Icon }) => (
                 <Button key={href} variant="outline" size="sm" className="bg-white shadow-sm" asChild>

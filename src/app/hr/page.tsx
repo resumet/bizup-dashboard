@@ -7,6 +7,7 @@ export default async function Page() {
   const today = koreaDate();
   const query = admin.from("work_tasks").select("*")
     .eq("workspace_id", workspaceId)
+    .eq("task_kind", "daily")
     .neq("status", "cancelled")
     .lte("planned_date", today)
     .order("status")

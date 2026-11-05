@@ -17,6 +17,7 @@ export async function PATCH(
       .select("*")
       .eq("id", id)
       .eq("workspace_id", workspaceId)
+      .eq("task_kind", "daily")
       .maybeSingle();
     if (taskError) throw taskError;
     if (!task) return Response.json({ message: "업무를 찾을 수 없습니다." }, { status: 404 });
@@ -155,6 +156,7 @@ export async function DELETE(
       .select("id,assignee_id")
       .eq("id", id)
       .eq("workspace_id", workspaceId)
+      .eq("task_kind", "daily")
       .maybeSingle();
     if (taskError) throw taskError;
     if (!task) return Response.json({ message: "업무를 찾을 수 없습니다." }, { status: 404 });

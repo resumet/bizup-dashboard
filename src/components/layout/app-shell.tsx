@@ -101,7 +101,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
   },
 ];
 
-const PRIVATE_ROUTES = ["/work", "/hr", "/calendar", "/extras", "/admin", "/services", "/tools"];
+const PRIVATE_ROUTES = ["/work", "/my-dashboard", "/hr", "/calendar", "/extras", "/admin", "/services", "/tools"];
 
 function isPrivateRoute(pathname: string) {
   return pathname === "/" || PRIVATE_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
