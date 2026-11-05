@@ -2,6 +2,9 @@ import { ArrowLeft } from "lucide-react";
 import { redirect } from "next/navigation";
 
 import { InstructorContractWriter } from "@/components/contracts/instructor-contract-writer";
+import { hasAdminAccess } from "@/lib/admin/access";
+import { loadInstructorContractTemplate } from "@/lib/contracts/instructor-contract-template-server";
+import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { BackLink } from "@/components/layout/back-link";
 import { Button } from "@/components/ui/button";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
@@ -10,6 +13,10 @@ import { createClient } from "@/lib/supabase/server";
 export default async function ContractsPage() {
   const user = await getAuthenticatedUser(await createClient());
   if (!user) redirect("/login");
+  const membership = await requireCourseOperationsMembership(user.id);
+  const [template] = await Promise.all([
+    loadInstructorContractTemplate(membership.workspace_id),
+  ]);
 
   return (
     <main className="min-h-screen">
@@ -20,7 +27,7 @@ export default async function ContractsPage() {
           <h1 className="truncate font-semibold">계약서 작성</h1>
         </div>
       </header>
-      <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8"><InstructorContractWriter /></div>
+      <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8"><InstructorContractWriter initialTemplate={template} canEditTemplate={hasAdminAccess(user.email, membership.role)} /></div>
     </main>
   );
 }

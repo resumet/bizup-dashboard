@@ -8,6 +8,16 @@ export type InstructorContractValues = {
   email: string;
 };
 
+export type InstructorContractSection = {
+  title: string;
+  paragraphs: string[];
+};
+
+export type InstructorContractTemplate = {
+  introduction: string;
+  sections: InstructorContractSection[];
+};
+
 export const COMPANY_CONTRACT_DETAILS = {
   name: "주식회사 비즈업클래스",
   address: "서울특별시 강남구 테헤란로 25길 6-9, 석암빌딩 4층 409호",
@@ -29,7 +39,9 @@ export function getContractEndDate(startDate: string, durationYears: number) {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
-export const INSTRUCTOR_CONTRACT_SECTIONS = [
+export const DEFAULT_INSTRUCTOR_CONTRACT_TEMPLATE: InstructorContractTemplate = {
+  introduction: "㈜비즈업클래스(이하 “회사”라 한다)와 {{instructorName}} (이하 “강사”라 한다) 간에 강의 모객 관련 협의 계약을 체결하고 상호존중의 입장에서 신의에 따라 성실히 계약상의 의무를 이행하고 완수할 것을 확약하며 계약의 증거로서 이 계약서를 2부 작성하여 각각 서명 날인한 후 “회사”와 “강사” 각 1부씩 보관한다.",
+  sections: [
   {
     title: "제1조 (계약의 목적)",
     paragraphs: [
@@ -162,4 +174,19 @@ export const INSTRUCTOR_CONTRACT_SECTIONS = [
       "전 1항의 합의가 성립하지 못한 때의 계약에 관한 소송은 “회사” 소재 관할법원으로 한다.",
     ],
   },
-] as const;
+  ],
+};
+
+export function isInstructorContractTemplate(value: unknown): value is InstructorContractTemplate {
+  if (!value || typeof value !== "object") return false;
+  const template = value as Partial<InstructorContractTemplate>;
+  return typeof template.introduction === "string"
+    && Array.isArray(template.sections)
+    && template.sections.length > 0
+    && template.sections.every((section) => (
+      Boolean(section)
+      && typeof section.title === "string"
+      && Array.isArray(section.paragraphs)
+      && section.paragraphs.every((paragraph) => typeof paragraph === "string")
+    ));
+}
