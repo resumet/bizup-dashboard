@@ -95,7 +95,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
       {
         label: "유용한 도구들",
         href: "/services/tools",
-        activeHrefs: ["/services/youtube-channels"],
+        activeHrefs: ["/services/youtube-channels", "/services/contracts"],
       },
     ],
   },

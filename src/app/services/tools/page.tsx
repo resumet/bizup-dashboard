@@ -8,6 +8,7 @@ import {
   ContactRound,
   Download,
   ExternalLink,
+  FilePenLine,
   FileSpreadsheet,
   Link2,
   MessageCircleMore,
@@ -151,6 +152,10 @@ const toolAppearance: Record<
   "/services/youtube-channels": {
     icon: MonitorPlay,
     iconClassName: "bg-red-500/10 text-red-700",
+  },
+  "/services/contracts": {
+    icon: FilePenLine,
+    iconClassName: "bg-emerald-500/10 text-emerald-700",
   },
 };
 
