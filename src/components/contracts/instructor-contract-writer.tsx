@@ -31,6 +31,8 @@ const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" })
 const INITIAL_VALUES: InstructorContractValues = {
   instructorName: "",
   lectureName: "",
+  instagramNumberOfReels: "",
+  instagramValueOfReels: "",
   startDate: today,
   durationYears: 1,
   address: "",
@@ -107,6 +109,8 @@ export function InstructorContractWriter({ initialTemplate = DEFAULT_INSTRUCTOR_
           <CardContent className="space-y-5">
             <div className="space-y-2"><Label htmlFor="contract-instructor">강사명</Label><Input id="contract-instructor" value={values.instructorName} onChange={(event) => update("instructorName", event.target.value)} /></div>
             <div className="space-y-2"><Label htmlFor="contract-lecture">강의명</Label><Input id="contract-lecture" value={values.lectureName} onChange={(event) => update("lectureName", event.target.value)} /></div>
+            <div className="space-y-2"><Label htmlFor="contract-instagram-number-of-reels">인스타그램 릴스 대행 갯수</Label><Input id="contract-instagram-number-of-reels" type="number" min="0" step="1" inputMode="numeric" placeholder="예: 10" value={values.instagramNumberOfReels} onChange={(event) => update("instagramNumberOfReels", event.target.value)} /></div>
+            <div className="space-y-2"><Label htmlFor="contract-instagram-value-of-reels">인스타그램 릴스 대행 금액</Label><Input id="contract-instagram-value-of-reels" type="number" min="0" step="1" inputMode="numeric" placeholder="예: 1000000" value={values.instagramValueOfReels} onChange={(event) => update("instagramValueOfReels", event.target.value)} /></div>
             <div className="space-y-2"><Label htmlFor="contract-start">계약 시작일</Label><Input id="contract-start" type="date" value={values.startDate} onChange={(event) => update("startDate", event.target.value)} /></div>
             <div className="space-y-2"><Label htmlFor="contract-duration">계약 기간</Label><Input id="contract-duration" type="number" min="1" max="20" value={values.durationYears} onChange={(event) => update("durationYears", Math.max(1, Number(event.target.value) || 1))} /><p className="text-xs text-muted-foreground">종료일: {getKoreanDate(endDate)}</p></div>
             <div className="space-y-2"><Label htmlFor="contract-address">강사의 주소</Label><Input id="contract-address" value={values.address} onChange={(event) => update("address", event.target.value)} /></div>
@@ -131,7 +135,7 @@ export function InstructorContractWriter({ initialTemplate = DEFAULT_INSTRUCTOR_
           </DialogHeader>
           <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
             <div className="mb-4 rounded-lg border bg-muted/35 px-4 py-3 text-sm leading-6 text-muted-foreground">
-              원문 전체를 그대로 붙여넣을 수 있으며 줄바꿈과 연속된 띄어쓰기도 저장됩니다. 강사명 <code>{"{{instructorName}}"}</code>, 강의명 <code>{"{{lectureName}}"}</code>, 계약기간 <code>{"{{contractPeriod}}"}</code>, 주소·연락처는 <code>{"{{address}}"}</code> · <code>{"{{phone}}"}</code> · <code>{"{{email}}"}</code>을 사용하세요.
+              원문 전체를 그대로 붙여넣을 수 있으며 줄바꿈과 연속된 띄어쓰기도 저장됩니다. 강사명 <code>{"{{instructorName}}"}</code>, 강의명 <code>{"{{lectureName}}"}</code>, 계약기간 <code>{"{{contractPeriod}}"}</code>, 릴스 대행 갯수 <code>{"{{instagram_number_of_reels}}"}</code>, 릴스 대행 금액 <code>{"{{instagram_value_of_reels}}"}</code>, 주소·연락처는 <code>{"{{address}}"}</code> · <code>{"{{phone}}"}</code> · <code>{"{{email}}"}</code>을 사용하세요.
             </div>
             {templateEditorOpen ? (
               <CourseDocumentEditor

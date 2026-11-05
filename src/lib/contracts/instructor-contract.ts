@@ -3,6 +3,8 @@ import type { CourseDocumentBlock, RichTextNode } from "@/lib/course-documents/t
 export type InstructorContractValues = {
   instructorName: string;
   lectureName: string;
+  instagramNumberOfReels: string;
+  instagramValueOfReels: string;
   startDate: string;
   durationYears: number;
   address: string;
@@ -309,6 +311,8 @@ export function replaceInstructorContractVariables(
   const replacements: Record<string, string> = {
     instructorName: displayContractValue(values.instructorName, "강사명"),
     lectureName: displayContractValue(values.lectureName, "강의명"),
+    instagram_number_of_reels: displayContractValue(values.instagramNumberOfReels, "입력 예정"),
+    instagram_value_of_reels: displayContractValue(values.instagramValueOfReels, "입력 예정"),
     startDate,
     endDate: formattedEndDate,
     contractPeriod: `${startDate} ~ ${formattedEndDate} (${values.durationYears || 1}년간)`,
@@ -321,7 +325,7 @@ export function replaceInstructorContractVariables(
     companyRepresentative: COMPANY_CONTRACT_DETAILS.representative,
   };
 
-  return text.replace(/\{\{([a-zA-Z]+)\}\}/gu, (token, key: string) => replacements[key] ?? token);
+  return text.replace(/\{\{([a-zA-Z][a-zA-Z0-9_]*)\}\}/gu, (token, key: string) => replacements[key] ?? token);
 }
 
 function replaceNodeVariables(node: RichTextNode, values: InstructorContractValues): RichTextNode {

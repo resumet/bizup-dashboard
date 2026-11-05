@@ -14,6 +14,8 @@ import { parseInstructorContractTemplate } from "./instructor-contract-validatio
 const values: InstructorContractValues = {
   instructorName: "윤지혜",
   lectureName: "인스타그램 실전",
+  instagramNumberOfReels: "12",
+  instagramValueOfReels: "1500000",
   startDate: "2026-11-06",
   durationYears: 1,
   address: "서울시 강남구",
@@ -59,6 +61,28 @@ test("계약서 원문의 줄바꿈과 연속 공백을 유지하면서 변수�
   assert.equal(rendered.type, "paragraph");
   if (rendered.type !== "paragraph") return;
   assert.equal(rendered.content, "  윤지혜  님\n강의명:  인스타그램 실전  ");
+});
+
+test("인스타그램 릴스 대행 갯수와 금액 변수를 입력값으로 바꾼다", () => {
+  const template: InstructorContractTemplate = {
+    version: 2,
+    content: [{
+      id: "00000000-0000-4000-8000-000000000001",
+      type: "rich_text",
+      content: {
+        type: "paragraph",
+        content: [{
+          type: "text",
+          text: "릴스 대행: {{instagram_number_of_reels}}개\n대행 금액: {{instagram_value_of_reels}}원",
+        }],
+      },
+    }],
+  };
+
+  const [rendered] = renderInstructorContractTemplate(template, values);
+  assert.equal(rendered.type, "rich_text");
+  if (rendered.type !== "rich_text") return;
+  assert.equal(rendered.content.content?.[0]?.text, "릴스 대행: 12개\n대행 금액: 1500000원");
 });
 
 test("기본 템플릿은 전체 본문과 입력 변수 영역을 포함한다", () => {
