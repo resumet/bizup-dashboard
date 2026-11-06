@@ -101,6 +101,7 @@ export function parseRedlockWorksheet(
 
   const results: RedlockImportRow[] = [];
   let active: RedlockImportRow | null = null;
+  let activeChannelName = "";
 
   const saveActive = (subtotalRow?: unknown[]) => {
     if (!active) return;
@@ -123,9 +124,12 @@ export function parseRedlockWorksheet(
     const rowNumber = headerIndex + offset + 2;
     if (normalized(cellText(row[0])) === "소계") {
       saveActive(row);
+      activeChannelName = "";
       continue;
     }
 
+    const rowChannelName = channelIndex >= 0 ? cellText(row[channelIndex]) : "";
+    if (rowChannelName) activeChannelName = rowChannelName;
     const rowInstructorName = cellText(row[2]);
     if (rowInstructorName) {
       saveActive();
@@ -134,7 +138,7 @@ export function parseRedlockWorksheet(
         sheetName: worksheet.name,
         rowNumber,
         instructorName: rowInstructorName,
-        rsChannelName: channelIndex >= 0 ? cellText(row[channelIndex]) : "",
+        rsChannelName: rowChannelName || activeChannelName,
         rsFee: feeIndex >= 0 ? parseFee(row[feeIndex]) : null,
         cells: row.map(cellText),
         payers: [],

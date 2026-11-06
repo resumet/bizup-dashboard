@@ -23,6 +23,26 @@ test("레드락 엑셀은 C열 강사명이 현재 정산 강사와 일치하는
   })), [{ instructor: "홍길동", channel: "홍길동TV", fee: 45_678 }]);
 });
 
+test("소계 전 같은 채널에서 강사가 바뀌면 직전 채널명을 이어받는다", () => {
+  const rows = parseRedlockWorksheet({
+    name: "정산",
+    rows: [
+      ["번호", "채널명", "강사", "무료강의일", "이름", "이메일", "결제금액", "RS"],
+      [1, "초월스토리", "김해준", null, "김해준 수강생", "kim@example.com", 100_000, 10_000],
+      [2, null, null, null, "김해준 수강생2", "kim2@example.com", 100_000, 10_000],
+      [3, null, "초코라떼", null, "초코 수강생", "choco@example.com", 100_000, 10_000],
+      [4, null, null, null, "초코 수강생2", "choco2@example.com", 100_000, 10_000],
+      ["소계", null, null, null, null, null, 400_000, 40_000],
+    ],
+  }, "초코라떼");
+
+  assert.deepEqual(rows.map((row) => ({ channel: row.rsChannelName, fee: row.rsFee, payerEmails: row.payers.map((payer) => payer.email) })), [{
+    channel: "초월스토리",
+    fee: 40_000,
+    payerEmails: ["choco@example.com", "choco2@example.com"],
+  }]);
+});
+
 test("레드락 채널별 결제자를 이메일로 실제 결제자와 대조한다", () => {
   const [row] = parseRedlockWorksheet({
     name: "정산",
