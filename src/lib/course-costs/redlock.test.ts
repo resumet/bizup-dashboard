@@ -104,19 +104,20 @@ test("레드락 출연료도 채널별로 합산한다", () => {
   ]);
 });
 
-test("레드락 소계 행의 출연료를 해당 강사 채널에 연결한다", () => {
+test("레드락 출연료는 강사명이 일치하는 행의 금액만 가져오고 소계는 제외한다", () => {
   const rows = parseRedlockWorksheet({
     name: "Sheet1",
     rows: [
       ["번호", "채널명", "강사", "이름", "이메일", "결제금액", "RS", "출연료"],
-      [1, "출연 채널", "강사 A", "수강생", "student@example.com", 100_000, 10_000, null],
-      ["소계", null, null, null, null, 100_000, 10_000, 1_650_000],
+      [1, "출연 채널", "강사 A", "수강생", "student@example.com", 100_000, 10_000, 1_650_000],
+      [2, null, null, "다른 수강생", "other@example.com", 100_000, 10_000, null],
+      ["소계", null, null, null, null, 200_000, 20_000, 9_999_999],
     ],
   }, "강사 A");
 
   assert.deepEqual(rows.map((row) => ({ channelName: row.rsChannelName, rsFee: row.rsFee, appearanceFee: row.appearanceFee })), [{
     channelName: "출연 채널",
-    rsFee: 10_000,
+    rsFee: 20_000,
     appearanceFee: 1_650_000,
   }]);
 });

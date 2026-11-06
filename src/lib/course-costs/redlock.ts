@@ -117,7 +117,7 @@ export function parseRedlockWorksheet(
     results.push({
       ...active,
       rsFee: subtotalRow && rsFeeIndex >= 0 ? parseFee(subtotalRow[rsFeeIndex]) : active.rsFee,
-      appearanceFee: subtotalRow && appearanceFeeIndex >= 0 ? parseFee(subtotalRow[appearanceFeeIndex]) : active.appearanceFee,
+      appearanceFee: active.appearanceFee,
     });
     active = null;
   };
