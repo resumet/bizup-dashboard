@@ -4,10 +4,7 @@ import { ExternalLink, Loader2, Printer, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 
-import {
-  CONTRACT_PRINT_STYLES,
-  InstructorContractDocument,
-} from "@/components/contracts/instructor-contract-document";
+import { CONTRACT_PRINT_STYLES, InstructorContractDocument } from "@/components/contracts/instructor-contract-document";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +35,7 @@ function initialValues(): InstructorContractValues {
     lectureName: "",
     instagramNumberOfReels: "",
     instagramValueOfReels: "",
+    contractDate: todayInSeoul(),
     startDate: todayInSeoul(),
     durationYears: 1,
     address: "",
@@ -61,25 +59,25 @@ const BUILT_IN_TEMPLATE: InstructorContractTemplateRecord = {
 
 export function InstructorContractWriter({
   templates,
+  initialDraft,
+  initialDraftUpdatedAt,
 }: {
   templates: InstructorContractTemplateRecord[];
+  initialDraft?: InstructorContractValues;
+  initialDraftUpdatedAt?: string;
 }) {
   const router = useRouter();
   const availableTemplates = templates.length ? templates : [BUILT_IN_TEMPLATE];
   const [selectedTemplateId, setSelectedTemplateId] = useState(availableTemplates[0].id);
-  const [values, setValues] = useState<InstructorContractValues>(initialValues);
+  const [values, setValues] = useState<InstructorContractValues>(() => ({ ...initialValues(), ...initialDraft }));
   const [saving, setSaving] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [error, setError] = useState("");
+  const [draftStatus, setDraftStatus] = useState(initialDraftUpdatedAt ? "이전에 임시저장한 내용을 불러왔습니다." : "");
   const previewRef = useRef<HTMLDivElement>(null);
   const selectedTemplate = availableTemplates.find((template) => template.id === selectedTemplateId) ?? availableTemplates[0];
-  const renderedContent = useMemo(
-    () => renderInstructorContractTemplate(selectedTemplate.template, values),
-    [selectedTemplate.template, values],
-  );
-  const endDate = useMemo(
-    () => getContractEndDate(values.startDate, values.durationYears),
-    [values.durationYears, values.startDate],
-  );
+  const renderedContent = useMemo(() => renderInstructorContractTemplate(selectedTemplate.template, values), [selectedTemplate.template, values]);
+  const endDate = useMemo(() => getContractEndDate(values.startDate, values.durationYears), [values.durationYears, values.startDate]);
   const koreanInstagramAmount = formatContractAmountInKorean(values.instagramValueOfReels);
 
   function update<K extends keyof InstructorContractValues>(key: K, value: InstructorContractValues[K]) {
@@ -90,12 +88,32 @@ export function InstructorContractWriter({
     setSelectedTemplateId(templateId);
     setValues(initialValues());
     setError("");
+    setDraftStatus("");
   }
 
   function printContract() {
     if (!previewRef.current) return;
     const title = `${display(values.instructorName, "강사")}_비즈업클래스_강사_계약서`;
     printHtmlDocument(title, `${CONTRACT_PRINT_STYLES}<main class="contract-print">${previewRef.current.innerHTML}</main>`);
+  }
+
+  async function saveDraft() {
+    setSavingDraft(true);
+    setDraftStatus("");
+    try {
+      const response = await fetch("/api/contracts/draft", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const result = await response.json() as { message?: string };
+      if (!response.ok) throw new Error(result.message || "임시저장하지 못했습니다.");
+      setDraftStatus("임시저장했습니다. 다음에 다시 열면 이어서 작성할 수 있습니다.");
+    } catch (caught) {
+      setDraftStatus(caught instanceof Error ? caught.message : "임시저장하지 못했습니다.");
+    } finally {
+      setSavingDraft(false);
+    }
   }
 
   async function saveContract() {
@@ -120,8 +138,10 @@ export function InstructorContractWriter({
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button variant="outline" asChild>
-          <a href="https://glosign.com/" target="_blank" rel="noreferrer"><ExternalLink aria-hidden="true" />글로싸인 바로가기</a>
+        <Button variant="outline" asChild><a href="https://glosign.com/" target="_blank" rel="noreferrer"><ExternalLink aria-hidden="true" />글로싸인 바로가기</a></Button>
+        <Button type="button" variant="outline" disabled={savingDraft} onClick={() => void saveDraft()}>
+          {savingDraft ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Save aria-hidden="true" />}
+          {savingDraft ? "임시저장 중" : "임시저장"}
         </Button>
         <Button type="button" variant="outline" onClick={printContract}><Printer aria-hidden="true" />PDF로 저장</Button>
         <Button type="button" disabled={saving} onClick={() => void saveContract()}>
@@ -130,6 +150,7 @@ export function InstructorContractWriter({
         </Button>
       </div>
 
+      {draftStatus ? <p className="text-right text-sm text-muted-foreground" role="status">{draftStatus}</p> : null}
       {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
 
       <div className="grid items-start gap-5 xl:grid-cols-[22rem_minmax(0,1fr)]">
@@ -140,30 +161,18 @@ export function InstructorContractWriter({
               <Label htmlFor="contract-template">계약서 템플릿</Label>
               <Select value={selectedTemplate.id} onValueChange={selectTemplate}>
                 <SelectTrigger id="contract-template"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {availableTemplates.map((template) => <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>)}
-                </SelectContent>
+                <SelectContent>{availableTemplates.map((template) => <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>)}</SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">템플릿을 바꾸면 아래 입력값이 초기화됩니다.</p>
             </div>
             <div className="space-y-2"><Label htmlFor="contract-instructor">강사명</Label><Input id="contract-instructor" maxLength={200} value={values.instructorName} onChange={(event) => update("instructorName", event.target.value)} /></div>
             <div className="space-y-2"><Label htmlFor="contract-lecture">강의명</Label><Input id="contract-lecture" maxLength={200} value={values.lectureName} onChange={(event) => update("lectureName", event.target.value)} /></div>
+            <div className="space-y-2"><Label htmlFor="contract-date">작성 날짜</Label><Input id="contract-date" type="date" value={values.contractDate} onChange={(event) => update("contractDate", event.target.value)} /></div>
             <div className="space-y-2"><Label htmlFor="contract-instagram-number-of-reels">인스타그램 릴스 대행 갯수</Label><Input id="contract-instagram-number-of-reels" type="text" inputMode="numeric" maxLength={6} placeholder="예: 10" value={values.instagramNumberOfReels} onChange={(event) => update("instagramNumberOfReels", normalizeContractNumberInput(event.target.value).slice(0, 6))} /></div>
             <div className="space-y-2">
               <Label htmlFor="contract-instagram-value-of-reels">인스타그램 릴스 대행 금액</Label>
-              <Input
-                id="contract-instagram-value-of-reels"
-                type="text"
-                inputMode="numeric"
-                maxLength={32}
-                placeholder="예: 1,000,000"
-                aria-describedby="contract-instagram-value-of-reels-korean"
-                value={formatContractNumber(values.instagramValueOfReels)}
-                onChange={(event) => update("instagramValueOfReels", normalizeContractNumberInput(event.target.value).slice(0, 24))}
-              />
-              <p id="contract-instagram-value-of-reels-korean" className="text-xs text-muted-foreground">
-                {koreanInstagramAmount || "금액을 입력하면 한글로 표시됩니다."}
-              </p>
+              <Input id="contract-instagram-value-of-reels" type="text" inputMode="numeric" maxLength={32} placeholder="예: 1,000,000" aria-describedby="contract-instagram-value-of-reels-korean" value={formatContractNumber(values.instagramValueOfReels)} onChange={(event) => update("instagramValueOfReels", normalizeContractNumberInput(event.target.value).slice(0, 24))} />
+              <p id="contract-instagram-value-of-reels-korean" className="text-xs text-muted-foreground">{koreanInstagramAmount || "금액을 입력하면 한글로 표시됩니다."}</p>
             </div>
             <div className="space-y-2"><Label htmlFor="contract-start">계약 시작일</Label><Input id="contract-start" type="date" value={values.startDate} onChange={(event) => update("startDate", event.target.value)} /></div>
             <div className="space-y-2"><Label htmlFor="contract-duration">계약 기간</Label><Input id="contract-duration" type="number" min="1" max="20" value={values.durationYears} onChange={(event) => update("durationYears", Math.max(1, Math.min(20, Number(event.target.value) || 1)))} /><p className="text-xs text-muted-foreground">종료일: {getKoreanDate(endDate)}</p></div>
@@ -175,9 +184,7 @@ export function InstructorContractWriter({
 
         <section className="overflow-hidden rounded-xl border bg-slate-100 shadow-sm" aria-label="계약서 미리보기">
           <div className="flex items-center justify-between border-b bg-white px-5 py-3"><h2 className="font-semibold">계약서 전문</h2><span className="text-xs text-muted-foreground">입력 내용이 즉시 반영됩니다.</span></div>
-          <div className="max-h-[calc(100dvh-12rem)] min-h-[42rem] overflow-y-auto p-3 sm:p-6">
-            <div ref={previewRef}><InstructorContractDocument content={renderedContent} /></div>
-          </div>
+          <div className="max-h-[calc(100dvh-12rem)] min-h-[42rem] overflow-y-auto p-3 sm:p-6"><div ref={previewRef}><InstructorContractDocument content={renderedContent} /></div></div>
         </section>
       </div>
     </div>

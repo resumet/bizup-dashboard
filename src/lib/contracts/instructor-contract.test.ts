@@ -18,6 +18,7 @@ const values: InstructorContractValues = {
   lectureName: "인스타그램 실전",
   instagramNumberOfReels: "12",
   instagramValueOfReels: "1500000",
+  contractDate: "2026-11-06",
   startDate: "2026-11-06",
   durationYears: 1,
   address: "서울시 강남구",
@@ -100,4 +101,19 @@ test("기본 템플릿은 전체 본문과 입력 변수 영역을 포함한다"
   assert.equal(rendered.length > 20, true);
   assert.equal(JSON.stringify(rendered).includes("윤지혜"), true);
   assert.equal(JSON.stringify(rendered).includes("2026년 11월 6일 ~ 2027년 11월 6일"), true);
+});
+
+test("작성 날짜 변수를 입력 날짜로 바꾼다", () => {
+  const template: InstructorContractTemplate = {
+    version: 2,
+    content: [{
+      id: "00000000-0000-4000-8000-000000000001",
+      type: "paragraph",
+      content: "작성일: {{contract_date}}",
+    }],
+  };
+  const [rendered] = renderInstructorContractTemplate(template, values);
+  assert.equal(rendered.type, "paragraph");
+  if (rendered.type !== "paragraph") return;
+  assert.equal(rendered.content, "작성일: 2026년 11월 6일");
 });

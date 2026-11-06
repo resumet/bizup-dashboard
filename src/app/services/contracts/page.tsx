@@ -49,7 +49,6 @@ export default async function ContractsPage() {
             </Button>
           </div>
         </div>
-
         {contracts.length ? (
           <div className="overflow-hidden rounded-xl border bg-card">
             <div aria-hidden="true" className="hidden grid-cols-[minmax(15rem,2fr)_minmax(8rem,1fr)_minmax(8rem,1fr)_minmax(10rem,1.2fr)_minmax(7rem,0.8fr)_10rem] gap-4 border-b bg-muted/40 px-5 py-3 text-xs font-medium text-muted-foreground xl:grid">

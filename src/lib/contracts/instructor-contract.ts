@@ -5,12 +5,27 @@ export type InstructorContractValues = {
   lectureName: string;
   instagramNumberOfReels: string;
   instagramValueOfReels: string;
+  contractDate: string;
   startDate: string;
   durationYears: number;
   address: string;
   phone: string;
   email: string;
 };
+
+export function isInstructorContractValues(value: unknown): value is InstructorContractValues {
+  if (!value || typeof value !== "object") return false;
+  const draft = value as Partial<InstructorContractValues>;
+  return typeof draft.instructorName === "string"
+    && typeof draft.lectureName === "string"
+    && typeof draft.contractDate === "string"
+    && typeof draft.startDate === "string"
+    && typeof draft.durationYears === "number"
+    && Number.isFinite(draft.durationYears)
+    && typeof draft.address === "string"
+    && typeof draft.phone === "string"
+    && typeof draft.email === "string";
+}
 
 export type InstructorContractSection = {
   title: string;
@@ -381,6 +396,7 @@ export function replaceInstructorContractVariables(
   const replacements: Record<string, string> = {
     instructorName: displayContractValue(values.instructorName, "강사명"),
     lectureName: displayContractValue(values.lectureName, "강의명"),
+    contract_date: getKoreanDate(values.contractDate) || "작성일 입력 예정",
     instagram_number_of_reels: displayContractValue(values.instagramNumberOfReels, "입력 예정"),
     instagram_value_of_reels: displayContractValue(formatContractNumber(values.instagramValueOfReels), "입력 예정"),
     startDate,

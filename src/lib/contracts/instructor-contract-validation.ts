@@ -31,6 +31,7 @@ export const instructorContractValuesSchema = z.object({
   lectureName: z.string().max(200),
   instagramNumberOfReels: z.string().max(6).regex(/^[0-9]*$/u, "릴스 대행 갯수는 숫자로 입력해 주세요."),
   instagramValueOfReels: z.string().max(24).regex(/^[0-9]*$/u, "릴스 대행 금액은 숫자로 입력해 주세요."),
+  contractDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u, "작성 날짜를 확인해 주세요."),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u, "계약 시작일을 확인해 주세요."),
   durationYears: z.number().int().min(1).max(20),
   address: z.string().max(500),
