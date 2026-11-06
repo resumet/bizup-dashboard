@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { checkRedlockChannels, parseRedlockWorksheet } from "./redlock";
+import { checkRedlockChannels, parseRedlockWorksheet, reconcileRedlockPayers } from "./redlock";
 
 test("레드락 엑셀은 C열 강사명이 현재 정산 강사와 일치하는 행만 가져온다", () => {
   const rows = parseRedlockWorksheet({
@@ -23,6 +23,24 @@ test("레드락 엑셀은 C열 강사명이 현재 정산 강사와 일치하는
   })), [{ instructor: "홍길동", channel: "홍길동TV", fee: 45_678 }]);
 });
 
+test("레드락 채널별 결제자를 이메일로 실제 결제자와 대조한다", () => {
+  const [row] = parseRedlockWorksheet({
+    name: "정산",
+    rows: [
+      ["번호", "채널명", "강사", "무료강의일", "이름", "이메일", "결제금액", "RS"],
+      [1, "강사TV", "강사", null, "일치 수강생", "MATCH@example.com", 100_000, 10_000],
+      [2, null, null, null, "미등록 수강생", "missing@example.com", 100_000, 10_000],
+      [3, null, null, null, "이메일 없음", null, 100_000, 10_000],
+      ["소계", null, null, null, null, null, 300_000, 30_000],
+    ],
+  }, "강사");
+
+  const [result] = reconcileRedlockPayers([row], [{ name: "실제 수강생", email: "match@example.com" }]);
+  assert.equal(result?.matchedCount, 1);
+  assert.deepEqual(result?.missingPayers.map((payer) => payer.email), ["missing@example.com"]);
+  assert.deepEqual(result?.missingEmailPayers.map((payer) => payer.name), ["이메일 없음"]);
+});
+
 test("레드락 RS 채널명을 실제 출연 채널과 대조한다", () => {
   const [checked] = checkRedlockChannels([{
     sheetName: "정산",
@@ -31,6 +49,7 @@ test("레드락 RS 채널명을 실제 출연 채널과 대조한다", () => {
     rsChannelName: "홍길동 TV",
     rsFee: 12_345,
     cells: [],
+    payers: [],
   }], ["홍길동TV", "비즈업클래스"]);
 
   assert.equal(checked?.channelStatus, "matched");

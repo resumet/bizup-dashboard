@@ -5,6 +5,17 @@ export type RedlockWorksheet = {
   rows: unknown[][];
 };
 
+export type RedlockPayer = {
+  rowNumber: number;
+  name: string;
+  email: string;
+};
+
+export type RedlockActualPayer = {
+  name: string;
+  email: string;
+};
+
 export type RedlockImportRow = {
   sheetName: string;
   rowNumber: number;
@@ -12,11 +23,19 @@ export type RedlockImportRow = {
   rsChannelName: string;
   rsFee: number | null;
   cells: string[];
+  payers: RedlockPayer[];
 };
 
 export type RedlockChannelCheck = RedlockImportRow & {
   matchedChannelName: string;
   channelStatus: "matched" | "possible" | "missing" | "unmatched";
+};
+
+export type RedlockPayerReconciliation = {
+  row: RedlockImportRow;
+  matchedCount: number;
+  missingPayers: RedlockPayer[];
+  missingEmailPayers: RedlockPayer[];
 };
 
 function cellText(value: unknown) {
@@ -49,6 +68,14 @@ function parseFee(value: unknown) {
   return Number.isFinite(numberValue) ? Math.round(numberValue) : null;
 }
 
+function normalizedEmail(value: string) {
+  return value
+    .normalize("NFKC")
+    .trim()
+    .toLocaleLowerCase("en-US")
+    .replace(/\s+/gu, "");
+}
+
 function headerRowIndex(rows: unknown[][]) {
   return rows.findIndex((row) => {
     const instructor = normalized(cellText(row[2]));
@@ -67,6 +94,8 @@ export function parseRedlockWorksheet(
   const header = worksheet.rows[headerIndex] ?? [];
   const channelIndex = findColumn(header, ["RS 채널명", "RS 채널", "채널명", "유튜브 채널", "채널"]);
   const feeIndex = findColumn(header, ["RS 수수료", "RS수수료", "RS 금액", "RS금액", "RS", "수수료"]);
+  const payerNameIndex = findColumn(header, ["이름", "성명", "결제자명"]);
+  const payerEmailIndex = findColumn(header, ["이메일", "메일", "email"]);
   const target = normalized(instructorName);
   if (!target) return [];
 
@@ -82,28 +111,64 @@ export function parseRedlockWorksheet(
     active = null;
   };
 
+  const addPayer = (row: unknown[], rowNumber: number) => {
+    if (!active) return;
+    const name = payerNameIndex >= 0 ? cellText(row[payerNameIndex]) : "";
+    const email = payerEmailIndex >= 0 ? cellText(row[payerEmailIndex]) : "";
+    if (name || email) active.payers.push({ rowNumber, name, email });
+  };
+
   for (let offset = 0; offset < worksheet.rows.length - headerIndex - 1; offset += 1) {
     const row = worksheet.rows[headerIndex + offset + 1] ?? [];
+    const rowNumber = headerIndex + offset + 2;
     if (normalized(cellText(row[0])) === "소계") {
       saveActive(row);
       continue;
     }
 
     const rowInstructorName = cellText(row[2]);
-    if (!rowInstructorName) continue;
-    saveActive();
-    if (normalized(rowInstructorName) !== target) continue;
-    active = {
-      sheetName: worksheet.name,
-      rowNumber: headerIndex + offset + 2,
-      instructorName: rowInstructorName,
-      rsChannelName: channelIndex >= 0 ? cellText(row[channelIndex]) : "",
-      rsFee: feeIndex >= 0 ? parseFee(row[feeIndex]) : null,
-      cells: row.map(cellText),
-    };
+    if (rowInstructorName) {
+      saveActive();
+      if (normalized(rowInstructorName) !== target) continue;
+      active = {
+        sheetName: worksheet.name,
+        rowNumber,
+        instructorName: rowInstructorName,
+        rsChannelName: channelIndex >= 0 ? cellText(row[channelIndex]) : "",
+        rsFee: feeIndex >= 0 ? parseFee(row[feeIndex]) : null,
+        cells: row.map(cellText),
+        payers: [],
+      };
+    }
+    addPayer(row, rowNumber);
   }
   saveActive();
   return results;
+}
+
+export function reconcileRedlockPayers(
+  rows: RedlockImportRow[],
+  actualPayers: RedlockActualPayer[],
+): RedlockPayerReconciliation[] {
+  const actualEmails = new Set(
+    actualPayers
+      .map((payer) => normalizedEmail(payer.email))
+      .filter(Boolean),
+  );
+
+  return rows.map((row) => {
+    const missingEmailPayers = row.payers.filter((payer) => !normalizedEmail(payer.email));
+    const missingPayers = row.payers.filter((payer) => {
+      const email = normalizedEmail(payer.email);
+      return Boolean(email) && !actualEmails.has(email);
+    });
+    return {
+      row,
+      matchedCount: row.payers.length - missingPayers.length - missingEmailPayers.length,
+      missingPayers,
+      missingEmailPayers,
+    };
+  });
 }
 
 export function checkRedlockChannels(

@@ -20,7 +20,7 @@ export async function GET(_: Request, { params }: Context) {
     if (!user) throw new Error("로그인이 필요합니다.");
     const { courseId } = await params;
     const { admin, workspaceId } = await authorizeCourseCosts(courseId, user.id);
-    const [appearances, analyzedChannels, orders] = await Promise.all([
+    const [appearances, analyzedChannels, orders, actualPayers] = await Promise.all([
       admin
         .from("course_youtube_appearances")
         .select("id,channel_name,channel_url")
@@ -37,10 +37,16 @@ export async function GET(_: Request, { params }: Context) {
         .select("id,member_name,rs,current_amount,status")
         .eq("course_id", courseId)
         .neq("rs", ""),
+      admin
+        .from("course_orders")
+        .select("member_name,email")
+        .eq("course_id", courseId)
+        .neq("email", ""),
     ]);
     if (appearances.error) throw new Error(`출연 채널 조회 실패: ${appearances.error.code}`);
     if (analyzedChannels.error) throw new Error(`채널 RS 비율 조회 실패: ${analyzedChannels.error.code}`);
     if (orders.error) throw new Error(`결제자 조회 실패: ${orders.error.code}`);
+    if (actualPayers.error) throw new Error(`실제 결제자 조회 실패: ${actualPayers.error.code}`);
 
     const details = buildYoutubeRsCostDetails(
       (appearances.data ?? []).map((row) => ({
@@ -65,7 +71,13 @@ export async function GET(_: Request, { params }: Context) {
         status: String(row.status ?? ""),
       })),
     );
-    return Response.json({ details }, { headers: { "Cache-Control": "private, no-store" } });
+    return Response.json({
+      details,
+      actualPayers: (actualPayers.data ?? []).map((row) => ({
+        name: String(row.member_name ?? ""),
+        email: String(row.email ?? ""),
+      })),
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return courseCostError(error);
   }

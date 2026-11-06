@@ -18,6 +18,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   checkRedlockChannels,
   parseRedlockWorksheet,
+  reconcileRedlockPayers,
+  type RedlockActualPayer,
   type RedlockChannelCheck,
   type RedlockWorksheet,
 } from "@/lib/course-costs/redlock";
@@ -53,6 +55,7 @@ export function RedlockExcelDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [actualChannels, setActualChannels] = useState<string[]>([]);
+  const [actualPayers, setActualPayers] = useState<RedlockActualPayer[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -62,9 +65,10 @@ export function RedlockExcelDialog({
       signal: controller.signal,
     })
       .then(async (response) => {
-        const body = await response.json() as { details?: YoutubeRsCostDetails; message?: string };
+        const body = await response.json() as { details?: YoutubeRsCostDetails; actualPayers?: RedlockActualPayer[]; message?: string };
         if (!response.ok || !body.details) throw new Error(body.message || "실제 RS 채널 정보를 불러오지 못했습니다.");
         setActualChannels(body.details.channels.map((channel) => channel.channelName).filter(Boolean));
+        setActualPayers(Array.isArray(body.actualPayers) ? body.actualPayers : []);
       })
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === "AbortError") return;
@@ -78,6 +82,12 @@ export function RedlockExcelDialog({
     [rows],
   );
   const mismatchedCount = rows.filter((row) => row.channelStatus !== "matched").length;
+  const payerReconciliations = useMemo(
+    () => reconcileRedlockPayers(rows, actualPayers),
+    [actualPayers, rows],
+  );
+  const missingPayers = payerReconciliations.flatMap((item) => item.missingPayers.map((payer) => ({ channelName: item.row.rsChannelName, payer })));
+  const missingEmailPayers = payerReconciliations.flatMap((item) => item.missingEmailPayers.map((payer) => ({ channelName: item.row.rsChannelName, payer })));
 
   async function readFile(file: File | undefined) {
     if (!file) return;
@@ -157,10 +167,12 @@ export function RedlockExcelDialog({
 
         {fileName && !loading && !error ? (
           <>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-5">
               <div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">가져온 항목</p><p className="mt-1 text-xl font-semibold">{rows.length.toLocaleString("ko-KR")}건</p></div>
               <div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">RS 수수료 합계</p><p className="mt-1 text-xl font-semibold tabular-nums">{won(totalFee)}</p></div>
               <div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">채널 확인 필요</p><p className="mt-1 text-xl font-semibold">{mismatchedCount.toLocaleString("ko-KR")}건</p></div>
+              <div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">실제 명단 미등록</p><p className="mt-1 text-xl font-semibold text-destructive">{missingPayers.length.toLocaleString("ko-KR")}명</p></div>
+              <div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">이메일 확인 필요</p><p className="mt-1 text-xl font-semibold">{missingEmailPayers.length.toLocaleString("ko-KR")}명</p></div>
             </div>
 
             {rows.length ? (
@@ -185,6 +197,34 @@ export function RedlockExcelDialog({
             ) : (
               <Alert><AlertTriangle /><AlertTitle>일치하는 강사 항목이 없습니다</AlertTitle><AlertDescription>C열의 강사명이 현재 정산 강사명과 같은 행만 표시합니다.</AlertDescription></Alert>
             )}
+            {missingPayers.length ? (
+              <div className="rounded-xl border border-destructive/30">
+                <div className="border-b bg-destructive/5 px-4 py-3">
+                  <p className="font-medium">실제 결제자 목록에 없는 명단</p>
+                  <p className="mt-1 text-sm text-muted-foreground">이메일 기준으로 현재 강의의 결제자 목록에 없는 레드락 결제자입니다.</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader><TableRow><TableHead>레드락 채널</TableHead><TableHead>이름</TableHead><TableHead>이메일</TableHead><TableHead>엑셀 행</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {missingPayers.map(({ channelName, payer }) => <TableRow key={`${channelName}-${payer.rowNumber}-${payer.email}`}>
+                        <TableCell className="font-medium">{channelName || "-"}</TableCell>
+                        <TableCell>{payer.name || "-"}</TableCell>
+                        <TableCell>{payer.email}</TableCell>
+                        <TableCell>{payer.rowNumber}행</TableCell>
+                      </TableRow>)}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            ) : null}
+            {missingEmailPayers.length ? (
+              <Alert>
+                <AlertTriangle />
+                <AlertTitle>이메일이 없어 대조하지 못한 결제자가 있습니다</AlertTitle>
+                <AlertDescription>{missingEmailPayers.map(({ channelName, payer }) => `${channelName || "채널 미입력"} · ${payer.name || `${payer.rowNumber}행`}`).join(", ")}</AlertDescription>
+              </Alert>
+            ) : null}
             {mismatchedCount === 0 && rows.length ? <Alert><CheckCircle2 /><AlertTitle>실제 RS 채널명과 모두 일치합니다</AlertTitle></Alert> : null}
           </>
         ) : null}
