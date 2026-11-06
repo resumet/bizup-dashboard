@@ -29,6 +29,8 @@ test("기존 계약서 템플릿을 보존하면서 여러 템플릿과 계약�
 
     const migration = await readFile("supabase/migrations/20261105163017_expand_instructor_contracts.sql", "utf8");
     await db.exec(migration);
+    const signingMigration = await readFile("supabase/migrations/20261106010944_instructor_contract_e_signing.sql", "utf8");
+    await db.exec(signingMigration);
 
     const migrated = await db.query<{ id: string; name: string }>(
       "select id,name from public.instructor_contract_templates where workspace_id = $1",
@@ -89,6 +91,25 @@ test("기존 계약서 템플릿을 보존하면서 여러 템플릿과 계약�
       template_name: "릴스 대행 계약서",
       rendered_content: [{ id: "00000000-0000-4000-8000-000000000010", type: "paragraph", content: "저장된 전문" }],
     }]);
+    const contractId = (await db.query<{ id: string }>("select id from public.instructor_contracts limit 1")).rows[0]?.id;
+    assert.ok(contractId);
+    await assert.rejects(
+      db.query("update public.instructor_contracts set signing_status='completed' where id=$1", [contractId]),
+      /instructor_contracts_completed_signature_check/u,
+    );
+    await db.query(
+      `update public.instructor_contracts
+       set signing_status='completed', signer_name='Hong', signer_method='seal', signature_image_data='data:image/png;base64,AA==', signer_ip_hash=repeat('a',64), signed_at=now()
+       where id=$1`,
+      [contractId],
+    );
+    const signed = await db.query<{ signing_status: string; signer_method: string; signed_at: string | null }>(
+      "select signing_status,signer_method,signed_at from public.instructor_contracts where id=$1",
+      [contractId],
+    );
+    assert.equal(signed.rows[0]?.signing_status, "completed");
+    assert.equal(signed.rows[0]?.signer_method, "seal");
+    assert.ok(signed.rows[0]?.signed_at);
   } finally {
     await db.close();
   }

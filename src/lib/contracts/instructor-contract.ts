@@ -51,6 +51,9 @@ export type InstructorContractTemplateRecord = {
   isBuiltIn?: boolean;
 };
 
+export type InstructorContractSigningStatus = "pending" | "completed";
+export type InstructorContractSignerMethod = "signature" | "seal";
+
 export type InstructorContractListItem = {
   id: string;
   title: string;
@@ -59,11 +62,20 @@ export type InstructorContractListItem = {
   lectureName: string;
   createdByName: string;
   createdAt: string;
+  signingStatus: InstructorContractSigningStatus;
+  signedAt: string | null;
 };
 
 export type InstructorContractDetail = InstructorContractListItem & {
   values: InstructorContractValues;
   renderedContent: CourseDocumentBlock[];
+  signerName: string | null;
+  signerMethod: InstructorContractSignerMethod | null;
+  signatureImageData: string | null;
+};
+
+export type PublicInstructorContract = InstructorContractDetail & {
+  publicTokenCreatedAt: string | null;
 };
 
 export const BUILT_IN_INSTRUCTOR_CONTRACT_TEMPLATE_ID = "built-in";

@@ -48,6 +48,13 @@ export const createInstructorContractSchema = z.object({
   values: instructorContractValuesSchema,
 });
 
+export const signPublicInstructorContractSchema = z.object({
+  signerName: z.string().trim().min(1, "서명자 이름을 입력해 주세요.").max(200),
+  method: z.enum(["signature", "seal"]),
+  signatureImageData: z.string().max(1_500_000).regex(/^data:image\/png;base64,[A-Za-z0-9+/=]+$/u, "서명 이미지를 확인해 주세요."),
+  agreed: z.literal(true, { error: "계약 내용을 확인하고 전자서명에 동의해 주세요." }),
+});
+
 export const saveInstructorContractTemplateSchema = z.object({
   name: z.string().trim().min(1, "템플릿 이름을 입력해 주세요.").max(100),
   template: currentTemplateSchema,

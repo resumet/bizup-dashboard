@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHash, randomBytes } from "node:crypto";
 import { ZodError } from "zod";
 
 import { hasAdminAccess } from "@/lib/admin/access";
@@ -12,6 +13,9 @@ import {
   type InstructorContractTemplate,
   type InstructorContractTemplateRecord,
   type InstructorContractValues,
+  type InstructorContractSignerMethod,
+  type InstructorContractSigningStatus,
+  type PublicInstructorContract,
 } from "@/lib/contracts/instructor-contract";
 import {
   parseInstructorContractTemplate,
@@ -39,16 +43,22 @@ type ContractListRow = {
   lecture_name: string;
   created_by_name: string;
   created_at: string;
+  signing_status: string;
+  signed_at: string | null;
 };
 
 type ContractDetailRow = ContractListRow & {
   contract_values: unknown;
   rendered_content: unknown;
+  public_token_created_at: string | null;
+  signer_name: string | null;
+  signer_method: string | null;
+  signature_image_data: string | null;
 };
 
 const TEMPLATE_COLUMNS = "id,name,template,created_at,updated_at";
-const CONTRACT_LIST_COLUMNS = "id,title,template_name,instructor_name,lecture_name,created_by_name,created_at";
-const CONTRACT_DETAIL_COLUMNS = `${CONTRACT_LIST_COLUMNS},contract_values,rendered_content`;
+const CONTRACT_LIST_COLUMNS = "id,title,template_name,instructor_name,lecture_name,created_by_name,created_at,signing_status,signed_at";
+const CONTRACT_DETAIL_COLUMNS = `${CONTRACT_LIST_COLUMNS},contract_values,rendered_content,public_token_created_at,signer_name,signer_method,signature_image_data`;
 
 export class InstructorContractError extends Error {
   constructor(message: string, public readonly status = 400) {
@@ -222,6 +232,7 @@ export async function deleteInstructorContractTemplate(context: ContractContext,
 }
 
 function normalizeContractListItem(row: ContractListRow): InstructorContractListItem {
+  const signingStatus: InstructorContractSigningStatus = row.signing_status === "completed" ? "completed" : "pending";
   return {
     id: row.id,
     title: row.title,
@@ -230,6 +241,8 @@ function normalizeContractListItem(row: ContractListRow): InstructorContractList
     lectureName: row.lecture_name,
     createdByName: row.created_by_name,
     createdAt: row.created_at,
+    signingStatus,
+    signedAt: signingStatus === "completed" ? row.signed_at : null,
   };
 }
 
@@ -249,6 +262,18 @@ export async function loadInstructorContracts(context: ContractContext) {
     contracts.push(...rows.map(normalizeContractListItem));
     if (rows.length < pageSize) return contracts;
   }
+}
+
+export async function loadCompletedInstructorContracts(context: ContractContext) {
+  const { data, error } = await context.admin
+    .from("instructor_contracts")
+    .select(CONTRACT_LIST_COLUMNS)
+    .eq("workspace_id", context.workspaceId)
+    .eq("signing_status", "completed")
+    .order("signed_at", { ascending: false })
+    .order("id", { ascending: false });
+  if (error) databaseError(error);
+  return ((data ?? []) as ContractListRow[]).map(normalizeContractListItem);
 }
 
 function contractTitle(values: InstructorContractValues) {
@@ -324,5 +349,98 @@ export async function loadInstructorContract(context: ContractContext, contractI
     ...normalizeContractListItem(row),
     values,
     renderedContent,
+    signerName: row.signer_name,
+    signerMethod: row.signer_method === "signature" || row.signer_method === "seal" ? row.signer_method : null,
+    signatureImageData: row.signature_image_data,
   };
+}
+
+function publicContractTokenHash(token: string) {
+  if (!/^[A-Za-z0-9_-]{40,120}$/u.test(token)) throw new InstructorContractError("유효하지 않은 전자계약 링크입니다.", 404);
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function normalizePublicContract(row: ContractDetailRow): PublicInstructorContract {
+  const values = parseInstructorContractValues(row.contract_values);
+  const renderedContent = parseRenderedInstructorContractContent(row.rendered_content);
+  if (!values || !renderedContent) throw new Error("저장된 계약서 형식이 올바르지 않습니다.");
+  return {
+    ...normalizeContractListItem(row),
+    values,
+    renderedContent,
+    signerName: row.signer_name,
+    signerMethod: row.signer_method === "signature" || row.signer_method === "seal" ? row.signer_method : null,
+    signatureImageData: row.signature_image_data,
+    publicTokenCreatedAt: row.public_token_created_at,
+  };
+}
+
+export async function createInstructorContractPublicLink(context: ContractContext, contractId: string) {
+  const token = randomBytes(32).toString("base64url");
+  const { data, error } = await context.admin
+    .from("instructor_contracts")
+    .update({ public_token_hash: publicContractTokenHash(token), public_token_created_at: new Date().toISOString() })
+    .eq("workspace_id", context.workspaceId)
+    .eq("id", contractId)
+    .select("id")
+    .maybeSingle();
+  if (error) databaseError(error);
+  if (!data) throw new InstructorContractError("계약서를 찾을 수 없습니다.", 404);
+  return token;
+}
+
+export async function loadPublicInstructorContract(token: string): Promise<PublicInstructorContract> {
+  const { data, error } = await createAdminClient()
+    .from("instructor_contracts")
+    .select(CONTRACT_DETAIL_COLUMNS)
+    .eq("public_token_hash", publicContractTokenHash(token))
+    .maybeSingle();
+  if (error) databaseError(error);
+  if (!data) throw new InstructorContractError("전자계약 링크가 없거나 만료되었습니다.", 404);
+  return normalizePublicContract(data as ContractDetailRow);
+}
+
+function signingIpHash(request: Request) {
+  const address = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || request.headers.get("x-real-ip")?.trim()
+    || "unknown";
+  const secret = process.env.COURSE_INTAKE_SESSION_SECRET?.trim() || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || "bizup";
+  return createHash("sha256").update(`${secret}:${address}`).digest("hex");
+}
+
+function normalizedSignerName(value: string) {
+  return value.normalize("NFC").replace(/\s+/gu, "").trim();
+}
+
+export async function signPublicInstructorContract(
+  token: string,
+  input: { signerName: string; method: InstructorContractSignerMethod; signatureImageData: string; agreed: true },
+  request: Request,
+) {
+  const contract = await loadPublicInstructorContract(token);
+  if (contract.signingStatus === "completed") throw new InstructorContractError("이미 서명이 완료된 계약서입니다.", 409);
+  if (normalizedSignerName(input.signerName) !== normalizedSignerName(contract.values.instructorName)) {
+    throw new InstructorContractError("계약서에 기재된 강사명과 서명자 이름이 일치하지 않습니다.", 400);
+  }
+  const encoded = input.signatureImageData.slice(input.signatureImageData.indexOf(",") + 1);
+  if (Buffer.from(encoded, "base64").byteLength > 900_000) throw new InstructorContractError("서명 이미지는 900KB 이하로 등록해 주세요.", 400);
+  const now = new Date().toISOString();
+  const { data, error } = await createAdminClient()
+    .from("instructor_contracts")
+    .update({
+      signing_status: "completed",
+      signer_name: input.signerName.trim(),
+      signer_method: input.method,
+      signature_image_data: input.signatureImageData,
+      signer_ip_hash: signingIpHash(request),
+      signed_at: now,
+    })
+    .eq("public_token_hash", publicContractTokenHash(token))
+    .eq("signing_status", "pending")
+    .is("signed_at", null)
+    .select(CONTRACT_DETAIL_COLUMNS)
+    .maybeSingle();
+  if (error) databaseError(error);
+  if (!data) throw new InstructorContractError("다른 창에서 이미 서명이 완료되었습니다. 새로고침해 주세요.", 409);
+  return normalizePublicContract(data as ContractDetailRow);
 }

@@ -2,6 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 
 import { InstructorContractViewer } from "@/components/contracts/instructor-contract-viewer";
+import { InstructorContractElectronicControls } from "@/components/contracts/instructor-contract-electronic-controls";
 import { BackLink } from "@/components/layout/back-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ export default async function InstructorContractDetailPage({
             <div className="flex gap-2"><dt>작성 시간</dt><dd className="font-medium text-foreground">{dateTime.format(new Date(contract.createdAt))}</dd></div>
           </dl>
         </div>
+        <InstructorContractElectronicControls contractId={contract.id} signingStatus={contract.signingStatus} signedAt={contract.signedAt} />
         <InstructorContractViewer title={contract.title} content={contract.renderedContent} />
       </div>
     </main>
