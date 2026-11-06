@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCircle2, FilePlus2, FileText, LayoutTemplate } from "lucide-react";
+import { ArrowLeft, FilePlus2, FileText, LayoutTemplate } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -39,9 +39,6 @@ export default async function ContractsPage() {
             <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">계약서</h1>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" asChild>
-              <Link href="/services/contracts/completed"><CheckCircle2 aria-hidden="true" />계약완료함</Link>
-            </Button>
             {context.isAdmin ? (
               <Button variant="outline" asChild>
                 <Link href="/services/contracts/templates"><LayoutTemplate aria-hidden="true" />계약서 템플릿 관리</Link>
@@ -75,7 +72,6 @@ export default async function ContractsPage() {
                     >
                       <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                       <span className="truncate">{contract.title}</span>
-                      {contract.signingStatus === "completed" ? <CheckCircle2 className="size-4 shrink-0 text-emerald-600" aria-label="계약 완료" /> : null}
                     </Link>
                   </div>
                   <div className="min-w-0">
@@ -113,3 +109,4 @@ export default async function ContractsPage() {
     </main>
   );
 }
+

@@ -1,10 +1,10 @@
 "use client";
 
-import { ExternalLink, Loader2, Printer, Save } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
-import { CONTRACT_PRINT_STYLES, InstructorContractDocument } from "@/components/contracts/instructor-contract-document";
+import { InstructorContractDocument } from "@/components/contracts/instructor-contract-document";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +23,6 @@ import {
   type InstructorContractTemplateRecord,
   type InstructorContractValues,
 } from "@/lib/contracts/instructor-contract";
-import { printHtmlDocument } from "@/lib/course-settlements/print";
 
 function todayInSeoul() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
@@ -42,10 +41,6 @@ function initialValues(): InstructorContractValues {
     phone: "",
     email: "",
   };
-}
-
-function display(value: string, fallback = "입력 예정") {
-  return value.trim() || fallback;
 }
 
 const BUILT_IN_TEMPLATE: InstructorContractTemplateRecord = {
@@ -74,7 +69,6 @@ export function InstructorContractWriter({
   const [savingDraft, setSavingDraft] = useState(false);
   const [error, setError] = useState("");
   const [draftStatus, setDraftStatus] = useState(initialDraftUpdatedAt ? "이전에 임시저장한 내용을 불러왔습니다." : "");
-  const previewRef = useRef<HTMLDivElement>(null);
   const selectedTemplate = availableTemplates.find((template) => template.id === selectedTemplateId) ?? availableTemplates[0];
   const renderedContent = useMemo(() => renderInstructorContractTemplate(selectedTemplate.template, values), [selectedTemplate.template, values]);
   const endDate = useMemo(() => getContractEndDate(values.startDate, values.durationYears), [values.durationYears, values.startDate]);
@@ -89,12 +83,6 @@ export function InstructorContractWriter({
     setValues(initialValues());
     setError("");
     setDraftStatus("");
-  }
-
-  function printContract() {
-    if (!previewRef.current) return;
-    const title = `${display(values.instructorName, "강사")}_비즈업클래스_강사_계약서`;
-    printHtmlDocument(title, `${CONTRACT_PRINT_STYLES}<main class="contract-print">${previewRef.current.innerHTML}</main>`);
   }
 
   async function saveDraft() {
@@ -138,12 +126,10 @@ export function InstructorContractWriter({
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button variant="outline" asChild><a href="https://glosign.com/" target="_blank" rel="noreferrer"><ExternalLink aria-hidden="true" />글로싸인 바로가기</a></Button>
         <Button type="button" variant="outline" disabled={savingDraft} onClick={() => void saveDraft()}>
           {savingDraft ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Save aria-hidden="true" />}
           {savingDraft ? "임시저장 중" : "임시저장"}
         </Button>
-        <Button type="button" variant="outline" onClick={printContract}><Printer aria-hidden="true" />PDF로 저장</Button>
         <Button type="button" disabled={saving} onClick={() => void saveContract()}>
           {saving ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Save aria-hidden="true" />}
           {saving ? "저장 중" : "계약서 저장"}
@@ -184,9 +170,10 @@ export function InstructorContractWriter({
 
         <section className="overflow-hidden rounded-xl border bg-slate-100 shadow-sm" aria-label="계약서 미리보기">
           <div className="flex items-center justify-between border-b bg-white px-5 py-3"><h2 className="font-semibold">계약서 전문</h2><span className="text-xs text-muted-foreground">입력 내용이 즉시 반영됩니다.</span></div>
-          <div className="max-h-[calc(100dvh-12rem)] min-h-[42rem] overflow-y-auto p-3 sm:p-6"><div ref={previewRef}><InstructorContractDocument content={renderedContent} /></div></div>
+          <div className="max-h-[calc(100dvh-12rem)] min-h-[42rem] overflow-y-auto p-3 sm:p-6"><div><InstructorContractDocument content={renderedContent} /></div></div>
         </section>
       </div>
     </div>
   );
 }
+

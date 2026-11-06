@@ -1,8 +1,7 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 
 import { InstructorContractViewer } from "@/components/contracts/instructor-contract-viewer";
-import { InstructorContractElectronicControls } from "@/components/contracts/instructor-contract-electronic-controls";
 import { BackLink } from "@/components/layout/back-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,16 +44,16 @@ export default async function InstructorContractDetailPage({
           <Button variant="ghost" size="sm" asChild><BackLink href="/services/contracts"><ArrowLeft aria-hidden="true" />계약서 목록</BackLink></Button>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{contract.title}</h1>
-            <Badge variant="secondary">{contract.templateName}</Badge>
+            <div className="flex flex-wrap items-center gap-2"><Badge variant="secondary">{contract.templateName}</Badge><Button asChild><a href={`/api/contracts/${contract.id}/pdf`}><Download aria-hidden="true" />PDF 다운로드</a></Button></div>
           </div>
           <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
             <div className="flex gap-2"><dt>작성자</dt><dd className="font-medium text-foreground">{contract.createdByName}</dd></div>
             <div className="flex gap-2"><dt>작성 시간</dt><dd className="font-medium text-foreground">{dateTime.format(new Date(contract.createdAt))}</dd></div>
           </dl>
         </div>
-        <InstructorContractElectronicControls contractId={contract.id} signingStatus={contract.signingStatus} signedAt={contract.signedAt} />
-        <InstructorContractViewer title={contract.title} content={contract.renderedContent} signatureImageData={contract.signatureImageData} signerName={contract.signerName} />
+        <InstructorContractViewer content={contract.renderedContent} />
       </div>
     </main>
   );
 }
+
