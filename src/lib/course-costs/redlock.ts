@@ -31,6 +31,12 @@ export type RedlockChannelCheck = RedlockImportRow & {
   channelStatus: "matched" | "possible" | "missing" | "unmatched";
 };
 
+export type RedlockChannelFeeSummary = {
+  channelName: string;
+  rsFee: number;
+  rowCount: number;
+};
+
 export type RedlockPayerReconciliation = {
   row: RedlockImportRow;
   matchedCount: number;
@@ -197,5 +203,23 @@ export function checkRedlockChannels(
       ? { ...row, matchedChannelName: possible, channelStatus: "possible" }
       : { ...row, matchedChannelName: "", channelStatus: "unmatched" };
   });
+}
+
+export function summarizeRedlockChannelFees(rows: RedlockImportRow[]): RedlockChannelFeeSummary[] {
+  const summaries = new Map<string, RedlockChannelFeeSummary>();
+  for (const row of rows) {
+    const channelName = row.rsChannelName.trim();
+    if (!channelName || row.rsFee === null || !Number.isFinite(row.rsFee)) continue;
+    const key = normalizeYoutubeRsMatchValue(channelName);
+    if (!key) continue;
+    const current = summaries.get(key);
+    if (current) {
+      current.rsFee += row.rsFee;
+      current.rowCount += 1;
+    } else {
+      summaries.set(key, { channelName, rsFee: row.rsFee, rowCount: 1 });
+    }
+  }
+  return [...summaries.values()].sort((left, right) => left.channelName.localeCompare(right.channelName, "ko"));
 }
 

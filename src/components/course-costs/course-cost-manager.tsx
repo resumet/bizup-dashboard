@@ -13,6 +13,7 @@ import { burdenTypePatch, calculateBurden, calculateTax } from "@/lib/course-cos
 import { YoutubeAppearanceFeeDialog } from "@/components/course-costs/youtube-appearance-fee-dialog";
 import { YoutubeRsCostDialog } from "@/components/course-costs/youtube-rs-cost-dialog";
 import { RedlockExcelDialog } from "@/components/course-costs/redlock-excel-dialog";
+import type { RedlockChannelFeeSummary } from "@/lib/course-costs/redlock";
 import { youtubeAppearanceFeeTotals } from "@/lib/course-costs/youtube-appearance-fee";
 import { youtubeRsTotals } from "@/lib/course-costs/youtube-rs";
 import {
@@ -272,6 +273,48 @@ export function CourseCostManager({ courseId, instructorName }: { courseId: stri
     setYoutubeAppearanceFeeOpen(false);
   }
 
+  function applyRedlockChannelFees(items: RedlockChannelFeeSummary[]) {
+    const keysToMark = new Set<string>();
+    const itemsByName = new Map(items.map((item) => [`유튜브 출연 RS비용(${item.channelName})`, item]));
+    const existingNames = new Set<string>();
+    const updated = drafts.map((draft) => {
+      const item = itemsByName.get(draft.value.name);
+      if (!item || draft.value.burdenType !== "SHARED" || draft.value.categoryCode !== "YOUTUBE_RS" || draft.value.managerName !== "레드락") return draft;
+      existingNames.add(draft.value.name);
+      keysToMark.add(draft.key);
+      return {
+        ...draft,
+        value: {
+          ...draft.value,
+          grossAmount: item.rsFee,
+          companyShareRate: 50,
+          instructorShareRate: 50,
+        },
+      };
+    });
+    for (const item of items) {
+      const name = `유튜브 출연 RS비용(${item.channelName})`;
+      if (existingNames.has(name)) continue;
+      const key = crypto.randomUUID();
+      keysToMark.add(key);
+      updated.push({
+        key,
+        id: null,
+        value: {
+          ...emptyInput("SHARED", "YOUTUBE_RS", name),
+          managerName: "레드락",
+          grossAmount: item.rsFee,
+        },
+        attachments: [],
+        cashLedgerEntryId: null,
+      });
+    }
+    setDrafts(updated);
+    setDirtyKeys((current) => new Set([...current, ...keysToMark]));
+    setRedlockOpen(false);
+    setNotice(`레드락 RS 비용 ${items.length}건을 회사·강사 공동 부담 항목에 반영했습니다. 비용 변경사항 저장을 눌러 저장하세요.`);
+  }
+
   function updateDraft(key: string, patch: Partial<CourseCostInput>) {
     setDrafts((current) => current.map((draft) => draft.key === key ? { ...draft, value: { ...draft.value, ...patch } } : draft));
     setDirtyKeys((current) => new Set(current).add(key));
@@ -428,7 +471,7 @@ export function CourseCostManager({ courseId, instructorName }: { courseId: stri
       <Button type="button" size="lg" disabled={busy || changeCount === 0} onClick={() => void saveChanges()}>{busy ? <Loader2 className="animate-spin"/> : <Save/>}비용 변경사항 저장</Button>
     </div>
     {youtubeRsOpen ? <YoutubeRsCostDialog courseId={courseId} open initialDetails={youtubeRsInitialDetails} onOpenChange={setYoutubeRsOpen} onConfirm={applyYoutubeRs}/> : null}
-    {redlockOpen ? <RedlockExcelDialog courseId={courseId} instructorName={instructorName} open onOpenChange={setRedlockOpen}/> : null}
+    {redlockOpen ? <RedlockExcelDialog courseId={courseId} instructorName={instructorName} open onOpenChange={setRedlockOpen} onApplyChannelFees={applyRedlockChannelFees}/> : null}
     {youtubeAppearanceFeeOpen ? <YoutubeAppearanceFeeDialog courseId={courseId} open initialDetails={youtubeAppearanceFeeInitialDetails} onOpenChange={setYoutubeAppearanceFeeOpen} onConfirm={applyYoutubeAppearanceFee}/> : null}
   </div>;
 }

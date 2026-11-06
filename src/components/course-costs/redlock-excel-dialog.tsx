@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, FileSpreadsheet, Loader2, UploadCloud, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, UploadCloud, XCircle } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -19,8 +20,10 @@ import {
   checkRedlockChannels,
   parseRedlockWorksheet,
   reconcileRedlockPayers,
+  summarizeRedlockChannelFees,
   type RedlockActualPayer,
-  type RedlockChannelCheck,
+  type RedlockChannelFeeSummary,
+  type RedlockImportRow,
   type RedlockWorksheet,
 } from "@/lib/course-costs/redlock";
 import type { YoutubeRsCostDetails } from "@/lib/course-costs/types";
@@ -43,19 +46,25 @@ export function RedlockExcelDialog({
   instructorName,
   open,
   onOpenChange,
+  onApplyChannelFees,
 }: {
   courseId: string;
   instructorName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onApplyChannelFees: (items: RedlockChannelFeeSummary[]) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [rows, setRows] = useState<RedlockChannelCheck[]>([]);
+  const [parsedRows, setParsedRows] = useState<RedlockImportRow[]>([]);
   const [fileName, setFileName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [actualChannels, setActualChannels] = useState<string[]>([]);
   const [actualPayers, setActualPayers] = useState<RedlockActualPayer[]>([]);
+  const rows = useMemo(
+    () => checkRedlockChannels(parsedRows, actualChannels),
+    [actualChannels, parsedRows],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -81,6 +90,7 @@ export function RedlockExcelDialog({
     () => rows.reduce((total, row) => total + (row.rsFee ?? 0), 0),
     [rows],
   );
+  const channelFees = useMemo(() => summarizeRedlockChannelFees(rows), [rows]);
   const mismatchedCount = rows.filter((row) => row.channelStatus !== "matched").length;
   const payerReconciliations = useMemo(
     () => reconcileRedlockPayers(rows, actualPayers),
@@ -92,7 +102,7 @@ export function RedlockExcelDialog({
   async function readFile(file: File | undefined) {
     if (!file) return;
     setError("");
-    setRows([]);
+    setParsedRows([]);
     setFileName(file.name);
 
     if (!/\.xlsx$/iu.test(file.name)) {
@@ -112,7 +122,7 @@ export function RedlockExcelDialog({
         name: sheet.sheet,
         rows: sheet.data,
       } satisfies RedlockWorksheet, instructorName));
-      setRows(checkRedlockChannels(parsed, actualChannels));
+      setParsedRows(parsed);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "레드락 엑셀을 읽지 못했습니다.");
     } finally {
@@ -120,13 +130,8 @@ export function RedlockExcelDialog({
     }
   }
 
-  useEffect(() => {
-    if (!fileName) return;
-    setRows((current) => checkRedlockChannels(current, actualChannels));
-  }, [actualChannels, fileName]);
-
   function reset() {
-    setRows([]);
+    setParsedRows([]);
     setFileName("");
     setError("");
     if (inputRef.current) inputRef.current.value = "";
@@ -228,6 +233,10 @@ export function RedlockExcelDialog({
             {mismatchedCount === 0 && rows.length ? <Alert><CheckCircle2 /><AlertTitle>실제 RS 채널명과 모두 일치합니다</AlertTitle></Alert> : null}
           </>
         ) : null}
+        <DialogFooter>
+          <Button type="button" variant="outline" disabled={loading} onClick={() => onOpenChange(false)}>닫기</Button>
+          <Button type="button" disabled={loading || channelFees.length === 0} onClick={() => onApplyChannelFees(channelFees)}>공동 부담 비용에 반영</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

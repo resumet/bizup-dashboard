@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { checkRedlockChannels, parseRedlockWorksheet, reconcileRedlockPayers } from "./redlock";
+import { checkRedlockChannels, parseRedlockWorksheet, reconcileRedlockPayers, summarizeRedlockChannelFees } from "./redlock";
 
 test("레드락 엑셀은 C열 강사명이 현재 정산 강사와 일치하는 행만 가져온다", () => {
   const rows = parseRedlockWorksheet({
@@ -74,5 +74,20 @@ test("레드락 RS 채널명을 실제 출연 채널과 대조한다", () => {
 
   assert.equal(checked?.channelStatus, "matched");
   assert.equal(checked?.matchedChannelName, "홍길동TV");
+});
+
+test("레드락 채널별 RS 수수료를 합산하며 채널명과 금액이 없는 행은 제외한다", () => {
+  const result = summarizeRedlockChannelFees([
+    { sheetName: "정산", rowNumber: 2, instructorName: "초코라떼", rsChannelName: "초월스토리", rsFee: 10_000, cells: [], payers: [] },
+    { sheetName: "정산", rowNumber: 8, instructorName: "초코라떼", rsChannelName: "초월 스토리", rsFee: 5_932_816, cells: [], payers: [] },
+    { sheetName: "정산", rowNumber: 20, instructorName: "초코라떼", rsChannelName: "비즈업클럽", rsFee: 2_000, cells: [], payers: [] },
+    { sheetName: "정산", rowNumber: 21, instructorName: "초코라떼", rsChannelName: "", rsFee: 4_000, cells: [], payers: [] },
+    { sheetName: "정산", rowNumber: 22, instructorName: "초코라떼", rsChannelName: "미입력", rsFee: null, cells: [], payers: [] },
+  ]);
+
+  assert.deepEqual(result, [
+    { channelName: "비즈업클럽", rsFee: 2_000, rowCount: 1 },
+    { channelName: "초월스토리", rsFee: 5_942_816, rowCount: 2 },
+  ]);
 });
 
