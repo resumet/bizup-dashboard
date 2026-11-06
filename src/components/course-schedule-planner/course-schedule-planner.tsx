@@ -9,6 +9,7 @@ import {
   CalendarX2,
   ChevronLeft,
   ChevronRight,
+  Copy,
   EllipsisVertical,
   GripVertical,
   Loader2,
@@ -41,6 +42,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { buildPlannedScheduleText } from "@/lib/course-schedule-planner/planned-schedule-text";
 import type {
   CourseScheduleDraft,
   CourseScheduleDraftSize,
@@ -137,6 +139,9 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
   const [editCourseSize, setEditCourseSize] = useState<CourseScheduleDraftSize>("large");
   const [deleteTarget, setDeleteTarget] = useState<CourseScheduleDraft | null>(null);
   const [assignmentDate, setAssignmentDate] = useState<string | null>(null);
+  const [scheduleTextOpen, setScheduleTextOpen] = useState(false);
+  const [scheduleText, setScheduleText] = useState("");
+  const [copyingScheduleText, setCopyingScheduleText] = useState(false);
 
   const days = useMemo(() => calendarDates(month), [month]);
   const draftsByDate = useMemo(() => {
@@ -167,6 +172,28 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
     [drafts],
   );
   const draggingDraft = draggingId ? drafts.find((draft) => draft.id === draggingId) : null;
+
+  function openScheduleText() {
+    setScheduleText(buildPlannedScheduleText({
+      today: initialData.today,
+      drafts,
+      confirmedCourses: initialData.confirmedCourses,
+    }));
+    setScheduleTextOpen(true);
+  }
+
+  async function copyScheduleText() {
+    if (!scheduleText.trim() || copyingScheduleText) return;
+    setCopyingScheduleText(true);
+    try {
+      await navigator.clipboard.writeText(scheduleText);
+      setNotice("예정 강의 일정을 클립보드에 복사했습니다.");
+    } catch {
+      setError("클립보드에 복사하지 못했습니다. 텍스트를 직접 복사해 주세요.");
+    } finally {
+      setCopyingScheduleText(false);
+    }
+  }
 
   function startDrag(event: DragEvent<HTMLElement>, draft: CourseScheduleDraft) {
     event.dataTransfer.effectAllowed = "move";
@@ -368,7 +395,7 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
       <Card className="min-w-0 xl:sticky xl:top-4 xl:self-start">
         <CardHeader className="flex flex-row items-center justify-between gap-3">
           <div><CardTitle className="flex items-center gap-2 text-xl"><CalendarDays className="size-6 text-primary" />{monthTitle(month)}</CardTitle><p className="mt-1 text-sm text-muted-foreground">날짜의 빈 곳을 클릭해 미배정 강의를 선택하거나 카드를 끌어 배정할 수 있습니다.</p></div>
-          <div className="flex shrink-0 items-center gap-1"><Button type="button" size="sm" variant="outline" onClick={() => setMonth(initialData.today.slice(0, 7))}>오늘</Button><Button type="button" size="icon-sm" variant="ghost" aria-label="이전 달" onClick={() => setMonth((current) => shiftMonth(current, -1))}><ChevronLeft /></Button><Button type="button" size="icon-sm" variant="ghost" aria-label="다음 달" onClick={() => setMonth((current) => shiftMonth(current, 1))}><ChevronRight /></Button></div>
+          <div className="flex shrink-0 items-center gap-1"><Button type="button" size="sm" variant="outline" onClick={openScheduleText}><Copy />일정 텍스트</Button><Button type="button" size="sm" variant="outline" onClick={() => setMonth(initialData.today.slice(0, 7))}>오늘</Button><Button type="button" size="icon-sm" variant="ghost" aria-label="이전 달" onClick={() => setMonth((current) => shiftMonth(current, -1))}><ChevronLeft /></Button><Button type="button" size="icon-sm" variant="ghost" aria-label="다음 달" onClick={() => setMonth((current) => shiftMonth(current, 1))}><ChevronRight /></Button></div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <div className="min-w-[900px] overflow-hidden rounded-xl border">
@@ -406,6 +433,14 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
         </CardContent>
       </Card>
     </div>
+
+    <Dialog open={scheduleTextOpen} onOpenChange={setScheduleTextOpen}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader><DialogTitle>예정 강의 일정 텍스트</DialogTitle></DialogHeader>
+        <Textarea autoFocus value={scheduleText} onChange={(event) => setScheduleText(event.target.value)} className="min-h-96 resize-y" />
+        <DialogFooter><DialogClose asChild><Button type="button" variant="outline">닫기</Button></DialogClose><Button type="button" disabled={!scheduleText.trim() || copyingScheduleText} onClick={() => void copyScheduleText()}>{copyingScheduleText ? <Loader2 className="animate-spin" /> : <Copy />}복사</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <Dialog open={Boolean(assignmentDate)} onOpenChange={(open) => { if (!open && !busyId) setAssignmentDate(null); }}>
       <DialogContent className="sm:max-w-lg">
