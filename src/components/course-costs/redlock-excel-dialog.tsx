@@ -90,6 +90,10 @@ export function RedlockExcelDialog({
     () => rows.reduce((total, row) => total + (row.rsFee ?? 0), 0),
     [rows],
   );
+  const totalAppearanceFee = useMemo(
+    () => rows.reduce((total, row) => total + (row.appearanceFee ?? 0), 0),
+    [rows],
+  );
   const channelFees = useMemo(() => summarizeRedlockChannelFees(rows), [rows]);
   const mismatchedCount = rows.filter((row) => row.channelStatus !== "matched").length;
   const payerReconciliations = useMemo(
@@ -172,9 +176,10 @@ export function RedlockExcelDialog({
 
         {fileName && !loading && !error ? (
           <>
-            <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-5">
+            <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
               <div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">가져온 항목</p><p className="mt-1 text-xl font-semibold">{rows.length.toLocaleString("ko-KR")}건</p></div>
               <div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">RS 수수료 합계</p><p className="mt-1 text-xl font-semibold tabular-nums">{won(totalFee)}</p></div>
+              <div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">출연료 합계</p><p className="mt-1 text-xl font-semibold tabular-nums">{won(totalAppearanceFee)}</p></div>
               <div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">채널 확인 필요</p><p className="mt-1 text-xl font-semibold">{mismatchedCount.toLocaleString("ko-KR")}건</p></div>
               <div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">실제 명단 미등록</p><p className="mt-1 text-xl font-semibold text-destructive">{missingPayers.length.toLocaleString("ko-KR")}명</p></div>
               <div className="rounded-xl border p-4"><p className="text-sm text-muted-foreground">이메일 확인 필요</p><p className="mt-1 text-xl font-semibold">{missingEmailPayers.length.toLocaleString("ko-KR")}명</p></div>
@@ -183,7 +188,7 @@ export function RedlockExcelDialog({
             {rows.length ? (
               <div className="overflow-x-auto rounded-xl border">
                 <Table>
-                  <TableHeader><TableRow><TableHead>시트 · 행</TableHead><TableHead>강사</TableHead><TableHead>레드락 채널명</TableHead><TableHead>실제 RS 채널</TableHead><TableHead>대조</TableHead><TableHead className="text-right">RS 수수료</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>시트 · 행</TableHead><TableHead>강사</TableHead><TableHead>레드락 채널명</TableHead><TableHead>실제 RS 채널</TableHead><TableHead>대조</TableHead><TableHead className="text-right">RS 수수료</TableHead><TableHead className="text-right">출연료</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {rows.map((row) => {
                       const status = channelStatus[row.channelStatus];
@@ -194,6 +199,7 @@ export function RedlockExcelDialog({
                         <TableCell>{row.matchedChannelName || "-"}</TableCell>
                         <TableCell><Badge variant={status.variant}>{status.label}</Badge></TableCell>
                         <TableCell className="text-right font-semibold tabular-nums">{won(row.rsFee)}</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">{won(row.appearanceFee ?? null)}</TableCell>
                       </TableRow>;
                     })}
                   </TableBody>
@@ -235,7 +241,7 @@ export function RedlockExcelDialog({
         ) : null}
         <DialogFooter>
           <Button type="button" variant="outline" disabled={loading} onClick={() => onOpenChange(false)}>닫기</Button>
-          <Button type="button" disabled={loading || channelFees.length === 0} onClick={() => onApplyChannelFees(channelFees)}>공동 부담 비용에 반영</Button>
+          <Button type="button" disabled={loading || channelFees.length === 0} onClick={() => onApplyChannelFees(channelFees)}>비용 반영</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

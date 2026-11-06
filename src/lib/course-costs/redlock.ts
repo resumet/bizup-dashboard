@@ -22,6 +22,7 @@ export type RedlockImportRow = {
   instructorName: string;
   rsChannelName: string;
   rsFee: number | null;
+  appearanceFee?: number | null;
   cells: string[];
   payers: RedlockPayer[];
 };
@@ -34,6 +35,7 @@ export type RedlockChannelCheck = RedlockImportRow & {
 export type RedlockChannelFeeSummary = {
   channelName: string;
   rsFee: number;
+  appearanceFee: number;
   rowCount: number;
 };
 
@@ -99,7 +101,8 @@ export function parseRedlockWorksheet(
 
   const header = worksheet.rows[headerIndex] ?? [];
   const channelIndex = findColumn(header, ["RS 채널명", "RS 채널", "채널명", "유튜브 채널", "채널"]);
-  const feeIndex = findColumn(header, ["RS 수수료", "RS수수료", "RS 금액", "RS금액", "RS", "수수료"]);
+  const rsFeeIndex = findColumn(header, ["RS 수수료", "RS수수료", "RS 금액", "RS금액", "RS", "수수료"]);
+  const appearanceFeeIndex = findColumn(header, ["출연료", "유튜브 출연료"]);
   const payerNameIndex = findColumn(header, ["이름", "성명", "결제자명"]);
   const payerEmailIndex = findColumn(header, ["이메일", "메일", "email"]);
   const target = normalized(instructorName);
@@ -113,7 +116,8 @@ export function parseRedlockWorksheet(
     if (!active) return;
     results.push({
       ...active,
-      rsFee: subtotalRow && feeIndex >= 0 ? parseFee(subtotalRow[feeIndex]) : active.rsFee,
+      rsFee: subtotalRow && rsFeeIndex >= 0 ? parseFee(subtotalRow[rsFeeIndex]) : active.rsFee,
+      appearanceFee: subtotalRow && appearanceFeeIndex >= 0 ? parseFee(subtotalRow[appearanceFeeIndex]) : active.appearanceFee,
     });
     active = null;
   };
@@ -145,7 +149,8 @@ export function parseRedlockWorksheet(
         rowNumber,
         instructorName: rowInstructorName,
         rsChannelName: rowChannelName || activeChannelName,
-        rsFee: feeIndex >= 0 ? parseFee(row[feeIndex]) : null,
+        rsFee: rsFeeIndex >= 0 ? parseFee(row[rsFeeIndex]) : null,
+        appearanceFee: appearanceFeeIndex >= 0 ? parseFee(row[appearanceFeeIndex]) : null,
         cells: row.map(cellText),
         payers: [],
       };
@@ -209,15 +214,19 @@ export function summarizeRedlockChannelFees(rows: RedlockImportRow[]): RedlockCh
   const summaries = new Map<string, RedlockChannelFeeSummary>();
   for (const row of rows) {
     const channelName = row.rsChannelName.trim();
-    if (!channelName || row.rsFee === null || !Number.isFinite(row.rsFee)) continue;
+    if (!channelName) continue;
+    const rsFee = row.rsFee !== null && Number.isFinite(row.rsFee) ? row.rsFee : 0;
+    const appearanceFee = typeof row.appearanceFee === "number" && Number.isFinite(row.appearanceFee) ? row.appearanceFee : 0;
+    if (!rsFee && !appearanceFee) continue;
     const key = normalizeYoutubeRsMatchValue(channelName);
     if (!key) continue;
     const current = summaries.get(key);
     if (current) {
-      current.rsFee += row.rsFee;
+      current.rsFee += rsFee;
+      current.appearanceFee += appearanceFee;
       current.rowCount += 1;
     } else {
-      summaries.set(key, { channelName, rsFee: row.rsFee, rowCount: 1 });
+      summaries.set(key, { channelName, rsFee, appearanceFee, rowCount: 1 });
     }
   }
   return [...summaries.values()].sort((left, right) => left.channelName.localeCompare(right.channelName, "ko"));

@@ -274,36 +274,54 @@ export function CourseCostManager({ courseId, instructorName }: { courseId: stri
   }
 
   function applyRedlockChannelFees(items: RedlockChannelFeeSummary[]) {
+    const importedItems: Array<{
+      name: string;
+      burdenType: FixedBurden;
+      categoryCode: string;
+      grossAmount: number;
+    }> = items.flatMap((item) => [
+      ...(item.rsFee > 0 ? [{
+        name: `유튜브 출연 RS비용(${item.channelName})`,
+        burdenType: "SHARED" as const,
+        categoryCode: "YOUTUBE_RS",
+        grossAmount: item.rsFee,
+      }] : []),
+      ...(item.appearanceFee > 0 ? [{
+        name: `유튜브 출연료(${item.channelName})`,
+        burdenType: "COMPANY" as const,
+        categoryCode: "YOUTUBE_FIXED",
+        grossAmount: item.appearanceFee,
+      }] : []),
+    ]);
     const keysToMark = new Set<string>();
-    const itemsByName = new Map(items.map((item) => [`유튜브 출연 RS비용(${item.channelName})`, item]));
+    const itemsByName = new Map(importedItems.map((item) => [item.name, item] as const));
     const existingNames = new Set<string>();
     const updated = drafts.map((draft) => {
       const item = itemsByName.get(draft.value.name);
-      if (!item || draft.value.burdenType !== "SHARED" || draft.value.categoryCode !== "YOUTUBE_RS" || draft.value.managerName !== "레드락") return draft;
+      if (!item || draft.value.burdenType !== item.burdenType || draft.value.categoryCode !== item.categoryCode) return draft;
       existingNames.add(draft.value.name);
       keysToMark.add(draft.key);
       return {
         ...draft,
         value: {
           ...draft.value,
-          grossAmount: item.rsFee,
-          companyShareRate: 50,
-          instructorShareRate: 50,
+          managerName: "레드락",
+          grossAmount: item.grossAmount,
+          ...burdenTypePatch(item.burdenType),
         },
       };
     });
-    for (const item of items) {
-      const name = `유튜브 출연 RS비용(${item.channelName})`;
-      if (existingNames.has(name)) continue;
+    for (const item of importedItems) {
+      if (existingNames.has(item.name)) continue;
       const key = crypto.randomUUID();
       keysToMark.add(key);
       updated.push({
         key,
         id: null,
         value: {
-          ...emptyInput("SHARED", "YOUTUBE_RS", name),
+          ...emptyInput(item.burdenType, item.categoryCode, item.name),
           managerName: "레드락",
-          grossAmount: item.rsFee,
+          grossAmount: item.grossAmount,
         },
         attachments: [],
         cashLedgerEntryId: null,
@@ -312,7 +330,7 @@ export function CourseCostManager({ courseId, instructorName }: { courseId: stri
     setDrafts(updated);
     setDirtyKeys((current) => new Set([...current, ...keysToMark]));
     setRedlockOpen(false);
-    setNotice(`레드락 RS 비용 ${items.length}건을 회사·강사 공동 부담 항목에 반영했습니다. 비용 변경사항 저장을 눌러 저장하세요.`);
+    setNotice(`레드락 비용 ${importedItems.length}건을 반영했습니다. 비용 변경사항 저장을 눌러 저장하세요.`);
   }
 
   function updateDraft(key: string, patch: Partial<CourseCostInput>) {

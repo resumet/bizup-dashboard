@@ -85,9 +85,39 @@ test("레드락 채널별 RS 수수료를 합산하며 채널명과 금액이 �
     { sheetName: "정산", rowNumber: 22, instructorName: "초코라떼", rsChannelName: "미입력", rsFee: null, cells: [], payers: [] },
   ]);
 
-  assert.deepEqual(result, [
+  assert.deepEqual(result.map((summary) => ({ channelName: summary.channelName, rsFee: summary.rsFee, rowCount: summary.rowCount })), [
     { channelName: "비즈업클럽", rsFee: 2_000, rowCount: 1 },
     { channelName: "초월스토리", rsFee: 5_942_816, rowCount: 2 },
   ]);
+});
+
+test("레드락 출연료도 채널별로 합산한다", () => {
+  const result = summarizeRedlockChannelFees([
+    { sheetName: "Sheet1", rowNumber: 2, instructorName: "Instructor", rsChannelName: "Channel A", rsFee: 1_000, appearanceFee: 3_000, cells: [], payers: [] },
+    { sheetName: "Sheet1", rowNumber: 8, instructorName: "Instructor", rsChannelName: "Channel A", rsFee: 2_000, appearanceFee: 2_500, cells: [], payers: [] },
+    { sheetName: "Sheet1", rowNumber: 14, instructorName: "Instructor", rsChannelName: "Channel B", rsFee: null, appearanceFee: 1_500, cells: [], payers: [] },
+  ]);
+
+  assert.deepEqual(result, [
+    { channelName: "Channel A", rsFee: 3_000, appearanceFee: 5_500, rowCount: 2 },
+    { channelName: "Channel B", rsFee: 0, appearanceFee: 1_500, rowCount: 1 },
+  ]);
+});
+
+test("레드락 소계 행의 출연료를 해당 강사 채널에 연결한다", () => {
+  const rows = parseRedlockWorksheet({
+    name: "Sheet1",
+    rows: [
+      ["번호", "채널명", "강사", "이름", "이메일", "결제금액", "RS", "출연료"],
+      [1, "출연 채널", "강사 A", "수강생", "student@example.com", 100_000, 10_000, null],
+      ["소계", null, null, null, null, 100_000, 10_000, 1_650_000],
+    ],
+  }, "강사 A");
+
+  assert.deepEqual(rows.map((row) => ({ channelName: row.rsChannelName, rsFee: row.rsFee, appearanceFee: row.appearanceFee })), [{
+    channelName: "출연 채널",
+    rsFee: 10_000,
+    appearanceFee: 1_650_000,
+  }]);
 });
 
