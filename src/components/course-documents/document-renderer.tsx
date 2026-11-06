@@ -7,6 +7,7 @@ import { repairCourseDocumentCallouts } from "@/lib/course-documents/rich-text";
 import { cn } from "@/lib/utils";
 
 type DocumentRendererVariant = "default" | "contract";
+type ContractSignature = { imageData: string; signerName: string } | null;
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/gu;
 const ALLOWED_FONT_SIZES = new Set(["12px", "14px", "16px", "18px", "20px", "24px", "28px", "32px", "40px", "48px"]);
@@ -28,6 +29,19 @@ function linkedText(value: string) {
   }
   if (cursor < value.length) parts.push(value.slice(cursor));
   return parts;
+}
+
+function contractText(value: string, signature: ContractSignature, key: string): ReactNode {
+  if (!signature || !value.includes("성명") || !value.includes(signature.signerName) || !value.includes("(인)")) return linkedText(value);
+  const index = value.indexOf("(인)");
+  return [
+    ...linkedText(value.slice(0, index)),
+    <span key={`${key}-signature-mark`} style={{ position: "relative", display: "inline-flex", width: "4.25rem", height: "4.25rem", marginLeft: "0.125rem", verticalAlign: "middle" }}>
+      <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: "0.7em", color: "#334155" }}>(인)</span>
+      <Image src={signature.imageData} alt={`${signature.signerName} 도장 또는 서명`} width={68} height={68} unoptimized style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain" }} />
+    </span>,
+    ...linkedText(value.slice(index + 3)),
+  ];
 }
 
 function safeExternalUrl(value: unknown) {
@@ -69,8 +83,8 @@ function textBlockStyle(attrs: RichTextNode["attrs"]): CSSProperties | undefined
   return textAlign ? { textAlign } : undefined;
 }
 
-function renderRichTextNode(node: RichTextNode, key: string, variant: DocumentRendererVariant): ReactNode {
-  if (node.type === "text") return applyMarks(node.text ?? "", node.marks, key);
+function renderRichTextNode(node: RichTextNode, key: string, variant: DocumentRendererVariant, contractSignature: ContractSignature): ReactNode {
+  if (node.type === "text") return applyMarks(contractText(node.text ?? "", contractSignature, key), node.marks, key);
   if (node.type === "hardBreak") return <br key={key} />;
   if (node.type === "horizontalRule") return <hr key={key} className="my-10 border-black/10" />;
 
@@ -88,7 +102,7 @@ function renderRichTextNode(node: RichTextNode, key: string, variant: DocumentRe
     return <p key={key} className="py-3 text-center"><a className="inline-flex min-h-12 items-center justify-center rounded-xl bg-primary px-6 font-semibold text-primary-foreground transition-opacity hover:opacity-90" href={href} target="_blank" rel="noopener noreferrer">{label}</a></p>;
   }
 
-  const children = node.content?.map((child, index) => renderRichTextNode(child, `${key}-${index}`, variant)) ?? null;
+  const children = node.content?.map((child, index) => renderRichTextNode(child, `${key}-${index}`, variant, contractSignature)) ?? null;
   if (node.type === "callout") return (
     <div key={key} className="course-document-callout" data-course-document-callout="" data-icon={typeof node.attrs?.icon === "string" ? node.attrs.icon : DEFAULT_CALLOUT_ICON}>
       <span className="course-document-callout-icon" aria-hidden="true">{typeof node.attrs?.icon === "string" ? node.attrs.icon : DEFAULT_CALLOUT_ICON}</span>
@@ -139,11 +153,11 @@ function renderRichTextNode(node: RichTextNode, key: string, variant: DocumentRe
   return null;
 }
 
-export function DocumentRenderer({ blocks, variant = "default" }: { blocks: CourseDocumentBlock[]; variant?: DocumentRendererVariant }) {
+export function DocumentRenderer({ blocks, variant = "default", contractSignature }: { blocks: CourseDocumentBlock[]; variant?: DocumentRendererVariant; contractSignature?: ContractSignature }) {
   return (
     <div className={variant === "contract" ? "space-y-0" : "space-y-6"}>
       {repairCourseDocumentCallouts(blocks).map((block) => {
-        if (block.type === "rich_text") return renderRichTextNode(block.content, block.id, variant);
+        if (block.type === "rich_text") return renderRichTextNode(block.content, block.id, variant, contractSignature ?? null);
         if (block.type === "heading1") return variant === "contract"
           ? <h1 key={block.id} className="whitespace-pre-wrap py-2 text-center text-2xl font-bold tracking-[-0.04em]">{block.content}</h1>
           : <h2 key={block.id} className="whitespace-pre-wrap pt-4 text-3xl font-bold tracking-tight text-balance sm:text-4xl">{block.content}</h2>;

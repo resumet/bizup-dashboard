@@ -53,7 +53,7 @@ export default async function InstructorContractDetailPage({
           </dl>
         </div>
         <InstructorContractElectronicControls contractId={contract.id} signingStatus={contract.signingStatus} signedAt={contract.signedAt} />
-        <InstructorContractViewer title={contract.title} content={contract.renderedContent} />
+        <InstructorContractViewer title={contract.title} content={contract.renderedContent} signatureImageData={contract.signatureImageData} signerName={contract.signerName} />
       </div>
     </main>
   );

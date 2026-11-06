@@ -60,6 +60,7 @@ export async function createSignedInstructorContractPdf(contract: SignedContract
   if (contract.signingStatus !== "completed" || !contract.signatureImageData || !contract.signerName || !contract.signedAt) {
     throw new Error("서명이 완료된 계약서만 PDF로 만들 수 있습니다.");
   }
+  const signerName = contract.signerName;
   const document = await PDFDocument.create();
   document.registerFontkit(fontkit);
   const fontBytes = await readFile(path.join(process.cwd(), "public", "fonts", "NanumMyeongjo-Regular.ttf"));
@@ -75,13 +76,22 @@ export async function createSignedInstructorContractPdf(contract: SignedContract
     page = document.addPage(A4);
     y = A4[1] - MARGIN;
   };
+  const signatureBytes = Buffer.from(contract.signatureImageData.slice(contract.signatureImageData.indexOf(",") + 1), "base64");
+  const signature = await document.embedPng(signatureBytes);
+  const signatureScale = Math.min(48 / signature.width, 48 / signature.height, 1);
   const drawLines = (value: string, size: number, gap: number, center = false, bold = false) => {
     const lineHeight = size * 1.72;
     const lines = wrap(value, font, size, width);
     if (y - lines.length * lineHeight - gap < MARGIN) addPage();
     for (const line of lines) {
       const lineWidth = font.widthOfTextAtSize(line, size);
-      page.drawText(line, { x: center ? (A4[0] - lineWidth) / 2 : MARGIN, y: y - size, font, size, color: bold ? rgb(0.05, 0.08, 0.14) : rgb(0.08, 0.12, 0.18) });
+      const x = center ? (A4[0] - lineWidth) / 2 : MARGIN;
+      page.drawText(line, { x, y: y - size, font, size, color: bold ? rgb(0.05, 0.08, 0.14) : rgb(0.08, 0.12, 0.18) });
+      const sealIndex = line.indexOf("(인)");
+      if (sealIndex >= 0 && line.includes("성명") && line.includes(signerName)) {
+        const sealX = x + font.widthOfTextAtSize(line.slice(0, sealIndex), size) - 4;
+        page.drawImage(signature, { x: sealX, y: y - size - 15, width: signature.width * signatureScale, height: signature.height * signatureScale });
+      }
       y -= lineHeight;
     }
     y -= gap;
@@ -91,15 +101,7 @@ export async function createSignedInstructorContractPdf(contract: SignedContract
       if (item.text) drawLines(item.text, item.size, item.gap, item.center, item.bold);
     }
   }
-  if (y < 175) addPage();
-  page.drawLine({ start: { x: MARGIN, y }, end: { x: A4[0] - MARGIN, y }, thickness: 0.7, color: rgb(0.7, 0.74, 0.8) });
-  y -= 22;
-  drawLines("전자서명 완료", 11.5, 2, false, true);
-  drawLines(`서명자: ${contract.signerName}  |  완료 일시: ${new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "short" }).format(new Date(contract.signedAt))}`, 8.5, 8);
-  const signatureBytes = Buffer.from(contract.signatureImageData.slice(contract.signatureImageData.indexOf(",") + 1), "base64");
-  const signature = await document.embedPng(signatureBytes);
-  const scale = Math.min(150 / signature.width, 72 / signature.height, 1);
-  page.drawImage(signature, { x: MARGIN, y: Math.max(MARGIN, y - signature.height * scale), width: signature.width * scale, height: signature.height * scale });
-  page.drawText(contract.signerMethod === "seal" ? "도장" : "서명", { x: MARGIN + 160, y: Math.max(MARGIN + 12, y - 28), font, size: 8.5, color: rgb(0.25, 0.3, 0.38) });
+  if (y < 80) addPage();
+  page.drawText(`전자서명 완료 · ${new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "short" }).format(new Date(contract.signedAt))}`, { x: MARGIN, y: Math.max(MARGIN, y - 12), font, size: 7.5, color: rgb(0.35, 0.4, 0.47) });
   return new Uint8Array(await document.save());
 }
