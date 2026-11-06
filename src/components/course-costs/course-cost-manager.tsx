@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
-import { AlertTriangle, BookOpenCheck, CalendarDays, CheckCircle2, ClipboardPaste, ExternalLink, FileImage, GripVertical, Loader2, Paperclip, PencilLine, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
+import { AlertTriangle, BookOpenCheck, CalendarDays, CheckCircle2, ClipboardPaste, ExternalLink, FileImage, FileSpreadsheet, GripVertical, Loader2, Paperclip, PencilLine, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { burdenTypePatch, calculateBurden, calculateTax } from "@/lib/course-costs/calculation";
 import { YoutubeAppearanceFeeDialog } from "@/components/course-costs/youtube-appearance-fee-dialog";
 import { YoutubeRsCostDialog } from "@/components/course-costs/youtube-rs-cost-dialog";
+import { RedlockExcelDialog } from "@/components/course-costs/redlock-excel-dialog";
 import { youtubeAppearanceFeeTotals } from "@/lib/course-costs/youtube-appearance-fee";
 import { youtubeRsTotals } from "@/lib/course-costs/youtube-rs";
 import {
@@ -125,7 +126,7 @@ async function request(url: string, init?: RequestInit) {
   return body;
 }
 
-export function CourseCostManager({ courseId }: { courseId: string }) {
+export function CourseCostManager({ courseId, instructorName }: { courseId: string; instructorName: string }) {
   const [costs, setCosts] = useState<CourseCost[]>([]);
   const [drafts, setDrafts] = useState<CostDraft[]>([]);
   const [deleted, setDeleted] = useState<DeletedCost[]>([]);
@@ -138,6 +139,7 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
   const [youtubeRsOpen, setYoutubeRsOpen] = useState(false);
   const [youtubeRsTargetKey, setYoutubeRsTargetKey] = useState<string | null>(null);
   const [youtubeRsInitialDetails, setYoutubeRsInitialDetails] = useState<YoutubeRsCostDetails | null>(null);
+  const [redlockOpen, setRedlockOpen] = useState(false);
   const [youtubeAppearanceFeeOpen, setYoutubeAppearanceFeeOpen] = useState(false);
   const [youtubeAppearanceFeeTargetKey, setYoutubeAppearanceFeeTargetKey] = useState<string | null>(null);
   const [youtubeAppearanceFeeInitialDetails, setYoutubeAppearanceFeeInitialDetails] = useState<YoutubeAppearanceFeeCostDetails | null>(null);
@@ -383,6 +385,7 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
     {notice ? <Alert><AlertTitle>저장 완료</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert> : null}
     <div className="flex flex-wrap items-center justify-end gap-3">
       {changeCount ? <span className="text-sm text-muted-foreground">저장하지 않은 변경 {changeCount}건</span> : null}
+      <Button type="button" variant="outline" disabled={busy} onClick={() => setRedlockOpen(true)}><FileSpreadsheet/>레드락 엑셀 입력하기</Button>
       <Button type="button" variant="outline" disabled={busy || changeCount === 0} onClick={resetAllInputs}><RotateCcw/>전체 입력 내용 초기화</Button>
       <Button type="button" disabled={busy || changeCount === 0} onClick={() => void saveChanges()}>{busy ? <Loader2 className="animate-spin"/> : <Save/>}비용 변경사항 저장</Button>
     </div>
@@ -425,6 +428,7 @@ export function CourseCostManager({ courseId }: { courseId: string }) {
       <Button type="button" size="lg" disabled={busy || changeCount === 0} onClick={() => void saveChanges()}>{busy ? <Loader2 className="animate-spin"/> : <Save/>}비용 변경사항 저장</Button>
     </div>
     {youtubeRsOpen ? <YoutubeRsCostDialog courseId={courseId} open initialDetails={youtubeRsInitialDetails} onOpenChange={setYoutubeRsOpen} onConfirm={applyYoutubeRs}/> : null}
+    {redlockOpen ? <RedlockExcelDialog courseId={courseId} instructorName={instructorName} open onOpenChange={setRedlockOpen}/> : null}
     {youtubeAppearanceFeeOpen ? <YoutubeAppearanceFeeDialog courseId={courseId} open initialDetails={youtubeAppearanceFeeInitialDetails} onOpenChange={setYoutubeAppearanceFeeOpen} onConfirm={applyYoutubeAppearanceFee}/> : null}
   </div>;
 }

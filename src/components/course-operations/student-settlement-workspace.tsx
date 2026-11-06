@@ -93,7 +93,7 @@ export function StudentSettlementWorkspace({
         {refreshing ? <p role="status" className="py-12 text-center text-sm text-muted-foreground">유료수강생 명단을 새로고침하는 중입니다.</p> : paidRoster}
       </TabsContent>
       <TabsContent value="costs" className="mt-0">
-        <CourseCostManager courseId={courseId} />
+        <CourseCostManager courseId={courseId} instructorName={instructorName} />
       </TabsContent>
       <TabsContent value="settlement" className="mt-0">
         <CourseSettlementManager
