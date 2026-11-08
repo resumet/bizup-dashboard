@@ -14,6 +14,8 @@ import {
 import {
   BarChart3,
   BookOpenCheck,
+  CalendarClock,
+  CalendarRange,
   ChevronRight,
   Ellipsis,
   GripVertical,
@@ -111,6 +113,28 @@ function isActive(pathname: string, item: NavigationItem) {
   if (item.exact) return pathname === item.href;
   const activeHrefs = [item.href, ...(item.activeHrefs ?? [])];
   return activeHrefs.some((href) => pathname === href || pathname.startsWith(`${href}/`));
+}
+
+export function HeaderSearchTools() {
+  return (
+    <div className="mx-auto flex w-full max-w-4xl items-center gap-2">
+      <div className="min-w-0 flex-1">
+        <GlobalDashboardSearch />
+      </div>
+      <Button variant="outline" size="sm" className="shrink-0 border-slate-200 bg-white px-2.5 text-slate-700 shadow-sm" asChild>
+        <Link href="/calendar" aria-label="팀일정" title="팀일정">
+          <CalendarRange aria-hidden="true" />
+          <span className="hidden sm:inline">팀일정</span>
+        </Link>
+      </Button>
+      <Button variant="outline" size="sm" className="shrink-0 border-slate-200 bg-white px-2.5 text-slate-700 shadow-sm" asChild>
+        <Link href="/services/course-schedule-planner" aria-label="강의일정 플래너" title="강의일정 플래너">
+          <CalendarClock aria-hidden="true" />
+          <span className="hidden sm:inline">강의일정 플래너</span>
+        </Link>
+      </Button>
+    </div>
+  );
 }
 
 function SidebarLink({
@@ -353,7 +377,7 @@ export function AppShell({
         <div className="ml-auto"><UserAccountMenu email={email} name={userName} /></div>
       </header>
 
-      {pathname !== "/" ? <div className="sticky top-16 z-30 border-b bg-white/95 px-4 py-2 backdrop-blur lg:hidden"><GlobalDashboardSearch /></div> : null}
+      {pathname !== "/" ? <div className="sticky top-16 z-30 border-b bg-white/95 px-4 py-2 backdrop-blur lg:hidden"><HeaderSearchTools /></div> : null}
 
       {mobileMenuOpen ? (
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="전체 메뉴">
@@ -391,7 +415,7 @@ export function AppShell({
           sidebarCollapsed ? "lg:pl-0" : "lg:pl-(--app-sidebar-width)",
         )}
       >
-        {pathname !== "/" ? <header className="sticky top-0 z-30 hidden h-16 items-center justify-center border-b bg-white/95 px-5 backdrop-blur lg:flex"><GlobalDashboardSearch /></header> : null}
+        {pathname !== "/" ? <header className="sticky top-0 z-30 hidden h-16 items-center justify-center border-b bg-white/95 px-5 backdrop-blur lg:flex"><HeaderSearchTools /></header> : null}
         {children}
       </div>
     </div>
