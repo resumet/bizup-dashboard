@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowUpRight, CreditCard } from "lucide-react";
+import { ArrowUpRight, CreditCard, Megaphone } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { isSuperAdminEmail } from "@/lib/admin/access";
@@ -18,6 +18,7 @@ export default async function AdminLabsPage() {
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">실험실</h1>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <Link href="/admin/labs/meta-ads" className="group rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"><Card className="h-full border-slate-200 bg-white transition-colors group-hover:border-blue-300 group-hover:bg-blue-50/30"><CardContent className="flex min-h-40 items-center gap-4 p-6"><span className="grid size-12 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700"><Megaphone className="size-6" aria-hidden="true" /></span><span className="min-w-0 flex-1 text-lg font-semibold text-slate-950">메타 광고 매니저</span><ArrowUpRight className="size-5 shrink-0 text-slate-400" aria-hidden="true" /></CardContent></Card></Link>
           <Link href="/admin/labs/toss-payment" className="group rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2">
             <Card className="h-full border-slate-200 bg-white transition-colors group-hover:border-blue-300 group-hover:bg-blue-50/30">
               <CardContent className="flex min-h-40 items-center gap-4 p-6">
