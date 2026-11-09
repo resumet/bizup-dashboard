@@ -6,10 +6,11 @@ import { BackLink } from "@/components/layout/back-link";
 import { Button } from "@/components/ui/button";
 import { requireCourseDocumentMember, toDocumentDetail } from "@/lib/course-documents/server";
 
-type Props = { params: Promise<{ documentId: string }> };
+type Props = { params: Promise<{ documentId: string }>; searchParams: Promise<{ preview?: string }> };
 
-export default async function AdminCourseDocumentPage({ params }: Props) {
+export default async function AdminCourseDocumentPage({ params, searchParams }: Props) {
   const { documentId } = await params;
+  const preview = (await searchParams).preview === "1";
   let context;
   try { context = await requireCourseDocumentMember(); }
   catch (error) { if (error instanceof Error && error.message === "UNAUTHORIZED") redirect("/login"); throw error; }
@@ -21,5 +22,5 @@ export default async function AdminCourseDocumentPage({ params }: Props) {
   if (materialError) throw new Error(`인스타 자료 조회 실패: ${materialError.code}`);
   const course = Array.isArray(data.courses) ? data.courses[0] : data.courses;
   const document = toDocumentDetail(data);
-  return <main className="min-h-screen"><header className="border-b bg-background"><div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8"><Button variant="ghost" size="icon" asChild><BackLink href={`/services/instagram-management/${document.courseId}`} aria-label="강의별 인스타그램 관리로 돌아가기"><ArrowLeft /></BackLink></Button><div className="mx-3 h-5 w-px bg-border" /><span className="truncate font-semibold">{document.title}</span></div></header><div className="mx-auto max-w-[1500px] px-5 py-8 lg:px-8"><CourseDocumentEditor mode="admin" courseId={document.courseId} courseName={course?.name ?? "강의"} document={document} fixedTitle={Boolean(material)} /></div></main>;
+  return <main className="min-h-screen"><header className="border-b bg-background"><div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8"><Button variant="ghost" size="icon" asChild><BackLink href={`/services/instagram-management/${document.courseId}`} aria-label="강의별 인스타그램 관리로 돌아가기"><ArrowLeft /></BackLink></Button><div className="mx-3 h-5 w-px bg-border" /><span className="truncate font-semibold">{document.title}</span></div></header><div className="mx-auto max-w-[1500px] px-5 py-8 lg:px-8"><CourseDocumentEditor mode="admin" courseId={document.courseId} courseName={course?.name ?? "강의"} document={document} fixedTitle={Boolean(material)} initialPreview={preview} /></div></main>;
 }

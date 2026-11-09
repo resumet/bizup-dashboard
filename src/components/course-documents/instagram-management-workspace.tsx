@@ -493,6 +493,19 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
     finally { setBusy(false); }
   }
 
+  async function startDocument(material: CourseDocumentMaterial) {
+    if (!selectedCourse) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const body = await post({ action: "start-document", courseId: selectedCourse.id, position: material.position });
+      if (!body.id) throw new Error("생성된 문서를 확인하지 못했습니다.");
+      window.open(`/services/instagram-management/documents/${body.id}`, "_blank", "noopener,noreferrer");
+      await load();
+      setNotice("문서를 만들었습니다.");
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "문서를 만들지 못했습니다."); }
+    finally { setBusy(false); }
+  }
+
   async function setDocumentStatus(document: CourseDocumentSummary) {
     if (!selectedCourse) return;
     const status = document.status === "published" ? "draft" : "published";
@@ -643,7 +656,6 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                       <Button variant="outline" disabled={busy} onClick={openPlanningSheet}><FileSpreadsheet />기획시트</Button>
                       <Button variant="outline" disabled={savingBulkTitles || !selectedCourse.materials.length} onClick={openBulkTitleDialog}><ListPlus />제목 일괄입력</Button>
                       <Button variant="outline" disabled={savingMaterials || savingBulkFilmingDate || activeSelectedFilmingPositions.length === 0} onClick={openBulkFilmingDateDialog}><CalendarDays />촬영 일정 일괄 변경{activeSelectedFilmingPositions.length ? ` (${activeSelectedFilmingPositions.length})` : ""}</Button>
-                      <InstagramPublicPageDialog path={externalUrl} enabled={selectedCourse.externalEditEnabled} busy={busy} onChangeAccess={updateAccess} />
                       <Button disabled={savingMaterials || savingBulkFilmingDate || materialChangeCount === 0} onClick={() => void saveMaterials()}>
                         {savingMaterials ? <Loader2 className="animate-spin" /> : <Save />}
                         {savingMaterials ? "저장 중" : materialChangeCount ? `저장하기 (${materialChangeCount})` : "저장됨"}
@@ -673,12 +685,13 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                 {legacyDocuments.length ? <Card><CardHeader><CardTitle>이전 방식 미연결 글 {legacyDocuments.length}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>제목</TableHead><TableHead>상태</TableHead><TableHead>수정일</TableHead><TableHead className="text-right">작업</TableHead></TableRow></TableHeader><TableBody>{legacyDocuments.map((document) => <TableRow key={document.id}><TableCell className="font-medium">{document.title}</TableCell><TableCell><Badge variant={document.status === "published" ? "default" : "secondary"}>{document.status === "published" ? "공개" : "비공개"}</Badge></TableCell><TableCell className="text-muted-foreground">{dateTime(document.updatedAt)}</TableCell><TableCell><div className="flex justify-end gap-1"><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon-sm" aria-label="문서 수정 및 리드게이트 설정" onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}><Pencil /></Button></TooltipTrigger><TooltipContent>문서 수정 및 리드게이트 설정</TooltipContent></Tooltip>{document.status === "published" ? <Button variant="ghost" size="icon-sm" asChild><a aria-label="이전 공개 글 열기" href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink /></a></Button> : null}<Button variant="ghost" size="icon-sm" aria-label="이전 글 삭제" disabled={busy} onClick={() => void deleteDocument(document.id)}><Trash2 /></Button></div></TableCell></TableRow>)}</TableBody></Table></CardContent></Card> : null}
                   </TabsContent>
                   <TabsContent value="dm-pages" className="mt-0 space-y-4">
+                    <div className="flex justify-end"><InstagramPublicPageDialog path={externalUrl} enabled={selectedCourse.externalEditEnabled} busy={busy} onChangeAccess={updateAccess} triggerLabel="공개페이지" /></div>
                     <div className="rounded-lg border">
                       <Table>
                         <TableHeader><TableRow><TableHead className="w-16 text-center">번호</TableHead><TableHead>제목</TableHead><TableHead>작성 상태</TableHead><TableHead>공개 상태</TableHead><TableHead className="text-right">작업</TableHead></TableRow></TableHeader>
                         <TableBody>{dmPageMaterials.map((material) => {
                           const document = material.documentId ? selectedDocumentsById.get(material.documentId) : undefined;
-                          return <TableRow key={material.position}><TableCell className="text-center font-mono text-muted-foreground">{String(material.position).padStart(2, "0")}</TableCell><TableCell className="font-medium">{material.title}</TableCell><TableCell>{document ? <StatusBadge label="작성됨" color="blue" /> : <StatusBadge label="미작성" color="yellow" />}</TableCell><TableCell>{document ? <StatusBadge label={document.status === "published" ? "공개" : "비공개"} color={document.status === "published" ? "blue" : "yellow"} /> : <span className="text-sm text-muted-foreground">-</span>}</TableCell><TableCell><div className="flex justify-end gap-2">{document ? <><Button variant="outline" size="sm" asChild><a href={`/services/instagram-management/documents/${document.id}`} target="_blank" rel="noopener noreferrer">문서 수정</a></Button><Button type="button" variant={document.status === "published" ? "outline" : "default"} size="sm" disabled={busy} onClick={() => void setDocumentStatus(document)}>{document.status === "published" ? "비공개하기" : "공개하기"}</Button><Button type="button" variant="ghost" size="icon-sm" aria-label="글 삭제" disabled={busy} onClick={() => void deleteDocument(document.id)}><Trash2 /></Button></> : <span className="text-sm text-muted-foreground">-</span>}</div></TableCell></TableRow>;
+                          return <TableRow key={material.position}><TableCell className="text-center font-mono text-muted-foreground">{String(material.position).padStart(2, "0")}</TableCell><TableCell className="font-medium">{material.title}</TableCell><TableCell>{document ? <StatusBadge label="작성됨" color="blue" /> : <StatusBadge label="미작성" color="yellow" />}</TableCell><TableCell>{document ? <StatusBadge label={document.status === "published" ? "공개" : "비공개"} color={document.status === "published" ? "blue" : "yellow"} /> : <span className="text-sm text-muted-foreground">-</span>}</TableCell><TableCell><div className="flex flex-wrap justify-end gap-2">{document ? <><Button type="button" variant="outline" size="sm" disabled>작성</Button><Button variant="outline" size="sm" asChild><a href={`/services/instagram-management/documents/${document.id}`} target="_blank" rel="noopener noreferrer">수정</a></Button><Button type="button" variant={document.status === "published" ? "outline" : "default"} size="sm" disabled={busy} onClick={() => void setDocumentStatus(document)}>{document.status === "published" ? "비공개" : "공개"}</Button><Button variant="outline" size="sm" asChild><a href={document.status === "published" ? `/article/${document.slug}` : `/services/instagram-management/documents/${document.id}?preview=1`} target="_blank" rel="noopener noreferrer">보기</a></Button><Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void deleteDocument(document.id)}>삭제</Button></> : <><Button type="button" size="sm" disabled={busy} onClick={() => void startDocument(material)}>작성</Button><Button type="button" variant="outline" size="sm" disabled>수정</Button><Button type="button" variant="outline" size="sm" disabled>공개</Button><Button type="button" variant="outline" size="sm" disabled>보기</Button><Button type="button" variant="outline" size="sm" disabled>삭제</Button></>}</div></TableCell></TableRow>;
                         })}</TableBody>
                       </Table>
                       {!dmPageMaterials.length ? <div className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">DM이 필요한 릴스가 없습니다.</div> : null}

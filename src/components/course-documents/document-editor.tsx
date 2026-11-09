@@ -103,6 +103,7 @@ type Props = {
   initialContent?: CourseDocumentBlock[];
   onSaveContent?: (content: CourseDocumentBlock[]) => Promise<void>;
   allowSaveWhenClean?: boolean;
+  initialPreview?: boolean;
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -288,6 +289,7 @@ export function CourseDocumentEditor({
   initialContent,
   onSaveContent,
   allowSaveWhenClean = false,
+  initialPreview = false,
 }: Props) {
   const initialDocument = useMemo(() => {
     const original = mode === "contract" ? initialContent ?? [] : document?.content ?? [];
@@ -303,7 +305,7 @@ export function CourseDocumentEditor({
   const [leadGateAfterBlockId, setLeadGateAfterBlockId] = useState<string | null>(
     document?.leadGateEnabled ? document.leadGateAfterBlockId : null,
   );
-  const [preview, setPreview] = useState(false);
+  const [preview, setPreview] = useState(initialPreview);
   const [dirty, setDirty] = useState(initialDocument.repaired);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);

@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 
-import { courseDocumentErrorResponse, requireCourseDocumentMember, toDocumentSummary } from "@/lib/course-documents/server";
+import { courseDocumentErrorResponse, createUniqueDocumentSlug, requireCourseDocumentMember, toDocumentSummary } from "@/lib/course-documents/server";
 import {
   COURSE_DOCUMENT_MATERIAL_LIMIT,
   courseDocumentDmMaterialSchema,
@@ -87,6 +87,7 @@ const requestSchema = z.discriminatedUnion("action", [
     dmNotRequired: z.boolean(),
   }),
   z.object({ action: z.literal("save-planning-sheet"), courseId: z.uuid(), url: courseDocumentPlanningSheetUrlSchema }),
+  z.object({ action: z.literal("start-document"), courseId: z.uuid(), position: courseDocumentMaterialPositionSchema }),
   z.object({ action: z.literal("save-document"), documentId: z.uuid(), document: adminCourseDocumentSchema }),
   z.object({ action: z.literal("set-document-status"), documentId: z.uuid(), status: z.enum(["draft", "published"]) }),
   z.object({ action: z.literal("delete-document"), documentId: z.uuid() }),
@@ -480,6 +481,35 @@ export async function POST(request: Request) {
       return Response.json({
         materials: (data ?? []).map(toMaterial),
       });
+    }
+
+    if (input.action === "start-document") {
+      const { data: course, error: courseError } = await admin
+        .from("courses")
+        .select("id")
+        .eq("id", input.courseId)
+        .eq("workspace_id", membership.workspace_id)
+        .maybeSingle();
+      if (courseError) throw new Error(`강의 확인 실패: ${courseError.code}`);
+      if (!course) throw new Error("NOT_FOUND");
+      const { data: material, error: materialError } = await admin
+        .from("course_instagram_materials")
+        .select("title,document_id,dm_not_required")
+        .eq("course_id", course.id)
+        .eq("position", input.position)
+        .maybeSingle();
+      if (materialError) throw new Error(`인스타 자료 확인 실패: ${materialError.code}`);
+      if (!material || material.dm_not_required) throw new Error("NOT_FOUND");
+      if (!material.title.trim()) throw new Error("작성할 인스타 자료 제목이 없습니다.");
+      const slug = await createUniqueDocumentSlug(material.title);
+      const { data, error } = await admin.rpc("start_instagram_material_document", {
+        p_course_id: course.id,
+        p_position: input.position,
+        p_slug: slug,
+      });
+      if (error) throw new Error(`문서 생성 실패: ${error.code}`);
+      if (typeof data !== "string") throw new Error("생성된 문서를 확인하지 못했습니다.");
+      return Response.json({ id: data });
     }
 
     if (input.action === "save-document") {

@@ -33,11 +33,13 @@ export function InstagramPublicPageDialog({
   enabled,
   busy,
   onChangeAccess,
+  triggerLabel = "공개페이지",
 }: {
   path: string;
   enabled: boolean;
   busy: boolean;
   onChangeAccess: (enabled: boolean, regenerateToken?: boolean) => Promise<string>;
+  triggerLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [regenerateOpen, setRegenerateOpen] = useState(false);
@@ -89,7 +91,7 @@ export function InstagramPublicPageDialog({
     >
       <DialogTrigger asChild>
         <Button type="button" variant="outline" disabled={busy}>
-          <Link2 />공개페이지 만들기
+          <Link2 />{triggerLabel}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg" aria-busy={busy}>
