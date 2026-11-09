@@ -23,6 +23,7 @@ export default async function AdminSupplyRequestsPage() {
       <SupplyRequestList
         initialRequests={requests}
         canManage
+        currentUserId={context.user.id}
         assignees={people.map((person) => ({ id: person.id, name: person.name }))}
       />
     </div>

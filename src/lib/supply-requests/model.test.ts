@@ -65,6 +65,43 @@ test("승인 상태 변경은 검토 정보와 버전을 함께 갱신한다", (
   });
 });
 
+test("비품 신청 내용은 승인 대기 중인 경우에만 수정할 수 있다", () => {
+  assert.deepEqual(buildSupplyRequestUpdate({
+    approvalStatus: "pending",
+    purchased: false,
+    version: 2,
+  }, {
+    action: "edit",
+    itemName: "촬영용 조명",
+    purchaseUrl: "https://example.com/light",
+    priceKrw: 50_000,
+    purpose: "강의 촬영",
+    note: "밝기 조절 가능",
+    version: 2,
+  }, ACTOR, NOW), {
+    item_name: "촬영용 조명",
+    purchase_url: "https://example.com/light",
+    price_krw: 50_000,
+    purpose: "강의 촬영",
+    note: "밝기 조절 가능",
+    version: 3,
+    updated_at: NOW,
+  });
+  assert.throws(() => buildSupplyRequestUpdate({
+    approvalStatus: "approved",
+    purchased: false,
+    version: 2,
+  }, {
+    action: "edit",
+    itemName: "촬영용 조명",
+    purchaseUrl: "",
+    priceKrw: 50_000,
+    purpose: "강의 촬영",
+    note: "",
+    version: 2,
+  }, ACTOR, NOW), SupplyRequestConflictError);
+});
+
 test("승인 전 구매 완료와 구매 후 승인 취소를 차단한다", () => {
   assert.throws(() => buildSupplyRequestUpdate({
     approvalStatus: "pending",

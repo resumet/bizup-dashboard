@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink, Loader2, PackageOpen, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ExternalLink, Loader2, PackageOpen, Pencil, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -68,10 +69,12 @@ async function readJson(response: Response) {
 export function SupplyRequestList({
   initialRequests,
   canManage,
+  currentUserId,
   assignees = [],
 }: {
   initialRequests: SupplyRequest[];
   canManage: boolean;
+  currentUserId: string;
   assignees?: SupplyAssignee[];
 }) {
   const [requests, setRequests] = useState(initialRequests);
@@ -149,6 +152,7 @@ export function SupplyRequestList({
                 <col className="w-[13%]" />
                 <col className="w-[9%]" />
                 <col className="w-[9%]" />
+                <col className="w-[7%]" />
                 {canManage ? <col className="w-[7%]" /> : null}
               </colgroup>
               <TableHeader>
@@ -163,6 +167,7 @@ export function SupplyRequestList({
                   <TableHead>비고</TableHead>
                   <TableHead>승인 여부</TableHead>
                   <TableHead className="pr-4">구매 여부</TableHead>
+                  <TableHead className="text-center">수정</TableHead>
                   {canManage ? <TableHead className="pr-4 text-center">삭제</TableHead> : null}
                 </TableRow>
               </TableHeader>
@@ -172,6 +177,7 @@ export function SupplyRequestList({
                   const purchaseBusy = busy === `${item.id}:purchase`;
                   const assigneeBusy = busy === `${item.id}:assignee`;
                   const deleteBusy = busy === `${item.id}:delete`;
+                  const canEdit = item.requesterId === currentUserId && item.approvalStatus === "pending";
                   return (
                     <TableRow key={item.id}>
                       <TableCell className="pl-4 whitespace-nowrap">{dateFormatter.format(new Date(item.requestedAt))}</TableCell>
@@ -260,6 +266,16 @@ export function SupplyRequestList({
                             {purchaseBusy ? <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" aria-hidden="true" /> : null}
                           </div>
                         ) : <PurchaseBadge purchased={item.purchased} />}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {canEdit ? (
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/hr/supplies/${item.id}`}>
+                              <Pencil aria-hidden="true" />
+                              수정
+                            </Link>
+                          </Button>
+                        ) : <span className="text-muted-foreground">-</span>}
                       </TableCell>
                       {canManage ? (
                         <TableCell className="pr-4 text-center">

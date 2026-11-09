@@ -21,6 +21,10 @@ export const createSupplyRequestSchema = z.object({
 }).strict();
 
 export const supplyRequestCommandSchema = z.discriminatedUnion("action", [
+  createSupplyRequestSchema.extend({
+    action: z.literal("edit"),
+    version: z.number().int().positive(),
+  }),
   z.object({
     action: z.literal("approval"),
     status: z.enum(["pending", "approved", "rejected"]),
@@ -45,6 +49,11 @@ export type SupplyRequestState = {
 };
 
 export type SupplyRequestUpdate = {
+  item_name?: string;
+  purchase_url?: string | null;
+  price_krw?: number;
+  purpose?: string;
+  note?: string;
   assignee_id?: string | null;
   assignee_name?: string;
   approval_status?: SupplyApprovalStatus;
@@ -65,6 +74,20 @@ export function buildSupplyRequestUpdate(
   actorId: string,
   now: string,
 ): SupplyRequestUpdate {
+  if (command.action === "edit") {
+    if (current.approvalStatus !== "pending") {
+      throw new SupplyRequestConflictError("승인된 비품 신청은 수정할 수 없습니다.");
+    }
+    return {
+      item_name: command.itemName,
+      purchase_url: command.purchaseUrl || null,
+      price_krw: command.priceKrw,
+      purpose: command.purpose,
+      note: command.note,
+      version: current.version + 1,
+      updated_at: now,
+    };
+  }
   if (command.action === "assignee") {
     return {
       version: current.version + 1,

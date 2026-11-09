@@ -25,7 +25,7 @@ export default async function SupplyRequestsPage() {
           </Link>
         </Button>
       </div>
-      <SupplyRequestList initialRequests={requests} canManage={false} />
+      <SupplyRequestList initialRequests={requests} canManage={false} currentUserId={context.user.id} />
     </div>
   );
 }

@@ -122,6 +122,25 @@ export async function loadSupplyRequests(
   return requests;
 }
 
+export async function loadSupplyRequest(
+  context: SupplyRequestContext,
+  requestId: string,
+) {
+  const { data, error } = await context.admin
+    .from("supply_requests")
+    .select("id,requester_id,requester_name,assignee_id,assignee_name,item_name,purchase_url,price_krw,purpose,note,approval_status,reviewed_at,purchased,purchased_at,version,requested_at,updated_at")
+    .eq("workspace_id", context.workspaceId)
+    .eq("id", requestId)
+    .maybeSingle();
+  if (error) throw databaseError(error.message);
+  if (!data) throw new SupplyRequestServerError("비품 신청 내역을 찾을 수 없습니다.", 404);
+  const request = normalizeSupplyRequest(data as SupplyRequestRow);
+  if (!context.isAdmin && request.requesterId !== context.user.id) {
+    throw new SupplyRequestServerError("비품 신청 내역을 볼 권한이 없습니다.", 403);
+  }
+  return request;
+}
+
 export async function createSupplyRequest(
   context: SupplyRequestContext,
   input: { itemName: string; purchaseUrl: string; priceKrw: number; purpose: string; note: string },
@@ -157,12 +176,12 @@ export async function updateSupplyRequest(
   requestId: string,
   command: SupplyRequestCommand,
 ) {
-  if (!context.isAdmin) {
+  if (command.action !== "edit" && !context.isAdmin) {
     throw new SupplyRequestServerError("관리자만 승인 및 구매 상태를 변경할 수 있습니다.", 403);
   }
   const { data: current, error: findError } = await context.admin
     .from("supply_requests")
-    .select("approval_status,purchased,version,assignee_id")
+    .select("approval_status,purchased,version,assignee_id,requester_id")
     .eq("workspace_id", context.workspaceId)
     .eq("id", requestId)
     .maybeSingle();
@@ -170,6 +189,9 @@ export async function updateSupplyRequest(
   if (!current) throw new SupplyRequestServerError("비품 신청 내역을 찾을 수 없습니다.", 404);
   if (current.version !== command.version) {
     throw new SupplyRequestServerError("다른 변경이 먼저 저장되었습니다. 화면을 새로고침해 주세요.", 409);
+  }
+  if (command.action === "edit" && current.requester_id !== context.user.id) {
+    throw new SupplyRequestServerError("본인이 신청한 비품만 수정할 수 있습니다.", 403);
   }
 
   const now = new Date().toISOString();
@@ -212,8 +234,16 @@ export async function deleteSupplyRequest(
   context: SupplyRequestContext,
   requestId: string,
 ) {
-  if (!context.isAdmin) {
-    throw new SupplyRequestServerError("관리자만 비품 신청 내역을 삭제할 수 있습니다.", 403);
+  const { data: current, error: findError } = await context.admin
+    .from("supply_requests")
+    .select("requester_id,approval_status")
+    .eq("workspace_id", context.workspaceId)
+    .eq("id", requestId)
+    .maybeSingle();
+  if (findError) throw databaseError(findError.message);
+  if (!current) throw new SupplyRequestServerError("비품 신청 내역을 찾을 수 없습니다.", 404);
+  if (!context.isAdmin && (current.requester_id !== context.user.id || current.approval_status !== "pending")) {
+    throw new SupplyRequestServerError("승인 전의 본인 비품 신청만 삭제할 수 있습니다.", 403);
   }
 
   const { data, error } = await context.admin

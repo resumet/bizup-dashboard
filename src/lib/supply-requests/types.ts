@@ -22,6 +22,15 @@ export type SupplyRequest = {
 
 export type SupplyRequestCommand =
   | {
+      action: "edit";
+      itemName: string;
+      purchaseUrl: string;
+      priceKrw: number;
+      purpose: string;
+      note: string;
+      version: number;
+    }
+  | {
       action: "approval";
       status: SupplyApprovalStatus;
       version: number;

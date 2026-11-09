@@ -9,19 +9,23 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import type { SupplyRequest } from "@/lib/supply-requests/types";
 
 async function readError(response: Response) {
   const body = await response.json().catch(() => ({})) as { message?: string };
   return body.message ?? "비품을 신청하지 못했습니다.";
 }
 
-export function SupplyRequestForm() {
+export function SupplyRequestForm({ request }: { request?: SupplyRequest }) {
   const router = useRouter();
-  const [itemName, setItemName] = useState("");
-  const [purchaseUrl, setPurchaseUrl] = useState("");
-  const [price, setPrice] = useState("");
-  const [purpose, setPurpose] = useState("");
-  const [note, setNote] = useState("");
+  const editing = Boolean(request);
+  const requestId = request?.id;
+  const requestVersion = request?.version;
+  const [itemName, setItemName] = useState(request?.itemName ?? "");
+  const [purchaseUrl, setPurchaseUrl] = useState(request?.purchaseUrl ?? "");
+  const [price, setPrice] = useState(request ? String(request.priceKrw) : "");
+  const [purpose, setPurpose] = useState(request?.purpose ?? "");
+  const [note, setNote] = useState(request?.note ?? "");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 
@@ -31,10 +35,11 @@ export function SupplyRequestForm() {
     setPending(true);
     setError("");
     try {
-      const response = await fetch("/api/hr/supplies", {
-        method: "POST",
+      const response = await fetch(editing ? `/api/hr/supplies/${requestId}` : "/api/hr/supplies", {
+        method: editing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          ...(editing ? { action: "edit", version: requestVersion } : {}),
           itemName,
           purchaseUrl,
           priceKrw: Number(price),
@@ -123,7 +128,7 @@ export function SupplyRequestForm() {
             </Button>
             <Button type="submit" disabled={pending}>
               {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-              {pending ? "신청 중" : "신청하기"}
+              {pending ? (editing ? "저장 중" : "신청 중") : (editing ? "저장" : "신청하기")}
             </Button>
           </div>
         </form>
