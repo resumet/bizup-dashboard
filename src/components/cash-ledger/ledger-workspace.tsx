@@ -15,6 +15,7 @@ export function LedgerWorkspace() {
   const [query, setQuery] = useState("");
   const [opening, setOpening] = useState(false), [parties, setParties] = useState(false);
   const [editor, setEditor] = useState<{ entry: Entry | null; openAttachments?: boolean } | null>(null);
+  const [selectedPartyId, setSelectedPartyId] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const backgroundSync = useRef(0);
   async function reload() {
@@ -73,7 +74,7 @@ export function LedgerWorkspace() {
       <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-muted-foreground">날짜별 총액은 검색과 관계없이 전체 기록으로 계산하며, 같은 날짜의 모든 입출금을 포함합니다.</p>{pageCount > 1 ? <div className="flex items-center gap-3"><Button variant="outline" size="sm" disabled={!currentPage} onClick={() => setPage(currentPage - 1)}>이전</Button><span className="text-sm">{currentPage + 1} / {pageCount}</span><Button variant="outline" size="sm" disabled={currentPage + 1 === pageCount} onClick={() => setPage(currentPage + 1)}>다음</Button></div> : null}</div>
     </>}
     {opening ? <OpeningDialog settings={state.settings} onClose={() => setOpening(false)} onSaved={reload} /> : null}
-    {editor ? <EntryDialog entry={editor.entry} state={state} openAttachments={editor.openAttachments} onClose={() => setEditor(null)} onSaved={applySavedEntry} onRefresh={reload} onManageParties={() => setParties(true)} /> : null}
-    {parties ? <PartiesDialog parties={state.parties} onClose={() => setParties(false)} onSaved={reload} /> : null}
+    {editor ? <EntryDialog entry={editor.entry} state={state} openAttachments={editor.openAttachments} onClose={() => { setEditor(null); setSelectedPartyId(null); }} onSaved={applySavedEntry} onRefresh={reload} onManageParties={() => setParties(true)} selectedPartyId={selectedPartyId} onPartySelected={() => setSelectedPartyId(null)} /> : null}
+    {parties ? <PartiesDialog parties={state.parties} onClose={() => setParties(false)} onSaved={async ({ partyId, created }) => { await reload(); if (created && editor) { setSelectedPartyId(partyId); setParties(false); } }} /> : null}
   </div>;
 }

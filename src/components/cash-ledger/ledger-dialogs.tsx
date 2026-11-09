@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Paperclip, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +42,7 @@ export function OpeningDialog({ settings, onClose, onSaved }: { settings: Settin
 
 const emptyParty = { name: "", bankName: "", accountNumber: "", accountHolder: "", note: "" };
 const NEW_RECEIPT_PARTY = "new-receipt-party";
-export function PartiesDialog({ parties, onClose, onSaved }: { parties: Party[]; onClose: () => void; onSaved: () => Promise<void> }) {
+export function PartiesDialog({ parties, onClose, onSaved }: { parties: Party[]; onClose: () => void; onSaved: (change: { partyId: string; created: boolean }) => Promise<void> }) {
   const [editing, setEditing] = useState<Party | null>(null);
   const [draft, setDraft] = useState(emptyParty);
   const [search, setSearch] = useState("");
@@ -50,7 +50,12 @@ export function PartiesDialog({ parties, onClose, onSaved }: { parties: Party[];
   const pending = useRef(false);
   async function save(event: FormEvent) {
     event.preventDefault(); if (pending.current) return; pending.current = true; setBusy(true); setError("");
-    try { await ledgerRequest(`/parties${editing ? `/${editing.id}` : ""}`, editing ? "PATCH" : "POST", { ...draft, version: editing?.version }); await onSaved(); setEditing(null); setDraft(emptyParty); }
+    try {
+      const created = !editing;
+      const response = await ledgerRequest(`/parties${editing ? `/${editing.id}` : ""}`, editing ? "PATCH" : "POST", { ...draft, version: editing?.version });
+      await onSaved({ partyId: response.id as string, created });
+      setEditing(null); setDraft(emptyParty);
+    }
     catch (failure) { setError((failure as Error).message); } finally { pending.current = false; setBusy(false); }
   }
   return <Dialog open onOpenChange={open => { if (!open && !busy) onClose(); }}><DialogContent aria-describedby={undefined} className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl" showCloseButton={!busy}>
@@ -68,7 +73,7 @@ export function PartiesDialog({ parties, onClose, onSaved }: { parties: Party[];
   </DialogContent></Dialog>;
 }
 
-export function EntryDialog({ entry, state, onClose, onSaved, onRefresh, onManageParties, openAttachments = false }: { entry: Entry | null; state: LedgerState; openAttachments?: boolean; onClose: () => void; onSaved: (change: { entry: Entry; party?: Party }) => void | Promise<void>; onRefresh: () => Promise<void>; onManageParties: () => void }) {
+export function EntryDialog({ entry, state, onClose, onSaved, onRefresh, onManageParties, selectedPartyId, onPartySelected, openAttachments = false }: { entry: Entry | null; state: LedgerState; openAttachments?: boolean; onClose: () => void; onSaved: (change: { entry: Entry; party?: Party }) => void | Promise<void>; onRefresh: () => Promise<void>; onManageParties: () => void; selectedPartyId: string | null; onPartySelected: () => void }) {
   const [requestId] = useState(() => crypto.randomUUID());
   const [identity, setIdentity] = useState(entry ? { id: entry.id, version: entry.version } : null);
   const [draft, setDraft] = useState({ kind: entry?.kind ?? "expense", title: entry?.title ?? "", partyId: entry?.partyId ?? "", courseId: entry?.courseId ?? "", entryDate: entry?.entryDate ?? (today() < state.settings!.startDate ? state.settings!.startDate : today()), note: entry?.note ?? "" });
@@ -84,6 +89,13 @@ export function EntryDialog({ entry, state, onClose, onSaved, onRefresh, onManag
   const attachments = state.attachments.filter(a => a.entryId === identity?.id);
   const parties = resolvedParty && !state.parties.some(p => p.id === resolvedParty.id) ? [...state.parties, resolvedParty] : state.parties;
   const party = parties.find(p => p.id === draft.partyId);
+  useEffect(() => {
+    if (!selectedPartyId) return;
+    setResolvedParty(null);
+    setNewPartyName("");
+    setDraft(current => ({ ...current, partyId: selectedPartyId }));
+    onPartySelected();
+  }, [onPartySelected, selectedPartyId]);
   function applyReceipt(analysis: ReceiptAnalysis) {
     const matches = parties.filter(p => normalizePartyName(p.name) === normalizePartyName(analysis.partyName));
     setNewPartyName(matches.length ? "" : analysis.partyName);
