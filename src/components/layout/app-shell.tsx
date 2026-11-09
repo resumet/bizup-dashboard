@@ -174,11 +174,13 @@ function SidebarLink({
 function SidebarContent({
   email,
   userName,
+  isSuperAdmin,
   pathname,
   onNavigate,
 }: {
   email: string;
   userName: string;
+  isSuperAdmin: boolean;
   pathname: string;
   onNavigate: () => void;
 }) {
@@ -220,7 +222,7 @@ function SidebarContent({
       </nav>
       <div className="shrink-0 border-t border-white/10 p-3 [&_button]:text-slate-200 [&_button:hover]:bg-white/10 [&_button:hover]:text-white">
         <CommonLinksDrawer />
-        <UserAccountMenu email={email} name={userName} showDetailLabel />
+        <UserAccountMenu email={email} name={userName} isSuperAdmin={isSuperAdmin} showDetailLabel />
       </div>
     </div>
   );
@@ -230,10 +232,12 @@ export function AppShell({
   children,
   email,
   userName,
+  isSuperAdmin,
 }: {
   children: ReactNode;
   email: string | null;
   userName: string;
+  isSuperAdmin: boolean;
 }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -322,7 +326,7 @@ export function AppShell({
         aria-hidden={sidebarCollapsed}
         inert={sidebarCollapsed}
       >
-        <SidebarContent email={email} userName={userName} pathname={pathname} onNavigate={() => undefined} />
+        <SidebarContent email={email} userName={userName} isSuperAdmin={isSuperAdmin} pathname={pathname} onNavigate={() => undefined} />
         <div
           role="separator"
           aria-label="사이드바 너비 조절"
@@ -374,7 +378,7 @@ export function AppShell({
         </Button>
         <BrandHomeLink showName={false} />
         <span className="truncate text-sm font-semibold">BizUp 대시보드</span>
-        <div className="ml-auto"><UserAccountMenu email={email} name={userName} /></div>
+        <div className="ml-auto"><UserAccountMenu email={email} name={userName} isSuperAdmin={isSuperAdmin} /></div>
       </header>
 
       {pathname !== "/" ? <div className="sticky top-16 z-30 border-b bg-white/95 px-4 py-2 backdrop-blur lg:hidden"><HeaderSearchTools /></div> : null}
@@ -401,6 +405,7 @@ export function AppShell({
             <SidebarContent
               email={email}
               userName={userName}
+              isSuperAdmin={isSuperAdmin}
               pathname={pathname}
               onNavigate={() => setMobileMenuOpen(false)}
             />

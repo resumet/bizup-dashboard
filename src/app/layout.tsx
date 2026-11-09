@@ -23,9 +23,20 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const user = await getAuthenticatedUser(await createClient());
+  const supabase = await createClient();
+  const user = await getAuthenticatedUser(supabase);
   const email = user?.email ?? null;
   const userName = user?.displayName ?? "사용자";
+
+  const { data: superAdminMembership } = user
+    ? await supabase
+        .from("workspace_members")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "super_admin")
+        .limit(1)
+    : { data: null };
+  const isSuperAdmin = Boolean(superAdminMembership?.length);
 
   return (
     <html
@@ -34,7 +45,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full bg-background text-foreground">
         <Script id="supabase-invite-redirect" strategy="beforeInteractive">{inviteRedirectScript}</Script>
-        <AppShell email={email} userName={userName}>
+        <AppShell email={email} userName={userName} isSuperAdmin={isSuperAdmin}>
           {children}
         </AppShell>
       </body>

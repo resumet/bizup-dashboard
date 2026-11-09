@@ -29,7 +29,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NotificationBell } from "@/components/notifications/notification-bell";
-import { isSuperAdminEmail } from "@/lib/admin/access";
 import { ADMIN_ACCOUNT_MENU_ITEMS } from "@/lib/admin/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -48,16 +47,16 @@ const adminMenuIcons: Record<
 export function UserAccountMenu({
   email,
   name,
+  isSuperAdmin,
   showDetailLabel = false,
 }: {
   email: string;
   name: string;
+  isSuperAdmin: boolean;
   showDetailLabel?: boolean;
 }) {
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const isSuperAdmin = isSuperAdminEmail(email);
-
   async function signOut() {
     setIsSigningOut(true);
     const supabase = createClient();

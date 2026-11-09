@@ -56,6 +56,13 @@ export default async function DashboardPage() {
     ),
     loadInstructorCourseSearchItems(currentUser.id),
   ]);
+  const { data: superAdminMembership } = await supabase
+    .from("workspace_members")
+    .select("role")
+    .eq("user_id", currentUser.id)
+    .eq("role", "super_admin")
+    .limit(1);
+  const isSuperAdmin = Boolean(superAdminMembership?.length);
 
   return (
     <main className="min-h-screen">
@@ -68,7 +75,7 @@ export default async function DashboardPage() {
                 hiddenRoutes={cardSettings.hiddenRoutes}
               />
             ) : null}
-            <UserAccountMenu email={email} name={currentUser.displayName ?? "사용자"} />
+            <UserAccountMenu email={email} name={currentUser.displayName ?? "사용자"} isSuperAdmin={isSuperAdmin} />
           </div>
         </div>
       </header>

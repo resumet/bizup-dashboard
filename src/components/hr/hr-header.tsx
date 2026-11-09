@@ -51,7 +51,7 @@ export function HrHeader({
               </Link>
             </Button>
           ) : null}
-          <UserAccountMenu email={email} name={name} />
+          <UserAccountMenu email={email} name={name} isSuperAdmin={isSuperAdmin} />
         </div>
       </div>
     </header>
