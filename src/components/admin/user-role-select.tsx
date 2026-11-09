@@ -29,7 +29,11 @@ export function UserRoleSelect({
   const [error, setError] = useState("");
 
   async function changeRole(nextRole: string) {
-    if (nextRole !== "admin" && nextRole !== "user") return;
+    if (
+      nextRole !== "super_admin" &&
+      nextRole !== "admin" &&
+      nextRole !== "user"
+    ) return;
     if (nextRole === role) return;
 
     const previousRole = role;
@@ -73,6 +77,7 @@ export function UserRoleSelect({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="super_admin">최고관리자</SelectItem>
             <SelectItem value="admin">관리자</SelectItem>
             <SelectItem value="user">사용자</SelectItem>
           </SelectContent>

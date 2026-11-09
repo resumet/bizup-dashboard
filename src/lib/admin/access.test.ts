@@ -27,8 +27,10 @@ test("최고관리자는 이메일로 고정하고 관리자 그룹에는 일반
 
 test("계정 권한은 최고관리자, 관리자, 사용자 순서로 판별한다", () => {
   assert.equal(getAccountRole("resumet@gmail.com", ["operator"]), "super_admin");
+  assert.equal(getAccountRole("owner@example.com", ["super_admin"]), "super_admin");
   assert.equal(getAccountRole("manager@example.com", ["operator", "admin"]), "admin");
   assert.equal(getAccountRole("user@example.com", ["viewer"]), "user");
   assert.equal(toWorkspaceRole("admin"), "admin");
   assert.equal(toWorkspaceRole("user"), "user");
+  assert.equal(toWorkspaceRole("super_admin"), "super_admin");
 });

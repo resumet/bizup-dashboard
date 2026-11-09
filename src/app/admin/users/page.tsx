@@ -43,6 +43,7 @@ import {
   isSuperAdminEmail,
   SUPER_ADMIN_EMAIL,
 } from "@/lib/admin/access";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { loadAdminUsers } from "@/lib/admin/users";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -83,7 +84,15 @@ export default async function AdminUsersPage({
   const currentUser = await getAuthenticatedUser(supabase);
 
   if (!currentUser) redirect("/login");
-  if (!isSuperAdminEmail(currentUser.email)) notFound();
+  const admin = createAdminClient();
+  const { data: currentMembership } = await admin
+    .from("workspace_members")
+    .select("role")
+    .eq("user_id", currentUser.id)
+    .eq("role", "super_admin")
+    .limit(1)
+    .maybeSingle();
+  if (!isSuperAdminEmail(currentUser.email) && !currentMembership) notFound();
 
   const adminSettings = await calendarContext(true).then(async (context) => {
     const [calendarResult, menuSearchResult, youtubeFilmingAlertResult] = await Promise.allSettled([
@@ -129,8 +138,8 @@ export default async function AdminUsersPage({
   }).catch(() => []);
 
   const sortedUsers = result.users.toSorted((left, right) => {
-    const leftIsSuperAdmin = isSuperAdminEmail(left.email);
-    const rightIsSuperAdmin = isSuperAdminEmail(right.email);
+    const leftIsSuperAdmin = left.accessRole === "super_admin";
+    const rightIsSuperAdmin = right.accessRole === "super_admin";
     if (leftIsSuperAdmin !== rightIsSuperAdmin) {
       return leftIsSuperAdmin ? -1 : 1;
     }
@@ -266,7 +275,8 @@ export default async function AdminUsersPage({
                   <TableBody>
                     {filteredUsers.length ? (
                       filteredUsers.map((user) => {
-                        const isSuperAdmin = isSuperAdminEmail(user.email);
+                        const isBootstrapSuperAdmin = isSuperAdminEmail(user.email);
+                        const isSuperAdmin = user.accessRole === "super_admin";
                         return (
                           <TableRow key={user.id}>
                             <TableCell className="px-5 py-4">
@@ -289,7 +299,7 @@ export default async function AdminUsersPage({
                               ) : null}
                             </TableCell>
                             <TableCell>
-                              {isSuperAdmin ? (
+                              {isBootstrapSuperAdmin ? (
                                 <Badge className="gap-1.5">
                                   <ShieldCheck className="size-3.5" />
                                   최고관리자
@@ -298,9 +308,7 @@ export default async function AdminUsersPage({
                                 <UserRoleSelect
                                   userId={user.id}
                                   email={user.email}
-                                  initialRole={
-                                    user.accessRole === "admin" ? "admin" : "user"
-                                  }
+                                  initialRole={user.accessRole}
                                 />
                               )}
                             </TableCell>

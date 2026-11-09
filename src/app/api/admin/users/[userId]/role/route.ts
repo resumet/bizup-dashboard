@@ -18,7 +18,15 @@ export async function PATCH(request: Request, { params }: Context) {
   if (!currentUser) {
     return Response.json({ message: "로그인이 필요합니다." }, { status: 401 });
   }
-  if (!isSuperAdminEmail(currentUser.email)) {
+  const admin = createAdminClient();
+  const { data: actorMembership } = await admin
+    .from("workspace_members")
+    .select("role")
+    .eq("user_id", currentUser.id)
+    .eq("role", "super_admin")
+    .limit(1)
+    .maybeSingle();
+  if (!isSuperAdminEmail(currentUser.email) && !actorMembership) {
     return Response.json(
       { message: "최고관리자만 사용자 권한을 변경할 수 있습니다." },
       { status: 403 },
@@ -36,9 +44,13 @@ export async function PATCH(request: Request, { params }: Context) {
   let role: EditableAccountRole;
   try {
     const body = (await request.json()) as { role?: unknown };
-    if (body.role !== "admin" && body.role !== "user") {
+    if (
+      body.role !== "super_admin" &&
+      body.role !== "admin" &&
+      body.role !== "user"
+    ) {
       return Response.json(
-        { message: "권한은 관리자 또는 사용자만 선택할 수 있습니다." },
+        { message: "권한은 최고관리자, 관리자 또는 사용자만 선택할 수 있습니다." },
         { status: 400 },
       );
     }
@@ -50,7 +62,6 @@ export async function PATCH(request: Request, { params }: Context) {
     );
   }
 
-  const admin = createAdminClient();
   const { data: targetResult, error: targetError } =
     await admin.auth.admin.getUserById(userId);
   const targetUser = targetResult.user;
@@ -100,7 +111,7 @@ export async function PATCH(request: Request, { params }: Context) {
   });
 
   return Response.json({
-    message: `${targetUser.email ?? "사용자"} 권한을 ${role === "admin" ? "관리자" : "사용자"}로 변경했습니다.`,
+    message: `${targetUser.email ?? "사용자"} 권한을 ${role === "super_admin" ? "최고관리자" : role === "admin" ? "관리자" : "사용자"}로 변경했습니다.`,
     role,
   });
 }
