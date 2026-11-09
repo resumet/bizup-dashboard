@@ -7,7 +7,8 @@ import { useRouter } from "next/navigation";
 import { Toast } from "radix-ui";
 import { AlertTriangle, Ban, CalendarDays, Check, Circle, ClipboardList, EllipsisVertical, ExternalLink, FileSpreadsheet, ListPlus, Loader2, Pencil, Save, Settings, Trash2, Upload, Users, X } from "lucide-react";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { InstagramChecklist } from "@/components/course-documents/instagram-checklist";
 import { InstagramPublicPageDialog } from "@/components/course-documents/instagram-public-page-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -125,6 +126,9 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
   const [notice, setNotice] = useState("");
   const [blockedPhone, setBlockedPhone] = useState("");
   const [blockedMemo, setBlockedMemo] = useState("");
+  const [courseDeleteTarget, setCourseDeleteTarget] = useState<CourseDocumentCourse | null>(null);
+  const [deletingCourse, setDeletingCourse] = useState(false);
+  const [courseDeleteError, setCourseDeleteError] = useState("");
 
   async function load() {
     setLoading(true);
@@ -496,6 +500,25 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
     finally { setBusy(false); }
   }
 
+  async function deleteCourse() {
+    if (!courseDeleteTarget) return;
+    setDeletingCourse(true);
+    setCourseDeleteError("");
+    try {
+      const response = await fetch(`/api/course-operations/${courseDeleteTarget.id}`, { method: "DELETE" });
+      const body = (await response.json()) as { message?: string };
+      if (!response.ok) throw new Error(body.message ?? "강의를 삭제하지 못했습니다.");
+      setCourseDeleteTarget(null);
+      await load();
+      router.refresh();
+      setNotice("강의를 삭제했습니다.");
+    } catch (caught) {
+      setCourseDeleteError(caught instanceof Error ? caught.message : "강의를 삭제하지 못했습니다.");
+    } finally {
+      setDeletingCourse(false);
+    }
+  }
+
   async function addBlockedPhone() {
     setBusy(true); setError("");
     try {
@@ -546,6 +569,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
   const allFilmingRowsSelected = selectableFilmingPositions.length > 0
     && selectableFilmingPositions.every((position) => selectedFilmingPositions.has(position));
   const selectedCompletedFilmingCount = selectedCourse?.materials.filter((material) => activeSelectedFilmingPositions.includes(material.position) && material.filmingCompleted).length ?? 0;
+  const dmPageMaterials = selectedCourse?.materials.filter((material) => !material.dmNotRequired) ?? [];
   return (
     <Toast.Provider label="인스타그램 관리 알림" duration={5000}>
     <TooltipProvider delayDuration={300}>
@@ -568,7 +592,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                 <summary className="cursor-pointer px-4 py-3 font-medium">{group.label} <span className="ml-2 text-sm text-muted-foreground">{items.length}</span></summary>
                 <Table><TableHeader><TableRow><TableHead>강의</TableHead><TableHead>강사</TableHead><TableHead>기수</TableHead><TableHead>웨비나 날짜</TableHead><TableHead className="text-right">전체 건수</TableHead><TableHead className="text-right">촬영 완료</TableHead><TableHead className="text-right">업로드 완료</TableHead><TableHead>작성 자료</TableHead><TableHead>외부 작성</TableHead></TableRow></TableHeader><TableBody>{items.map(course => {
                   const summary = instagramProgressSummary(course.materials, course.freeWebinarAt);
-                  return <TableRow key={course.id}><TableCell><Link className="font-medium hover:underline" href={`/services/instagram-management/${course.id}`}>{course.name}</Link></TableCell><TableCell>{course.instructorName || "—"}</TableCell><TableCell>{course.cohort || "—"}</TableCell><TableCell><time dateTime={course.freeWebinarAt || undefined}>{formatWebinarDate(course.freeWebinarAt)}</time></TableCell><TableCell className="text-right font-medium">{summary.totalCount}건</TableCell><TableCell className="text-right">{summary.filmingCompletedCount}건 ({progressPercentage(summary.filmingCompletedCount, summary.totalCount)}%)</TableCell><TableCell className="text-right">{summary.uploadCompletedCount}건 ({progressPercentage(summary.uploadCompletedCount, summary.totalCount)}%)</TableCell><TableCell>{course.documents.length}</TableCell><TableCell>{course.externalEditEnabled ? "외부 작성 허용" : "비활성화"}</TableCell></TableRow>;
+                  return <TableRow key={course.id}><TableCell><Link className="font-medium hover:underline" href={`/services/instagram-management/${course.id}`}>{course.name}</Link></TableCell><TableCell>{course.instructorName || "—"}</TableCell><TableCell>{course.cohort || "—"}</TableCell><TableCell><time dateTime={course.freeWebinarAt || undefined}>{formatWebinarDate(course.freeWebinarAt)}</time></TableCell><TableCell className="text-right font-medium">{summary.totalCount}건</TableCell><TableCell className="text-right">{summary.filmingCompletedCount}건 ({progressPercentage(summary.filmingCompletedCount, summary.totalCount)}%)</TableCell><TableCell className="text-right">{summary.uploadCompletedCount}건 ({progressPercentage(summary.uploadCompletedCount, summary.totalCount)}%)</TableCell><TableCell>{course.documents.length}</TableCell><TableCell>{course.externalEditEnabled ? "외부 작성 허용" : "비활성화"}</TableCell><TableCell className="text-right"><Button type="button" size="icon-xs" variant="ghost" aria-label={`${course.name} 삭제`} onClick={() => { setCourseDeleteError(""); setCourseDeleteTarget(course); }}><Trash2 /></Button></TableCell></TableRow>;
                 })}</TableBody></Table>
                 {!items.length && <p className="p-5 text-sm text-muted-foreground">해당 상태의 강의가 없습니다.</p>}
               </details>;
@@ -585,11 +609,13 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                   <TabsList aria-label="인스타그램 강의 관리 항목">
                     <TabsTrigger value="checklist">기본 할일목록 체크</TabsTrigger>
                     <TabsTrigger value="reels">릴스 진행도 확인</TabsTrigger>
+                    <TabsTrigger value="dm-pages">DM용 페이지</TabsTrigger>
                   </TabsList>
                   <TabsContent value="checklist" className="mt-0">
                     <InstagramChecklist courseId={selectedCourse.id} />
                   </TabsContent>
-                  <TabsContent value="reels" className="mt-0 space-y-5">
+                  <TabsContent value="reels" className="instagram-reels-tab mt-0 space-y-5">
+                    <style>{`.instagram-reels-tab th:nth-child(n + 13), .instagram-reels-tab td:nth-child(n + 13) { display: none; }`}</style>
                 {progressSummary ? <section className="space-y-3">
                   <h2 className="text-xl font-semibold">진행 요약</h2>
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
@@ -638,10 +664,35 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                 })}</TableBody></Table>{!selectedCourse.materials.length ? <div className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">전체 진행 건수를 입력하고 설정을 저장해 주세요.</div> : null}</div>
                 {legacyDocuments.length ? <Card><CardHeader><CardTitle>이전 방식 미연결 글 {legacyDocuments.length}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>제목</TableHead><TableHead>상태</TableHead><TableHead>수정일</TableHead><TableHead className="text-right">작업</TableHead></TableRow></TableHeader><TableBody>{legacyDocuments.map((document) => <TableRow key={document.id}><TableCell className="font-medium">{document.title}</TableCell><TableCell><Badge variant={document.status === "published" ? "default" : "secondary"}>{document.status === "published" ? "공개" : "비공개"}</Badge></TableCell><TableCell className="text-muted-foreground">{dateTime(document.updatedAt)}</TableCell><TableCell><div className="flex justify-end gap-1"><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon-sm" aria-label="문서 수정 및 리드게이트 설정" onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}><Pencil /></Button></TooltipTrigger><TooltipContent>문서 수정 및 리드게이트 설정</TooltipContent></Tooltip>{document.status === "published" ? <Button variant="ghost" size="icon-sm" asChild><a aria-label="이전 공개 글 열기" href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink /></a></Button> : null}<Button variant="ghost" size="icon-sm" aria-label="이전 글 삭제" disabled={busy} onClick={() => void deleteDocument(document.id)}><Trash2 /></Button></div></TableCell></TableRow>)}</TableBody></Table></CardContent></Card> : null}
                   </TabsContent>
+                  <TabsContent value="dm-pages" className="mt-0 space-y-4">
+                    <div className="rounded-lg border">
+                      <Table>
+                        <TableHeader><TableRow><TableHead>제목</TableHead><TableHead>작성 상태</TableHead><TableHead>공개 상태</TableHead><TableHead className="text-right">작업</TableHead></TableRow></TableHeader>
+                        <TableBody>{dmPageMaterials.map((material) => {
+                          const document = material.documentId ? selectedDocumentsById.get(material.documentId) : undefined;
+                          return <TableRow key={material.position}><TableCell className="font-medium">{material.title || `${material.position}번 릴스`}</TableCell><TableCell>{document ? <StatusBadge label="작성됨" color="blue" /> : <StatusBadge label="미작성" color="yellow" />}</TableCell><TableCell>{document ? <StatusBadge label={document.status === "published" ? "공개" : "비공개"} color={document.status === "published" ? "blue" : "yellow"} /> : <span className="text-sm text-muted-foreground">-</span>}</TableCell><TableCell><div className="flex justify-end">{document ? <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-xs" aria-label={`${material.position}번 DM용 페이지 작업 메뉴`} disabled={busy}><EllipsisVertical /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => router.push(`/services/instagram-management/documents/${document.id}`)}><Pencil />문서 수정</DropdownMenuItem>{document.status === "published" ? <DropdownMenuItem asChild><a href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink />공개 글 열기</a></DropdownMenuItem> : null}<DropdownMenuItem variant="destructive" onSelect={() => void deleteDocument(document.id)}><Trash2 />글 삭제</DropdownMenuItem></DropdownMenuContent></DropdownMenu> : <span className="text-sm text-muted-foreground">-</span>}</div></TableCell></TableRow>;
+                        })}</TableBody>
+                      </Table>
+                      {!dmPageMaterials.length ? <div className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">DM이 필요한 릴스가 없습니다.</div> : null}
+                    </div>
+                  </TabsContent>
                 </Tabs>
               </div> : <Card><CardContent className="flex min-h-80 items-center justify-center text-muted-foreground">강의를 찾을 수 없습니다.</CardContent></Card>}
         </>
       )}
+      <AlertDialog open={Boolean(courseDeleteTarget)} onOpenChange={(open) => { if (!open && !deletingCourse) { setCourseDeleteTarget(null); setCourseDeleteError(""); } }}>
+        <AlertDialogContent className="max-h-[85vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle>강사 인스타그램 관리 항목을 삭제할까요?</AlertDialogTitle>
+            <AlertDialogDescription>
+              연결된 강의와 아래 항목이 함께 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {courseDeleteTarget ? <div className="space-y-3 text-sm"><div className="rounded-lg border p-3"><p className="font-medium">연결 강의: {courseDeleteTarget.name}</p><p className="mt-1 text-muted-foreground">강사 {courseDeleteTarget.instructorName || "미지정"} · {courseDeleteTarget.cohort || "기수 미지정"}</p></div><Alert variant="destructive"><AlertTriangle /><AlertTitle>연결 항목을 확인해 주세요</AlertTitle><AlertDescription className="space-y-2"><p>릴스 진행 항목 {courseDeleteTarget.materials.length}개와 공개페이지 {courseDeleteTarget.documents.length}개가 연결되어 있습니다.</p>{courseDeleteTarget.documents.length ? <ul className="list-disc space-y-1 pl-5">{courseDeleteTarget.documents.map((document) => <li key={document.id}>{document.title} · {document.status === "published" ? "공개" : "비공개"}</li>)}</ul> : null}<p>공개페이지가 남아 있으면 먼저 해당 글을 삭제해야 강의를 삭제할 수 있습니다.</p></AlertDescription></Alert></div> : null}
+          {courseDeleteError ? <Alert variant="destructive"><AlertDescription>{courseDeleteError}</AlertDescription></Alert> : null}
+          <AlertDialogFooter><AlertDialogCancel disabled={deletingCourse}>취소</AlertDialogCancel><Button type="button" variant="destructive" disabled={deletingCourse || !courseDeleteTarget} onClick={() => void deleteCourse()}>{deletingCourse ? <Loader2 className="animate-spin" /> : <Trash2 />}{deletingCourse ? "삭제 중" : "강의 삭제"}</Button></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <Dialog open={bulkFilmingDateDialogOpen} onOpenChange={(open) => { if (!savingBulkFilmingDate) setBulkFilmingDateDialogOpen(open); }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
