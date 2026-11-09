@@ -94,6 +94,14 @@ import {
 
 type ViewMode = "cards" | "list" | "calendar";
 type CollapsibleCourseStatus = Exclude<CourseStatus, "ongoing">;
+type CourseDeletionBlocker = {
+  id: string;
+  title: string;
+  status: "draft" | "published";
+  updatedAt: string;
+  leadCount: number;
+  href: string;
+};
 const courseManagementIcons = [BookUser, Video, Radio, UsersRound, ClipboardList];
 
 function formatCourseListWebinarDate(value: string) {
@@ -286,6 +294,7 @@ export function CourseOperationsList({
   const [deleteTarget, setDeleteTarget] = useState<CourseSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [deleteBlockers, setDeleteBlockers] = useState<CourseDeletionBlocker[]>([]);
   const [statusTarget, setStatusTarget] = useState<CourseSummary | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<CourseStatus>("ongoing");
   const [savingStatus, setSavingStatus] = useState(false);
@@ -381,11 +390,24 @@ export function CourseOperationsList({
         `/api/course-operations/${deleteTarget.id}`,
         { method: "DELETE" },
       );
-      const body = (await response.json()) as { message?: string };
+      const body = (await response.json()) as {
+        code?: string;
+        message?: string;
+        documents?: CourseDeletionBlocker[];
+      };
       if (!response.ok) {
+        if (
+          response.status === 409 &&
+          body.code === "COURSE_DOCUMENTS_MUST_BE_REMOVED" &&
+          Array.isArray(body.documents)
+        ) {
+          setDeleteBlockers(body.documents);
+          return;
+        }
         throw new Error(body.message || "강의 삭제에 실패했습니다.");
       }
       setDeleteTarget(null);
+      setDeleteBlockers([]);
       router.refresh();
     } catch (caught) {
       setDeleteError(
@@ -398,6 +420,7 @@ export function CourseOperationsList({
 
   function openDeleteDialog(course: CourseSummary) {
     setDeleteError("");
+    setDeleteBlockers([]);
     setDeleteTarget(course);
   }
 
@@ -519,10 +542,14 @@ export function CourseOperationsList({
       <AlertDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(openState) => {
-          if (!openState && !deleting) setDeleteTarget(null);
+          if (!openState && !deleting) {
+            setDeleteTarget(null);
+            setDeleteError("");
+            setDeleteBlockers([]);
+          }
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="max-h-[min(42rem,calc(100vh-2rem))] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>강의를 삭제할까요?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -535,6 +562,30 @@ export function CourseOperationsList({
             <Alert variant="destructive">
               <AlertTitle>강의를 삭제할 수 없습니다</AlertTitle>
               <AlertDescription>{deleteError}</AlertDescription>
+            </Alert>
+          ) : null}
+          {deleteBlockers.length ? (
+            <Alert variant="destructive">
+              <AlertTitle>연결된 문서를 먼저 삭제해 주세요</AlertTitle>
+              <AlertDescription className="space-y-3">
+                <p>
+                  이 강의에는 연결된 콘텐츠 문서가 있어 삭제할 수 없습니다. 아래 문서를
+                  삭제한 뒤 다시 시도해 주세요.
+                </p>
+                <ul className="space-y-2" aria-label="삭제가 필요한 연결 문서">
+                  {deleteBlockers.map((document) => (
+                    <li key={document.id} className="rounded-md border border-destructive/25 bg-background p-3">
+                      <div className="font-medium text-foreground">{document.title}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {document.status === "published" ? "공개" : "비공개"} · 수집 리드 {document.leadCount}건
+                      </div>
+                      <Button asChild size="sm" variant="outline" className="mt-3">
+                        <Link href={document.href}>문서 관리에서 열기</Link>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </AlertDescription>
             </Alert>
           ) : null}
           <AlertDialogFooter>

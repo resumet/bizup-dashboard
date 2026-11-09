@@ -281,6 +281,34 @@ export async function DELETE(
     if (courseError) throw new Error(`강의 조회 실패: ${courseError.code}`);
     if (!course) throw new Error("NOT_FOUND");
 
+    const { data: documents, error: documentsError } = await admin
+      .from("course_documents")
+      .select("id,title,status,updated_at,course_document_leads(count)")
+      .eq("course_id", courseId)
+      .eq("workspace_id", membership.workspace_id)
+      .is("deleted_at", null)
+      .order("updated_at", { ascending: false });
+    if (documentsError) {
+      throw new Error(`연결 문서 조회 실패: ${documentsError.code}`);
+    }
+    if (documents.length) {
+      return Response.json(
+        {
+          code: "COURSE_DOCUMENTS_MUST_BE_REMOVED",
+          message: "연결된 콘텐츠 문서를 먼저 삭제해 주세요.",
+          documents: documents.map((document) => ({
+            id: document.id,
+            title: document.title,
+            status: document.status,
+            updatedAt: document.updated_at,
+            leadCount: document.course_document_leads?.[0]?.count ?? 0,
+            href: `/services/instagram-management/${courseId}`,
+          })),
+        },
+        { status: 409 },
+      );
+    }
+
     const { error: deleteError } = await admin
       .from("courses")
       .delete()
