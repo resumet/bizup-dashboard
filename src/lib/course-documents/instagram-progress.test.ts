@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { countWeekdaysInclusive, instagramProgressSummary, instagramUploadSchedule, progressPercentage, webinarDeadlineDateKey } from "./instagram-progress";
+import { countCalendarDaysInclusive, countWeekdaysInclusive, instagramProgressSummary, instagramUploadSchedule, progressPercentage, webinarDeadlineDateKey } from "./instagram-progress";
 import type { CourseDocumentMaterial } from "./types";
 
 function material(position: number, progress: Partial<CourseDocumentMaterial> = {}): CourseDocumentMaterial {
@@ -71,6 +71,7 @@ test("남은 업로드 건수가 남은 평일보다 많으면 위험 상태를 
     remainingUploadCount: 2,
     deadlineDateKey: "2026-10-27",
     remainingWeekdays: 3,
+    remainingCalendarDays: 5,
     requiredUploadCount: 0,
     uploadShortfallCount: 0,
     isAtRisk: false,

@@ -88,6 +88,7 @@ const requestSchema = z.discriminatedUnion("action", [
   }),
   z.object({ action: z.literal("save-planning-sheet"), courseId: z.uuid(), url: courseDocumentPlanningSheetUrlSchema }),
   z.object({ action: z.literal("save-document"), documentId: z.uuid(), document: adminCourseDocumentSchema }),
+  z.object({ action: z.literal("set-document-status"), documentId: z.uuid(), status: z.enum(["draft", "published"]) }),
   z.object({ action: z.literal("delete-document"), documentId: z.uuid() }),
   z.object({ action: z.literal("add-blocked-phone"), phone: z.string(), memo: z.string().optional() }),
   z.object({ action: z.literal("delete-blocked-phone"), id: z.uuid() }),
@@ -505,6 +506,31 @@ export async function POST(request: Request) {
       const { error } = await admin.from("course_documents").update(values).eq("id", input.documentId).eq("workspace_id", membership.workspace_id);
       if (error) throw new Error(`문서 저장 실패: ${error.code}`);
       return Response.json({ success: true });
+    }
+
+    if (input.action === "set-document-status") {
+      const { data: existing, error: existingError } = await admin
+        .from("course_documents")
+        .select("id,status,published_at")
+        .eq("id", input.documentId)
+        .eq("workspace_id", membership.workspace_id)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (existingError) throw new Error(`문서 확인 실패: ${existingError.code}`);
+      if (!existing) throw new Error("NOT_FOUND");
+      const { data, error } = await admin
+        .from("course_documents")
+        .update({
+          status: input.status,
+          published_at: input.status === "published" ? existing.published_at ?? new Date().toISOString() : null,
+          updated_by: user.id,
+        })
+        .eq("id", input.documentId)
+        .eq("workspace_id", membership.workspace_id)
+        .select("id,course_id,title,slug,status,lead_gate_enabled,lead_gate_after_block_id,created_at,updated_at,published_at,instructor_name")
+        .single();
+      if (error) throw new Error(`문서 공개 상태 변경 실패: ${error.code}`);
+      return Response.json({ document: toDocumentSummary(data) });
     }
 
     if (input.action === "delete-document") {

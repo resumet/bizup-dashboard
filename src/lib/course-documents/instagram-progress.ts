@@ -61,6 +61,13 @@ export function countWeekdaysInclusive(startDateKey: string, endDateKey: string)
   return count;
 }
 
+export function countCalendarDaysInclusive(startDateKey: string, endDateKey: string) {
+  const start = new Date(`${startDateKey}T00:00:00Z`);
+  const end = new Date(`${endDateKey}T00:00:00Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return 0;
+  return Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
+}
+
 export function instagramProgressSummary(
   materials: CourseDocumentMaterial[],
   freeWebinarAt: string,
@@ -76,6 +83,9 @@ export function instagramProgressSummary(
   const remainingWeekdays = deadlineDateKey
     ? uploadSchedule.filter((dateKey) => dateKey >= todayDateKey).length
     : null;
+  const remainingCalendarDays = deadlineDateKey
+    ? countCalendarDaysInclusive(todayDateKey, deadlineDateKey)
+    : null;
   const requiredUploadCount = remainingWeekdays === null
     ? null
     : Math.min(Math.max(totalCount - remainingWeekdays, 0), totalCount);
@@ -90,6 +100,7 @@ export function instagramProgressSummary(
     remainingUploadCount,
     deadlineDateKey,
     remainingWeekdays,
+    remainingCalendarDays,
     requiredUploadCount,
     uploadShortfallCount,
     isAtRisk: uploadShortfallCount !== null && uploadShortfallCount > 0,

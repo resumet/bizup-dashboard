@@ -27,7 +27,7 @@ import { instagramCourseOptionLabel } from "@/lib/course-documents/course-option
 import { instagramProgressSummary, progressPercentage } from "@/lib/course-documents/instagram-progress";
 import { instagramDmMaterialValue, instagramExternalDmPath } from "@/lib/course-documents/instagram-upload";
 import { instagramBulkFilmingSelectablePositions, mergeInstagramFilmingDates, parseInstagramBulkTitles } from "@/lib/course-documents/materials";
-import type { BlockedPhone, CourseDocumentCourse, CourseDocumentMaterial } from "@/lib/course-documents/types";
+import type { BlockedPhone, CourseDocumentCourse, CourseDocumentMaterial, CourseDocumentSummary } from "@/lib/course-documents/types";
 import { formatWebinarDate } from "@/lib/course-operations/webinar-proximity";
 
 type LoadResponse = { courses?: CourseDocumentCourse[]; blockedPhones?: BlockedPhone[]; message?: string };
@@ -180,6 +180,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
       instagramSettings?: { accountUrl: string; totalCount: number };
       material?: CourseDocumentMaterial;
       materials?: CourseDocumentMaterial[];
+      document?: CourseDocumentSummary;
       planningSheetUrl?: string;
       blockedPhone?: BlockedPhone;
       message?: string;
@@ -500,6 +501,21 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
     finally { setBusy(false); }
   }
 
+  async function setDocumentStatus(document: CourseDocumentSummary) {
+    if (!selectedCourse) return;
+    const status = document.status === "published" ? "draft" : "published";
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const body = await post({ action: "set-document-status", documentId: document.id, status });
+      if (!body.document) throw new Error("문서 공개 상태를 확인하지 못했습니다.");
+      setCourses((current) => current.map((course) => course.id === selectedCourse.id
+        ? { ...course, documents: course.documents.map((item) => item.id === document.id ? body.document! : item) }
+        : course));
+      setNotice(status === "published" ? "문서를 공개했습니다." : "문서를 비공개로 전환했습니다.");
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "문서 공개 상태를 변경하지 못했습니다."); }
+    finally { setBusy(false); }
+  }
+
   async function deleteCourse() {
     if (!courseDeleteTarget) return;
     setDeletingCourse(true);
@@ -625,10 +641,10 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                       { label: "촬영 완료", value: `${progressSummary.filmingCompletedCount}건`, detail: `${progressPercentage(progressSummary.filmingCompletedCount, progressSummary.totalCount)}%` },
                       { label: "업로드 완료", value: `${progressSummary.uploadCompletedCount}건`, detail: `${progressPercentage(progressSummary.uploadCompletedCount, progressSummary.totalCount)}%` },
                       { label: "남은 업로드", value: `${progressSummary.remainingUploadCount}건`, detail: progressSummary.deadlineDateKey ? `${progressSummary.deadlineDateKey}까지` : "웨비나 날짜 없음" },
-                      { label: "남은 업로드 가능일", value: progressSummary.remainingWeekdays === null ? "-" : `${progressSummary.remainingWeekdays}일`, detail: "웨비나 당일까지" },
+                      { label: "남은 업로드 가능일", value: progressSummary.remainingWeekdays === null || progressSummary.remainingCalendarDays === null ? "-" : `주말 제외 ${progressSummary.remainingWeekdays}일 · 주말 포함 ${progressSummary.remainingCalendarDays}일`, detail: "웨비나 당일까지" },
                     ].map((item) => <Card key={item.label}><CardContent className="space-y-1 pt-5"><p className="text-sm text-muted-foreground">{item.label}</p><p className="text-2xl font-semibold">{item.value}</p><p className="text-xs text-muted-foreground">{item.detail}</p></CardContent></Card>)}
                   </div>
-                  {progressSummary.isAtRisk ? <Alert variant="destructive"><AlertTriangle /><AlertDescription>오늘 기준 최소 {progressSummary.requiredUploadCount}건이 업로드되어야 하지만 현재 {progressSummary.uploadCompletedCount}건으로 {progressSummary.uploadShortfallCount}건 부족합니다. 남은 업로드 가능일 {progressSummary.remainingWeekdays}일 안에 업로드 {progressSummary.remainingUploadCount}건을 완료해야 하므로 이대로 진행하면 기획된 콘텐츠를 모두 올리지 못할 수도 있습니다.</AlertDescription></Alert> : null}
+                  {progressSummary.isAtRisk ? <Alert variant="destructive"><AlertTriangle /><AlertDescription>오늘 기준 최소 {progressSummary.requiredUploadCount}건이 업로드되어야 하지만 현재 {progressSummary.uploadCompletedCount}건으로 {progressSummary.uploadShortfallCount}건 부족합니다. 웨비나 당일까지 주말 제외 {progressSummary.remainingWeekdays}일(주말 포함 {progressSummary.remainingCalendarDays}일) 안에 남은 업로드 {progressSummary.remainingUploadCount}건을 완료해야 하므로 이대로 진행하면 기획된 콘텐츠를 모두 올리지 못할 수도 있습니다.</AlertDescription></Alert> : null}
                 </section> : null}
                 <div className="space-y-3">
                     <div className="flex flex-wrap justify-end gap-2 xl:col-start-2 xl:row-start-2">
@@ -670,7 +686,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                         <TableHeader><TableRow><TableHead>제목</TableHead><TableHead>작성 상태</TableHead><TableHead>공개 상태</TableHead><TableHead className="text-right">작업</TableHead></TableRow></TableHeader>
                         <TableBody>{dmPageMaterials.map((material) => {
                           const document = material.documentId ? selectedDocumentsById.get(material.documentId) : undefined;
-                          return <TableRow key={material.position}><TableCell className="font-medium">{material.title || `${material.position}번 릴스`}</TableCell><TableCell>{document ? <StatusBadge label="작성됨" color="blue" /> : <StatusBadge label="미작성" color="yellow" />}</TableCell><TableCell>{document ? <StatusBadge label={document.status === "published" ? "공개" : "비공개"} color={document.status === "published" ? "blue" : "yellow"} /> : <span className="text-sm text-muted-foreground">-</span>}</TableCell><TableCell><div className="flex justify-end">{document ? <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-xs" aria-label={`${material.position}번 DM용 페이지 작업 메뉴`} disabled={busy}><EllipsisVertical /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => router.push(`/services/instagram-management/documents/${document.id}`)}><Pencil />문서 수정</DropdownMenuItem>{document.status === "published" ? <DropdownMenuItem asChild><a href={`/article/${document.slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink />공개 글 열기</a></DropdownMenuItem> : null}<DropdownMenuItem variant="destructive" onSelect={() => void deleteDocument(document.id)}><Trash2 />글 삭제</DropdownMenuItem></DropdownMenuContent></DropdownMenu> : <span className="text-sm text-muted-foreground">-</span>}</div></TableCell></TableRow>;
+                          return <TableRow key={material.position}><TableCell className="font-medium">{material.title || `${material.position}번 릴스`}</TableCell><TableCell>{document ? <StatusBadge label="작성됨" color="blue" /> : <StatusBadge label="미작성" color="yellow" />}</TableCell><TableCell>{document ? <StatusBadge label={document.status === "published" ? "공개" : "비공개"} color={document.status === "published" ? "blue" : "yellow"} /> : <span className="text-sm text-muted-foreground">-</span>}</TableCell><TableCell><div className="flex justify-end gap-2">{document ? <><Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => router.push(`/services/instagram-management/documents/${document.id}`)}>문서 수정</Button><Button type="button" variant={document.status === "published" ? "outline" : "default"} size="sm" disabled={busy} onClick={() => void setDocumentStatus(document)}>{document.status === "published" ? "비공개하기" : "공개하기"}</Button><Button type="button" variant="ghost" size="icon-sm" aria-label="글 삭제" disabled={busy} onClick={() => void deleteDocument(document.id)}><Trash2 /></Button></> : <span className="text-sm text-muted-foreground">-</span>}</div></TableCell></TableRow>;
                         })}</TableBody>
                       </Table>
                       {!dmPageMaterials.length ? <div className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">DM이 필요한 릴스가 없습니다.</div> : null}
