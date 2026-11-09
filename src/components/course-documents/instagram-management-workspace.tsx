@@ -50,6 +50,9 @@ type InstagramSettingsDraft = {
   filmingCompletedCount: string;
 };
 
+type ReelsFilter = "all" | "done" | "not-done";
+type DmFilter = "all" | "with-dm" | "without-dm";
+
 function instagramSettingsDraft(course: CourseDocumentCourse): InstagramSettingsDraft {
   return {
     accountUrl: course.instagramAccountUrl,
@@ -121,6 +124,11 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
   const [courseDeleteTarget, setCourseDeleteTarget] = useState<CourseDocumentCourse | null>(null);
   const [deletingCourse, setDeletingCourse] = useState(false);
   const [courseDeleteError, setCourseDeleteError] = useState("");
+  const [dmFilter, setDmFilter] = useState<DmFilter>("all");
+  const [planningFilter, setPlanningFilter] = useState<ReelsFilter>("all");
+  const [filmingFilter, setFilmingFilter] = useState<ReelsFilter>("all");
+  const [editingFilter, setEditingFilter] = useState<ReelsFilter>("all");
+  const [uploadFilter, setUploadFilter] = useState<ReelsFilter>("all");
 
   async function load() {
     setLoading(true);
@@ -591,6 +599,15 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
     && selectableFilmingPositions.every((position) => selectedFilmingPositions.has(position));
   const selectedCompletedFilmingCount = selectedCourse?.materials.filter((material) => activeSelectedFilmingPositions.includes(material.position) && material.filmingCompleted).length ?? 0;
   const dmPageMaterials = selectedCourse?.materials.filter((material) => !material.dmNotRequired && material.title.trim()) ?? [];
+  const reelsMaterials = selectedCourse?.materials.filter((material) => {
+    const matches = (filter: ReelsFilter, completed: boolean) => filter === "all" || (filter === "done" ? completed : !completed);
+    const matchesDm = dmFilter === "all" || (dmFilter === "with-dm" ? !material.dmNotRequired : material.dmNotRequired);
+    return matchesDm
+      && matches(planningFilter, material.planningCompleted)
+      && matches(filmingFilter, material.filmingCompleted)
+      && matches(editingFilter, material.editingCompleted)
+      && matches(uploadFilter, material.uploadCompleted);
+  }) ?? [];
   return (
     <Toast.Provider label="인스타그램 관리 알림" duration={5000}>
     <TooltipProvider delayDuration={300}>
@@ -651,6 +668,14 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                   </div>
                   {progressSummary.isAtRisk ? <Alert variant="destructive"><AlertTriangle /><AlertDescription>오늘 기준 최소 {progressSummary.requiredUploadCount}건이 업로드되어야 하지만 현재 {progressSummary.uploadCompletedCount}건으로 {progressSummary.uploadShortfallCount}건 부족합니다. 웨비나 당일까지 주말 제외 {progressSummary.remainingWeekdays}일(주말 포함 {progressSummary.remainingCalendarDays}일) 안에 남은 업로드 {progressSummary.remainingUploadCount}건을 완료해야 하므로 이대로 진행하면 기획된 콘텐츠를 모두 올리지 못할 수도 있습니다.</AlertDescription></Alert> : null}
                 </section> : null}
+                <div className="flex flex-wrap items-end gap-3 rounded-lg border p-3">
+                  <label className="grid gap-1 text-xs font-medium">DM<select className="h-9 rounded-md border bg-background px-2 text-sm font-normal" value={dmFilter} onChange={(event) => setDmFilter(event.target.value as DmFilter)}><option value="all">전부</option><option value="with-dm">DM 있는 것</option><option value="without-dm">DM 없는 것</option></select></label>
+                  <label className="grid gap-1 text-xs font-medium">기획<select className="h-9 rounded-md border bg-background px-2 text-sm font-normal" value={planningFilter} onChange={(event) => setPlanningFilter(event.target.value as ReelsFilter)}><option value="all">전부</option><option value="done">기획된 것</option><option value="not-done">기획 안 된 것</option></select></label>
+                  <label className="grid gap-1 text-xs font-medium">촬영<select className="h-9 rounded-md border bg-background px-2 text-sm font-normal" value={filmingFilter} onChange={(event) => setFilmingFilter(event.target.value as ReelsFilter)}><option value="all">전부</option><option value="done">촬영된 것</option><option value="not-done">촬영 안 된 것</option></select></label>
+                  <label className="grid gap-1 text-xs font-medium">편집<select className="h-9 rounded-md border bg-background px-2 text-sm font-normal" value={editingFilter} onChange={(event) => setEditingFilter(event.target.value as ReelsFilter)}><option value="all">전부</option><option value="done">편집된 것</option><option value="not-done">편집 안 된 것</option></select></label>
+                  <label className="grid gap-1 text-xs font-medium">업로드<select className="h-9 rounded-md border bg-background px-2 text-sm font-normal" value={uploadFilter} onChange={(event) => setUploadFilter(event.target.value as ReelsFilter)}><option value="all">전부</option><option value="done">업로드 완료</option><option value="not-done">업로드 안 된 것</option></select></label>
+                  <span className="pb-2 text-xs text-muted-foreground">{reelsMaterials.length}개 표시</span>
+                </div>
                 <div className="space-y-3">
                     <div className="flex flex-wrap justify-end gap-2 xl:col-start-2 xl:row-start-2">
                       <Button variant="outline" disabled={busy} onClick={openPlanningSheet}><FileSpreadsheet />기획시트</Button>
@@ -662,7 +687,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                       </Button>
                     </div>
                 </div>
-                <div className="rounded-lg border"><Table className="min-w-[1480px] table-fixed text-xs [&_th]:h-8 [&_th]:px-1 [&_td]:px-1 [&_td]:py-1"><TableHeader className="sticky top-0 z-10 bg-background"><TableRow className="hover:bg-background"><TableHead className="w-[2.5%] text-center"><div className="flex justify-center"><Checkbox aria-label="촬영 일정 변경 가능한 항목 전체 선택" checked={allFilmingRowsSelected ? true : activeSelectedFilmingPositions.length ? "indeterminate" : false} disabled={savingMaterials || savingBulkFilmingDate || selectableFilmingPositions.length === 0} onCheckedChange={(checked) => setSelectedFilmingPositions(checked === true ? new Set(selectableFilmingPositions) : new Set())} /></div></TableHead><TableHead className="w-[2.5%] text-center">번호</TableHead><TableHead className="w-[5%] text-center">DM 없음</TableHead><TableHead className="w-[4%] text-center">기획번호</TableHead><TableHead className="w-[20%]">제목 / DM자료</TableHead><TableHead className="w-[3%] text-center">기획</TableHead><TableHead className="w-[7rem]">촬영 일정</TableHead><TableHead className="w-[3%] text-center">촬영</TableHead><TableHead className="w-[3%] text-center">편집</TableHead><TableHead className="w-[24%]">인스타 릴스 주소</TableHead><TableHead className="w-[6%] text-center">업로드 완료</TableHead><TableHead className="w-[7rem]">업로드 데드라인</TableHead><TableHead className="w-[7%]">작성 상태</TableHead><TableHead className="w-[7%]">공개 상태</TableHead><TableHead className="w-[6%] text-right">작업</TableHead></TableRow></TableHeader><TableBody>{selectedCourse.materials.map((material) => {
+                <div className="rounded-lg border"><Table className="min-w-[1480px] table-fixed text-xs [&_th]:h-8 [&_th]:px-1 [&_td]:px-1 [&_td]:py-1"><TableHeader className="sticky top-0 z-10 bg-background"><TableRow className="hover:bg-background"><TableHead className="w-[2.5%] text-center"><div className="flex justify-center"><Checkbox aria-label="촬영 일정 변경 가능한 항목 전체 선택" checked={allFilmingRowsSelected ? true : activeSelectedFilmingPositions.length ? "indeterminate" : false} disabled={savingMaterials || savingBulkFilmingDate || selectableFilmingPositions.length === 0} onCheckedChange={(checked) => setSelectedFilmingPositions(checked === true ? new Set(selectableFilmingPositions) : new Set())} /></div></TableHead><TableHead className="w-[2.5%] text-center">번호</TableHead><TableHead className="w-[5%] text-center">DM 없음</TableHead><TableHead className="w-[4%] text-center">기획번호</TableHead><TableHead className="w-[20%]">제목 / DM자료</TableHead><TableHead className="w-[3%] text-center">기획</TableHead><TableHead className="w-[7rem]">촬영 일정</TableHead><TableHead className="w-[3%] text-center">촬영</TableHead><TableHead className="w-[3%] text-center">편집</TableHead><TableHead className="w-[24%]">인스타 릴스 주소</TableHead><TableHead className="w-[6%] text-center">업로드 완료</TableHead><TableHead className="w-[7rem]">업로드 데드라인</TableHead><TableHead className="w-[7%]">작성 상태</TableHead><TableHead className="w-[7%]">공개 상태</TableHead><TableHead className="w-[6%] text-right">작업</TableHead></TableRow></TableHeader><TableBody>{reelsMaterials.map((material) => {
                   const document = material.documentId ? selectedDocumentsById.get(material.documentId) : undefined;
                   return <TableRow key={material.position} className="h-[124px]">
                     <TableCell><div className="flex justify-center"><Checkbox aria-label={`${material.position}번 촬영 일정 변경 선택`} checked={selectedFilmingPositions.has(material.position)} disabled={savingMaterials || savingBulkFilmingDate || material.uploadCompleted} onCheckedChange={(checked) => toggleFilmingSelection(material.position, checked === true)} /></div></TableCell>
