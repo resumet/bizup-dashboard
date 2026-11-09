@@ -281,32 +281,76 @@ export async function DELETE(
     if (courseError) throw new Error(`강의 조회 실패: ${courseError.code}`);
     if (!course) throw new Error("NOT_FOUND");
 
-    const { data: documents, error: documentsError } = await admin
-      .from("course_documents")
-      .select("id,title,status,updated_at,course_document_leads(count)")
-      .eq("course_id", courseId)
-      .eq("workspace_id", membership.workspace_id)
-      .is("deleted_at", null)
-      .order("updated_at", { ascending: false });
-    if (documentsError) {
-      throw new Error(`연결 문서 조회 실패: ${documentsError.code}`);
+    const [documentsResult, leadsResult, pdfImportsResult] = await Promise.all([
+      admin
+        .from("course_documents")
+        .select("id,title,status,deleted_at,updated_at")
+        .eq("course_id", courseId)
+        .eq("workspace_id", membership.workspace_id)
+        .order("updated_at", { ascending: false }),
+      admin
+        .from("course_document_leads")
+        .select("document_id")
+        .eq("course_id", courseId),
+      admin
+        .from("course_document_pdf_imports")
+        .select("document_id")
+        .eq("course_id", courseId),
+    ]);
+    if (documentsResult.error || leadsResult.error || pdfImportsResult.error) {
+      throw new Error(`연결 문서 조회 실패: ${documentsResult.error?.code ?? leadsResult.error?.code ?? pdfImportsResult.error?.code}`);
     }
-    if (documents.length) {
+    const documents = documentsResult.data ?? [];
+    const leadDocumentIds = new Set((leadsResult.data ?? []).map((lead) => lead.document_id));
+    const leadCountsByDocumentId = new Map<string, number>();
+    for (const lead of leadsResult.data ?? []) {
+      leadCountsByDocumentId.set(lead.document_id, (leadCountsByDocumentId.get(lead.document_id) ?? 0) + 1);
+    }
+    const pdfImportDocumentIds = new Set((pdfImportsResult.data ?? []).map((pdfImport) => pdfImport.document_id));
+    const activeDocuments = documents.filter((document) => !document.deleted_at);
+    if (activeDocuments.length) {
       return Response.json(
         {
           code: "COURSE_DOCUMENTS_MUST_BE_REMOVED",
           message: "연결된 콘텐츠 문서를 먼저 삭제해 주세요.",
-          documents: documents.map((document) => ({
+          documents: activeDocuments.map((document) => ({
             id: document.id,
             title: document.title,
             status: document.status,
             updatedAt: document.updated_at,
-            leadCount: document.course_document_leads?.[0]?.count ?? 0,
+            leadCount: leadCountsByDocumentId.get(document.id) ?? 0,
             href: `/services/instagram-management/${courseId}`,
           })),
         },
         { status: 409 },
       );
+    }
+
+    const deletedDocuments = documents.filter((document) => document.deleted_at);
+    const protectedDeletedDocuments = deletedDocuments.filter((document) => leadDocumentIds.has(document.id) || pdfImportDocumentIds.has(document.id));
+    if (protectedDeletedDocuments.length) {
+      return Response.json(
+        {
+          code: "COURSE_DELETED_DOCUMENTS_MUST_BE_PURGED",
+          message: "리드 또는 PDF 자료가 연결된 삭제 문서가 남아 있어 강의를 삭제할 수 없습니다.",
+          documents: protectedDeletedDocuments.map((document) => ({
+            id: document.id,
+            title: document.title,
+            hasLeads: leadDocumentIds.has(document.id),
+            hasPdfImports: pdfImportDocumentIds.has(document.id),
+          })),
+        },
+        { status: 409 },
+      );
+    }
+
+    if (deletedDocuments.length) {
+      const { error: documentDeleteError } = await admin
+        .from("course_documents")
+        .delete()
+        .in("id", deletedDocuments.map((document) => document.id))
+        .eq("workspace_id", membership.workspace_id);
+      if (documentDeleteError) throw new Error(`삭제 문서 정리 실패: ${documentDeleteError.code}`);
     }
 
     const { error: deleteError } = await admin
