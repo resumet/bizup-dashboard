@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   EVIDENCE_AVAILABILITY_ITEMS,
+  FILMING_INFO_GUIDANCE,
   FIELD_DESCRIPTION_LINKS,
   MATERIAL_IMAGE_LABELS,
   MAX_MATERIAL_IMAGES,
@@ -209,10 +210,10 @@ export function IntakeForm({ token, initialAnswers, initialPhotos, initialImages
         <h2 className="text-lg font-semibold">촬영 환경 및 소재</h2>
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-2"><Label htmlFor="residence">거주지</Label><Input id="residence" name="residence" maxLength={500} defaultValue={initialAnswers.residence} placeholder="예: 서울시 마포구" /></div>
-          <div className="space-y-2"><Label htmlFor="filmingLocations">촬영 가능 장소</Label><Input id="filmingLocations" name="filmingLocations" maxLength={3000} defaultValue={initialAnswers.filmingLocations} placeholder="예: 작업실, 사무실, 창고" /></div>
+          <div className="space-y-2"><Label htmlFor="filmingLocations">촬영 가능 장소</Label><Input id="filmingLocations" name="filmingLocations" maxLength={3000} defaultValue={initialAnswers.filmingLocations} placeholder={FILMING_INFO_GUIDANCE.filmingLocations} /></div>
         </div>
-        <div className="space-y-2"><Label htmlFor="careerAndFilmingMaterials">주요 이력 및 촬영 가능한 소재</Label><p className="text-sm text-muted-foreground">구독자 수, 총 누적 매출, 월 최고·평균 순수익, 사업으로 얻은 자산, 제작 전 과정 촬영 가능 여부를 적어 주세요.</p><Textarea id="careerAndFilmingMaterials" name="careerAndFilmingMaterials" rows={7} maxLength={12_000} defaultValue={initialAnswers.careerAndFilmingMaterials} /></div>
-        <div className="space-y-2"><Label htmlFor="practicalProcess">촬영 시 반드시 보여줄 수 있는 실전 과정</Label><p className="text-sm text-muted-foreground">예: 제품 소싱 → AI 이미지 제작 → 쇼핑쇼츠 제작 → 업로드 → 실제 주문 확인</p><Textarea id="practicalProcess" name="practicalProcess" rows={5} maxLength={12_000} defaultValue={initialAnswers.practicalProcess} /></div>
+        <div className="space-y-2"><Label htmlFor="careerAndFilmingMaterials">주요 이력 및 촬영 가능한 소재</Label><p className="text-sm text-muted-foreground">{FILMING_INFO_GUIDANCE.careerAndFilmingMaterials}</p><Textarea id="careerAndFilmingMaterials" name="careerAndFilmingMaterials" rows={7} maxLength={12_000} defaultValue={initialAnswers.careerAndFilmingMaterials} /></div>
+        <div className="space-y-2"><Label htmlFor="practicalProcess">촬영 시 반드시 보여줄 수 있는 실전 과정</Label><p className="text-sm text-muted-foreground">{FILMING_INFO_GUIDANCE.practicalProcess}</p><Textarea id="practicalProcess" name="practicalProcess" rows={5} maxLength={12_000} defaultValue={initialAnswers.practicalProcess} /></div>
         <div className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-3"><Label>영상에서 공개 가능한 실제 증빙자료</Label><Button type="button" variant="outline" size="sm" disabled={evidenceRowCount >= 30} onClick={() => setEvidenceRowCount((count) => count + 1)}>증빙자료 추가</Button></div><input type="hidden" name="evidenceRowCount" value={evidenceRowCount} /><div className="overflow-x-auto rounded-lg border"><table className="w-full min-w-[720px] text-sm"><thead className="bg-muted/50 text-left"><tr><th className="p-3 font-medium">증빙자료</th><th className="p-3 font-medium">촬영·공개 가능 (O/X)</th><th className="p-3 font-medium">사전 준비 필요사항</th></tr></thead><tbody>{Array.from({ length: evidenceRowCount }, (_, index) => <tr key={index} className="border-t"><td className="p-3"><Input name={`evidenceItem${index}`} maxLength={300} defaultValue={initialAnswers.evidenceAvailability[index]?.item ?? EVIDENCE_AVAILABILITY_ITEMS[index] ?? ""} placeholder="증빙자료를 입력해 주세요" /></td><td className="p-3"><select name={`evidenceCanShow${index}`} defaultValue={initialAnswers.evidenceAvailability[index]?.canShow ?? ""} className="h-9 w-full rounded-md border bg-background px-2"><option value="">미입력</option><option value="yes">O</option><option value="no">X</option></select></td><td className="p-3"><Input name={`evidencePreparation${index}`} maxLength={1000} defaultValue={initialAnswers.evidenceAvailability[index]?.preparation ?? ""} placeholder="필요한 사전 준비를 입력해 주세요" /></td></tr>)}</tbody></table></div></div>
       </section>
 

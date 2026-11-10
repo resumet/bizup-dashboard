@@ -14,6 +14,11 @@ export const EVIDENCE_AVAILABILITY_ITEMS = [
   "스마트스토어/쿠팡 매출 화면", "통장 입금내역", "세금계산서", "사업자 매출자료", "유튜브 수익창",
   "부동산 등기", "프로그램 실제 화면", "실제 판매 상품", "작업실/사무실/창고", "수강생 성과자료",
 ] as const;
+export const FILMING_INFO_GUIDANCE = {
+  filmingLocations: "서울시 강남구, 서울 마포, 홍대, 강남 식으로 적어주세요",
+  careerAndFilmingMaterials: "구독자 수, 총 누적 매출, 월 최고·평균 순수익, 사업으로 얻은 자산, 제작 전 과정 촬영 가능 여부를 적어 주세요.",
+  practicalProcess: "예: 제품 소싱 → AI 이미지 제작 → 쇼핑쇼츠 제작 → 업로드 → 실제 주문 확인",
+} as const;
 const evidenceAvailabilitySchema = z.object({
   item: text(300),
   canShow: z.enum(["", "yes", "no"]),

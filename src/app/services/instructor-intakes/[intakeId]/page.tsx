@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RefreshIntakes, ShareIntake } from "@/components/instructor-intake/intake-controls";
 import { IntakeProgress } from "@/components/instructor-intake/progress";
-import { FIELD_DESCRIPTION_LINKS, FIELD_LABELS, intakeProgress, type Answers, type Photo } from "@/lib/instructor-intake/model";
+import { FIELD_DESCRIPTION_LINKS, FIELD_LABELS, FILMING_INFO_GUIDANCE, intakeProgress, type Answers, type Photo } from "@/lib/instructor-intake/model";
 import { intakePageMember, memberIntake, signedImageGroups, signedPhotos } from "@/lib/instructor-intake/server";
 
 function Urls({ values, unavailable }: { values: string[]; unavailable: boolean }) {
@@ -55,8 +55,9 @@ export default async function InstructorIntakeDetail({ params }: { params: Promi
     `아이디: ${a.instagramAccountId || "미입력"}\n비밀번호: ${a.instagramAccountPassword || "미입력"}`,
     a.blueBadge || "미입력", a.twoFactorSecurity || "미입력",
     `아이디: ${a.infokLinkId || "미입력"}\n비밀번호: ${a.infokLinkPassword || "미입력"}`,
-    <div key="locations" className="space-y-2"><div><span className="font-medium">거주지: </span>{a.residence || "미입력"}</div><div><span className="font-medium">촬영 가능 장소: </span>{a.filmingLocations || "미입력"}</div></div>,
-    a.careerAndFilmingMaterials || "미입력", a.practicalProcess || "미입력",
+    <div key="locations" className="space-y-2"><p className="text-muted-foreground">{FILMING_INFO_GUIDANCE.filmingLocations}</p><div><span className="font-medium">거주지: </span>{a.residence || "미입력"}</div><div><span className="font-medium">촬영 가능 장소: </span>{a.filmingLocations || "미입력"}</div></div>,
+    <div key="career-materials" className="space-y-2"><p className="text-muted-foreground">{FILMING_INFO_GUIDANCE.careerAndFilmingMaterials}</p><div>{a.careerAndFilmingMaterials || "미입력"}</div></div>,
+    <div key="practical-process" className="space-y-2"><p className="text-muted-foreground">{FILMING_INFO_GUIDANCE.practicalProcess}</p><div>{a.practicalProcess || "미입력"}</div></div>,
     <EvidenceAvailability key="evidence-availability" items={a.evidenceAvailability} />,
   ];
   return <main className="mx-auto max-w-5xl space-y-7 px-5 py-8">
