@@ -12,10 +12,10 @@ function Urls({ values, unavailable }: { values: string[]; unavailable: boolean 
   return <ul className="space-y-2">{values.map((url) => <li key={url}><a className="break-all text-primary underline" href={url} target="_blank" rel="noopener noreferrer">{url}</a></li>)}</ul>;
 }
 function won(value: number | null) { return value === null ? "미입력" : `${value.toLocaleString("ko-KR")}원`; }
-function Gallery({ photos, label }: { photos: Photo[]; label: string }) {
+function Gallery({ photos, label, preserveRatio = false }: { photos: Photo[]; label: string; preserveRatio?: boolean }) {
   if (!photos.length) return <>미입력</>;
   return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{photos.map((photo, index) => <div key={photo.path} className="space-y-2">
-    <a href={photo.url} target="_blank" rel="noopener noreferrer"><Image src={photo.url} alt={`${label} ${index + 1}`} width={320} height={240} unoptimized className="aspect-[4/3] w-full rounded-lg object-cover" /></a>
+    <a href={photo.url} target="_blank" rel="noopener noreferrer"><Image src={photo.url} alt={`${label} ${index + 1}`} width={320} height={240} unoptimized className={preserveRatio ? "h-auto w-full rounded-lg object-contain" : "aspect-[4/3] w-full rounded-lg object-cover"} /></a>
     <a href={photo.downloadUrl ?? photo.url} className="block rounded-md border px-3 py-2 text-center text-xs font-medium hover:bg-accent">사진 {index + 1} 다운로드</a>
   </div>)}</div>;
 }
@@ -34,7 +34,7 @@ export default async function InstructorIntakeDetail({ params }: { params: Promi
   const a = row.answers;
   const progress = intakeProgress(a, photos.length, row.image_paths);
   const values = [
-    a.realName || "미입력", a.nickname || "미입력", <Gallery key="profile" photos={photos} label="프로필 사진" />,
+    a.realName || "미입력", a.nickname || "미입력", <Gallery key="profile" photos={photos} label="프로필 사진" preserveRatio />,
     a.lectureItem || "미입력", a.courseContentIntroduction || "미입력", a.instructorCareer || "미입력",
     <Gallery key="evidence" photos={images.evidence} label="증빙 자료" />,
     <div key="results" className="space-y-4"><Gallery photos={images.studentResults} label="수강생 성과 인증" /><div className="whitespace-pre-wrap">{a.studentSuccessDescription || "상세 설명 미입력"}</div></div>,
