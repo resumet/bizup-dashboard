@@ -6,7 +6,7 @@ import fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, rgb, type PDFFont } from "pdf-lib";
 
 import type { CourseDocumentBlock, RichTextNode } from "@/lib/course-documents/types";
-import { COMPANY_CONTRACT_DETAILS, type InstructorContractDetail } from "./instructor-contract";
+import { COMPANY_CONTRACT_DETAILS, getContractEndDate, type InstructorContractDetail } from "./instructor-contract";
 
 const A4: [number, number] = [595.28, 841.89];
 const MARGIN = 48;
@@ -57,8 +57,21 @@ function wrap(value: string, font: PDFFont, size: number, width: number) {
 
 type ContractPdfInput = Pick<InstructorContractDetail, "title" | "renderedContent">;
 
-export function instructorContractPdfFilename(contract: Pick<ContractPdfInput, "title">) {
-  return contract.title.replace(/[\\/:*?"<>|]/gu, "_").slice(0, 80) + "_계약서.pdf";
+function filenameSegment(value: string, fallback: string) {
+  return value.trim().replace(/[\\/:*?"<>|]/gu, "_").replace(/\s+/gu, " ").slice(0, 80) || fallback;
+}
+
+export function instructorContractPdfFilename(contract: Pick<InstructorContractDetail, "values">) {
+  const { values } = contract;
+  const startDate = filenameSegment(values.startDate, "기간미입력");
+  const endDate = getContractEndDate(values.startDate, values.durationYears);
+  const period = endDate ? `${startDate}~${endDate}` : startDate;
+  return [
+    filenameSegment(values.instructorName, "강사명미입력"),
+    filenameSegment(values.lectureName, "강의명미입력"),
+    filenameSegment(period, "기간미입력"),
+    "계약서",
+  ].join("-") + ".pdf";
 }
 
 export async function createInstructorContractPdf(contract: ContractPdfInput) {
@@ -75,7 +88,7 @@ export async function createInstructorContractPdf(contract: ContractPdfInput) {
   ]);
 
   document.setLanguage("ko-KR");
-  document.setTitle(instructorContractPdfFilename(contract).replace(/\.pdf$/u, ""));
+  document.setTitle(contract.title.replace(/[\\/:*?"<>|]/gu, "_").slice(0, 80));
   document.setCreator("BizUp");
 
   let page = document.addPage(A4);

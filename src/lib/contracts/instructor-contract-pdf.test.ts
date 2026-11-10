@@ -32,7 +32,23 @@ test("계약서 PDF는 A4로 생성하고 회사 대표자란에 법인 인감�
   assert.ok(pdf.getPageCount() >= 1);
   assert.ok(Math.abs(firstPage.getWidth() - 595.28) < 0.1);
   assert.ok(Math.abs(firstPage.getHeight() - 841.89) < 0.1);
-  assert.match(instructorContractPdfFilename({ title: "홍길동/테스트" }), /홍길동_테스트_계약서\.pdf$/u);
+  assert.equal(
+    instructorContractPdfFilename({
+      values: {
+        instructorName: "홍길동/테스트",
+        lectureName: "실전 강의",
+        instagramNumberOfReels: "",
+        instagramValueOfReels: "",
+        contractDate: "2026-11-06",
+        startDate: "2026-11-06",
+        durationYears: 1,
+        address: "",
+        phone: "",
+        email: "",
+      },
+    }),
+    "홍길동_테스트-실전 강의-2026-11-06~2027-11-06-계약서.pdf",
+  );
   assert.match(Buffer.from(bytes).toString("latin1"), /\/Subtype \/Image/u);
 });
 
