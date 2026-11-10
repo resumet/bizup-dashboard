@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RefreshIntakes, ShareIntake } from "@/components/instructor-intake/intake-controls";
 import { IntakeProgress } from "@/components/instructor-intake/progress";
-import { FIELD_DESCRIPTION_LINKS, FIELD_LABELS, intakeProgress, type Photo } from "@/lib/instructor-intake/model";
+import { FIELD_DESCRIPTION_LINKS, FIELD_LABELS, intakeProgress, type Answers, type Photo } from "@/lib/instructor-intake/model";
 import { intakePageMember, memberIntake, signedImageGroups, signedPhotos } from "@/lib/instructor-intake/server";
 
 function Urls({ values, unavailable }: { values: string[]; unavailable: boolean }) {
@@ -12,6 +12,10 @@ function Urls({ values, unavailable }: { values: string[]; unavailable: boolean 
   return <ul className="space-y-2">{values.map((url) => <li key={url}><a className="break-all text-primary underline" href={url} target="_blank" rel="noopener noreferrer">{url}</a></li>)}</ul>;
 }
 function won(value: number | null) { return value === null ? "미입력" : `${value.toLocaleString("ko-KR")}원`; }
+function EvidenceAvailability({ items }: { items: Answers["evidenceAvailability"] }) {
+  if (!items.length) return <>미입력</>;
+  return <div className="overflow-x-auto rounded-lg border"><table className="w-full min-w-[620px] text-left text-sm"><thead className="bg-muted/50"><tr><th className="p-3 font-medium">증빙자료</th><th className="p-3 font-medium">촬영·공개 가능</th><th className="p-3 font-medium">사전 준비 필요사항</th></tr></thead><tbody>{items.map((item, index) => <tr key={`${item.item}-${index}`} className="border-t"><td className="p-3">{item.item || "미입력"}</td><td className="p-3">{item.canShow === "yes" ? "O" : item.canShow === "no" ? "X" : "미입력"}</td><td className="p-3 whitespace-pre-wrap">{item.preparation || "미입력"}</td></tr>)}</tbody></table></div>;
+}
 function Gallery({ photos, label, preserveRatio = false }: { photos: Photo[]; label: string; preserveRatio?: boolean }) {
   if (!photos.length) return <>미입력</>;
   return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{photos.map((photo, index) => <div key={photo.path} className="space-y-2">
@@ -51,6 +55,9 @@ export default async function InstructorIntakeDetail({ params }: { params: Promi
     `아이디: ${a.instagramAccountId || "미입력"}\n비밀번호: ${a.instagramAccountPassword || "미입력"}`,
     a.blueBadge || "미입력", a.twoFactorSecurity || "미입력",
     `아이디: ${a.infokLinkId || "미입력"}\n비밀번호: ${a.infokLinkPassword || "미입력"}`,
+    <div key="locations" className="space-y-2"><div><span className="font-medium">거주지: </span>{a.residence || "미입력"}</div><div><span className="font-medium">촬영 가능 장소: </span>{a.filmingLocations || "미입력"}</div></div>,
+    a.careerAndFilmingMaterials || "미입력", a.practicalProcess || "미입력",
+    <EvidenceAvailability key="evidence-availability" items={a.evidenceAvailability} />,
   ];
   return <main className="mx-auto max-w-5xl space-y-7 px-5 py-8">
     <Link href="/services/instructor-intakes" className="text-sm text-muted-foreground hover:underline">← 강사 목록</Link>

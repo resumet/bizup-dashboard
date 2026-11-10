@@ -41,6 +41,11 @@ test("공개 페이지의 문장·이미지 예시 설정은 항목별로 저장
 
 const complete = {
   ...EMPTY_ANSWERS,
+  residence: "서울",
+  filmingLocations: "작업실",
+  careerAndFilmingMaterials: "구독자 수와 사업 자산",
+  practicalProcess: "제품 소싱부터 주문 확인까지",
+  evidenceAvailability: [{ item: "매출 화면", canShow: "yes" as const, preparation: "보조 계정 준비" }],
   realName: "홍길동",
   nickname: "길동",
   lectureItem: "스마트스토어",
@@ -74,17 +79,17 @@ const images = {
   reviews: ["review.webp"],
   opportunity: ["opportunity.webp"],
 };
-test("수집률은 26개 항목을 기준으로 하며 텍스트·이미지·0원 응답을 인정한다", () => {
+test("수집률은 새 촬영 정보까지 포함하며 텍스트·이미지·0원 응답을 인정한다", () => {
   assert.equal(intakeProgress(EMPTY_ANSWERS, 0).received, 0);
   assert.deepEqual(intakeProgress(complete, 1, images), {
-    completed: Array(26).fill(true),
-    received: 26,
-    total: 26,
+    completed: Array(30).fill(true),
+    received: 30,
+    total: 30,
     percent: 100,
   });
   assert.equal(
     intakeProgress({ ...complete, expectedProfit: null }, 1, images).received,
-    25,
+    29,
   );
   assert.equal(
     intakeProgress(
@@ -96,14 +101,14 @@ test("수집률은 26개 항목을 기준으로 하며 텍스트·이미지·0�
       },
       1, images,
     ).received,
-    25,
+    29,
   );
-  assert.equal(intakeProgress({ ...complete, realName: "" }, 1, images).percent, 96);
+  assert.equal(intakeProgress({ ...complete, realName: "" }, 1, images).percent, 97);
   assert.equal(
     intakeProgress({ ...complete, instagramAccountPassword: "" }, 1, images).received,
-    25,
+    29,
   );
-  assert.equal(intakeProgress(complete, 1, { ...images, reviews: [] }).received, 25);
+  assert.equal(intakeProgress(complete, 1, { ...images, reviews: [] }).received, 29);
 });
 test("중간 저장은 허용하고 최종 제출은 사진과 모든 정보를 요구한다", () => {
   assert.ok(

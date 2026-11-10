@@ -10,6 +10,15 @@ const longText = text(12_000);
 const count = z.number().int().min(1).max(1_000_000).nullable();
 const money = z.number().int().min(0).max(1_000_000_000_000).nullable();
 const profit = z.number().int().min(-1_000_000_000_000).max(1_000_000_000_000).nullable();
+export const EVIDENCE_AVAILABILITY_ITEMS = [
+  "스마트스토어/쿠팡 매출 화면", "통장 입금내역", "세금계산서", "사업자 매출자료", "유튜브 수익창",
+  "부동산 등기", "프로그램 실제 화면", "실제 판매 상품", "작업실/사무실/창고", "수강생 성과자료",
+] as const;
+const evidenceAvailabilitySchema = z.object({
+  item: text(300),
+  canShow: z.enum(["", "yes", "no"]),
+  preparation: text(1000),
+});
 const url = z.string().trim().max(2000).url("올바른 URL을 입력해 주세요.").refine((value) => {
   try {
     const parsed = new URL(value);
@@ -152,6 +161,9 @@ export const DEFAULT_INTAKE_SETTINGS: IntakeSettings = { examples: DEFAULT_INTAK
 
 export const answersSchema = z.object({
   realName: text(80), nickname: text(80), lectureItem: text(3000),
+  residence: text(500), filmingLocations: text(3000),
+  careerAndFilmingMaterials: longText, practicalProcess: longText,
+  evidenceAvailability: z.array(evidenceAvailabilitySchema).max(30),
   courseContentIntroduction: longText, instructorCareer: longText,
   studentSuccessDescription: longText, differentiators: longText,
   webinarCoreContents: z.array(text(1000)).max(5), fieldStrengths: longText,
@@ -173,6 +185,8 @@ export type Photo = { path: string; url: string; downloadUrl?: string };
 export type ImagePhotos = Record<MaterialImageCategory, Photo[]>;
 export const EMPTY_ANSWERS: Answers = {
   realName: "", nickname: "", lectureItem: "", courseContentIntroduction: "", instructorCareer: "",
+  residence: "", filmingLocations: "", careerAndFilmingMaterials: "", practicalProcess: "",
+  evidenceAvailability: EVIDENCE_AVAILABILITY_ITEMS.map((item) => ({ item, canShow: "", preparation: "" })),
   studentSuccessDescription: "", differentiators: "", webinarCoreContents: ["", "", "", "", ""],
   fieldStrengths: "", recommendedAudience: "", webinarBenefits: "", opportunityEvidence: "",
   hasTeachingExperience: null, teachingCount: null, studentCount: null,
@@ -188,6 +202,12 @@ export const FIELD_LABELS = [
   "유튜브 출연 영상", "강의 외 월 매출", "월 순이익", "수강 후 3개월 내 예상 매출·순이익",
   "무료강의 출연 가능 수강생", "인스타 신규계정 생성후 아이디, 비밀번호 (기존 계정이 있다면 해당 계정 정보) 등록", "블루뱃지", "2차 보안", "인포크 링크 아이디, 비밀번호",
 ];
+FIELD_LABELS.push(
+  "거주지 및 촬영 가능 장소",
+  "주요 이력 및 촬영 가능한 소재",
+  "촬영 시 반드시 보여줄 수 있는 실전 과정",
+  "영상 공개 가능 증빙자료",
+);
 export const FIELD_DESCRIPTION_LINKS: Record<number, string> = {
   22: "https://possible-louse-74d.notion.site/3a1119af8a6780269985c82c7858b6d0?source=copy_link",
   23: "https://possible-louse-74d.notion.site/351119af8a67816e8541d52127fef714?source=copy_link",
@@ -210,6 +230,9 @@ export function intakeProgress(answers: Answers, photoCount: number, imagePaths:
     answers.availableStudents !== null && answers.availableStudents >= 3,
     !!answers.instagramAccountId && !!answers.instagramAccountPassword,
     !!answers.blueBadge, !!answers.twoFactorSecurity, !!answers.infokLinkId && !!answers.infokLinkPassword,
+    !!answers.residence || !!answers.filmingLocations,
+    !!answers.careerAndFilmingMaterials, !!answers.practicalProcess,
+    answers.evidenceAvailability.some((item) => item.canShow || item.preparation),
   ];
   const received = completed.filter(Boolean).length;
   return { completed, received, total: completed.length, percent: Math.round((received / completed.length) * 100) };

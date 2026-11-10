@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  EVIDENCE_AVAILABILITY_ITEMS,
   FIELD_DESCRIPTION_LINKS,
   MATERIAL_IMAGE_LABELS,
   MAX_MATERIAL_IMAGES,
@@ -31,8 +32,16 @@ function readAnswers(form: HTMLFormElement): Answers {
   const number = (key: string) => text(key) === "" ? null : Number(text(key).replaceAll(",", ""));
   const urls = (key: string) => text(key).split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
   const experience = text("hasTeachingExperience");
+  const evidenceRowCount = Math.min(30, Math.max(0, Number(text("evidenceRowCount")) || EVIDENCE_AVAILABILITY_ITEMS.length));
   return {
     realName: text("realName"), nickname: text("nickname"), lectureItem: text("lectureItem"),
+    residence: text("residence"), filmingLocations: text("filmingLocations"),
+    careerAndFilmingMaterials: text("careerAndFilmingMaterials"), practicalProcess: text("practicalProcess"),
+    evidenceAvailability: Array.from({ length: evidenceRowCount }, (_, index) => ({
+      item: text(`evidenceItem${index}`),
+      canShow: text(`evidenceCanShow${index}`) as "" | "yes" | "no",
+      preparation: text(`evidencePreparation${index}`),
+    })),
     courseContentIntroduction: text("courseContentIntroduction"), instructorCareer: text("instructorCareer"),
     studentSuccessDescription: text("studentSuccessDescription"), differentiators: text("differentiators"),
     webinarCoreContents: Array.from({ length: 5 }, (_, index) => text(`webinarCoreContent${index}`)),
@@ -138,6 +147,7 @@ export function IntakeForm({ token, initialAnswers, initialPhotos, initialImages
   const [answers, setAnswers] = useState(initialAnswers);
   const [photos, setPhotos] = useState(initialPhotos);
   const [images, setImages] = useState(initialImages);
+  const [evidenceRowCount, setEvidenceRowCount] = useState(Math.max(EVIDENCE_AVAILABILITY_ITEMS.length, initialAnswers.evidenceAvailability.length));
   const [revision, setRevision] = useState(initialRevision);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(submittedAt ? "제출된 정보입니다. 수정 후 다시 제출할 수 있습니다." : "");
@@ -193,6 +203,17 @@ export function IntakeForm({ token, initialAnswers, initialPhotos, initialImages
         <div className="grid gap-5 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="realName">1. 본명</Label><Input id="realName" name="realName" autoComplete="name" maxLength={80} defaultValue={initialAnswers.realName} /></div><div className="space-y-2"><Label htmlFor="nickname">2. 닉네임</Label><Input id="nickname" name="nickname" maxLength={80} defaultValue={initialAnswers.nickname} /></div></div>
         <div className="space-y-3"><Label htmlFor="profilePhotos">3. 프로필 사진</Label><Input id="profilePhotos" type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={photos.length >= MAX_PHOTOS} onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void upload(files); }} /><p className="text-sm text-muted-foreground">최소 1장, 최대 5장. 사진당 3MB 이하의 JPG, PNG, WebP.</p>{photos.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{photos.map((photo, index) => <PhotoTile key={photo.path} photo={photo} alt={`프로필 사진 ${index + 1}`} preserveRatio disabled={busy} onDelete={() => setPhotos((previous) => previous.filter((item) => item.path !== photo.path))} />)}</div> : null}</div>
         <div className="space-y-2"><Label htmlFor="lectureItem">4. 강의아이템 한줄소개</Label><Input id="lectureItem" name="lectureItem" maxLength={3000} defaultValue={initialAnswers.lectureItem} placeholder="한 문장으로 강의의 핵심 매력을 소개해 주세요." /><div className="rounded-lg bg-muted p-3 text-sm"><p className="mb-1 font-medium">예시</p><ul className="list-disc space-y-1 pl-5">{examples.lectureItemExamples.map((example) => <li key={example}>{example}</li>)}</ul></div></div>
+      </section>
+
+      <section className={sectionClass}>
+        <h2 className="text-lg font-semibold">촬영 환경 및 소재</h2>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div className="space-y-2"><Label htmlFor="residence">거주지</Label><Input id="residence" name="residence" maxLength={500} defaultValue={initialAnswers.residence} placeholder="예: 서울시 마포구" /></div>
+          <div className="space-y-2"><Label htmlFor="filmingLocations">촬영 가능 장소</Label><Input id="filmingLocations" name="filmingLocations" maxLength={3000} defaultValue={initialAnswers.filmingLocations} placeholder="예: 작업실, 사무실, 창고" /></div>
+        </div>
+        <div className="space-y-2"><Label htmlFor="careerAndFilmingMaterials">주요 이력 및 촬영 가능한 소재</Label><p className="text-sm text-muted-foreground">구독자 수, 총 누적 매출, 월 최고·평균 순수익, 사업으로 얻은 자산, 제작 전 과정 촬영 가능 여부를 적어 주세요.</p><Textarea id="careerAndFilmingMaterials" name="careerAndFilmingMaterials" rows={7} maxLength={12_000} defaultValue={initialAnswers.careerAndFilmingMaterials} /></div>
+        <div className="space-y-2"><Label htmlFor="practicalProcess">촬영 시 반드시 보여줄 수 있는 실전 과정</Label><p className="text-sm text-muted-foreground">예: 제품 소싱 → AI 이미지 제작 → 쇼핑쇼츠 제작 → 업로드 → 실제 주문 확인</p><Textarea id="practicalProcess" name="practicalProcess" rows={5} maxLength={12_000} defaultValue={initialAnswers.practicalProcess} /></div>
+        <div className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-3"><Label>영상에서 공개 가능한 실제 증빙자료</Label><Button type="button" variant="outline" size="sm" disabled={evidenceRowCount >= 30} onClick={() => setEvidenceRowCount((count) => count + 1)}>증빙자료 추가</Button></div><input type="hidden" name="evidenceRowCount" value={evidenceRowCount} /><div className="overflow-x-auto rounded-lg border"><table className="w-full min-w-[720px] text-sm"><thead className="bg-muted/50 text-left"><tr><th className="p-3 font-medium">증빙자료</th><th className="p-3 font-medium">촬영·공개 가능 (O/X)</th><th className="p-3 font-medium">사전 준비 필요사항</th></tr></thead><tbody>{Array.from({ length: evidenceRowCount }, (_, index) => <tr key={index} className="border-t"><td className="p-3"><Input name={`evidenceItem${index}`} maxLength={300} defaultValue={initialAnswers.evidenceAvailability[index]?.item ?? EVIDENCE_AVAILABILITY_ITEMS[index] ?? ""} placeholder="증빙자료를 입력해 주세요" /></td><td className="p-3"><select name={`evidenceCanShow${index}`} defaultValue={initialAnswers.evidenceAvailability[index]?.canShow ?? ""} className="h-9 w-full rounded-md border bg-background px-2"><option value="">미입력</option><option value="yes">O</option><option value="no">X</option></select></td><td className="p-3"><Input name={`evidencePreparation${index}`} maxLength={1000} defaultValue={initialAnswers.evidenceAvailability[index]?.preparation ?? ""} placeholder="필요한 사전 준비를 입력해 주세요" /></td></tr>)}</tbody></table></div></div>
       </section>
 
       <section className={sectionClass}>
