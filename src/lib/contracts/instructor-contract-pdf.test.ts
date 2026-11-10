@@ -24,6 +24,7 @@ test("계약서 PDF는 A4로 생성하고 회사 대표자란에 법인 인감�
     address: "",
     phone: "",
     email: "",
+    customValues: {},
   });
   const bytes = await createInstructorContractPdf({ title: "홍길동 - 테스트 강의 계약서", renderedContent });
   const pdf = await PDFDocument.load(bytes);
@@ -45,6 +46,7 @@ test("계약서 PDF는 A4로 생성하고 회사 대표자란에 법인 인감�
         address: "",
         phone: "",
         email: "",
+        customValues: {},
       },
     }),
     "홍길동_테스트-실전 강의-2026-11-06~2027-11-06-계약서.pdf",

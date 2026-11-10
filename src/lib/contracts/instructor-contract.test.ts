@@ -8,6 +8,7 @@ import {
   getContractEndDate,
   getKoreanDate,
   getKoreanDateWithWeekday,
+  getInstructorContractTemplateVariables,
   renderInstructorContractTemplate,
   type InstructorContractTemplate,
   type InstructorContractValues,
@@ -25,6 +26,7 @@ const values: InstructorContractValues = {
   address: "서울시 강남구",
   phone: "010-1234-5678",
   email: "test@example.com",
+  customValues: { instructorFee: "1500000" },
 };
 
 test("계약 종료일은 시작일 기준 입력한 연수를 더한다", () => {
@@ -118,4 +120,39 @@ test("작성 날짜 변수를 입력 날짜로 바꾼다", () => {
   assert.equal(rendered.type, "paragraph");
   if (rendered.type !== "paragraph") return;
   assert.equal(rendered.content, "작성일: 2026년 11월 06(금)");
+});
+
+test("계약서 본문과 리치텍스트 안의 모든 사용자 변수를 수집하고 치환한다", () => {
+  const template: InstructorContractTemplate = {
+    version: 2,
+    content: [{
+      id: "00000000-0000-4000-8000-000000000001",
+      type: "rich_text",
+      content: { type: "paragraph", content: [{ type: "text", text: "수수료 {{ instructorFee }} / {{paymentDate}}" }] },
+    }, {
+      id: "00000000-0000-4000-8000-000000000002",
+      type: "paragraph",
+      content: "정산일 {{paymentDate}}",
+    }],
+  };
+
+  assert.deepEqual(getInstructorContractTemplateVariables(template), ["instructorFee", "paymentDate"]);
+  const [rendered] = renderInstructorContractTemplate(template, { ...values, customValues: { instructorFee: "1,500,000원", paymentDate: "매월 10일" } });
+  assert.equal(JSON.stringify(rendered).includes("1,500,000원 / 매월 10일"), true);
+});
+
+test("문서 링크 주소에 있는 변수도 입력값으로 치환한다", () => {
+  const template: InstructorContractTemplate = {
+    version: 2,
+    content: [{
+      id: "00000000-0000-4000-8000-000000000001",
+      type: "link",
+      label: "정산 안내",
+      url: "https://example.com/{{paymentCode}}",
+    }],
+  };
+  const [rendered] = renderInstructorContractTemplate(template, { ...values, customValues: { paymentCode: "abc-123" } });
+  assert.equal(rendered.type, "link");
+  if (rendered.type !== "link") return;
+  assert.equal(rendered.url, "https://example.com/abc-123");
 });

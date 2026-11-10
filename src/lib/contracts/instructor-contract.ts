@@ -11,6 +11,7 @@ export type InstructorContractValues = {
   address: string;
   phone: string;
   email: string;
+  customValues: Record<string, string>;
 };
 
 export type InstructorContractInstructor = Pick<InstructorContractValues, "instructorName" | "address" | "phone" | "email"> & {
@@ -29,7 +30,8 @@ export function isInstructorContractValues(value: unknown): value is InstructorC
     && Number.isFinite(draft.durationYears)
     && typeof draft.address === "string"
     && typeof draft.phone === "string"
-    && typeof draft.email === "string";
+    && typeof draft.email === "string"
+    && (draft.customValues === undefined || (typeof draft.customValues === "object" && draft.customValues !== null && Object.values(draft.customValues).every((item) => typeof item === "string")));
 }
 
 export type InstructorContractSection = {
@@ -406,6 +408,35 @@ export function formatContractAmountInKorean(value: string) {
   return `${parts.join("")} 원`;
 }
 
+const CONTRACT_VARIABLE_PATTERN = /\{\{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}/gu;
+
+function collectContractTemplateVariables(value: unknown, variables: string[], seen: Set<string>) {
+  if (typeof value === "string") {
+    for (const match of value.matchAll(CONTRACT_VARIABLE_PATTERN)) {
+      const variable = match[1];
+      if (variable && !seen.has(variable)) {
+        seen.add(variable);
+        variables.push(variable);
+      }
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectContractTemplateVariables(item, variables, seen));
+    return;
+  }
+  if (value && typeof value === "object") {
+    Object.values(value).forEach((item) => collectContractTemplateVariables(item, variables, seen));
+  }
+}
+
+/** Returns variables in their first appearance order, including variables inside rich-text tables. */
+export function getInstructorContractTemplateVariables(template: InstructorContractTemplate) {
+  const variables: string[] = [];
+  collectContractTemplateVariables(template.content, variables, new Set<string>());
+  return variables;
+}
+
 export function replaceInstructorContractVariables(
   text: string,
   values: InstructorContractValues,
@@ -414,6 +445,7 @@ export function replaceInstructorContractVariables(
   const startDate = getKoreanDate(values.startDate) || "시작일 입력 예정";
   const formattedEndDate = getKoreanDate(endDate) || "종료일 입력 예정";
   const replacements: Record<string, string> = {
+    ...values.customValues,
     instructorName: displayContractValue(values.instructorName, "강사명"),
     lectureName: displayContractValue(values.lectureName, "강의명"),
     contract_date: getKoreanDateWithWeekday(values.contractDate) || "작성일 입력 예정",
@@ -431,21 +463,27 @@ export function replaceInstructorContractVariables(
     companyRepresentative: COMPANY_CONTRACT_DETAILS.representative,
   };
 
-  return text.replace(/\{\{([a-zA-Z][a-zA-Z0-9_]*)\}\}/gu, (token, key: string) => replacements[key] ?? token);
+  return text.replace(CONTRACT_VARIABLE_PATTERN, (token, key: string) => replacements[key] ?? token);
 }
 
 function replaceNodeVariables(node: RichTextNode, values: InstructorContractValues): RichTextNode {
-  const attrs = node.attrs ? { ...node.attrs } : undefined;
-  if (attrs) {
-    for (const key of ["label", "alt", "title"] as const) {
-      if (typeof attrs[key] === "string") {
-        attrs[key] = replaceInstructorContractVariables(attrs[key], values);
-      }
-    }
-  }
+  const attrs = node.attrs && Object.fromEntries(Object.entries(node.attrs).map(([key, value]) => [
+    key,
+    typeof value === "string" ? replaceInstructorContractVariables(value, values) : value,
+  ]));
+  const marks = node.marks?.map((mark) => ({
+    ...mark,
+    ...(mark.attrs ? {
+      attrs: Object.fromEntries(Object.entries(mark.attrs).map(([key, value]) => [
+        key,
+        typeof value === "string" ? replaceInstructorContractVariables(value, values) : value,
+      ])),
+    } : {}),
+  }));
   return {
     ...node,
     ...(attrs ? { attrs } : {}),
+    ...(marks ? { marks } : {}),
     ...(typeof node.text === "string"
       ? { text: replaceInstructorContractVariables(node.text, values) }
       : {}),
@@ -473,10 +511,18 @@ export function renderInstructorContractTemplate(
       return { ...block, content: replaceNodeVariables(block.content, values) };
     }
     if (block.type === "image") {
-      return { ...block, alt: replaceInstructorContractVariables(block.alt, values) };
+      return {
+        ...block,
+        url: replaceInstructorContractVariables(block.url, values),
+        alt: replaceInstructorContractVariables(block.alt, values),
+      };
     }
     if (block.type === "link" || block.type === "cta") {
-      return { ...block, label: replaceInstructorContractVariables(block.label, values) };
+      return {
+        ...block,
+        label: replaceInstructorContractVariables(block.label, values),
+        url: replaceInstructorContractVariables(block.url, values),
+      };
     }
     return block;
   });

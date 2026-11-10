@@ -38,6 +38,10 @@ export const instructorContractValuesSchema = z.object({
   address: z.string().max(500),
   phone: z.string().max(100),
   email: z.string().max(320),
+  customValues: z.record(
+    z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]*$/u),
+    z.string().max(10_000),
+  ).default({}),
 }).transform((values) => ({
   ...values,
   instagramNumberOfReels: normalizeContractNumberInput(values.instagramNumberOfReels),
