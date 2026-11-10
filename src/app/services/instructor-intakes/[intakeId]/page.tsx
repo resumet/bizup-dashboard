@@ -54,7 +54,7 @@ export default async function InstructorIntakeDetail({ params }: { params: Promi
     a.hasTeachingExperience === null ? "미입력" : a.hasTeachingExperience ? `강의 있음 · ${a.teachingCount ?? "미입력"}회 · 누적 수강생 ${a.studentCount ?? "미입력"}명` : "강의 없음",
     <Urls key="materials" values={a.materialsUrls} unavailable={a.materialsUnavailable} />,
     <Urls key="youtube" values={a.youtubeUrls} unavailable={a.youtubeUnavailable} />,
-    won(a.monthlyRevenue), won(a.monthlyProfit), `예상 월 매출 ${won(a.expectedRevenue)} · 예상 월 순이익 ${won(a.expectedProfit)}`,
+    won(a.monthlyRevenue), won(a.monthlyProfit), won(a.expectedRevenue), won(a.expectedProfit), won(a.threeMonthExpectedRevenue), won(a.threeMonthExpectedProfit), `${a.studentSuccessRate ?? "미입력"}%`, a.studentFailureReasons || "미입력",
     <div key="available-students" className="space-y-3"><div>{a.availableStudents === null ? "미입력" : `${a.availableStudents.toLocaleString("ko-KR")}명`}</div><AvailableStudentCandidates students={a.availableStudentCandidates} /></div>,
     `아이디: ${a.instagramAccountId || "미입력"}\n비밀번호: ${a.instagramAccountPassword || "미입력"}`,
     a.blueBadge || "미입력", a.twoFactorSecurity || "미입력",

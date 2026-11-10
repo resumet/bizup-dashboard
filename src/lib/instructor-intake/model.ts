@@ -192,6 +192,8 @@ export const answersSchema = z.object({
   materialsUrls: z.array(url).max(10), materialsUnavailable: z.boolean(),
   youtubeUrls: z.array(youtube).max(10), youtubeUnavailable: z.boolean(),
   monthlyRevenue: money, monthlyProfit: profit, expectedRevenue: money, expectedProfit: profit,
+  threeMonthExpectedRevenue: money, threeMonthExpectedProfit: profit,
+  studentSuccessRate: z.number().int().min(0).max(100).nullable(), studentFailureReasons: longText,
   availableStudents: z.number().int().min(3, "출연 가능한 수강생은 최소 3명이어야 합니다.").max(100).nullable(),
   instagramAccountId: text(200), instagramAccountPassword: text(500), blueBadge: text(1000),
   twoFactorSecurity: text(1000), infokLinkId: text(200), infokLinkPassword: text(500),
@@ -212,7 +214,8 @@ export const EMPTY_ANSWERS: Answers = {
   fieldStrengths: "", recommendedAudience: "", webinarBenefits: "", opportunityEvidence: "",
   hasTeachingExperience: null, teachingCount: null, studentCount: null,
   materialsUrls: [], materialsUnavailable: false, youtubeUrls: [], youtubeUnavailable: false,
-  monthlyRevenue: null, monthlyProfit: null, expectedRevenue: null, expectedProfit: null, availableStudents: null,
+  monthlyRevenue: null, monthlyProfit: null, expectedRevenue: null, expectedProfit: null, threeMonthExpectedRevenue: null, threeMonthExpectedProfit: null,
+  studentSuccessRate: null, studentFailureReasons: "", availableStudents: null,
   instagramAccountId: "", instagramAccountPassword: "", blueBadge: "", twoFactorSecurity: "", infokLinkId: "", infokLinkPassword: "",
 };
 export const FIELD_LABELS = [
@@ -220,7 +223,7 @@ export const FIELD_LABELS = [
   "증빙을 위한 자료 제출", "수강생 성과 인증 자료", "수강후기", "강의 차별점",
   "무료 웨비나 핵심 내용", "해당 분야 특장점", "강의 추천 대상", "무료 웨비나 수강 혜택",
   "지금이 기회라는 정량적·정성적 증거", "기존 강의 경험", "기존 강의 자료·무료강의 영상",
-  "유튜브 출연 영상", "강의 외 월 매출", "월 순이익", "수강 후 3개월 내 예상 매출·순이익",
+  "유튜브 출연 영상", "강의 아이템으로 낸 월 매출", "강의 아이템으로 번 월 순수익", "수강생이 강의 종료 1개월 이후에 낸 매출", "수강생이 강의 종료 1개월 이후에 번 순이익", "수강생이 강의 종료 3개월 이후에 낸 매출", "수강생이 강의 종료 3개월 이후에 번 순이익", "강의 수강생 중 성과를 낸 사람의 비율", "성과를 내지 못한 사람들의 주요 원인",
   "무료강의 출연 가능 수강생", "인스타 신규계정 생성후 아이디, 비밀번호 (기존 계정이 있다면 해당 계정 정보) 등록", "블루뱃지", "2차 보안", "인포크 링크 아이디, 비밀번호",
 ];
 FIELD_LABELS.push(
@@ -247,7 +250,9 @@ export function intakeProgress(answers: Answers, photoCount: number, imagePaths:
     answers.materialsUnavailable || answers.materialsUrls.length > 0,
     answers.youtubeUnavailable || answers.youtubeUrls.length > 0,
     answers.monthlyRevenue !== null, answers.monthlyProfit !== null,
-    answers.expectedRevenue !== null && answers.expectedProfit !== null,
+    answers.expectedRevenue !== null, answers.expectedProfit !== null,
+    answers.threeMonthExpectedRevenue !== null, answers.threeMonthExpectedProfit !== null,
+    answers.studentSuccessRate !== null, !!answers.studentFailureReasons,
     answers.availableStudents !== null
       && answers.availableStudents >= 3
       && answers.availableStudentCandidates.length === answers.availableStudents

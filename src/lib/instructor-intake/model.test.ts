@@ -58,6 +58,10 @@ const complete = {
   monthlyProfit: -10000,
   expectedRevenue: 3000000,
   expectedProfit: 1000000,
+  threeMonthExpectedRevenue: 5000000,
+  threeMonthExpectedProfit: 2000000,
+  studentSuccessRate: 80,
+  studentFailureReasons: "실행 시간이 부족함",
   availableStudents: 3,
   availableStudentCandidates: [
     { nickname: "수강생1", name: "", phone: "" },
@@ -89,14 +93,14 @@ const images = {
 test("수집률은 새 촬영 정보까지 포함하며 텍스트·이미지·0원 응답을 인정한다", () => {
   assert.equal(intakeProgress(EMPTY_ANSWERS, 0).received, 0);
   assert.deepEqual(intakeProgress(complete, 1, images), {
-    completed: Array(32).fill(true),
-    received: 32,
-    total: 32,
+    completed: Array(37).fill(true),
+    received: 37,
+    total: 37,
     percent: 100,
   });
   assert.equal(
     intakeProgress({ ...complete, expectedProfit: null }, 1, images).received,
-    31,
+    36,
   );
   assert.equal(
     intakeProgress(
@@ -108,21 +112,21 @@ test("수집률은 새 촬영 정보까지 포함하며 텍스트·이미지·0�
       },
       1, images,
     ).received,
-    31,
+    36,
   );
   assert.equal(intakeProgress({ ...complete, realName: "" }, 1, images).percent, 97);
   assert.equal(
     intakeProgress({ ...complete, instagramAccountPassword: "" }, 1, images).received,
-    31,
+    36,
   );
-  assert.equal(intakeProgress(complete, 1, { ...images, reviews: [] }).received, 31);
+  assert.equal(intakeProgress(complete, 1, { ...images, reviews: [] }).received, 36);
   assert.equal(
     intakeProgress({ ...complete, availableStudentCandidates: [{ nickname: "수강생1", name: "", phone: "" }] }, 1, images).received,
-    31,
+    36,
   );
   assert.equal(
     intakeProgress({ ...complete, availableStudentCandidates: [{ nickname: "", name: "", phone: "" }, ...complete.availableStudentCandidates.slice(1)] }, 1, images).received,
-    31,
+    36,
   );
 });
 test("중간 저장은 허용하고 최종 제출은 사진과 모든 정보를 요구한다", () => {
@@ -181,6 +185,7 @@ test("조건부 강의 경험, 최소 3명, 금액과 안전한 URL을 검증한
   );
   for (const patch of [
     { availableStudents: 2 },
+    { studentSuccessRate: 101 },
     { phone: "010-123-4567" },
     { email: "not-an-email" },
     { monthlyRevenue: -1 },
