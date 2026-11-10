@@ -405,6 +405,23 @@
     outline-offset: 3px;
   }
 
+  .course-rich-text-editor h1,
+  .course-rich-text-editor h2,
+  .course-rich-text-editor h3 {
+    position: relative;
+  }
+
+  .course-rich-text-editor h1::before,
+  .course-rich-text-editor h2::before,
+  .course-rich-text-editor h3::before {
+    position: absolute;
+    inset-block: 0;
+    left: -1.75rem;
+    width: 1.5rem;
+    content: "";
+    cursor: text;
+  }
+
   .course-rich-text-editor .is-editor-empty:first-child::before {
     float: left;
     height: 0;

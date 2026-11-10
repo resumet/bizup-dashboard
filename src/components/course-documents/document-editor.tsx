@@ -12,7 +12,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import { FontSize, LineHeight, TextStyle } from "@tiptap/extension-text-style";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { Plugin } from "@tiptap/pm/state";
+import { Plugin, TextSelection } from "@tiptap/pm/state";
 import { Fragment, Slice } from "@tiptap/pm/model";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
@@ -428,6 +428,17 @@ export function CourseDocumentEditor({
         event.preventDefault();
         const position = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos;
         void uploadImage(file, position);
+        return true;
+      },
+      handleClick: (view, _position, event) => {
+        const heading = (event.target as HTMLElement | null)?.closest("h1, h2, h3");
+        if (!heading) return false;
+        const rect = heading.getBoundingClientRect();
+        if (event.clientX > rect.left + 28) return false;
+        const from = view.posAtDOM(heading, 0);
+        const $from = view.state.doc.resolve(from);
+        if ($from.parent.type.name !== "heading") return false;
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, from, from + $from.parent.content.size)));
         return true;
       },
     },
