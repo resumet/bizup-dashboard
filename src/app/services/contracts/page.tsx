@@ -11,6 +11,7 @@ import {
   loadInstructorContracts,
   requireInstructorContractContext,
 } from "@/lib/contracts/instructor-contract-template-server";
+import { loadInstructorContractDraft } from "@/lib/contracts/instructor-contract-draft-server";
 
 const dateTime = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul",
@@ -26,7 +27,10 @@ export default async function ContractsPage() {
     if (error instanceof InstructorContractError && error.status === 401) redirect("/login");
     throw error;
   });
-  const contracts = await loadInstructorContracts(context);
+  const [contracts, draft] = await Promise.all([
+    loadInstructorContracts(context),
+    loadInstructorContractDraft(context.workspaceId, context.user.id),
+  ]);
 
   return (
     <main className="min-h-screen">
@@ -53,6 +57,14 @@ export default async function ContractsPage() {
             </Button>
           </div>
         </div>
+        {draft ? (
+          <section className="rounded-xl border border-amber-200 bg-amber-50/50 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0"><h2 className="font-semibold">작성 중 계약서</h2><p className="mt-1 text-sm text-muted-foreground">{draft.values.instructorName || "강사 미입력"} · {draft.values.lectureName || "강의 미입력"} · 마지막 저장 {dateTime.format(new Date(draft.updatedAt))}</p></div>
+              <Button asChild><Link href="/services/contracts/new?draft=resume">이어서 작성</Link></Button>
+            </div>
+          </section>
+        ) : null}
         {contracts.length ? (
           <div className="overflow-hidden rounded-xl border bg-card">
             <div aria-hidden="true" className="hidden grid-cols-[minmax(15rem,2fr)_minmax(8rem,1fr)_minmax(8rem,1fr)_minmax(10rem,1.2fr)_minmax(7rem,0.8fr)_10rem] gap-4 border-b bg-muted/40 px-5 py-3 text-xs font-medium text-muted-foreground xl:grid">

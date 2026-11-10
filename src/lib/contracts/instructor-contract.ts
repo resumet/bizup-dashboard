@@ -360,6 +360,13 @@ export function normalizeContractNumberInput(value: string) {
   return digits.replace(/^0+(?=[0-9])/u, "");
 }
 
+export function normalizeInstructorPhone(value: string) {
+  const digits = value.replace(/\D/gu, "");
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+}
+
 export function formatContractNumber(value: string) {
   const digits = normalizeContractNumberInput(value);
   return digits ? digits.replace(/\B(?=(?:[0-9]{3})+(?![0-9]))/gu, ",") : "";

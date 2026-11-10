@@ -3,6 +3,7 @@ import { z } from "zod";
 import { courseDocumentContentSchema } from "@/lib/course-documents/validation";
 import {
   legacyInstructorContractTemplateToContent,
+  normalizeInstructorPhone,
   normalizeContractNumberInput,
   type InstructorContractTemplate,
   type InstructorContractValues,
@@ -51,8 +52,14 @@ export const createInstructorContractSchema = z.object({
 export const instructorContractInstructorSchema = z.object({
   instructorName: z.string().trim().min(1, "강사명을 입력해 주세요.").max(200),
   address: z.string().trim().max(500),
-  phone: z.string().trim().max(100),
-  email: z.string().trim().max(320),
+  phone: z.string().transform(normalizeInstructorPhone).refine(
+    (value) => value === "" || /^010-\d{4}-\d{4}$/u.test(value),
+    "전화번호는 010-0000-0000 형식으로 입력해 주세요.",
+  ),
+  email: z.string().trim().toLowerCase().max(320).refine(
+    (value) => value === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(value),
+    "올바른 이메일 주소를 입력해 주세요.",
+  ),
 });
 
 export const saveInstructorContractTemplateSchema = z.object({

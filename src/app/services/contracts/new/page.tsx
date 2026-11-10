@@ -12,14 +12,19 @@ import {
   requireInstructorContractContext,
 } from "@/lib/contracts/instructor-contract-template-server";
 
-export default async function NewInstructorContractPage() {
+export default async function NewInstructorContractPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ draft?: string }>;
+}) {
   const context = await requireInstructorContractContext().catch((error: unknown) => {
     if (error instanceof InstructorContractError && error.status === 401) redirect("/login");
     throw error;
   });
+  const { draft: draftMode } = await searchParams;
   const [templates, draft, instructors] = await Promise.all([
     loadInstructorContractCreationTemplates(context.workspaceId),
-    loadInstructorContractDraft(context.workspaceId, context.user.id),
+    draftMode === "resume" ? loadInstructorContractDraft(context.workspaceId, context.user.id) : Promise.resolve(null),
     loadInstructorContractInstructors(context),
   ]);
 

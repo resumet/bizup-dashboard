@@ -378,6 +378,12 @@ export async function createInstructorContract(
     .select("id")
     .single();
   if (error) databaseError(error);
+  const { error: draftError } = await context.admin
+    .from("instructor_contract_drafts")
+    .delete()
+    .eq("workspace_id", context.workspaceId)
+    .eq("user_id", context.user.id);
+  if (draftError) databaseError(draftError);
   return data as { id: string };
 }
 
