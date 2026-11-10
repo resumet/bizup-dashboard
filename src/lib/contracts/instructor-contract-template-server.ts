@@ -9,6 +9,7 @@ import {
   renderInstructorContractTemplate,
   type InstructorContractDetail,
   type InstructorContractInstructor,
+  type InstructorContractParty,
   type InstructorContractListItem,
   type InstructorContractTemplate,
   type InstructorContractTemplateRecord,
@@ -55,12 +56,14 @@ type InstructorRow = {
   phone: string;
   email: string;
   updated_at: string;
+  party_type?: "instructor" | "supplier";
+  details?: Record<string, string>;
 };
 
 const TEMPLATE_COLUMNS = "id,name,template,created_at,updated_at";
 const CONTRACT_LIST_COLUMNS = "id,title,template_name,instructor_name,lecture_name,created_by_name,created_by,created_at";
 const CONTRACT_DETAIL_COLUMNS = `${CONTRACT_LIST_COLUMNS},contract_values,rendered_content`;
-const INSTRUCTOR_COLUMNS = "id,name,address,phone,email,updated_at";
+const INSTRUCTOR_COLUMNS = "id,name,address,phone,email,updated_at,party_type,details";
 
 export class InstructorContractError extends Error {
   constructor(message: string, public readonly status = 400) {
@@ -275,7 +278,15 @@ function normalizeInstructor(row: InstructorRow): InstructorContractInstructor {
   };
 }
 
-export async function loadInstructorContractInstructors(context: ContractContext) {
+function normalizeParty(row: InstructorRow): InstructorContractParty {
+  return {
+    ...normalizeInstructor(row),
+    partyType: row.party_type === "supplier" ? "supplier" : "instructor",
+    details: row.details && typeof row.details === "object" ? row.details : {},
+  };
+}
+
+export async function loadInstructorContractParties(context: ContractContext) {
   const { data, error } = await context.admin
     .from("instructor_contract_instructors")
     .select(INSTRUCTOR_COLUMNS)
@@ -283,12 +294,16 @@ export async function loadInstructorContractInstructors(context: ContractContext
     .order("name", { ascending: true })
     .order("id", { ascending: true });
   if (error) databaseError(error);
-  return ((data ?? []) as InstructorRow[]).map(normalizeInstructor);
+  return ((data ?? []) as InstructorRow[]).map(normalizeParty);
+}
+
+export async function loadInstructorContractInstructors(context: ContractContext) {
+  return (await loadInstructorContractParties(context)).filter((party) => party.partyType === "instructor");
 }
 
 export async function createInstructorContractInstructor(
   context: ContractContext,
-  input: Omit<InstructorContractInstructor, "id" | "updatedAt">,
+  input: Omit<InstructorContractParty, "id" | "updatedAt">,
 ) {
   const now = new Date().toISOString();
   const { data, error } = await context.admin
@@ -299,6 +314,8 @@ export async function createInstructorContractInstructor(
       address: input.address,
       phone: input.phone,
       email: input.email,
+      party_type: input.partyType,
+      details: input.details,
       created_by: context.user.id,
       updated_by: context.user.id,
       created_at: now,
@@ -310,7 +327,7 @@ export async function createInstructorContractInstructor(
     if (error.code === "23505") throw new InstructorContractError("같은 이름의 강사 정보가 이미 있습니다.", 409);
     databaseError(error);
   }
-  return normalizeInstructor(data as InstructorRow);
+  return normalizeParty(data as InstructorRow);
 }
 
 export async function deleteInstructorContractInstructor(context: ContractContext, instructorId: string) {

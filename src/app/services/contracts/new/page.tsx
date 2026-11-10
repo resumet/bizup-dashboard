@@ -8,7 +8,7 @@ import { loadInstructorContractDraft } from "@/lib/contracts/instructor-contract
 import {
   InstructorContractError,
   loadInstructorContractCreationTemplates,
-  loadInstructorContractInstructors,
+  loadInstructorContractParties,
   requireInstructorContractContext,
 } from "@/lib/contracts/instructor-contract-template-server";
 
@@ -22,10 +22,10 @@ export default async function NewInstructorContractPage({
     throw error;
   });
   const { draft: draftMode } = await searchParams;
-  const [templates, draft, instructors] = await Promise.all([
+  const [templates, draft, parties] = await Promise.all([
     loadInstructorContractCreationTemplates(context.workspaceId),
     draftMode === "resume" ? loadInstructorContractDraft(context.workspaceId, context.user.id) : Promise.resolve(null),
-    loadInstructorContractInstructors(context),
+    loadInstructorContractParties(context),
   ]);
 
   return (
@@ -38,7 +38,7 @@ export default async function NewInstructorContractPage({
         </div>
       </header>
       <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
-        <InstructorContractWriter templates={templates} instructors={instructors} initialDraft={draft?.values} initialDraftUpdatedAt={draft?.updatedAt} />
+        <InstructorContractWriter templates={templates} parties={parties} initialDraft={draft?.values} initialDraftUpdatedAt={draft?.updatedAt} />
       </div>
     </main>
   );

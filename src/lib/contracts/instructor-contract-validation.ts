@@ -54,6 +54,7 @@ export const createInstructorContractSchema = z.object({
 });
 
 export const instructorContractInstructorSchema = z.object({
+  partyType: z.enum(["instructor", "supplier"]).default("instructor"),
   instructorName: z.string().trim().min(1, "강사명을 입력해 주세요.").max(200),
   address: z.string().trim().max(500),
   phone: z.string().transform(normalizeInstructorPhone).refine(
@@ -64,6 +65,7 @@ export const instructorContractInstructorSchema = z.object({
     (value) => value === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(value),
     "올바른 이메일 주소를 입력해 주세요.",
   ),
+  details: z.record(z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]*$/u), z.string().max(10_000)).default({}),
 });
 
 export const saveInstructorContractTemplateSchema = z.object({

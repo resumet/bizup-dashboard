@@ -15,11 +15,14 @@ import {
   BUILT_IN_INSTRUCTOR_CONTRACT_TEMPLATE_ID,
   COMPANY_CONTRACT_DETAILS,
   DEFAULT_INSTRUCTOR_CONTRACT_TEMPLATE,
+  formatContractNumber,
   getContractEndDate,
   getInstructorContractTemplateVariables,
+  normalizeBusinessRegistrationNumber,
+  normalizeContractNumberInput,
   renderInstructorContractTemplate,
   type InstructorContractTemplateRecord,
-  type InstructorContractInstructor,
+  type InstructorContractParty,
   type InstructorContractValues,
 } from "@/lib/contracts/instructor-contract";
 
@@ -72,12 +75,12 @@ const DEFAULT_VARIABLE_LABELS: Record<string, string> = {
 
 export function InstructorContractWriter({
   templates,
-  instructors,
+  parties,
   initialDraft,
   initialDraftUpdatedAt,
 }: {
   templates: InstructorContractTemplateRecord[];
-  instructors: InstructorContractInstructor[];
+  parties: InstructorContractParty[];
   initialDraft?: InstructorContractValues;
   initialDraftUpdatedAt?: string;
 }) {
@@ -85,6 +88,7 @@ export function InstructorContractWriter({
   const availableTemplates = templates.length ? templates : [BUILT_IN_TEMPLATE];
   const [selectedTemplateId, setSelectedTemplateId] = useState(availableTemplates[0].id);
   const [selectedInstructorId, setSelectedInstructorId] = useState("");
+  const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [values, setValues] = useState<InstructorContractValues>(() => ({ ...initialValues(), ...initialDraft, customValues: initialDraft?.customValues ?? {} }));
   const [saving, setSaving] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -93,28 +97,39 @@ export function InstructorContractWriter({
   const selectedTemplate = availableTemplates.find((template) => template.id === selectedTemplateId) ?? availableTemplates[0];
   const renderedContent = useMemo(() => renderInstructorContractTemplate(selectedTemplate.template, values), [selectedTemplate.template, values]);
   const templateVariables = useMemo(() => getInstructorContractTemplateVariables(selectedTemplate.template), [selectedTemplate.template]);
+  const isSupplierContract = selectedTemplate.name.includes("강사공급사");
+  const instructors = parties.filter((party) => party.partyType === "instructor");
+  const suppliers = parties.filter((party) => party.partyType === "supplier");
 
   function updateTemplateVariable(variable: string, value: string) {
+    const normalizedValue = /(?:business.*(?:number|registration)|business_number|businessRegistrationNumber)/iu.test(variable)
+      ? normalizeBusinessRegistrationNumber(value)
+      : variable === "instagram_value_of_reels"
+        ? normalizeContractNumberInput(value)
+        : value;
     setValues((current) => ({
       ...current,
-      customValues: { ...current.customValues, [variable]: value },
-      ...(variable === "instructorName" ? { instructorName: value } : {}),
-      ...(variable === "lectureName" ? { lectureName: value } : {}),
-      ...(variable === "address" ? { address: value } : {}),
-      ...(variable === "phone" ? { phone: value } : {}),
-      ...(variable === "email" ? { email: value } : {}),
+      customValues: { ...current.customValues, [variable]: normalizedValue },
+      ...(variable === "instructorName" ? { instructorName: normalizedValue } : {}),
+      ...(variable === "lectureName" ? { lectureName: normalizedValue } : {}),
+      ...(variable === "address" ? { address: normalizedValue } : {}),
+      ...(variable === "phone" ? { phone: normalizedValue } : {}),
+      ...(variable === "email" ? { email: normalizedValue } : {}),
     }));
   }
 
   function variableInputValue(variable: string) {
-    if (variable in values.customValues) return values.customValues[variable] ?? "";
+    if (variable in values.customValues) {
+      const value = values.customValues[variable] ?? "";
+      return variable === "instagram_value_of_reels" ? formatContractNumber(value) : value;
+    }
     const endDate = getContractEndDate(values.startDate, values.durationYears);
     const defaults: Record<string, string> = {
       instructorName: values.instructorName,
       lectureName: values.lectureName,
       contract_date: values.contractDate,
       instagram_number_of_reels: values.instagramNumberOfReels,
-      instagram_value_of_reels: values.instagramValueOfReels,
+      instagram_value_of_reels: formatContractNumber(values.instagramValueOfReels),
       startDate: values.startDate,
       endDate,
       contractPeriod: `${values.startDate} ~ ${endDate} (${values.durationYears}년간)`,
@@ -129,31 +144,49 @@ export function InstructorContractWriter({
     return defaults[variable] ?? "";
   }
 
+  function updateContractPeriod(key: "startDate" | "durationYears", value: string) {
+    setValues((current) => ({
+      ...current,
+      [key]: key === "durationYears" ? Math.max(1, Math.min(20, Number(value) || 1)) : value,
+      customValues: Object.fromEntries(Object.entries(current.customValues).filter(([variable]) => variable !== "contractPeriod")),
+    }));
+  }
+
   function selectTemplate(templateId: string) {
     setSelectedTemplateId(templateId);
     setValues(initialValues());
     setError("");
     setDraftStatus("");
+    setSelectedInstructorId("");
+    setSelectedSupplierId("");
+  }
+
+  function applyParty(party: InstructorContractParty) {
+    setValues((current) => ({
+      ...current,
+      instructorName: party.partyType === "instructor" ? party.instructorName : current.instructorName,
+      address: party.partyType === "instructor" ? party.address : current.address,
+      phone: party.partyType === "instructor" ? party.phone : current.phone,
+      email: party.partyType === "instructor" ? party.email : current.email,
+      customValues: {
+        ...current.customValues,
+        ...party.details,
+        ...(party.partyType === "instructor" ? { instructorName: party.instructorName, address: party.address, phone: party.phone, email: party.email } : {}),
+      },
+    }));
   }
 
   function selectInstructor(instructorId: string) {
     setSelectedInstructorId(instructorId);
     const instructor = instructors.find((item) => item.id === instructorId);
     if (!instructor) return;
-    setValues((current) => ({
-      ...current,
-      instructorName: instructor.instructorName,
-      address: instructor.address,
-      phone: instructor.phone,
-      email: instructor.email,
-      customValues: {
-        ...current.customValues,
-        instructorName: instructor.instructorName,
-        address: instructor.address,
-        phone: instructor.phone,
-        email: instructor.email,
-      },
-    }));
+    applyParty(instructor);
+  }
+
+  function selectSupplier(supplierId: string) {
+    setSelectedSupplierId(supplierId);
+    const supplier = suppliers.find((item) => item.id === supplierId);
+    if (supplier) applyParty(supplier);
   }
 
   async function saveDraft() {
@@ -215,14 +248,6 @@ export function InstructorContractWriter({
           <CardHeader><CardTitle>계약 정보 입력</CardTitle></CardHeader>
           <CardContent className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="contract-instructor-saved">저장된 강사 정보</Label>
-              <Select value={selectedInstructorId || "none"} onValueChange={(value) => selectInstructor(value === "none" ? "" : value)}>
-                <SelectTrigger id="contract-instructor-saved"><SelectValue placeholder="강사 정보 선택" /></SelectTrigger>
-                <SelectContent><SelectItem value="none">선택 안 함</SelectItem>{instructors.map((instructor) => <SelectItem key={instructor.id} value={instructor.id}>{instructor.instructorName}</SelectItem>)}</SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">선택하면 강사명, 주소, 연락처, 이메일을 입력합니다.</p>
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="contract-template">계약서 템플릿</Label>
               <Select value={selectedTemplate.id} onValueChange={selectTemplate}>
                 <SelectTrigger id="contract-template"><SelectValue /></SelectTrigger>
@@ -230,7 +255,22 @@ export function InstructorContractWriter({
               </Select>
               <p className="text-xs text-muted-foreground">템플릿을 바꾸면 아래 입력값이 초기화됩니다.</p>
             </div>
-            {templateVariables.map(({ name, label }) => <div key={name} className="space-y-2"><Label htmlFor={`contract-variable-${name}`}>{label || DEFAULT_VARIABLE_LABELS[name] || `변수: ${name}`}</Label><Input id={`contract-variable-${name}`} maxLength={10_000} value={variableInputValue(name)} onChange={(event) => updateTemplateVariable(name, event.target.value)} /></div>)}
+            {isSupplierContract ? <div className="space-y-2">
+              <Label htmlFor="contract-supplier-saved">강사공급사 정보</Label>
+              <Select value={selectedSupplierId || "none"} onValueChange={(value) => selectSupplier(value === "none" ? "" : value)}>
+                <SelectTrigger id="contract-supplier-saved"><SelectValue placeholder="강사공급사 선택" /></SelectTrigger>
+                <SelectContent><SelectItem value="none">선택 안 함</SelectItem>{suppliers.map((supplier) => <SelectItem key={supplier.id} value={supplier.id}>{supplier.instructorName}</SelectItem>)}</SelectContent>
+              </Select>
+            </div> : null}
+            <div className="space-y-2">
+              <Label htmlFor="contract-instructor-saved">저장된 강사 정보</Label>
+              <Select value={selectedInstructorId || "none"} onValueChange={(value) => selectInstructor(value === "none" ? "" : value)}>
+                <SelectTrigger id="contract-instructor-saved"><SelectValue placeholder="강사 정보 선택" /></SelectTrigger>
+                <SelectContent><SelectItem value="none">선택 안 함</SelectItem>{instructors.map((instructor) => <SelectItem key={instructor.id} value={instructor.id}>{instructor.instructorName}</SelectItem>)}</SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">선택하면 강사명, 주소, 연락처, 이메일을 입력합니다.</p>
+            </div>
+            {templateVariables.map(({ name, label }) => name === "contractPeriod" ? <div key={name} className="space-y-2"><Label>{label || DEFAULT_VARIABLE_LABELS[name]}</Label><div className="grid grid-cols-[1fr_7rem] gap-2"><Input aria-label="계약 시작일" type="date" value={values.startDate} onChange={(event) => updateContractPeriod("startDate", event.target.value)} /><Input aria-label="계약 기간(년)" type="number" min="1" max="20" value={values.durationYears} onChange={(event) => updateContractPeriod("durationYears", event.target.value)} /></div><p className="text-xs text-muted-foreground">{variableInputValue(name)}</p></div> : <div key={name} className="space-y-2"><Label htmlFor={`contract-variable-${name}`}>{label || DEFAULT_VARIABLE_LABELS[name] || `변수: ${name}`}</Label><Input id={`contract-variable-${name}`} maxLength={10_000} value={variableInputValue(name)} onChange={(event) => updateTemplateVariable(name, event.target.value)} /></div>)}
           </CardContent>
         </Card>
 

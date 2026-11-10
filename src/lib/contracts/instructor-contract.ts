@@ -19,6 +19,11 @@ export type InstructorContractInstructor = Pick<InstructorContractValues, "instr
   updatedAt: string;
 };
 
+export type InstructorContractParty = InstructorContractInstructor & {
+  partyType: "instructor" | "supplier";
+  details: Record<string, string>;
+};
+
 export function isInstructorContractValues(value: unknown): value is InstructorContractValues {
   if (!value || typeof value !== "object") return false;
   const draft = value as Partial<InstructorContractValues>;
@@ -369,6 +374,13 @@ export function normalizeInstructorPhone(value: string) {
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
 }
 
+export function normalizeBusinessRegistrationNumber(value: string) {
+  const digits = value.replace(/\D/gu, "").slice(0, 10);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
+}
+
 export function formatContractNumber(value: string) {
   const digits = normalizeContractNumberInput(value);
   return digits ? digits.replace(/\B(?=(?:[0-9]{3})+(?![0-9]))/gu, ",") : "";
@@ -474,6 +486,7 @@ export function replaceInstructorContractVariables(
     companyAddress: COMPANY_CONTRACT_DETAILS.address,
     companyRepresentative: COMPANY_CONTRACT_DETAILS.representative,
     ...values.customValues,
+    ...(values.customValues.instagram_value_of_reels ? { instagram_value_of_reels: formatContractNumber(values.customValues.instagram_value_of_reels) } : {}),
   };
 
   return text.replace(CONTRACT_VARIABLE_PATTERN, (token, _label: string | undefined, key: string) => replacements[key] ?? token);
