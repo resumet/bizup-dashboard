@@ -38,7 +38,7 @@ const adminMenuIcons: Record<
   LucideIcon
 > = {
   "/admin": Settings2,
-  "https://drive.google.com/drive/u/0/my-drive": FolderOpen,
+  "https://drive.google.com/drive/folders/1g9i2dpRiuPy6rmgMamh59IvQl3g0c449?usp=drive_link": FolderOpen,
   "/services/cash-ledger": WalletCards,
   "/hr/personnel": UsersRound,
   "/admin/supplies": PackageCheck,
