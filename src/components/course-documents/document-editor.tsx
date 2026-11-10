@@ -91,6 +91,7 @@ import type {
 } from "@/lib/course-documents/types";
 import { cn } from "@/lib/utils";
 import { PdfImportDialog } from "./pdf-import-dialog";
+import { InstructorContractDocument } from "@/components/contracts/instructor-contract-document";
 
 type Props = {
   mode: "admin" | "external" | "contract";
@@ -809,14 +810,14 @@ export function CourseDocumentEditor({
       {notice ? <Alert><AlertDescription>{notice}</AlertDescription></Alert> : null}
 
       <div className={cn("grid items-start gap-5", mode !== "contract" && "xl:grid-cols-[minmax(0,1fr)_15rem]")}>
-        <section className="min-h-[46rem] min-w-0 overflow-hidden rounded-xl border bg-background shadow-sm">
+        <section className={cn("min-h-[46rem] min-w-0 overflow-hidden rounded-xl border shadow-sm", mode === "contract" ? "bg-slate-100" : "bg-background")}>
           {preview ? (
-            <div className="mx-auto w-full max-w-3xl px-6 py-12 sm:px-12">
-              {mode !== "contract" ? <h1 className="mb-10 whitespace-pre-wrap break-words text-4xl font-bold tracking-tight text-balance sm:text-5xl">{displayTitle || "제목 없음"}</h1> : null}
-              <DocumentRenderer blocks={blocks} variant={mode === "contract" ? "contract" : "default"} />
+            mode === "contract" ? <InstructorContractDocument content={blocks} /> : <div className="mx-auto w-full max-w-3xl px-6 py-12 sm:px-12">
+              <h1 className="mb-10 whitespace-pre-wrap break-words text-4xl font-bold tracking-tight text-balance sm:text-5xl">{displayTitle || "제목 없음"}</h1>
+              <DocumentRenderer blocks={blocks} variant="default" />
             </div>
           ) : (
-            <div className="mx-auto w-full max-w-none px-6 py-10 sm:px-12 lg:px-16 lg:py-14">
+            <div className={cn("mx-auto w-full", mode === "contract" ? "contract-document max-w-[760px] bg-white px-6 py-10 text-[14px] leading-7 text-slate-950 sm:px-10 sm:py-12" : "max-w-none px-6 py-10 sm:px-12 lg:px-16 lg:py-14")}>
               {mode === "contract" ? null : fixedTitle ? (
                 <h1 className="py-2 whitespace-pre-wrap break-words text-4xl font-bold tracking-tight text-balance sm:text-5xl">{displayTitle}</h1>
               ) : (
