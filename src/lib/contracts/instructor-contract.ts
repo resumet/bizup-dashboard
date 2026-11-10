@@ -13,6 +13,11 @@ export type InstructorContractValues = {
   email: string;
 };
 
+export type InstructorContractInstructor = Pick<InstructorContractValues, "instructorName" | "address" | "phone" | "email"> & {
+  id: string;
+  updatedAt: string;
+};
+
 export function isInstructorContractValues(value: unknown): value is InstructorContractValues {
   if (!value || typeof value !== "object") return false;
   const draft = value as Partial<InstructorContractValues>;
@@ -58,6 +63,7 @@ export type InstructorContractListItem = {
   instructorName: string;
   lectureName: string;
   createdByName: string;
+  createdById: string | null;
   createdAt: string;
 };
 

@@ -33,6 +33,22 @@ test("기존 계약서 템플릿을 보존하면서 여러 템플릿과 계약�
     await db.exec(signingMigration);
     const removalMigration = await readFile("supabase/migrations/20261106015000_remove_instructor_contract_e_signing.sql", "utf8");
     await db.exec(removalMigration);
+    const instructorsMigration = await readFile("supabase/migrations/20261110040412_instructor_contract_instructors.sql", "utf8");
+    await db.exec(instructorsMigration);
+    const instructor = await db.query<{ id: string; name: string }>(
+      `insert into public.instructor_contract_instructors (workspace_id,name,address,phone,email,created_by,updated_by)
+       values ($1,'강사',$2,$3,$4,$5,$5) returning id,name`,
+      [workspaceId, '서울', '010-0000-0000', 'instructor@example.com', userId],
+    );
+    assert.deepEqual(instructor.rows[0]?.name, "강사");
+    await assert.rejects(
+      db.query(
+        `insert into public.instructor_contract_instructors (workspace_id,name,created_by,updated_by)
+         values ($1,'강사',$2,$2)`,
+        [workspaceId, userId],
+      ),
+      /instructor_contract_instructors_workspace_name_idx/u,
+    );
     const removedColumns = await db.query<{ column_name: string }>(`
       select column_name
       from information_schema.columns

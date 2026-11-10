@@ -21,6 +21,7 @@ import {
   normalizeContractNumberInput,
   renderInstructorContractTemplate,
   type InstructorContractTemplateRecord,
+  type InstructorContractInstructor,
   type InstructorContractValues,
 } from "@/lib/contracts/instructor-contract";
 
@@ -54,16 +55,19 @@ const BUILT_IN_TEMPLATE: InstructorContractTemplateRecord = {
 
 export function InstructorContractWriter({
   templates,
+  instructors,
   initialDraft,
   initialDraftUpdatedAt,
 }: {
   templates: InstructorContractTemplateRecord[];
+  instructors: InstructorContractInstructor[];
   initialDraft?: InstructorContractValues;
   initialDraftUpdatedAt?: string;
 }) {
   const router = useRouter();
   const availableTemplates = templates.length ? templates : [BUILT_IN_TEMPLATE];
   const [selectedTemplateId, setSelectedTemplateId] = useState(availableTemplates[0].id);
+  const [selectedInstructorId, setSelectedInstructorId] = useState("");
   const [values, setValues] = useState<InstructorContractValues>(() => ({ ...initialValues(), ...initialDraft }));
   const [saving, setSaving] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -83,6 +87,13 @@ export function InstructorContractWriter({
     setValues(initialValues());
     setError("");
     setDraftStatus("");
+  }
+
+  function selectInstructor(instructorId: string) {
+    setSelectedInstructorId(instructorId);
+    const instructor = instructors.find((item) => item.id === instructorId);
+    if (!instructor) return;
+    setValues((current) => ({ ...current, instructorName: instructor.instructorName, address: instructor.address, phone: instructor.phone, email: instructor.email }));
   }
 
   async function saveDraft() {
@@ -143,6 +154,14 @@ export function InstructorContractWriter({
         <Card className="xl:sticky xl:top-21">
           <CardHeader><CardTitle>계약 정보 입력</CardTitle></CardHeader>
           <CardContent className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="contract-instructor-saved">저장된 강사 정보</Label>
+              <Select value={selectedInstructorId || "none"} onValueChange={(value) => selectInstructor(value === "none" ? "" : value)}>
+                <SelectTrigger id="contract-instructor-saved"><SelectValue placeholder="강사 정보 선택" /></SelectTrigger>
+                <SelectContent><SelectItem value="none">선택 안 함</SelectItem>{instructors.map((instructor) => <SelectItem key={instructor.id} value={instructor.id}>{instructor.instructorName}</SelectItem>)}</SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">선택하면 강사명, 주소, 연락처, 이메일을 입력합니다.</p>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="contract-template">계약서 템플릿</Label>
               <Select value={selectedTemplate.id} onValueChange={selectTemplate}>

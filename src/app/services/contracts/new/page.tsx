@@ -8,6 +8,7 @@ import { loadInstructorContractDraft } from "@/lib/contracts/instructor-contract
 import {
   InstructorContractError,
   loadInstructorContractCreationTemplates,
+  loadInstructorContractInstructors,
   requireInstructorContractContext,
 } from "@/lib/contracts/instructor-contract-template-server";
 
@@ -16,9 +17,10 @@ export default async function NewInstructorContractPage() {
     if (error instanceof InstructorContractError && error.status === 401) redirect("/login");
     throw error;
   });
-  const [templates, draft] = await Promise.all([
+  const [templates, draft, instructors] = await Promise.all([
     loadInstructorContractCreationTemplates(context.workspaceId),
     loadInstructorContractDraft(context.workspaceId, context.user.id),
+    loadInstructorContractInstructors(context),
   ]);
 
   return (
@@ -31,7 +33,7 @@ export default async function NewInstructorContractPage() {
         </div>
       </header>
       <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
-        <InstructorContractWriter templates={templates} initialDraft={draft?.values} initialDraftUpdatedAt={draft?.updatedAt} />
+        <InstructorContractWriter templates={templates} instructors={instructors} initialDraft={draft?.values} initialDraftUpdatedAt={draft?.updatedAt} />
       </div>
     </main>
   );

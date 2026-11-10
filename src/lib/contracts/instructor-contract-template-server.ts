@@ -8,6 +8,7 @@ import {
   DEFAULT_INSTRUCTOR_CONTRACT_TEMPLATE,
   renderInstructorContractTemplate,
   type InstructorContractDetail,
+  type InstructorContractInstructor,
   type InstructorContractListItem,
   type InstructorContractTemplate,
   type InstructorContractTemplateRecord,
@@ -38,6 +39,7 @@ type ContractListRow = {
   instructor_name: string;
   lecture_name: string;
   created_by_name: string;
+  created_by: string | null;
   created_at: string;
 };
 
@@ -46,9 +48,19 @@ type ContractDetailRow = ContractListRow & {
   rendered_content: unknown;
 };
 
+type InstructorRow = {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  updated_at: string;
+};
+
 const TEMPLATE_COLUMNS = "id,name,template,created_at,updated_at";
-const CONTRACT_LIST_COLUMNS = "id,title,template_name,instructor_name,lecture_name,created_by_name,created_at";
+const CONTRACT_LIST_COLUMNS = "id,title,template_name,instructor_name,lecture_name,created_by_name,created_by,created_at";
 const CONTRACT_DETAIL_COLUMNS = `${CONTRACT_LIST_COLUMNS},contract_values,rendered_content`;
+const INSTRUCTOR_COLUMNS = "id,name,address,phone,email,updated_at";
 
 export class InstructorContractError extends Error {
   constructor(message: string, public readonly status = 400) {
@@ -229,6 +241,7 @@ function normalizeContractListItem(row: ContractListRow): InstructorContractList
     instructorName: row.instructor_name,
     lectureName: row.lecture_name,
     createdByName: row.created_by_name,
+    createdById: row.created_by,
     createdAt: row.created_at,
   };
 }
@@ -249,6 +262,67 @@ export async function loadInstructorContracts(context: ContractContext) {
     contracts.push(...rows.map(normalizeContractListItem));
     if (rows.length < pageSize) return contracts;
   }
+}
+
+function normalizeInstructor(row: InstructorRow): InstructorContractInstructor {
+  return {
+    id: row.id,
+    instructorName: row.name,
+    address: row.address,
+    phone: row.phone,
+    email: row.email,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function loadInstructorContractInstructors(context: ContractContext) {
+  const { data, error } = await context.admin
+    .from("instructor_contract_instructors")
+    .select(INSTRUCTOR_COLUMNS)
+    .eq("workspace_id", context.workspaceId)
+    .order("name", { ascending: true })
+    .order("id", { ascending: true });
+  if (error) databaseError(error);
+  return ((data ?? []) as InstructorRow[]).map(normalizeInstructor);
+}
+
+export async function createInstructorContractInstructor(
+  context: ContractContext,
+  input: Omit<InstructorContractInstructor, "id" | "updatedAt">,
+) {
+  const now = new Date().toISOString();
+  const { data, error } = await context.admin
+    .from("instructor_contract_instructors")
+    .insert({
+      workspace_id: context.workspaceId,
+      name: input.instructorName,
+      address: input.address,
+      phone: input.phone,
+      email: input.email,
+      created_by: context.user.id,
+      updated_by: context.user.id,
+      created_at: now,
+      updated_at: now,
+    })
+    .select(INSTRUCTOR_COLUMNS)
+    .single();
+  if (error) {
+    if (error.code === "23505") throw new InstructorContractError("같은 이름의 강사 정보가 이미 있습니다.", 409);
+    databaseError(error);
+  }
+  return normalizeInstructor(data as InstructorRow);
+}
+
+export async function deleteInstructorContractInstructor(context: ContractContext, instructorId: string) {
+  const { data, error } = await context.admin
+    .from("instructor_contract_instructors")
+    .delete()
+    .eq("workspace_id", context.workspaceId)
+    .eq("id", instructorId)
+    .select("id")
+    .maybeSingle();
+  if (error) databaseError(error);
+  if (!data) throw new InstructorContractError("강사 정보를 찾을 수 없습니다.", 404);
 }
 
 function contractTitle(values: InstructorContractValues) {
@@ -325,5 +399,25 @@ export async function loadInstructorContract(context: ContractContext, contractI
     values,
     renderedContent,
   };
+}
+
+export async function deleteInstructorContract(context: ContractContext, contractId: string) {
+  const { data: current, error: currentError } = await context.admin
+    .from("instructor_contracts")
+    .select("id,created_by")
+    .eq("workspace_id", context.workspaceId)
+    .eq("id", contractId)
+    .maybeSingle();
+  if (currentError) databaseError(currentError);
+  if (!current) throw new InstructorContractError("계약서를 찾을 수 없습니다.", 404);
+  if (!context.isAdmin && current.created_by !== context.user.id) {
+    throw new InstructorContractError("작성자 또는 관리자만 계약서를 삭제할 수 있습니다.", 403);
+  }
+  const { error } = await context.admin
+    .from("instructor_contracts")
+    .delete()
+    .eq("workspace_id", context.workspaceId)
+    .eq("id", contractId);
+  if (error) databaseError(error);
 }
 

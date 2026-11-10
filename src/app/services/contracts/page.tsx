@@ -1,8 +1,9 @@
-import { ArrowLeft, FilePlus2, FileText, LayoutTemplate } from "lucide-react";
+import { ArrowLeft, FilePlus2, FileText, LayoutTemplate, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { BackLink } from "@/components/layout/back-link";
+import { InstructorContractDeleteButton } from "@/components/contracts/instructor-contract-delete-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +40,9 @@ export default async function ContractsPage() {
             <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">계약서</h1>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/services/contracts/instructors"><UsersRound aria-hidden="true" />강사 정보</Link>
+            </Button>
             {context.isAdmin ? (
               <Button variant="outline" asChild>
                 <Link href="/services/contracts/templates"><LayoutTemplate aria-hidden="true" />계약서 템플릿 관리</Link>
@@ -65,7 +69,7 @@ export default async function ContractsPage() {
                   key={contract.id}
                   className="grid gap-x-4 gap-y-3 px-4 py-4 transition-colors hover:bg-muted/30 focus-within:bg-muted/30 sm:grid-cols-2 sm:px-5 xl:grid-cols-[minmax(15rem,2fr)_minmax(8rem,1fr)_minmax(8rem,1fr)_minmax(10rem,1.2fr)_minmax(7rem,0.8fr)_10rem] xl:items-center"
                 >
-                  <div className="min-w-0 sm:col-span-2 xl:col-span-1">
+                  <div className="flex min-w-0 items-center gap-1 sm:col-span-2 xl:col-span-1">
                     <Link
                       className="flex min-w-0 items-center gap-2 font-semibold leading-6 hover:text-primary hover:underline"
                       href={`/services/contracts/${contract.id}`}
@@ -73,6 +77,7 @@ export default async function ContractsPage() {
                       <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                       <span className="truncate">{contract.title}</span>
                     </Link>
+                    {context.isAdmin || contract.createdById === context.user.id ? <InstructorContractDeleteButton id={contract.id} title={contract.title} /> : null}
                   </div>
                   <div className="min-w-0">
                     <span className="mb-1 block text-xs text-muted-foreground xl:sr-only">템플릿</span>

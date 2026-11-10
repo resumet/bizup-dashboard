@@ -48,6 +48,13 @@ export const createInstructorContractSchema = z.object({
   values: instructorContractValuesSchema,
 });
 
+export const instructorContractInstructorSchema = z.object({
+  instructorName: z.string().trim().min(1, "강사명을 입력해 주세요.").max(200),
+  address: z.string().trim().max(500),
+  phone: z.string().trim().max(100),
+  email: z.string().trim().max(320),
+});
+
 export const saveInstructorContractTemplateSchema = z.object({
   name: z.string().trim().min(1, "템플릿 이름을 입력해 주세요.").max(100),
   template: currentTemplateSchema,
