@@ -161,8 +161,10 @@
 
   .contract-document .contract-rich-text-editor {
     color: rgb(2 6 23);
+    font-family: inherit;
     font-size: 14px;
-    line-height: 1.75rem;
+    line-height: 1.78;
+    font-synthesis: none;
   }
 
   .contract-document .contract-rich-text-editor h1 {
@@ -170,7 +172,7 @@
     padding-block: 0.5rem;
     font-size: 1.5rem;
     font-weight: 700;
-    line-height: 1.75rem;
+    line-height: 2rem;
     letter-spacing: -0.04em;
     text-align: center;
   }
@@ -180,7 +182,7 @@
     padding-top: 1.25rem;
     font-size: 1rem;
     font-weight: 700;
-    line-height: 1.75rem;
+    line-height: 1.5rem;
     letter-spacing: normal;
   }
 
@@ -189,7 +191,7 @@
     padding-top: 1rem;
     font-size: 15px;
     font-weight: 600;
-    line-height: 1.75rem;
+    line-height: 1.25rem;
     letter-spacing: normal;
   }
 
@@ -202,6 +204,10 @@
   .contract-document .contract-rich-text-editor li {
     margin-block: 0;
     padding-left: 0.25rem;
+  }
+
+  .contract-document .contract-rich-text-editor > * + * {
+    margin-top: 0;
   }
 
   .course-rich-text-editor p,
