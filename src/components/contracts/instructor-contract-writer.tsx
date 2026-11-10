@@ -131,9 +131,11 @@ export function InstructorContractWriter({
     return {};
   }
 
-  function variableInputValue(variable: string) {
+  function variableInputValue(variable: string, label?: string) {
     if (variable in values.customValues) {
       const value = values.customValues[variable] ?? "";
+      if (/(?:business.*(?:number|registration)|business_number|businessRegistrationNumber|businessNo)/iu.test(variable) || /사업자등록번호/u.test(label ?? "")) return normalizeBusinessRegistrationNumber(value);
+      if (/(?:phone|tel)/iu.test(variable) || /전화번호/u.test(label ?? "")) return normalizeInstructorPhone(value).slice(0, 13);
       return variable === "instagram_value_of_reels" ? formatContractNumber(value) : value;
     }
     const endDate = getContractEndDate(values.startDate, values.durationYears);
@@ -283,7 +285,7 @@ export function InstructorContractWriter({
               </Select>
               <p className="text-xs text-muted-foreground">선택하면 강사명, 주소, 연락처, 이메일을 입력합니다.</p>
             </div>
-            {templateVariables.map(({ name, label }) => name === "contractPeriod" ? <div key={name} className="space-y-2"><Label>{label || DEFAULT_VARIABLE_LABELS[name]}</Label><div className="grid grid-cols-[1fr_7rem] gap-2"><Input aria-label="계약 시작일" type="date" value={values.startDate} onChange={(event) => updateContractPeriod("startDate", event.target.value)} /><Input aria-label="계약 기간(년)" type="number" min="1" max="20" value={values.durationYears} onChange={(event) => updateContractPeriod("durationYears", event.target.value)} /></div><p className="text-xs text-muted-foreground">{variableInputValue(name)}</p></div> : <div key={name} className="space-y-2"><Label htmlFor={`contract-variable-${name}`}>{label || DEFAULT_VARIABLE_LABELS[name] || `변수: ${name}`}</Label><Input id={`contract-variable-${name}`} maxLength={10_000} {...inputOptions(name, label)} value={variableInputValue(name)} onChange={(event) => updateTemplateVariable(name, event.target.value, label)} /></div>)}
+            {templateVariables.map(({ name, label }) => name === "contractPeriod" ? <div key={name} className="space-y-2"><Label>{label || DEFAULT_VARIABLE_LABELS[name]}</Label><div className="grid grid-cols-[1fr_7rem] gap-2"><Input aria-label="계약 시작일" type="date" value={values.startDate} onChange={(event) => updateContractPeriod("startDate", event.target.value)} /><Input aria-label="계약 기간(년)" type="number" min="1" max="20" value={values.durationYears} onChange={(event) => updateContractPeriod("durationYears", event.target.value)} /></div><p className="text-xs text-muted-foreground">{variableInputValue(name, label)}</p></div> : <div key={name} className="space-y-2"><Label htmlFor={`contract-variable-${name}`}>{label || DEFAULT_VARIABLE_LABELS[name] || `변수: ${name}`}</Label><Input id={`contract-variable-${name}`} maxLength={10_000} {...inputOptions(name, label)} value={variableInputValue(name, label)} onChange={(event) => updateTemplateVariable(name, event.target.value, label)} /></div>)}
           </CardContent>
         </Card>
 
