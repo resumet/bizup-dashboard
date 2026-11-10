@@ -458,7 +458,6 @@ export function replaceInstructorContractVariables(
   const startDate = getKoreanDate(values.startDate) || "시작일 입력 예정";
   const formattedEndDate = getKoreanDate(endDate) || "종료일 입력 예정";
   const replacements: Record<string, string> = {
-    ...values.customValues,
     instructorName: displayContractValue(values.instructorName, "강사명"),
     lectureName: displayContractValue(values.lectureName, "강의명"),
     contract_date: getKoreanDateWithWeekday(values.contractDate) || "작성일 입력 예정",
@@ -474,6 +473,7 @@ export function replaceInstructorContractVariables(
     companyName: COMPANY_CONTRACT_DETAILS.name,
     companyAddress: COMPANY_CONTRACT_DETAILS.address,
     companyRepresentative: COMPANY_CONTRACT_DETAILS.representative,
+    ...values.customValues,
   };
 
   return text.replace(CONTRACT_VARIABLE_PATTERN, (token, _label: string | undefined, key: string) => replacements[key] ?? token);

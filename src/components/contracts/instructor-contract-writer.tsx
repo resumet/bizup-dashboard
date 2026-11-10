@@ -13,13 +13,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   BUILT_IN_INSTRUCTOR_CONTRACT_TEMPLATE_ID,
+  COMPANY_CONTRACT_DETAILS,
   DEFAULT_INSTRUCTOR_CONTRACT_TEMPLATE,
-  formatContractAmountInKorean,
-  formatContractNumber,
   getContractEndDate,
-  getKoreanDate,
   getInstructorContractTemplateVariables,
-  normalizeContractNumberInput,
   renderInstructorContractTemplate,
   type InstructorContractTemplateRecord,
   type InstructorContractInstructor,
@@ -55,6 +52,24 @@ const BUILT_IN_TEMPLATE: InstructorContractTemplateRecord = {
   isBuiltIn: true,
 };
 
+const DEFAULT_VARIABLE_LABELS: Record<string, string> = {
+  instructorName: "강사명",
+  lectureName: "강의명",
+  contract_date: "작성 날짜",
+  instagram_number_of_reels: "인스타그램 릴스 대행 갯수",
+  instagram_value_of_reels: "인스타그램 릴스 대행 금액",
+  startDate: "계약 시작일",
+  endDate: "계약 종료일",
+  contractPeriod: "계약 기간",
+  durationYears: "계약 기간(년)",
+  address: "강사의 주소",
+  phone: "강사의 전화번호",
+  email: "강사의 이메일주소",
+  companyName: "회사명",
+  companyAddress: "회사 주소",
+  companyRepresentative: "회사 대표자",
+};
+
 export function InstructorContractWriter({
   templates,
   instructors,
@@ -77,28 +92,41 @@ export function InstructorContractWriter({
   const [draftStatus, setDraftStatus] = useState(initialDraftUpdatedAt ? "이전에 임시저장한 내용을 불러왔습니다." : "");
   const selectedTemplate = availableTemplates.find((template) => template.id === selectedTemplateId) ?? availableTemplates[0];
   const renderedContent = useMemo(() => renderInstructorContractTemplate(selectedTemplate.template, values), [selectedTemplate.template, values]);
-  const endDate = useMemo(() => getContractEndDate(values.startDate, values.durationYears), [values.durationYears, values.startDate]);
-  const koreanInstagramAmount = formatContractAmountInKorean(values.instagramValueOfReels);
   const templateVariables = useMemo(() => getInstructorContractTemplateVariables(selectedTemplate.template), [selectedTemplate.template]);
-  const templateVariableSet = useMemo(() => new Set(templateVariables.map((variable) => variable.name)), [templateVariables]);
-  const templateVariableLabels = useMemo(() => new Map(templateVariables.map((variable) => [variable.name, variable.label])), [templateVariables]);
-  const requiresPeriod = templateVariableSet.has("startDate") || templateVariableSet.has("endDate") || templateVariableSet.has("contractPeriod") || templateVariableSet.has("durationYears");
-  const customVariables = templateVariables.filter(({ name }) => !new Set([
-    "instructorName", "lectureName", "contract_date", "instagram_number_of_reels", "instagram_value_of_reels",
-    "startDate", "endDate", "contractPeriod", "durationYears", "address", "phone", "email",
-    "companyName", "companyAddress", "companyRepresentative",
-  ]).has(name));
 
-  function inputLabel(variable: string, fallback: string) {
-    return templateVariableLabels.get(variable) || fallback;
+  function updateTemplateVariable(variable: string, value: string) {
+    setValues((current) => ({
+      ...current,
+      customValues: { ...current.customValues, [variable]: value },
+      ...(variable === "instructorName" ? { instructorName: value } : {}),
+      ...(variable === "lectureName" ? { lectureName: value } : {}),
+      ...(variable === "address" ? { address: value } : {}),
+      ...(variable === "phone" ? { phone: value } : {}),
+      ...(variable === "email" ? { email: value } : {}),
+    }));
   }
 
-  function update<K extends keyof InstructorContractValues>(key: K, value: InstructorContractValues[K]) {
-    setValues((current) => ({ ...current, [key]: value }));
-  }
-
-  function updateCustomValue(variable: string, value: string) {
-    setValues((current) => ({ ...current, customValues: { ...current.customValues, [variable]: value } }));
+  function variableInputValue(variable: string) {
+    if (variable in values.customValues) return values.customValues[variable] ?? "";
+    const endDate = getContractEndDate(values.startDate, values.durationYears);
+    const defaults: Record<string, string> = {
+      instructorName: values.instructorName,
+      lectureName: values.lectureName,
+      contract_date: values.contractDate,
+      instagram_number_of_reels: values.instagramNumberOfReels,
+      instagram_value_of_reels: values.instagramValueOfReels,
+      startDate: values.startDate,
+      endDate,
+      contractPeriod: `${values.startDate} ~ ${endDate} (${values.durationYears}년간)`,
+      durationYears: String(values.durationYears),
+      address: values.address,
+      phone: values.phone,
+      email: values.email,
+      companyName: COMPANY_CONTRACT_DETAILS.name,
+      companyAddress: COMPANY_CONTRACT_DETAILS.address,
+      companyRepresentative: COMPANY_CONTRACT_DETAILS.representative,
+    };
+    return defaults[variable] ?? "";
   }
 
   function selectTemplate(templateId: string) {
@@ -112,7 +140,20 @@ export function InstructorContractWriter({
     setSelectedInstructorId(instructorId);
     const instructor = instructors.find((item) => item.id === instructorId);
     if (!instructor) return;
-    setValues((current) => ({ ...current, instructorName: instructor.instructorName, address: instructor.address, phone: instructor.phone, email: instructor.email }));
+    setValues((current) => ({
+      ...current,
+      instructorName: instructor.instructorName,
+      address: instructor.address,
+      phone: instructor.phone,
+      email: instructor.email,
+      customValues: {
+        ...current.customValues,
+        instructorName: instructor.instructorName,
+        address: instructor.address,
+        phone: instructor.phone,
+        email: instructor.email,
+      },
+    }));
   }
 
   async function saveDraft() {
@@ -189,21 +230,7 @@ export function InstructorContractWriter({
               </Select>
               <p className="text-xs text-muted-foreground">템플릿을 바꾸면 아래 입력값이 초기화됩니다.</p>
             </div>
-            {templateVariableSet.has("instructorName") ? <div className="space-y-2"><Label htmlFor="contract-instructor">{inputLabel("instructorName", "강사명")}</Label><Input id="contract-instructor" maxLength={200} value={values.instructorName} onChange={(event) => update("instructorName", event.target.value)} /></div> : null}
-            {templateVariableSet.has("lectureName") ? <div className="space-y-2"><Label htmlFor="contract-lecture">{inputLabel("lectureName", "강의명")}</Label><Input id="contract-lecture" maxLength={200} value={values.lectureName} onChange={(event) => update("lectureName", event.target.value)} /></div> : null}
-            {templateVariableSet.has("contract_date") ? <div className="space-y-2"><Label htmlFor="contract-date">{inputLabel("contract_date", "작성 날짜")}</Label><Input id="contract-date" type="date" value={values.contractDate} onChange={(event) => update("contractDate", event.target.value)} /></div> : null}
-            {templateVariableSet.has("instagram_number_of_reels") ? <div className="space-y-2"><Label htmlFor="contract-instagram-number-of-reels">{inputLabel("instagram_number_of_reels", "인스타그램 릴스 대행 갯수")}</Label><Input id="contract-instagram-number-of-reels" type="text" inputMode="numeric" maxLength={6} placeholder="예: 10" value={values.instagramNumberOfReels} onChange={(event) => update("instagramNumberOfReels", normalizeContractNumberInput(event.target.value).slice(0, 6))} /></div> : null}
-            {templateVariableSet.has("instagram_value_of_reels") ? <div className="space-y-2">
-              <Label htmlFor="contract-instagram-value-of-reels">{inputLabel("instagram_value_of_reels", "인스타그램 릴스 대행 금액")}</Label>
-              <Input id="contract-instagram-value-of-reels" type="text" inputMode="numeric" maxLength={32} placeholder="예: 1,000,000" aria-describedby="contract-instagram-value-of-reels-korean" value={formatContractNumber(values.instagramValueOfReels)} onChange={(event) => update("instagramValueOfReels", normalizeContractNumberInput(event.target.value).slice(0, 24))} />
-              <p id="contract-instagram-value-of-reels-korean" className="text-xs text-muted-foreground">{koreanInstagramAmount || "금액을 입력하면 한글로 표시됩니다."}</p>
-            </div> : null}
-            {requiresPeriod ? <><div className="space-y-2"><Label htmlFor="contract-start">{inputLabel("startDate", "계약 시작일")}</Label><Input id="contract-start" type="date" value={values.startDate} onChange={(event) => update("startDate", event.target.value)} /></div>
-            <div className="space-y-2"><Label htmlFor="contract-duration">{inputLabel("durationYears", inputLabel("contractPeriod", "계약 기간"))}</Label><Input id="contract-duration" type="number" min="1" max="20" value={values.durationYears} onChange={(event) => update("durationYears", Math.max(1, Math.min(20, Number(event.target.value) || 1)))} /><p className="text-xs text-muted-foreground">종료일: {getKoreanDate(endDate)}</p></div></> : null}
-            {templateVariableSet.has("address") ? <div className="space-y-2"><Label htmlFor="contract-address">{inputLabel("address", "강사의 주소")}</Label><Input id="contract-address" maxLength={500} value={values.address} onChange={(event) => update("address", event.target.value)} /></div> : null}
-            {templateVariableSet.has("phone") ? <div className="space-y-2"><Label htmlFor="contract-phone">{inputLabel("phone", "강사의 전화번호")}</Label><Input id="contract-phone" type="tel" maxLength={100} value={values.phone} onChange={(event) => update("phone", event.target.value)} /></div> : null}
-            {templateVariableSet.has("email") ? <div className="space-y-2"><Label htmlFor="contract-email">{inputLabel("email", "강사의 이메일주소")}</Label><Input id="contract-email" type="email" maxLength={320} value={values.email} onChange={(event) => update("email", event.target.value)} /></div> : null}
-            {customVariables.map(({ name, label }) => <div key={name} className="space-y-2"><Label htmlFor={`contract-variable-${name}`}>{label || `변수: ${name}`}</Label><Input id={`contract-variable-${name}`} maxLength={10_000} value={values.customValues[name] ?? ""} onChange={(event) => updateCustomValue(name, event.target.value)} /></div>)}
+            {templateVariables.map(({ name, label }) => <div key={name} className="space-y-2"><Label htmlFor={`contract-variable-${name}`}>{label || DEFAULT_VARIABLE_LABELS[name] || `변수: ${name}`}</Label><Input id={`contract-variable-${name}`} maxLength={10_000} value={variableInputValue(name)} onChange={(event) => updateTemplateVariable(name, event.target.value)} /></div>)}
           </CardContent>
         </Card>
 

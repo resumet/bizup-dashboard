@@ -163,6 +163,21 @@ test("변수 라벨은 첫 등장한 라벨만 사용하고 라벨 없는 첫 �
   assert.equal(rendered.content.includes("{{"), false);
 });
 
+test("입력한 변수값은 라벨 표기를 포함한 계약서 토큰 전체를 대체한다", () => {
+  const template: InstructorContractTemplate = {
+    version: 2,
+    content: [{
+      id: "00000000-0000-4000-8000-000000000001",
+      type: "paragraph",
+      content: "계약 {{계약기간, contractPeriod}}",
+    }],
+  };
+  const [rendered] = renderInstructorContractTemplate(template, { ...values, customValues: { contractPeriod: "2026년 11월 1일 ~ 2027년 10월 31일" } });
+  assert.equal(rendered.type, "paragraph");
+  if (rendered.type !== "paragraph") return;
+  assert.equal(rendered.content, "계약 2026년 11월 1일 ~ 2027년 10월 31일");
+});
+
 test("문서 링크 주소에 있는 변수도 입력값으로 치환한다", () => {
   const template: InstructorContractTemplate = {
     version: 2,
