@@ -14,7 +14,7 @@ export function formatLandingUtmShareContent(
   const name = instructorName.trim().replace(/\s*강사님?$/u, "");
   const heading = name ? `[${name}강사님 UTM]` : "[강의 UTM]";
   const lines = items.map((item) => {
-    const label = item.medium.trim() || fallbackShareLabel(item);
+    const label = [item.referral_code.trim(), item.medium.trim()].filter(Boolean).join("-") || fallbackShareLabel(item);
     return `${label} ${item.short_url || item.url}`;
   });
 

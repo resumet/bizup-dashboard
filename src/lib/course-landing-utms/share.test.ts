@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { formatLandingUtmShareContent } from "./share";
 
-test("UTM 공유 링크 앞에 진행 매체를 표시한다", () => {
+test("UTM 공유 링크 앞에 추천 코드와 진행 매체를 표시한다", () => {
   assert.equal(
     formatLandingUtmShareContent(
       [
@@ -18,18 +18,18 @@ test("UTM 공유 링크 앞에 진행 매체를 표시한다", () => {
       ],
       "김해준 강사",
     ),
-    "[김해준강사님 UTM]\n인스타그램 https://m.site.naver.com/2j1Gz",
+    "[김해준강사님 UTM]\n두시간부업만일로와-인스타그램 https://m.site.naver.com/2j1Gz",
   );
 });
 
-test("추천 코드가 있어도 진행 매체를 표시한다", () => {
+test("추천 코드가 없으면 진행 매체만 표시한다", () => {
   assert.equal(
     formatLandingUtmShareContent(
       [
         {
           id: "utm-2",
           channel: "오가닉",
-          referral_code: "referral-code",
+          referral_code: "",
           medium: "무료강의 안내방",
           url: "https://example.com/full",
           short_url: "",
