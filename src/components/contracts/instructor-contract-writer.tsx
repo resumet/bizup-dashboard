@@ -124,7 +124,7 @@ export function InstructorContractWriter({
   }
 
   function inputOptions(variable: string, label?: string) {
-    if (variable === "contract_date") return { type: "date" as const };
+    if (variable === "contract_date" || /계약\s*일|계약\s*날짜|작성\s*일/u.test(label ?? "")) return { type: "date" as const };
     if (variable === "instagram_number_of_reels" || variable === "instagram_value_of_reels") return { inputMode: "numeric" as const };
     if (/(?:business.*(?:number|registration)|business_number|businessRegistrationNumber)/iu.test(variable) || /사업자등록번호/u.test(label ?? "")) return { inputMode: "numeric" as const, maxLength: 12 };
     if (/(?:phone|tel)/iu.test(variable) || /전화번호/u.test(label ?? "")) return { type: "tel" as const, inputMode: "numeric" as const, maxLength: 13 };
