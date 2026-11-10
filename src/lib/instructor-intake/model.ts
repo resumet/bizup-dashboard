@@ -233,10 +233,10 @@ FIELD_LABELS.push(
   "영상 공개 가능 증빙자료",
 );
 export const FIELD_DESCRIPTION_LINKS: Record<number, string> = {
-  24: "https://possible-louse-74d.notion.site/3a1119af8a6780269985c82c7858b6d0?source=copy_link",
-  25: "https://possible-louse-74d.notion.site/351119af8a67816e8541d52127fef714?source=copy_link",
-  26: "https://possible-louse-74d.notion.site/2-11f119af8a67801da281cae674857bab?source=copy_link",
-  27: "https://possible-louse-74d.notion.site/351119af8a6781a49e9ec97fd1b073e5?source=copy_link",
+  29: "https://possible-louse-74d.notion.site/3a1119af8a6780269985c82c7858b6d0?source=copy_link",
+  30: "https://possible-louse-74d.notion.site/351119af8a67816e8541d52127fef714?source=copy_link",
+  31: "https://possible-louse-74d.notion.site/2-11f119af8a67801da281cae674857bab?source=copy_link",
+  32: "https://possible-louse-74d.notion.site/351119af8a6781a49e9ec97fd1b073e5?source=copy_link",
 };
 export function intakeProgress(answers: Answers, photoCount: number, imagePaths: ImagePaths = EMPTY_IMAGE_PATHS) {
   const completed = [

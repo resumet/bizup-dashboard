@@ -4,6 +4,7 @@ import {
   answersSchema,
   DEFAULT_INTAKE_SETTINGS,
   EMPTY_ANSWERS,
+  FIELD_DESCRIPTION_LINKS,
   formatWonWithKorean,
   intakeProgress,
   intakeSettingsSchema,
@@ -37,6 +38,10 @@ test("공개 페이지의 문장·이미지 예시 설정은 항목별로 저장
       },
     }).success,
   );
+});
+
+test("계정 설정 설명 링크는 계정 설정 항목에만 표시한다", () => {
+  assert.deepEqual(Object.keys(FIELD_DESCRIPTION_LINKS), ["29", "30", "31", "32"]);
 });
 
 const complete = {
