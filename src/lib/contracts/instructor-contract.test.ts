@@ -94,7 +94,7 @@ test("인스타그램 릴스 대행 갯수와 금액 변수를 입력값으로 �
     }],
   };
 
-  const [rendered] = renderInstructorContractTemplate(template, values);
+  const [rendered] = renderInstructorContractTemplate(template, { ...values, customValues: { paymentCode: "P-100" } });
   assert.equal(rendered.type, "rich_text");
   if (rendered.type !== "rich_text") return;
   assert.equal(rendered.content.content?.[0]?.text, "릴스 대행: 12개\n대행 금액: 1,500,000원");
@@ -116,7 +116,7 @@ test("작성 날짜 변수를 입력 날짜로 바꾼다", () => {
       content: "작성일: {{contract_date}}",
     }],
   };
-  const [rendered] = renderInstructorContractTemplate(template, values);
+  const [rendered] = renderInstructorContractTemplate(template, { ...values, customValues: { paymentCode: "P-100" } });
   assert.equal(rendered.type, "paragraph");
   if (rendered.type !== "paragraph") return;
   assert.equal(rendered.content, "작성일: 2026년 11월 06(금)");
@@ -136,9 +136,31 @@ test("계약서 본문과 리치텍스트 안의 모든 사용자 변수를 수�
     }],
   };
 
-  assert.deepEqual(getInstructorContractTemplateVariables(template), ["instructorFee", "paymentDate"]);
+  assert.deepEqual(getInstructorContractTemplateVariables(template), [
+    { name: "instructorFee" },
+    { name: "paymentDate" },
+  ]);
   const [rendered] = renderInstructorContractTemplate(template, { ...values, customValues: { instructorFee: "1,500,000원", paymentDate: "매월 10일" } });
   assert.equal(JSON.stringify(rendered).includes("1,500,000원 / 매월 10일"), true);
+});
+
+test("변수 라벨은 첫 등장한 라벨만 사용하고 라벨 없는 첫 등장은 유지한다", () => {
+  const template: InstructorContractTemplate = {
+    version: 2,
+    content: [{
+      id: "00000000-0000-4000-8000-000000000001",
+      type: "paragraph",
+      content: "{{계약일, contract_date}} {{다른 계약일, contract_date}} {{paymentCode}} {{결제 코드, paymentCode}}",
+    }],
+  };
+  assert.deepEqual(getInstructorContractTemplateVariables(template), [
+    { name: "contract_date", label: "계약일" },
+    { name: "paymentCode" },
+  ]);
+  const [rendered] = renderInstructorContractTemplate(template, { ...values, customValues: { paymentCode: "P-100" } });
+  assert.equal(rendered.type, "paragraph");
+  if (rendered.type !== "paragraph") return;
+  assert.equal(rendered.content.includes("{{"), false);
 });
 
 test("문서 링크 주소에 있는 변수도 입력값으로 치환한다", () => {

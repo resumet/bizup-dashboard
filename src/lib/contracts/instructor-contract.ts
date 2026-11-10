@@ -408,15 +408,25 @@ export function formatContractAmountInKorean(value: string) {
   return `${parts.join("")} 원`;
 }
 
-const CONTRACT_VARIABLE_PATTERN = /\{\{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}/gu;
+const CONTRACT_VARIABLE_PATTERN = /\{\{\s*(?:([^{}]*?)\s*,\s*)?([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}/gu;
 
-function collectContractTemplateVariables(value: unknown, variables: string[], seen: Set<string>) {
+export type InstructorContractTemplateVariable = {
+  name: string;
+  label?: string;
+};
+
+function collectContractTemplateVariables(
+  value: unknown,
+  variables: InstructorContractTemplateVariable[],
+  seen: Set<string>,
+) {
   if (typeof value === "string") {
     for (const match of value.matchAll(CONTRACT_VARIABLE_PATTERN)) {
-      const variable = match[1];
+      const label = match[1]?.trim();
+      const variable = match[2];
       if (variable && !seen.has(variable)) {
         seen.add(variable);
-        variables.push(variable);
+        variables.push({ name: variable, ...(label ? { label } : {}) });
       }
     }
     return;
@@ -430,9 +440,12 @@ function collectContractTemplateVariables(value: unknown, variables: string[], s
   }
 }
 
-/** Returns variables in their first appearance order, including variables inside rich-text tables. */
+/**
+ * Returns variables in their first appearance order, including rich-text tables.
+ * A variable's first label wins, even if a later occurrence provides a different label.
+ */
 export function getInstructorContractTemplateVariables(template: InstructorContractTemplate) {
-  const variables: string[] = [];
+  const variables: InstructorContractTemplateVariable[] = [];
   collectContractTemplateVariables(template.content, variables, new Set<string>());
   return variables;
 }
@@ -463,7 +476,7 @@ export function replaceInstructorContractVariables(
     companyRepresentative: COMPANY_CONTRACT_DETAILS.representative,
   };
 
-  return text.replace(CONTRACT_VARIABLE_PATTERN, (token, key: string) => replacements[key] ?? token);
+  return text.replace(CONTRACT_VARIABLE_PATTERN, (token, _label: string | undefined, key: string) => replacements[key] ?? token);
 }
 
 function replaceNodeVariables(node: RichTextNode, values: InstructorContractValues): RichTextNode {
