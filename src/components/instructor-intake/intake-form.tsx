@@ -73,11 +73,11 @@ function ExampleButton({ title, content }: { title: string; content: string }) {
   </Dialog>;
 }
 
-function PhotoTile({ photo, alt, onDelete, disabled }: { photo: Photo; alt: string; onDelete: () => void; disabled: boolean }) {
+function PhotoTile({ photo, alt, onDelete, disabled, preserveRatio = false }: { photo: Photo; alt: string; onDelete: () => void; disabled: boolean; preserveRatio?: boolean }) {
   return <div className="space-y-2">
     <Dialog>
-      <DialogTrigger asChild><button type="button" className="block w-full overflow-hidden rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <Image src={photo.url} alt={alt} width={320} height={240} unoptimized className="aspect-[4/3] w-full object-cover" />
+      <DialogTrigger asChild><button type="button" className="block w-full overflow-hidden rounded-lg bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <Image src={photo.url} alt={alt} width={320} height={240} unoptimized className={preserveRatio ? "h-auto w-full object-contain" : "aspect-[4/3] w-full object-cover"} />
       </button></DialogTrigger>
       <DialogContent className="max-h-[92dvh] max-w-5xl overflow-auto p-3" aria-describedby={undefined}>
         <DialogHeader className="sr-only"><DialogTitle>{alt}</DialogTitle></DialogHeader>
@@ -191,7 +191,7 @@ export function IntakeForm({ token, initialAnswers, initialPhotos, initialImages
       <section className={sectionClass}>
         <h2 className="text-lg font-semibold">기본 정보</h2>
         <div className="grid gap-5 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="realName">1. 본명</Label><Input id="realName" name="realName" autoComplete="name" maxLength={80} defaultValue={initialAnswers.realName} /></div><div className="space-y-2"><Label htmlFor="nickname">2. 닉네임</Label><Input id="nickname" name="nickname" maxLength={80} defaultValue={initialAnswers.nickname} /></div></div>
-        <div className="space-y-3"><Label htmlFor="profilePhotos">3. 프로필 사진</Label><Input id="profilePhotos" type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={photos.length >= MAX_PHOTOS} onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void upload(files); }} /><p className="text-sm text-muted-foreground">최소 1장, 최대 5장. 사진당 3MB 이하의 JPG, PNG, WebP.</p>{photos.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{photos.map((photo, index) => <PhotoTile key={photo.path} photo={photo} alt={`프로필 사진 ${index + 1}`} disabled={busy} onDelete={() => setPhotos((previous) => previous.filter((item) => item.path !== photo.path))} />)}</div> : null}</div>
+        <div className="space-y-3"><Label htmlFor="profilePhotos">3. 프로필 사진</Label><Input id="profilePhotos" type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={photos.length >= MAX_PHOTOS} onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void upload(files); }} /><p className="text-sm text-muted-foreground">최소 1장, 최대 5장. 사진당 3MB 이하의 JPG, PNG, WebP.</p>{photos.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{photos.map((photo, index) => <PhotoTile key={photo.path} photo={photo} alt={`프로필 사진 ${index + 1}`} preserveRatio disabled={busy} onDelete={() => setPhotos((previous) => previous.filter((item) => item.path !== photo.path))} />)}</div> : null}</div>
         <div className="space-y-2"><Label htmlFor="lectureItem">4. 강의아이템 한줄소개</Label><Input id="lectureItem" name="lectureItem" maxLength={3000} defaultValue={initialAnswers.lectureItem} placeholder="한 문장으로 강의의 핵심 매력을 소개해 주세요." /><div className="rounded-lg bg-muted p-3 text-sm"><p className="mb-1 font-medium">예시</p><ul className="list-disc space-y-1 pl-5">{examples.lectureItemExamples.map((example) => <li key={example}>{example}</li>)}</ul></div></div>
       </section>
 
