@@ -149,6 +149,59 @@
     text-wrap: pretty;
   }
 
+  .course-rich-text-editor.contract-rich-text-editor > * + * {
+    margin-top: 0;
+  }
+
+  .course-rich-text-editor.contract-rich-text-editor p {
+    margin-top: 0;
+    min-height: 1.78em;
+    font-weight: 400;
+    line-height: 1.78;
+    letter-spacing: normal;
+    white-space: pre-wrap;
+    text-wrap: wrap;
+  }
+
+  .course-rich-text-editor.contract-rich-text-editor h1 {
+    margin-top: 0;
+    padding-block: 0.5rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 2rem;
+    letter-spacing: -0.04em;
+    text-align: center;
+  }
+
+  .course-rich-text-editor.contract-rich-text-editor h2 {
+    margin-top: 0;
+    padding-top: 1.25rem;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.5rem;
+    letter-spacing: normal;
+  }
+
+  .course-rich-text-editor.contract-rich-text-editor h3 {
+    margin-top: 0;
+    padding-top: 1rem;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.25rem;
+    letter-spacing: normal;
+  }
+
+  .course-rich-text-editor.contract-rich-text-editor ul,
+  .course-rich-text-editor.contract-rich-text-editor ol {
+    padding-left: 1.5rem;
+    line-height: 1.78;
+  }
+
+  .course-rich-text-editor.contract-rich-text-editor li {
+    margin-block: 0;
+    padding-left: 0.25rem;
+  }
+
   .course-rich-text-editor p,
   .course-rich-text-editor h1,
   .course-rich-text-editor h2,

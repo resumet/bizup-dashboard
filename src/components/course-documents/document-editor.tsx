@@ -816,7 +816,7 @@ export function CourseDocumentEditor({
               <DocumentRenderer blocks={blocks} variant={mode === "contract" ? "contract" : "default"} />
             </div>
           ) : (
-            <div className={cn("mx-auto w-full px-6 py-10 sm:px-12 lg:py-14", mode === "contract" ? "max-w-[760px]" : "max-w-none lg:px-16")}>
+            <div className={cn("mx-auto w-full", mode === "contract" ? "max-w-3xl px-6 py-12 sm:px-12" : "max-w-none px-6 py-10 sm:px-12 lg:px-16 lg:py-14")}>
               {mode === "contract" ? null : fixedTitle ? (
                 <h1 className="py-2 whitespace-pre-wrap break-words text-4xl font-bold tracking-tight text-balance sm:text-5xl">{displayTitle}</h1>
               ) : (
