@@ -57,6 +57,11 @@ const complete = {
   expectedRevenue: 3000000,
   expectedProfit: 1000000,
   availableStudents: 3,
+  availableStudentCandidates: [
+    { nickname: "수강생1", name: "", phone: "" },
+    { nickname: "수강생2", name: "이름", phone: "" },
+    { nickname: "수강생3", name: "", phone: "010-1234-5678" },
+  ],
   courseContentIntroduction: "강의 소개",
   instructorCareer: "강사 이력",
   studentSuccessDescription: "성과 설명",
@@ -109,6 +114,14 @@ test("수집률은 새 촬영 정보까지 포함하며 텍스트·이미지·0�
     29,
   );
   assert.equal(intakeProgress(complete, 1, { ...images, reviews: [] }).received, 29);
+  assert.equal(
+    intakeProgress({ ...complete, availableStudentCandidates: [{ nickname: "수강생1", name: "", phone: "" }] }, 1, images).received,
+    29,
+  );
+  assert.equal(
+    intakeProgress({ ...complete, availableStudentCandidates: [{ nickname: "", name: "", phone: "" }, ...complete.availableStudentCandidates.slice(1)] }, 1, images).received,
+    29,
+  );
 });
 test("중간 저장은 허용하고 최종 제출은 사진과 모든 정보를 요구한다", () => {
   assert.ok(

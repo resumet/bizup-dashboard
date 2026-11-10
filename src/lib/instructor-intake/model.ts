@@ -24,6 +24,11 @@ const evidenceAvailabilitySchema = z.object({
   canShow: z.enum(["", "yes", "no"]),
   preparation: text(1000),
 });
+const availableStudentSchema = z.object({
+  nickname: text(80),
+  name: text(80),
+  phone: text(30),
+});
 const url = z.string().trim().max(2000).url("올바른 URL을 입력해 주세요.").refine((value) => {
   try {
     const parsed = new URL(value);
@@ -169,6 +174,7 @@ export const answersSchema = z.object({
   residence: text(500), filmingLocations: text(3000),
   careerAndFilmingMaterials: longText, practicalProcess: longText,
   evidenceAvailability: z.array(evidenceAvailabilitySchema).max(30),
+  availableStudentCandidates: z.array(availableStudentSchema).max(100),
   courseContentIntroduction: longText, instructorCareer: longText,
   studentSuccessDescription: longText, differentiators: longText,
   webinarCoreContents: z.array(text(1000)).max(5), fieldStrengths: longText,
@@ -177,7 +183,7 @@ export const answersSchema = z.object({
   materialsUrls: z.array(url).max(10), materialsUnavailable: z.boolean(),
   youtubeUrls: z.array(youtube).max(10), youtubeUnavailable: z.boolean(),
   monthlyRevenue: money, monthlyProfit: profit, expectedRevenue: money, expectedProfit: profit,
-  availableStudents: z.number().int().min(3, "출연 가능한 수강생은 최소 3명이어야 합니다.").max(100_000).nullable(),
+  availableStudents: z.number().int().min(3, "출연 가능한 수강생은 최소 3명이어야 합니다.").max(100).nullable(),
   instagramAccountId: text(200), instagramAccountPassword: text(500), blueBadge: text(1000),
   twoFactorSecurity: text(1000), infokLinkId: text(200), infokLinkPassword: text(500),
 }).superRefine((value, context) => {
@@ -192,6 +198,7 @@ export const EMPTY_ANSWERS: Answers = {
   realName: "", nickname: "", lectureItem: "", courseContentIntroduction: "", instructorCareer: "",
   residence: "", filmingLocations: "", careerAndFilmingMaterials: "", practicalProcess: "",
   evidenceAvailability: EVIDENCE_AVAILABILITY_ITEMS.map((item) => ({ item, canShow: "", preparation: "" })),
+  availableStudentCandidates: [],
   studentSuccessDescription: "", differentiators: "", webinarCoreContents: ["", "", "", "", ""],
   fieldStrengths: "", recommendedAudience: "", webinarBenefits: "", opportunityEvidence: "",
   hasTeachingExperience: null, teachingCount: null, studentCount: null,
@@ -232,7 +239,10 @@ export function intakeProgress(answers: Answers, photoCount: number, imagePaths:
     answers.youtubeUnavailable || answers.youtubeUrls.length > 0,
     answers.monthlyRevenue !== null, answers.monthlyProfit !== null,
     answers.expectedRevenue !== null && answers.expectedProfit !== null,
-    answers.availableStudents !== null && answers.availableStudents >= 3,
+    answers.availableStudents !== null
+      && answers.availableStudents >= 3
+      && answers.availableStudentCandidates.length === answers.availableStudents
+      && answers.availableStudentCandidates.every((student) => Boolean(student.nickname)),
     !!answers.instagramAccountId && !!answers.instagramAccountPassword,
     !!answers.blueBadge, !!answers.twoFactorSecurity, !!answers.infokLinkId && !!answers.infokLinkPassword,
     !!answers.residence || !!answers.filmingLocations,

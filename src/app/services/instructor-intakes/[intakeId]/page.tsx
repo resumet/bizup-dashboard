@@ -16,6 +16,10 @@ function EvidenceAvailability({ items }: { items: Answers["evidenceAvailability"
   if (!items.length) return <>미입력</>;
   return <div className="overflow-x-auto rounded-lg border"><table className="w-full min-w-[620px] text-left text-sm"><thead className="bg-muted/50"><tr><th className="p-3 font-medium">증빙자료</th><th className="p-3 font-medium">촬영·공개 가능</th><th className="p-3 font-medium">사전 준비 필요사항</th></tr></thead><tbody>{items.map((item, index) => <tr key={`${item.item}-${index}`} className="border-t"><td className="p-3">{item.item || "미입력"}</td><td className="p-3">{item.canShow === "yes" ? "O" : item.canShow === "no" ? "X" : "미입력"}</td><td className="p-3 whitespace-pre-wrap">{item.preparation || "미입력"}</td></tr>)}</tbody></table></div>;
 }
+function AvailableStudentCandidates({ students }: { students: Answers["availableStudentCandidates"] }) {
+  if (!students.length) return <>미입력</>;
+  return <div className="overflow-x-auto rounded-lg border"><table className="w-full min-w-[560px] text-left text-sm"><thead className="bg-muted/50"><tr><th className="p-3 font-medium">번호</th><th className="p-3 font-medium">닉네임</th><th className="p-3 font-medium">이름</th><th className="p-3 font-medium">전화번호</th></tr></thead><tbody>{students.map((student, index) => <tr key={index} className="border-t"><td className="p-3">{index + 1}</td><td className="p-3">{student.nickname || "미입력"}</td><td className="p-3">{student.name || "-"}</td><td className="p-3">{student.phone || "-"}</td></tr>)}</tbody></table></div>;
+}
 function Gallery({ photos, label, preserveRatio = false }: { photos: Photo[]; label: string; preserveRatio?: boolean }) {
   if (!photos.length) return <>미입력</>;
   return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{photos.map((photo, index) => <div key={photo.path} className="space-y-2">
@@ -51,7 +55,7 @@ export default async function InstructorIntakeDetail({ params }: { params: Promi
     <Urls key="materials" values={a.materialsUrls} unavailable={a.materialsUnavailable} />,
     <Urls key="youtube" values={a.youtubeUrls} unavailable={a.youtubeUnavailable} />,
     won(a.monthlyRevenue), won(a.monthlyProfit), `예상 월 매출 ${won(a.expectedRevenue)} · 예상 월 순이익 ${won(a.expectedProfit)}`,
-    a.availableStudents === null ? "미입력" : `${a.availableStudents.toLocaleString("ko-KR")}명`,
+    <div key="available-students" className="space-y-3"><div>{a.availableStudents === null ? "미입력" : `${a.availableStudents.toLocaleString("ko-KR")}명`}</div><AvailableStudentCandidates students={a.availableStudentCandidates} /></div>,
     `아이디: ${a.instagramAccountId || "미입력"}\n비밀번호: ${a.instagramAccountPassword || "미입력"}`,
     a.blueBadge || "미입력", a.twoFactorSecurity || "미입력",
     `아이디: ${a.infokLinkId || "미입력"}\n비밀번호: ${a.infokLinkPassword || "미입력"}`,
