@@ -158,9 +158,11 @@
     text-wrap: wrap;
   }
 
+  .course-rich-text-editor p,
   .course-rich-text-editor h1,
   .course-rich-text-editor h2,
-  .course-rich-text-editor h3 {
+  .course-rich-text-editor h3,
+  .course-rich-text-editor pre {
     margin-top: 2rem;
     font-weight: 700;
     letter-spacing: -0.035em;
@@ -411,9 +413,11 @@
     position: relative;
   }
 
+  .course-rich-text-editor p::before,
   .course-rich-text-editor h1::before,
   .course-rich-text-editor h2::before,
-  .course-rich-text-editor h3::before {
+  .course-rich-text-editor h3::before,
+  .course-rich-text-editor pre::before {
     position: absolute;
     inset-block: 0;
     left: -1.75rem;

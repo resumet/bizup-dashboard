@@ -430,15 +430,16 @@ export function CourseDocumentEditor({
         void uploadImage(file, position);
         return true;
       },
-      handleClick: (view, _position, event) => {
-        const heading = (event.target as HTMLElement | null)?.closest("h1, h2, h3");
-        if (!heading) return false;
-        const rect = heading.getBoundingClientRect();
+      handleClick: (view, position, event) => {
+        const line = (event.target as HTMLElement | null)?.closest("p, h1, h2, h3, pre");
+        if (!line) return false;
+        const rect = line.getBoundingClientRect();
         if (event.clientX > rect.left + 28) return false;
-        const from = view.posAtDOM(heading, 0);
-        const $from = view.state.doc.resolve(from);
-        if ($from.parent.type.name !== "heading") return false;
-        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, from, from + $from.parent.content.size)));
+        const $position = view.state.doc.resolve(position);
+        let depth = $position.depth;
+        while (depth > 0 && !$position.node(depth).isTextblock) depth -= 1;
+        if (!depth) return false;
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, $position.start(depth), $position.end(depth))));
         return true;
       },
     },
