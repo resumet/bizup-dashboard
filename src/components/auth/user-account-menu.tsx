@@ -7,6 +7,7 @@ import {
   CalendarCog,
   ChevronDown,
   FlaskConical,
+  FolderOpen,
   Loader2,
   LogOut,
   Mail,
@@ -37,6 +38,7 @@ const adminMenuIcons: Record<
   LucideIcon
 > = {
   "/admin": Settings2,
+  "https://drive.google.com/drive/u/0/my-drive": FolderOpen,
   "/services/cash-ledger": WalletCards,
   "/hr/personnel": UsersRound,
   "/admin/supplies": PackageCheck,
@@ -107,14 +109,21 @@ export function UserAccountMenu({
         {isSuperAdmin ? (
           <>
             <DropdownMenuLabel>관리자 메뉴</DropdownMenuLabel>
-            {ADMIN_ACCOUNT_MENU_ITEMS.map(({ label, href }) => {
+            {ADMIN_ACCOUNT_MENU_ITEMS.map(({ label, href, external }) => {
               const Icon = adminMenuIcons[href];
               return (
                 <DropdownMenuItem key={href} asChild>
-                  <Link href={href}>
-                    <Icon aria-hidden="true" />
-                    {label}
-                  </Link>
+                  {external ? (
+                    <a href={href} target="_blank" rel="noopener noreferrer">
+                      <Icon aria-hidden="true" />
+                      {label}
+                    </a>
+                  ) : (
+                    <Link href={href}>
+                      <Icon aria-hidden="true" />
+                      {label}
+                    </Link>
+                  )}
                 </DropdownMenuItem>
               );
             })}
