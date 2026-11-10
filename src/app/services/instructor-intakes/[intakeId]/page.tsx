@@ -42,7 +42,7 @@ export default async function InstructorIntakeDetail({ params }: { params: Promi
   const a = row.answers;
   const progress = intakeProgress(a, photos.length, row.image_paths);
   const values = [
-    a.realName || "미입력", a.nickname || "미입력", <Gallery key="profile" photos={photos} label="프로필 사진" preserveRatio />,
+    a.realName || "미입력", a.nickname || "미입력", a.phone || "미입력", a.email || "미입력", <Gallery key="profile" photos={photos} label="프로필 사진" preserveRatio />,
     a.lectureItem || "미입력", a.courseContentIntroduction || "미입력", a.instructorCareer || "미입력",
     <Gallery key="evidence" photos={images.evidence} label="증빙 자료" />,
     <div key="results" className="space-y-4"><Gallery photos={images.studentResults} label="수강생 성과 인증" /><div className="whitespace-pre-wrap">{a.studentSuccessDescription || "상세 설명 미입력"}</div></div>,

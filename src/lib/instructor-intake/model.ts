@@ -7,6 +7,15 @@ export const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
 export const tokenSchema = z.string().regex(/^[a-f0-9]{48}$/);
 const text = (max: number) => z.string().trim().max(max);
 const longText = text(12_000);
+export function normalizeKoreanMobilePhone(value: string) {
+  const digits = value.normalize("NFKC").replace(/\D/g, "").replace(/^82(?=10\d{8,9}$)/, "0");
+  const match = /^(010)(\d{4})(\d{4})$/.exec(digits);
+  return match ? `${match[1]}-${match[2]}-${match[3]}` : value.trim();
+}
+const mobilePhone = z.string().trim().max(30).transform(normalizeKoreanMobilePhone)
+  .refine((value) => !value || /^010-\d{4}-\d{4}$/.test(value), "휴대폰번호를 010-0000-0000 형식으로 입력해 주세요.");
+const emailAddress = z.string().trim().max(254).transform((value) => value.toLowerCase())
+  .refine((value) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), "올바른 이메일 주소를 입력해 주세요.");
 const count = z.number().int().min(1).max(1_000_000).nullable();
 const money = z.number().int().min(0).max(1_000_000_000_000).nullable();
 const profit = z.number().int().min(-1_000_000_000_000).max(1_000_000_000_000).nullable();
@@ -170,7 +179,7 @@ export type IntakeSettings = z.infer<typeof intakeSettingsSchema>;
 export const DEFAULT_INTAKE_SETTINGS: IntakeSettings = { examples: DEFAULT_INTAKE_EXAMPLES, exampleImagePaths: EMPTY_IMAGE_PATHS };
 
 export const answersSchema = z.object({
-  realName: text(80), nickname: text(80), lectureItem: text(3000),
+  realName: text(80), nickname: text(80), phone: mobilePhone, email: emailAddress, lectureItem: text(3000),
   residence: text(500), filmingLocations: text(3000),
   careerAndFilmingMaterials: longText, practicalProcess: longText,
   evidenceAvailability: z.array(evidenceAvailabilitySchema).max(30),
@@ -195,7 +204,7 @@ export type Answers = z.infer<typeof answersSchema>;
 export type Photo = { path: string; url: string; downloadUrl?: string };
 export type ImagePhotos = Record<MaterialImageCategory, Photo[]>;
 export const EMPTY_ANSWERS: Answers = {
-  realName: "", nickname: "", lectureItem: "", courseContentIntroduction: "", instructorCareer: "",
+  realName: "", nickname: "", phone: "", email: "", lectureItem: "", courseContentIntroduction: "", instructorCareer: "",
   residence: "", filmingLocations: "", careerAndFilmingMaterials: "", practicalProcess: "",
   evidenceAvailability: EVIDENCE_AVAILABILITY_ITEMS.map((item) => ({ item, canShow: "", preparation: "" })),
   availableStudentCandidates: [],
@@ -207,7 +216,7 @@ export const EMPTY_ANSWERS: Answers = {
   instagramAccountId: "", instagramAccountPassword: "", blueBadge: "", twoFactorSecurity: "", infokLinkId: "", infokLinkPassword: "",
 };
 export const FIELD_LABELS = [
-  "본명", "닉네임", "프로필 사진", "강의아이템 한줄소개", "강의 내용 소개", "강사 이력",
+  "본명", "닉네임", "휴대폰번호", "이메일 주소", "프로필 사진", "강의아이템 한줄소개", "강의 내용 소개", "강사 이력",
   "증빙을 위한 자료 제출", "수강생 성과 인증 자료", "수강후기", "강의 차별점",
   "무료 웨비나 핵심 내용", "해당 분야 특장점", "강의 추천 대상", "무료 웨비나 수강 혜택",
   "지금이 기회라는 정량적·정성적 증거", "기존 강의 경험", "기존 강의 자료·무료강의 영상",
@@ -221,14 +230,14 @@ FIELD_LABELS.push(
   "영상 공개 가능 증빙자료",
 );
 export const FIELD_DESCRIPTION_LINKS: Record<number, string> = {
-  22: "https://possible-louse-74d.notion.site/3a1119af8a6780269985c82c7858b6d0?source=copy_link",
-  23: "https://possible-louse-74d.notion.site/351119af8a67816e8541d52127fef714?source=copy_link",
-  24: "https://possible-louse-74d.notion.site/2-11f119af8a67801da281cae674857bab?source=copy_link",
-  25: "https://possible-louse-74d.notion.site/351119af8a6781a49e9ec97fd1b073e5?source=copy_link",
+  24: "https://possible-louse-74d.notion.site/3a1119af8a6780269985c82c7858b6d0?source=copy_link",
+  25: "https://possible-louse-74d.notion.site/351119af8a67816e8541d52127fef714?source=copy_link",
+  26: "https://possible-louse-74d.notion.site/2-11f119af8a67801da281cae674857bab?source=copy_link",
+  27: "https://possible-louse-74d.notion.site/351119af8a6781a49e9ec97fd1b073e5?source=copy_link",
 };
 export function intakeProgress(answers: Answers, photoCount: number, imagePaths: ImagePaths = EMPTY_IMAGE_PATHS) {
   const completed = [
-    !!answers.realName, !!answers.nickname, photoCount > 0, !!answers.lectureItem,
+    !!answers.realName, !!answers.nickname, !!answers.phone, !!answers.email, photoCount > 0, !!answers.lectureItem,
     !!answers.courseContentIntroduction, !!answers.instructorCareer, imagePaths.evidence.length > 0,
     !!answers.studentSuccessDescription && imagePaths.studentResults.length > 0, imagePaths.reviews.length > 0,
     !!answers.differentiators, answers.webinarCoreContents.length === 5 && answers.webinarCoreContents.every(Boolean),

@@ -48,6 +48,8 @@ const complete = {
   evidenceAvailability: [{ item: "매출 화면", canShow: "yes" as const, preparation: "보조 계정 준비" }],
   realName: "홍길동",
   nickname: "길동",
+  phone: "01012345678",
+  email: "TEST@EXAMPLE.COM",
   lectureItem: "스마트스토어",
   hasTeachingExperience: false,
   materialsUnavailable: true,
@@ -87,14 +89,14 @@ const images = {
 test("수집률은 새 촬영 정보까지 포함하며 텍스트·이미지·0원 응답을 인정한다", () => {
   assert.equal(intakeProgress(EMPTY_ANSWERS, 0).received, 0);
   assert.deepEqual(intakeProgress(complete, 1, images), {
-    completed: Array(30).fill(true),
-    received: 30,
-    total: 30,
+    completed: Array(32).fill(true),
+    received: 32,
+    total: 32,
     percent: 100,
   });
   assert.equal(
     intakeProgress({ ...complete, expectedProfit: null }, 1, images).received,
-    29,
+    31,
   );
   assert.equal(
     intakeProgress(
@@ -106,21 +108,21 @@ test("수집률은 새 촬영 정보까지 포함하며 텍스트·이미지·0�
       },
       1, images,
     ).received,
-    29,
+    31,
   );
   assert.equal(intakeProgress({ ...complete, realName: "" }, 1, images).percent, 97);
   assert.equal(
     intakeProgress({ ...complete, instagramAccountPassword: "" }, 1, images).received,
-    29,
+    31,
   );
-  assert.equal(intakeProgress(complete, 1, { ...images, reviews: [] }).received, 29);
+  assert.equal(intakeProgress(complete, 1, { ...images, reviews: [] }).received, 31);
   assert.equal(
     intakeProgress({ ...complete, availableStudentCandidates: [{ nickname: "수강생1", name: "", phone: "" }] }, 1, images).received,
-    29,
+    31,
   );
   assert.equal(
     intakeProgress({ ...complete, availableStudentCandidates: [{ nickname: "", name: "", phone: "" }, ...complete.availableStudentCandidates.slice(1)] }, 1, images).received,
-    29,
+    31,
   );
 });
 test("중간 저장은 허용하고 최종 제출은 사진과 모든 정보를 요구한다", () => {
@@ -171,12 +173,16 @@ test("중간 저장은 허용하고 최종 제출은 사진과 모든 정보를 
   );
 });
 test("조건부 강의 경험, 최소 3명, 금액과 안전한 URL을 검증한다", () => {
+  assert.equal(answersSchema.parse(complete).phone, "010-1234-5678");
+  assert.equal(answersSchema.parse(complete).email, "test@example.com");
   assert.equal(
     answersSchema.parse({ ...complete, teachingCount: 3 }).teachingCount,
     null,
   );
   for (const patch of [
     { availableStudents: 2 },
+    { phone: "010-123-4567" },
+    { email: "not-an-email" },
     { monthlyRevenue: -1 },
     { expectedRevenue: 1.1 },
     { studentCount: 0 },

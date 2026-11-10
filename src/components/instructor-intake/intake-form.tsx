@@ -15,6 +15,7 @@ import {
   MAX_MATERIAL_IMAGES,
   MAX_PHOTO_BYTES,
   MAX_PHOTOS,
+  normalizeKoreanMobilePhone,
   formatWonWithKorean,
   saveSchema,
   type Answers,
@@ -36,7 +37,7 @@ function readAnswers(form: HTMLFormElement): Answers {
   const evidenceRowCount = Math.min(30, Math.max(0, Number(text("evidenceRowCount")) || EVIDENCE_AVAILABILITY_ITEMS.length));
   const availableStudents = number("availableStudents");
   return {
-    realName: text("realName"), nickname: text("nickname"), lectureItem: text("lectureItem"),
+    realName: text("realName"), nickname: text("nickname"), phone: text("phone"), email: text("email"), lectureItem: text("lectureItem"),
     residence: text("residence"), filmingLocations: text("filmingLocations"),
     careerAndFilmingMaterials: text("careerAndFilmingMaterials"), practicalProcess: text("practicalProcess"),
     evidenceAvailability: Array.from({ length: evidenceRowCount }, (_, index) => ({
@@ -205,9 +206,9 @@ export function IntakeForm({ token, initialAnswers, initialPhotos, initialImages
     <fieldset disabled={busy} className="space-y-6">
       <section className={sectionClass}>
         <h2 className="text-lg font-semibold">기본 정보</h2>
-        <div className="grid gap-5 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="realName">1. 본명</Label><Input id="realName" name="realName" autoComplete="name" maxLength={80} defaultValue={initialAnswers.realName} /></div><div className="space-y-2"><Label htmlFor="nickname">2. 닉네임</Label><Input id="nickname" name="nickname" maxLength={80} defaultValue={initialAnswers.nickname} /></div></div>
-        <div className="space-y-3"><Label htmlFor="profilePhotos">3. 프로필 사진</Label><Input id="profilePhotos" type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={photos.length >= MAX_PHOTOS} onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void upload(files); }} /><p className="text-sm text-muted-foreground">최소 1장, 최대 5장. 사진당 3MB 이하의 JPG, PNG, WebP.</p>{photos.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{photos.map((photo, index) => <PhotoTile key={photo.path} photo={photo} alt={`프로필 사진 ${index + 1}`} preserveRatio disabled={busy} onDelete={() => setPhotos((previous) => previous.filter((item) => item.path !== photo.path))} />)}</div> : null}</div>
-        <div className="space-y-2"><Label htmlFor="lectureItem">4. 강의아이템 한줄소개</Label><Input id="lectureItem" name="lectureItem" maxLength={3000} defaultValue={initialAnswers.lectureItem} placeholder="한 문장으로 강의의 핵심 매력을 소개해 주세요." /><div className="rounded-lg bg-muted p-3 text-sm"><p className="mb-1 font-medium">예시</p><ul className="list-disc space-y-1 pl-5">{examples.lectureItemExamples.map((example) => <li key={example}>{example}</li>)}</ul></div></div>
+        <div className="grid gap-5 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="realName">1. 본명</Label><Input id="realName" name="realName" autoComplete="name" maxLength={80} defaultValue={initialAnswers.realName} /></div><div className="space-y-2"><Label htmlFor="nickname">2. 닉네임</Label><Input id="nickname" name="nickname" maxLength={80} defaultValue={initialAnswers.nickname} /></div><div className="space-y-2"><Label htmlFor="phone">3. 휴대폰번호</Label><Input id="phone" name="phone" autoComplete="tel" inputMode="tel" maxLength={30} defaultValue={initialAnswers.phone} placeholder="010-0000-0000" onBlur={(event) => { event.currentTarget.value = normalizeKoreanMobilePhone(event.currentTarget.value); if (formRef.current) setAnswers(readAnswers(formRef.current)); }} /></div><div className="space-y-2"><Label htmlFor="email">4. 이메일 주소</Label><Input id="email" name="email" autoComplete="email" inputMode="email" type="email" maxLength={254} defaultValue={initialAnswers.email} placeholder="name@example.com" onBlur={(event) => { event.currentTarget.value = event.currentTarget.value.trim().toLowerCase(); if (formRef.current) setAnswers(readAnswers(formRef.current)); }} /></div></div>
+        <div className="space-y-3"><Label htmlFor="profilePhotos">5. 프로필 사진</Label><Input id="profilePhotos" type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={photos.length >= MAX_PHOTOS} onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void upload(files); }} /><p className="text-sm text-muted-foreground">최소 1장, 최대 5장. 사진당 3MB 이하의 JPG, PNG, WebP.</p>{photos.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{photos.map((photo, index) => <PhotoTile key={photo.path} photo={photo} alt={`프로필 사진 ${index + 1}`} preserveRatio disabled={busy} onDelete={() => setPhotos((previous) => previous.filter((item) => item.path !== photo.path))} />)}</div> : null}</div>
+        <div className="space-y-2"><Label htmlFor="lectureItem">6. 강의아이템 한줄소개</Label><Input id="lectureItem" name="lectureItem" maxLength={3000} defaultValue={initialAnswers.lectureItem} placeholder="한 문장으로 강의의 핵심 매력을 소개해 주세요." /><div className="rounded-lg bg-muted p-3 text-sm"><p className="mb-1 font-medium">예시</p><ul className="list-disc space-y-1 pl-5">{examples.lectureItemExamples.map((example) => <li key={example}>{example}</li>)}</ul></div></div>
       </section>
 
       <section className={sectionClass}>
