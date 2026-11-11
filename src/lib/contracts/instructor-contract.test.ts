@@ -36,7 +36,7 @@ test("계약 종료일은 시작일 기준 입력한 연수를 더한다", () =>
 
 test("계약 날짜를 읽기 쉬운 한국어 날짜로 표시한다", () => {
   assert.equal(getKoreanDate("2026-11-05"), "2026년 11월 5일");
-  assert.equal(getKoreanDateWithWeekday("2026-11-06"), "2026년 11월 06(금)");
+  assert.equal(getKoreanDateWithWeekday("2026-11-06"), "2026년 11월 06일(금)");
 });
 
 test("인스타그램 릴스 대행 금액을 쉼표와 한글 금액으로 표시한다", () => {
@@ -119,7 +119,7 @@ test("작성 날짜 변수를 입력 날짜로 바꾼다", () => {
   const [rendered] = renderInstructorContractTemplate(template, { ...values, customValues: { paymentCode: "P-100" } });
   assert.equal(rendered.type, "paragraph");
   if (rendered.type !== "paragraph") return;
-  assert.equal(rendered.content, "작성일: 2026년 11월 06(금)");
+  assert.equal(rendered.content, "작성일: 2026년 11월 06일(금)");
 });
 
 test("계약서 본문과 리치텍스트 안의 모든 사용자 변수를 수집하고 치환한다", () => {

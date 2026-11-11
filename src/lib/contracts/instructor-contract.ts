@@ -97,7 +97,7 @@ export function getKoreanDateWithWeekday(value: string) {
   const date = new Date(`${value}T00:00:00`);
   if (Number.isNaN(date.getTime())) return "";
   const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
-  return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${String(date.getDate()).padStart(2, "0")}(${weekdays[date.getDay()]})`;
+  return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${String(date.getDate()).padStart(2, "0")}일(${weekdays[date.getDay()]})`;
 }
 
 export function getContractEndDate(startDate: string, durationYears: number) {
