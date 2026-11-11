@@ -24,14 +24,28 @@ export function InstructorContractInstructorManager({ initialInstructors, templa
   const [details, setDetails] = useState<Record<string, string>>({});
   const supplierTemplates = templates.filter((template) => template.name.includes("강사공급사"));
   const supplierTemplate = supplierTemplates.find((template) => template.id === supplierTemplateId);
+  const supplierVariables = supplierTemplate ? getInstructorContractTemplateVariables(supplierTemplate.template) : [];
+  const supplierNameVariable = supplierVariables.find(({ name, label }) => /(?:supplier|company|business|name)/iu.test(name) || /(?:강사공급사|공급사|회사|상호|성명|이름)/u.test(label ?? "")) ?? supplierVariables[0];
+  const supplierName = supplierNameVariable ? details[supplierNameVariable.name]?.trim() ?? "" : "";
 
   function change(key: keyof typeof form, value: string) { setForm((current) => ({ ...current, [key]: value })); }
+  function selectSupplierTemplate(templateId: string) {
+    setSupplierTemplateId(templateId);
+    setDetails({});
+    setError("");
+  }
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
     setSaving(true); setError("");
     try {
-      const response = await fetch("/api/contracts/instructors", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, partyType, details }) });
+      if (partyType === "supplier" && !supplierTemplate) throw new Error("강사공급사 계약서 템플릿을 선택해 주세요.");
+      if (partyType === "supplier" && !supplierName) throw new Error("계약서에 있는 공급사명 변수를 입력해 주세요.");
+      const supplierDetails = Object.fromEntries(supplierVariables.map(({ name }) => [name, details[name] ?? ""]));
+      const payload = partyType === "supplier"
+        ? { partyType, instructorName: supplierName, address: "", phone: "", email: "", details: supplierDetails }
+        : { ...form, partyType, details: {} };
+      const response = await fetch("/api/contracts/instructors", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const result = await response.json() as { instructor?: InstructorContractInstructor; message?: string };
       if (!response.ok || !result.instructor) throw new Error(result.message ?? "강사 정보를 저장하지 못했습니다.");
       setInstructors((current) => [...current, result.instructor!].sort((left, right) => left.instructorName.localeCompare(right.instructorName, "ko")));
@@ -52,13 +66,18 @@ export function InstructorContractInstructorManager({ initialInstructors, templa
   return <div className="space-y-6">
     <form className="grid gap-4 rounded-xl border bg-card p-5 sm:grid-cols-2" onSubmit={save}>
       <div className="space-y-2"><Label>거래처 유형</Label><Select value={partyType} onValueChange={(value) => setPartyType(value as "instructor" | "supplier")}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="instructor">강사정보</SelectItem><SelectItem value="supplier">강사공급사정보</SelectItem></SelectContent></Select></div>
-      {partyType === "supplier" ? <div className="space-y-2"><Label>강사공급사 계약서 템플릿</Label><Select value={supplierTemplateId} onValueChange={setSupplierTemplateId}><SelectTrigger><SelectValue placeholder="템플릿 선택" /></SelectTrigger><SelectContent>{supplierTemplates.map((template) => <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>)}</SelectContent></Select></div> : null}
-      <div className="space-y-2"><Label htmlFor="contract-instructor-name">{partyType === "supplier" ? "강사공급사명" : "강사명"}</Label><Input id="contract-instructor-name" value={form.instructorName} maxLength={200} required onChange={(event) => change("instructorName", event.target.value)} /></div>
-      <div className="space-y-2"><Label htmlFor="contract-instructor-phone">연락처</Label><Input id="contract-instructor-phone" type="tel" inputMode="numeric" value={form.phone} maxLength={13} placeholder="010-0000-0000" onChange={(event) => change("phone", normalizeInstructorPhone(event.target.value).slice(0, 13))} /></div>
-      <div className="space-y-2 sm:col-span-2"><Label htmlFor="contract-instructor-address">주소</Label><Input id="contract-instructor-address" value={form.address} maxLength={500} onChange={(event) => change("address", event.target.value)} /></div>
-      <div className="space-y-2"><Label htmlFor="contract-instructor-email">이메일</Label><Input id="contract-instructor-email" type="email" value={form.email} maxLength={320} onChange={(event) => change("email", event.target.value)} /></div>
-      <div className="flex items-end justify-end"><Button type="submit" disabled={saving}>{saving ? <Loader2 className="animate-spin" /> : <Plus />}저장</Button></div>
-      {partyType === "supplier" && supplierTemplate ? getInstructorContractTemplateVariables(supplierTemplate.template).map(({ name, label }) => { const business = /(?:business.*(?:number|registration)|business_number|businessRegistrationNumber)/iu.test(name) || /사업자등록번호/u.test(label ?? ""); const phone = /(?:phone|tel)/iu.test(name) || /전화번호/u.test(label ?? ""); return <div key={name} className="space-y-2"><Label htmlFor={`supplier-detail-${name}`}>{label || `변수: ${name}`}</Label><Input id={`supplier-detail-${name}`} inputMode={business || phone ? "numeric" : undefined} maxLength={business ? 12 : phone ? 13 : undefined} value={details[name] ?? ""} onChange={(event) => setDetails((current) => ({ ...current, [name]: business ? normalizeBusinessRegistrationNumber(event.target.value) : phone ? normalizeInstructorPhone(event.target.value).slice(0, 13) : event.target.value }))} /></div> }) : null}
+      {partyType === "supplier" ? <div className="space-y-2"><Label>강사공급사 계약서 템플릿</Label><Select value={supplierTemplateId} onValueChange={selectSupplierTemplate}><SelectTrigger><SelectValue placeholder="템플릿 선택" /></SelectTrigger><SelectContent>{supplierTemplates.map((template) => <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>)}</SelectContent></Select></div> : null}
+      {partyType === "instructor" ? <>
+        <div className="space-y-2"><Label htmlFor="contract-instructor-name">강사명</Label><Input id="contract-instructor-name" value={form.instructorName} maxLength={200} required onChange={(event) => change("instructorName", event.target.value)} /></div>
+        <div className="space-y-2"><Label htmlFor="contract-instructor-phone">연락처</Label><Input id="contract-instructor-phone" type="tel" inputMode="numeric" value={form.phone} maxLength={13} placeholder="010-0000-0000" onChange={(event) => change("phone", normalizeInstructorPhone(event.target.value).slice(0, 13))} /></div>
+        <div className="space-y-2 sm:col-span-2"><Label htmlFor="contract-instructor-address">주소</Label><Input id="contract-instructor-address" value={form.address} maxLength={500} onChange={(event) => change("address", event.target.value)} /></div>
+        <div className="space-y-2"><Label htmlFor="contract-instructor-email">이메일</Label><Input id="contract-instructor-email" type="email" value={form.email} maxLength={320} onChange={(event) => change("email", event.target.value)} /></div>
+        <div className="flex items-end justify-end"><Button type="submit" disabled={saving}>{saving ? <Loader2 className="animate-spin" /> : <Plus />}저장</Button></div>
+      </> : null}
+      {partyType === "supplier" && supplierTemplate ? <>
+        {supplierVariables.map(({ name, label }) => { const business = /(?:business.*(?:number|registration)|business_number|businessRegistrationNumber)/iu.test(name) || /사업자등록번호/u.test(label ?? ""); const phone = /(?:phone|tel)/iu.test(name) || /전화번호/u.test(label ?? ""); return <div key={name} className="space-y-2"><Label htmlFor={`supplier-detail-${name}`}>{label || `변수: ${name}`}</Label><Input id={`supplier-detail-${name}`} inputMode={business || phone ? "numeric" : undefined} maxLength={business ? 12 : phone ? 13 : undefined} value={details[name] ?? ""} onChange={(event) => setDetails((current) => ({ ...current, [name]: business ? normalizeBusinessRegistrationNumber(event.target.value) : phone ? normalizeInstructorPhone(event.target.value).slice(0, 13) : event.target.value }))} /></div> })}
+        <div className="flex items-end justify-end"><Button type="submit" disabled={saving || supplierVariables.length === 0}>{saving ? <Loader2 className="animate-spin" /> : <Plus />}저장</Button></div>
+      </> : null}
     </form>
     {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
     {instructors.length ? <div className="overflow-hidden rounded-xl border bg-card"><ul className="divide-y">{instructors.map((instructor) => <li key={instructor.id} className="flex items-center gap-4 px-5 py-4"><div className="min-w-0 flex-1"><p className="font-semibold">{instructor.instructorName}</p><p className="truncate text-sm text-muted-foreground">{[instructor.phone, instructor.email, instructor.address].filter(Boolean).join(" · ") || "연락처 정보 없음"}</p></div><Button type="button" size="icon-sm" variant="ghost" className="text-destructive" aria-label={`${instructor.instructorName} 삭제`} disabled={deleting === instructor.id} onClick={() => void remove(instructor)}>{deleting === instructor.id ? <Loader2 className="animate-spin" /> : <Trash2 />}</Button></li>)}</ul></div> : <p className="rounded-xl border border-dashed py-16 text-center text-sm text-muted-foreground">저장된 강사 정보가 없습니다.</p>}

@@ -683,7 +683,7 @@ export function CourseDocumentEditor({
     >
       <header
         className={cn(
-          "overflow-hidden border",
+          mode === "contract" ? "overflow-hidden" : "overflow-hidden border",
           mode === "contract"
             ? "relative shrink-0 rounded-none border-x-0 bg-background shadow-none"
             : "sticky top-0 z-20 rounded-xl bg-background/95 shadow-sm backdrop-blur",
@@ -712,7 +712,7 @@ export function CourseDocumentEditor({
 
         {!preview ? (
           <>
-          <div className={mode === "contract" ? "flex items-center gap-1 overflow-x-auto border-t px-2 py-1.5" : ""}>
+          <div className={mode === "contract" ? "flex items-center gap-1 overflow-x-auto px-2 py-1.5" : ""}>
           <div className={mode === "contract" ? "contents" : "flex flex-nowrap items-center gap-1 overflow-x-auto border-t px-2 py-1.5"}>
             <Select
               value={currentBlockStyle}
