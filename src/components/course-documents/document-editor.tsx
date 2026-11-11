@@ -101,9 +101,11 @@ type Props = {
   fixedTitle?: boolean;
   fixedTitleText?: string;
   initialContent?: CourseDocumentBlock[];
-  onSaveContent?: (content: CourseDocumentBlock[]) => Promise<void>;
+  onSaveContent?: (content: CourseDocumentBlock[], options?: { auto: boolean }) => Promise<void>;
   allowSaveWhenClean?: boolean;
   initialPreview?: boolean;
+  autoSaveIntervalMs?: number;
+  onExitAfterSave?: () => void;
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -290,6 +292,8 @@ export function CourseDocumentEditor({
   onSaveContent,
   allowSaveWhenClean = false,
   initialPreview = false,
+  autoSaveIntervalMs,
+  onExitAfterSave,
 }: Props) {
   const initialDocument = useMemo(() => {
     const original = mode === "contract" ? initialContent ?? [] : document?.content ?? [];
@@ -560,7 +564,7 @@ export function CourseDocumentEditor({
     }
   }
 
-  async function save() {
+  async function save(auto = false, exitAfterSave = false) {
     if (saving || uploading) return;
     setSaving(true);
     setError("");
@@ -571,11 +575,12 @@ export function CourseDocumentEditor({
       if (!normalizedBlocks.length) throw new Error(mode === "contract" ? "계약서 원문을 입력해 주세요." : "문서 본문을 입력해 주세요.");
       if (mode === "contract") {
         if (!onSaveContent) throw new Error("계약서 템플릿 저장 기능을 준비하지 못했습니다.");
-        await onSaveContent(normalizedBlocks);
+        await onSaveContent(normalizedBlocks, { auto });
         setBlocks(normalizedBlocks);
         dirtyRef.current = false;
         setDirty(false);
         setNotice("저장했습니다.");
+        if (exitAfterSave) onExitAfterSave?.();
         return;
       }
       const gateIndex = normalizedBlocks.findIndex((block) => block.id === leadGateAfterBlockId);
@@ -617,6 +622,14 @@ export function CourseDocumentEditor({
     }
   }
 
+  useEffect(() => {
+    if (!autoSaveIntervalMs || mode !== "contract") return;
+    const timer = window.setInterval(() => {
+      if (dirtyRef.current) void save(true);
+    }, autoSaveIntervalMs);
+    return () => window.clearInterval(timer);
+  }, [autoSaveIntervalMs, mode, saving, uploading]);
+
   const currentBlockStyle = editor?.isActive("heading", { level: 1 })
     ? "heading1"
     : editor?.isActive("heading", { level: 2 })
@@ -637,6 +650,13 @@ export function CourseDocumentEditor({
     <div
       className="space-y-4"
       onKeyDown={(event) => {
+        if (event.key === "Escape" && mode === "contract") {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!window.confirm("저장한 뒤 템플릿 편집을 종료할까요?")) return;
+          void save(false, true);
+          return;
+        }
         if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
           event.preventDefault();
           void save();

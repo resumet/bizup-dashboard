@@ -78,7 +78,7 @@ export function InstructorContractTemplateManager({
     });
   }
 
-  async function saveTemplate(content: CourseDocumentBlock[]) {
+  async function saveTemplate(content: CourseDocumentBlock[], options?: { auto: boolean }) {
     if (!draft) throw new Error("저장할 템플릿을 확인해 주세요.");
     const name = draft.name.trim();
     if (!name) throw new Error("템플릿 이름을 입력해 주세요.");
@@ -96,7 +96,7 @@ export function InstructorContractTemplateManager({
       const withoutSaved = current.filter((template) => template.id !== result.template?.id);
       return [result.template as InstructorContractTemplateRecord, ...withoutSaved];
     });
-    setDraft(null);
+    if (!options?.auto) setDraft(null);
   }
 
   async function deleteTemplate(template: InstructorContractTemplateRecord) {
@@ -202,6 +202,8 @@ export function InstructorContractTemplateManager({
                 initialContent={draft.template.content}
                 onSaveContent={saveTemplate}
                 allowSaveWhenClean
+                autoSaveIntervalMs={60_000}
+                onExitAfterSave={() => setDraft(null)}
               />
             </div>
           ) : null}
