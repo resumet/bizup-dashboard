@@ -202,6 +202,17 @@
     padding-left: 0.25rem;
   }
 
+  .contract-editor-page-guides {
+    position: relative;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 950px,
+      color-mix(in srgb, var(--primary) 45%, transparent) 950px,
+      color-mix(in srgb, var(--primary) 45%, transparent) 952px
+    );
+  }
+
   .course-rich-text-editor p,
   .course-rich-text-editor h1,
   .course-rich-text-editor h2,
