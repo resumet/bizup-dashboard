@@ -259,7 +259,7 @@ export function InstructorContractWriter({
       {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
 
       <div className="grid items-start gap-5 xl:grid-cols-[22rem_minmax(0,1fr)]">
-        <Card className="xl:sticky xl:top-21">
+        <Card className="self-start xl:sticky xl:top-21">
           <CardHeader><CardTitle>계약 정보 입력</CardTitle></CardHeader>
           <CardContent className="space-y-5">
             <div className="space-y-2">
@@ -291,7 +291,7 @@ export function InstructorContractWriter({
 
         <section className="overflow-hidden rounded-xl border bg-slate-100 shadow-sm" aria-label="계약서 미리보기">
           <div className="flex items-center justify-between border-b bg-white px-5 py-3"><h2 className="font-semibold">계약서 전문</h2><span className="text-xs text-muted-foreground">입력 내용이 즉시 반영됩니다.</span></div>
-          <div className="max-h-[calc(100dvh-12rem)] min-h-[42rem] overflow-y-auto p-3 sm:p-6"><div><InstructorContractDocument content={renderedContent} /></div></div>
+          <div className="min-h-[42rem] p-3 sm:p-6"><div><InstructorContractDocument content={renderedContent} /></div></div>
         </section>
       </div>
     </div>
