@@ -664,7 +664,7 @@ export function CourseDocumentEditor({
       }}
     >
       <header className="sticky top-0 z-20 overflow-hidden rounded-xl border bg-background/95 shadow-sm backdrop-blur">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2.5 sm:px-4">
+        <div className={cn("flex flex-wrap items-center justify-between gap-3 px-3 py-2.5 sm:px-4", mode === "contract" && "hidden")}>
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="truncate text-sm font-semibold">{courseName}</span>
             <span className="h-4 w-px bg-border" />
@@ -687,7 +687,8 @@ export function CourseDocumentEditor({
 
         {!preview ? (
           <>
-          <div className="flex flex-nowrap items-center gap-1 overflow-x-auto border-t px-2 py-1.5">
+          <div className={mode === "contract" ? "flex items-center gap-1 overflow-x-auto border-t px-2 py-1.5" : ""}>
+          <div className={mode === "contract" ? "contents" : "flex flex-nowrap items-center gap-1 overflow-x-auto border-t px-2 py-1.5"}>
             <Select
               value={currentBlockStyle}
               onValueChange={(value) => {
@@ -744,7 +745,7 @@ export function CourseDocumentEditor({
             <ToolbarButton label="링크" active={Boolean(editor?.isActive("link"))} onClick={openLinkDialog}><Link2 /></ToolbarButton>
             <span className="mx-1 h-5 w-px shrink-0 bg-border" />
           </div>
-          <div className="flex flex-nowrap items-center gap-1 overflow-x-auto border-t px-2 py-1.5">
+          <div className={mode === "contract" ? "contents" : "flex flex-nowrap items-center gap-1 overflow-x-auto border-t px-2 py-1.5"}>
             <ToolbarButton label="왼쪽 정렬" active={Boolean(editor && !editor.isActive({ textAlign: "center" }) && !editor.isActive({ textAlign: "right" }) && !editor.isActive({ textAlign: "justify" }))} onClick={() => editor?.chain().focus().setTextAlign("left").run()}><AlignLeft /></ToolbarButton>
             <ToolbarButton label="가운데 정렬" active={Boolean(editor?.isActive({ textAlign: "center" }))} onClick={() => editor?.chain().focus().setTextAlign("center").run()}><AlignCenter /></ToolbarButton>
             <ToolbarButton label="오른쪽 정렬" active={Boolean(editor?.isActive({ textAlign: "right" }))} onClick={() => editor?.chain().focus().setTextAlign("right").run()}><AlignRight /></ToolbarButton>
@@ -820,6 +821,7 @@ export function CourseDocumentEditor({
             <span className="mx-1 h-5 w-px shrink-0 bg-border" />
             <ToolbarButton label="실행 취소" disabled={!editor?.can().undo()} onClick={() => editor?.chain().focus().undo().run()}><Undo2 /></ToolbarButton>
             <ToolbarButton label="다시 실행" disabled={!editor?.can().redo()} onClick={() => editor?.chain().focus().redo().run()}><Redo2 /></ToolbarButton>
+          </div>
           </div>
           </>
         ) : null}
