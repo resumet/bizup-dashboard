@@ -666,7 +666,7 @@ export function CourseDocumentEditor({
 
   return (
     <div
-      className="space-y-4"
+      className={cn(mode === "contract" ? "flex min-h-0 flex-1 flex-col" : "space-y-4")}
       onKeyDown={(event) => {
         if (event.key === "Escape" && mode === "contract") {
           event.preventDefault();
@@ -685,7 +685,7 @@ export function CourseDocumentEditor({
         className={cn(
           "overflow-hidden border",
           mode === "contract"
-            ? "relative rounded-none border-x-0 bg-background shadow-none"
+            ? "relative shrink-0 rounded-none border-x-0 bg-background shadow-none"
             : "sticky top-0 z-20 rounded-xl bg-background/95 shadow-sm backdrop-blur",
         )}
       >
@@ -855,8 +855,9 @@ export function CourseDocumentEditor({
       {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
       {notice ? mode === "contract" ? <div role="status" className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-md bg-foreground px-4 py-2 text-sm text-background shadow-lg">{notice}</div> : <Alert><AlertDescription>{notice}</AlertDescription></Alert> : null}
 
-      <div className={cn("grid items-start gap-5", mode !== "contract" && "xl:grid-cols-[minmax(0,1fr)_15rem]")}>
-        <section className="min-h-[46rem] min-w-0 overflow-hidden rounded-xl border bg-background shadow-sm">
+      <div className={cn("grid items-start gap-5", mode === "contract" ? "min-h-0 flex-1" : "xl:grid-cols-[minmax(0,1fr)_15rem]")}>
+        <section className={cn("min-w-0 overflow-hidden rounded-xl border bg-background shadow-sm", mode === "contract" ? "flex h-full min-h-0 flex-col" : "min-h-[46rem]")}>
+          <div className={cn(mode === "contract" && "min-h-0 flex-1 overflow-y-auto")}>
           {preview ? (
             <div className="mx-auto w-full max-w-3xl px-6 py-12 sm:px-12">
               {mode !== "contract" ? <h1 className="mb-10 whitespace-pre-wrap break-words text-4xl font-bold tracking-tight text-balance sm:text-5xl">{displayTitle || "제목 없음"}</h1> : null}
@@ -885,8 +886,9 @@ export function CourseDocumentEditor({
               <EditorContent editor={editor} className={mode === "contract" ? "" : "mt-8"} />
             </div>
           )}
+          </div>
 
-          <footer className="flex items-center justify-end border-t px-5 py-3 text-xs text-muted-foreground sm:px-8">
+          <footer className="flex shrink-0 items-center justify-end border-t px-5 py-3 text-xs text-muted-foreground sm:px-8">
             <span>{characterCount.toLocaleString("ko-KR")}자</span>
           </footer>
         </section>

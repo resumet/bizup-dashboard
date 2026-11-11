@@ -174,7 +174,7 @@ export function InstructorContractTemplateManager({
           <Button type="button" size="sm" disabled={savingTemplate} onClick={() => setSaveRequest((current) => current + 1)}>{savingTemplate ? "저장 중" : "저장하기"}</Button>
           <Button type="button" size="icon-sm" variant="ghost" className="ml-auto" aria-label="템플릿 편집 닫기" onClick={() => setDraft(null)}><X /></Button>
         </header>
-        <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-6">
           <CourseDocumentEditor key={draft.editorKey} mode="contract" courseName={draft.name.trim() || "새 계약서 템플릿"} initialContent={draft.template.content} onSaveContent={saveTemplate} allowSaveWhenClean autoSaveIntervalMs={60_000} onExitAfterSave={() => setDraft(null)} saveRequest={saveRequest} onSavingChange={setSavingTemplate} />
         </main>
       </div> : null}
