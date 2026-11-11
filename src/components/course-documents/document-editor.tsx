@@ -681,7 +681,7 @@ export function CourseDocumentEditor({
         }
       }}
     >
-      <header className={cn("sticky top-0 z-20 overflow-hidden border bg-background/95 backdrop-blur", mode === "contract" ? "rounded-none border-x-0 shadow-none" : "rounded-xl shadow-sm")}>
+      <header className={cn("sticky top-0 z-20 overflow-hidden border backdrop-blur", mode === "contract" ? "rounded-none border-x-0 bg-background shadow-none" : "rounded-xl bg-background/95 shadow-sm")}>
         <div className={cn("flex flex-wrap items-center justify-between gap-3 px-3 py-2.5 sm:px-4", mode === "contract" && "hidden")}>
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="truncate text-sm font-semibold">{courseName}</span>
@@ -846,7 +846,7 @@ export function CourseDocumentEditor({
       </header>
 
       {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
-      {notice ? mode === "contract" ? <div role="status" className="fixed top-20 left-1/2 z-[60] -translate-x-1/2 rounded-md bg-foreground px-4 py-2 text-sm text-background shadow-lg">{notice}</div> : <Alert><AlertDescription>{notice}</AlertDescription></Alert> : null}
+      {notice ? mode === "contract" ? <div role="status" className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-md bg-foreground px-4 py-2 text-sm text-background shadow-lg">{notice}</div> : <Alert><AlertDescription>{notice}</AlertDescription></Alert> : null}
 
       <div className={cn("grid items-start gap-5", mode !== "contract" && "xl:grid-cols-[minmax(0,1fr)_15rem]")}>
         <section className="min-h-[46rem] min-w-0 overflow-hidden rounded-xl border bg-background shadow-sm">
