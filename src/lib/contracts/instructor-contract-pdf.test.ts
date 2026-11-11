@@ -49,7 +49,7 @@ test("계약서 PDF는 A4로 생성하고 회사 대표자란에 법인 인감�
         customValues: {},
       },
     }),
-    "홍길동_테스트-실전 강의-2026-11-06~2027-11-06-계약서.pdf",
+    "홍길동_테스트-실전 강의-2026-11-06.pdf",
   );
   assert.match(Buffer.from(bytes).toString("latin1"), /\/Subtype \/Image/u);
 });

@@ -6,7 +6,7 @@ import fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, rgb, type PDFFont } from "pdf-lib";
 
 import type { CourseDocumentBlock, RichTextNode } from "@/lib/course-documents/types";
-import { COMPANY_CONTRACT_DETAILS, getContractEndDate, type InstructorContractDetail } from "./instructor-contract";
+import { COMPANY_CONTRACT_DETAILS, type InstructorContractDetail } from "./instructor-contract";
 
 const A4: [number, number] = [595.28, 841.89];
 const MARGIN = 48;
@@ -63,14 +63,11 @@ function filenameSegment(value: string, fallback: string) {
 
 export function instructorContractPdfFilename(contract: Pick<InstructorContractDetail, "values">) {
   const { values } = contract;
-  const startDate = filenameSegment(values.startDate, "기간미입력");
-  const endDate = getContractEndDate(values.startDate, values.durationYears);
-  const period = endDate ? `${startDate}~${endDate}` : startDate;
+  const contractDate = filenameSegment(values.contractDate, "계약일자미입력");
   return [
     filenameSegment(values.instructorName, "강사명미입력"),
     filenameSegment(values.lectureName, "강의명미입력"),
-    filenameSegment(period, "기간미입력"),
-    "계약서",
+    contractDate,
   ].join("-") + ".pdf";
 }
 
