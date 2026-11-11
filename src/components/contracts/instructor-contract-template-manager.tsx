@@ -50,6 +50,8 @@ export function InstructorContractTemplateManager({
   const [draft, setDraft] = useState<Draft | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [saveRequest, setSaveRequest] = useState(0);
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   function openNewTemplate() {
     setError("");
@@ -89,7 +91,6 @@ export function InstructorContractTemplateManager({
       const withoutSaved = current.filter((template) => template.id !== result.template?.id);
       return [result.template as InstructorContractTemplateRecord, ...withoutSaved];
     });
-    if (!options?.auto) setDraft(null);
   }
 
   async function deleteTemplate(template: InstructorContractTemplateRecord) {
@@ -170,11 +171,11 @@ export function InstructorContractTemplateManager({
       {draft ? <div className="fixed inset-0 z-50 flex flex-col bg-background">
         <header className="flex shrink-0 items-center gap-3 border-b px-5 py-3 sm:px-8">
           <Input id="contract-template-name" value={draft.name} maxLength={100} autoFocus aria-label="템플릿 이름" className="max-w-xl text-lg font-semibold" onChange={(event) => setDraft((current) => current ? { ...current, name: event.target.value } : current)} />
-          <span className="text-sm text-amber-700">자동저장</span>
+          <Button type="button" size="sm" disabled={savingTemplate} onClick={() => setSaveRequest((current) => current + 1)}>{savingTemplate ? "저장 중" : "저장하기"}</Button>
           <Button type="button" size="icon-sm" variant="ghost" className="ml-auto" aria-label="템플릿 편집 닫기" onClick={() => setDraft(null)}><X /></Button>
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-          <CourseDocumentEditor key={draft.editorKey} mode="contract" courseName={draft.name.trim() || "새 계약서 템플릿"} initialContent={draft.template.content} onSaveContent={saveTemplate} allowSaveWhenClean autoSaveIntervalMs={60_000} onExitAfterSave={() => setDraft(null)} />
+          <CourseDocumentEditor key={draft.editorKey} mode="contract" courseName={draft.name.trim() || "새 계약서 템플릿"} initialContent={draft.template.content} onSaveContent={saveTemplate} allowSaveWhenClean autoSaveIntervalMs={60_000} onExitAfterSave={() => setDraft(null)} saveRequest={saveRequest} onSavingChange={setSavingTemplate} />
         </main>
       </div> : null}
     </div>

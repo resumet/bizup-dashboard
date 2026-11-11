@@ -106,6 +106,8 @@ type Props = {
   initialPreview?: boolean;
   autoSaveIntervalMs?: number;
   onExitAfterSave?: () => void;
+  saveRequest?: number;
+  onSavingChange?: (saving: boolean) => void;
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -294,6 +296,8 @@ export function CourseDocumentEditor({
   initialPreview = false,
   autoSaveIntervalMs,
   onExitAfterSave,
+  saveRequest = 0,
+  onSavingChange,
 }: Props) {
   const initialDocument = useMemo(() => {
     const original = mode === "contract" ? initialContent ?? [] : document?.content ?? [];
@@ -629,6 +633,14 @@ export function CourseDocumentEditor({
     }, autoSaveIntervalMs);
     return () => window.clearInterval(timer);
   }, [autoSaveIntervalMs, mode, saving, uploading]);
+
+  useEffect(() => {
+    onSavingChange?.(saving);
+  }, [onSavingChange, saving]);
+
+  useEffect(() => {
+    if (saveRequest > 0) void save();
+  }, [saveRequest]);
 
   const currentBlockStyle = editor?.isActive("heading", { level: 1 })
     ? "heading1"
