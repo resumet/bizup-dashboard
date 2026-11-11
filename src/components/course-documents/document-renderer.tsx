@@ -98,7 +98,7 @@ function renderRichTextNode(node: RichTextNode, key: string, variant: DocumentRe
   if (node.type === "table") {
     return (
       <div key={key} className={cn("overflow-x-auto border", variant === "contract" ? "my-4 rounded" : "my-7 rounded-xl")}>
-        <table className={cn("w-full border-collapse text-left", variant === "contract" ? "text-[13px]" : "min-w-[32rem] text-sm")}><tbody>{children}</tbody></table>
+        <table className={cn("w-full border-collapse text-left", variant === "contract" ? "text-[16px] leading-[2]" : "min-w-[32rem] text-sm")}><tbody>{children}</tbody></table>
       </div>
     );
   }
@@ -130,9 +130,9 @@ function renderRichTextNode(node: RichTextNode, key: string, variant: DocumentRe
     if (node.attrs?.level === 2) return <h3 key={key} style={style} className="whitespace-pre-wrap pt-4 text-2xl font-semibold tracking-tight text-balance">{children}</h3>;
     return <h4 key={key} style={style} className="whitespace-pre-wrap pt-3 text-xl font-semibold tracking-tight text-balance">{children}</h4>;
   }
-  if (node.type === "paragraph") return <p key={key} style={textBlockStyle(node.attrs)} className={cn("whitespace-pre-wrap", variant === "contract" ? "min-h-[1.78em] break-words leading-[1.78]" : "min-h-4 leading-8 text-pretty")}>{children}</p>;
-  if (node.type === "bulletList") return <ul key={key} className={cn("list-disc pl-6", variant === "contract" ? "space-y-0 leading-[1.78]" : "space-y-2 leading-7")}>{children}</ul>;
-  if (node.type === "orderedList") return <ol key={key} className={cn("list-decimal pl-6", variant === "contract" ? "space-y-0 leading-[1.78]" : "space-y-2 leading-7")}>{children}</ol>;
+  if (node.type === "paragraph") return <p key={key} style={textBlockStyle(node.attrs)} className={cn("whitespace-pre-wrap", variant === "contract" ? "min-h-[2em] break-words leading-[2]" : "min-h-4 leading-8 text-pretty")}>{children}</p>;
+  if (node.type === "bulletList") return <ul key={key} className={cn("list-disc pl-6", variant === "contract" ? "space-y-0 leading-[2]" : "space-y-2 leading-7")}>{children}</ul>;
+  if (node.type === "orderedList") return <ol key={key} className={cn("list-decimal pl-6", variant === "contract" ? "space-y-0 leading-[2]" : "space-y-2 leading-7")}>{children}</ol>;
   if (node.type === "listItem") return <li key={key} className="pl-1">{children}</li>;
   if (node.type === "blockquote") return <blockquote key={key} className="border-l-3 border-primary/35 pl-5 text-muted-foreground">{children}</blockquote>;
   if (node.type === "codeBlock") return <pre key={key} className="overflow-x-auto rounded-xl bg-neutral-950 p-5 font-mono text-sm leading-7 text-neutral-100"><code>{children}</code></pre>;
@@ -150,9 +150,9 @@ export function DocumentRenderer({ blocks, variant = "default" }: { blocks: Cour
         if (block.type === "heading2") return variant === "contract"
           ? <h2 key={block.id} className="whitespace-pre-wrap pt-5 text-base font-bold">{block.content}</h2>
           : <h3 key={block.id} className="whitespace-pre-wrap pt-3 text-2xl font-semibold tracking-tight text-balance">{block.content}</h3>;
-        if (block.type === "paragraph") return <p key={block.id} className={cn("whitespace-pre-wrap", variant === "contract" ? "min-h-[1.78em] break-words leading-[1.78]" : "leading-8 text-pretty")}>{linkedText(block.content)}</p>;
-        if (block.type === "unordered_list") return <ul key={block.id} className={cn("list-disc pl-6", variant === "contract" ? "space-y-0 leading-[1.78]" : "space-y-2 leading-7")}>{block.items.filter(Boolean).map((item, index) => <li key={`${block.id}-${index}`}>{linkedText(item)}</li>)}</ul>;
-        if (block.type === "ordered_list") return <ol key={block.id} className={cn("list-decimal pl-6", variant === "contract" ? "space-y-0 leading-[1.78]" : "space-y-2 leading-7")}>{block.items.filter(Boolean).map((item, index) => <li key={`${block.id}-${index}`}>{linkedText(item)}</li>)}</ol>;
+        if (block.type === "paragraph") return <p key={block.id} className={cn("whitespace-pre-wrap", variant === "contract" ? "min-h-[2em] break-words leading-[2]" : "leading-8 text-pretty")}>{linkedText(block.content)}</p>;
+        if (block.type === "unordered_list") return <ul key={block.id} className={cn("list-disc pl-6", variant === "contract" ? "space-y-0 leading-[2]" : "space-y-2 leading-7")}>{block.items.filter(Boolean).map((item, index) => <li key={`${block.id}-${index}`}>{linkedText(item)}</li>)}</ul>;
+        if (block.type === "ordered_list") return <ol key={block.id} className={cn("list-decimal pl-6", variant === "contract" ? "space-y-0 leading-[2]" : "space-y-2 leading-7")}>{block.items.filter(Boolean).map((item, index) => <li key={`${block.id}-${index}`}>{linkedText(item)}</li>)}</ol>;
         if (block.type === "image") return <figure key={block.id} className="overflow-hidden rounded-2xl border bg-muted/20"><Image src={block.url} alt={block.alt} width={1200} height={675} sizes="(max-width: 768px) 100vw, 768px" className="h-auto w-full object-contain" unoptimized /></figure>;
         if (block.type === "link") return <p key={block.id}><a className="font-medium text-primary underline underline-offset-4" href={block.url} target="_blank" rel="noopener noreferrer">{block.label}</a></p>;
         if (block.type === "cta") return <p key={block.id} className="py-2 text-center"><a className="inline-flex min-h-12 items-center justify-center rounded-xl bg-primary px-6 font-semibold text-primary-foreground transition-opacity hover:opacity-90" href={block.url} target="_blank" rel="noopener noreferrer">{block.label}</a></p>;

@@ -24,7 +24,7 @@ export const CONTRACT_PRINT_STYLES = `
 
 export function InstructorContractDocument({ content }: { content: CourseDocumentBlock[] }) {
   return (
-    <article id="contract-print-root" className="contract-document mx-auto max-w-[760px] bg-white px-6 py-10 text-[14px] leading-7 text-slate-950 sm:px-10 sm:py-12">
+    <article id="contract-print-root" className="contract-document mx-auto max-w-[760px] bg-white px-6 py-10 text-[16px] leading-[2] text-slate-950 sm:px-10 sm:py-12">
       <style dangerouslySetInnerHTML={{ __html: CONTRACT_PRINT_STYLES }} />
       <div className="contract-template-content"><DocumentRenderer blocks={content} variant="contract" /></div>
     </article>
