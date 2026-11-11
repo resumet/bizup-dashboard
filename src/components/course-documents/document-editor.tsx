@@ -681,7 +681,14 @@ export function CourseDocumentEditor({
         }
       }}
     >
-      <header className={cn("sticky top-0 z-20 overflow-hidden border backdrop-blur", mode === "contract" ? "rounded-none border-x-0 bg-background shadow-none" : "rounded-xl bg-background/95 shadow-sm")}>
+      <header
+        className={cn(
+          "overflow-hidden border",
+          mode === "contract"
+            ? "relative rounded-none border-x-0 bg-background shadow-none"
+            : "sticky top-0 z-20 rounded-xl bg-background/95 shadow-sm backdrop-blur",
+        )}
+      >
         <div className={cn("flex flex-wrap items-center justify-between gap-3 px-3 py-2.5 sm:px-4", mode === "contract" && "hidden")}>
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="truncate text-sm font-semibold">{courseName}</span>
