@@ -1,18 +1,11 @@
 "use client";
 
-import { FileText, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { FileText, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -174,41 +167,16 @@ export function InstructorContractTemplateManager({
         </div>
       )}
 
-      <Dialog open={Boolean(draft)} onOpenChange={(open) => { if (!open) setDraft(null); }}>
-        <DialogContent className="flex h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-none flex-col overflow-hidden p-0 sm:w-[94vw] sm:max-w-[94vw]">
-          <DialogHeader className="shrink-0 border-b px-6 py-5">
-            <DialogTitle>{draft?.id ? "계약서 템플릿 수정" : "새 계약서 템플릿"}</DialogTitle>
-            <DialogDescription className="sr-only">이름과 계약서 원문을 편집합니다.</DialogDescription>
-          </DialogHeader>
-          {draft ? (
-            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-              <div className="mb-4 space-y-2">
-                <Label htmlFor="contract-template-name">템플릿 이름</Label>
-                <Input
-                  id="contract-template-name"
-                  value={draft.name}
-                  maxLength={100}
-                  autoFocus
-                  onChange={(event) => setDraft((current) => current ? { ...current, name: event.target.value } : current)}
-                />
-              </div>
-              <div className="mb-4 rounded-lg border bg-muted/35 px-4 py-3 text-sm leading-6 text-muted-foreground">
-                원문 전체를 그대로 붙여넣을 수 있으며 줄바꿈과 연속된 띄어쓰기도 저장됩니다. 강사명 <code>{"{{instructorName}}"}</code>, 강의명 <code>{"{{lectureName}}"}</code>, 계약기간 <code>{"{{contractPeriod}}"}</code>, 릴스 대행 갯수 <code>{"{{instagram_number_of_reels}}"}</code>, 릴스 대행 금액 <code>{"{{instagram_value_of_reels}}"}</code>, 주소·연락처는 <code>{"{{address}}"}</code> · <code>{"{{phone}}"}</code> · <code>{"{{email}}"}</code>을 사용하세요.
-              </div>
-              <CourseDocumentEditor
-                key={draft.editorKey}
-                mode="contract"
-                courseName={draft.name.trim() || "새 계약서 템플릿"}
-                initialContent={draft.template.content}
-                onSaveContent={saveTemplate}
-                allowSaveWhenClean
-                autoSaveIntervalMs={60_000}
-                onExitAfterSave={() => setDraft(null)}
-              />
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
+      {draft ? <div className="fixed inset-0 z-50 flex flex-col bg-background">
+        <header className="flex shrink-0 items-center gap-3 border-b px-5 py-3 sm:px-8">
+          <Input id="contract-template-name" value={draft.name} maxLength={100} autoFocus aria-label="템플릿 이름" className="max-w-xl text-lg font-semibold" onChange={(event) => setDraft((current) => current ? { ...current, name: event.target.value } : current)} />
+          <span className="text-sm text-amber-700">자동저장</span>
+          <Button type="button" size="icon-sm" variant="ghost" className="ml-auto" aria-label="템플릿 편집 닫기" onClick={() => setDraft(null)}><X /></Button>
+        </header>
+        <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+          <CourseDocumentEditor key={draft.editorKey} mode="contract" courseName={draft.name.trim() || "새 계약서 템플릿"} initialContent={draft.template.content} onSaveContent={saveTemplate} allowSaveWhenClean autoSaveIntervalMs={60_000} onExitAfterSave={() => setDraft(null)} />
+        </main>
+      </div> : null}
     </div>
   );
 }

@@ -687,7 +687,7 @@ export function CourseDocumentEditor({
 
         {!preview ? (
           <>
-          <div className="flex flex-wrap items-center gap-1 border-t px-2 py-1.5">
+          <div className="flex flex-nowrap items-center gap-1 overflow-x-auto border-t px-2 py-1.5">
             <Select
               value={currentBlockStyle}
               onValueChange={(value) => {
@@ -744,7 +744,7 @@ export function CourseDocumentEditor({
             <ToolbarButton label="링크" active={Boolean(editor?.isActive("link"))} onClick={openLinkDialog}><Link2 /></ToolbarButton>
             <span className="mx-1 h-5 w-px shrink-0 bg-border" />
           </div>
-          <div className="flex flex-wrap items-center gap-1 border-t px-2 py-1.5">
+          <div className="flex flex-nowrap items-center gap-1 overflow-x-auto border-t px-2 py-1.5">
             <ToolbarButton label="왼쪽 정렬" active={Boolean(editor && !editor.isActive({ textAlign: "center" }) && !editor.isActive({ textAlign: "right" }) && !editor.isActive({ textAlign: "justify" }))} onClick={() => editor?.chain().focus().setTextAlign("left").run()}><AlignLeft /></ToolbarButton>
             <ToolbarButton label="가운데 정렬" active={Boolean(editor?.isActive({ textAlign: "center" }))} onClick={() => editor?.chain().focus().setTextAlign("center").run()}><AlignCenter /></ToolbarButton>
             <ToolbarButton label="오른쪽 정렬" active={Boolean(editor?.isActive({ textAlign: "right" }))} onClick={() => editor?.chain().focus().setTextAlign("right").run()}><AlignRight /></ToolbarButton>
