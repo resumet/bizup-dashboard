@@ -835,12 +835,7 @@ export function CourseDocumentEditor({
                   className="h-auto rounded-none border-0 bg-transparent px-0 py-2 text-4xl font-bold tracking-tight shadow-none placeholder:text-muted-foreground/45 focus-visible:border-transparent focus-visible:ring-0 sm:text-5xl dark:bg-transparent"
                 />
               )}
-              {mode === "contract" ? (
-                <div className="contract-editor-page-guides">
-                  <EditorContent editor={editor} />
-                </div>
-              ) : <EditorContent editor={editor} className="mt-8" />}
-              {mode === "contract" ? <p className="mt-4 text-xs text-muted-foreground">점선은 PDF 페이지가 나뉠 것으로 예상되는 위치입니다.</p> : null}
+              <EditorContent editor={editor} className={mode === "contract" ? "" : "mt-8"} />
             </div>
           )}
 
