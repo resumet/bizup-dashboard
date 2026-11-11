@@ -91,10 +91,12 @@ export async function createInstructorContractPdf(contract: ContractPdfInput) {
   let page = document.addPage(A4);
   let y = A4[1] - MARGIN;
   const width = A4[0] - MARGIN * 2;
+  const pageHasContent = [false];
 
   const addPage = () => {
     page = document.addPage(A4);
     y = A4[1] - MARGIN;
+    pageHasContent.push(false);
   };
 
   const drawCompanySeal = (line: string, x: number, size: number) => {
@@ -130,6 +132,7 @@ export async function createInstructorContractPdf(contract: ContractPdfInput) {
         size,
         color: bold ? rgb(0.05, 0.08, 0.14) : rgb(0.08, 0.12, 0.18),
       });
+      pageHasContent[pageHasContent.length - 1] = true;
       drawCompanySeal(line, x, size);
       y -= lineHeight;
     }
@@ -141,6 +144,24 @@ export async function createInstructorContractPdf(contract: ContractPdfInput) {
       if (item.text) drawLines(item.text, item.size, item.gap, item.center, item.bold);
     }
   }
+
+  if (pageHasContent.length > 1 && !pageHasContent.at(-1)) {
+    document.removePage(pageHasContent.length - 1);
+  }
+
+  const pages = document.getPages();
+  pages.forEach((currentPage, index) => {
+    const pageNumber = `${index + 1} / ${pages.length}`;
+    const size = 8;
+    const pageWidth = currentPage.getWidth();
+    currentPage.drawText(pageNumber, {
+      x: (pageWidth - font.widthOfTextAtSize(pageNumber, size)) / 2,
+      y: 22,
+      font,
+      size,
+      color: rgb(0.35, 0.39, 0.45),
+    });
+  });
 
   return new Uint8Array(await document.save());
 }
