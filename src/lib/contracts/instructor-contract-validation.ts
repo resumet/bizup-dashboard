@@ -59,6 +59,7 @@ const SUPPLIER_DETAIL_KEYS = new Set([
   "supplynumber",
   "supplyceoname",
   "supplyphone",
+  "supplyemail",
 ]);
 
 export const instructorContractInstructorSchema = z.object({

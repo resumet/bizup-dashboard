@@ -13,11 +13,12 @@ import { normalizeBusinessRegistrationNumber, normalizeInstructorPhone } from "@
 
 const empty = { instructorName: "", address: "", phone: "", email: "" };
 type SupplierField = {
-  name: "supplyinstructorName" | "supplyaddress" | "supplynumber" | "supplyceoname" | "supplyphone";
+  name: "supplyinstructorName" | "supplyaddress" | "supplynumber" | "supplyceoname" | "supplyphone" | "supplyemail";
   label: string;
   maxLength: number;
   hint?: string;
   inputMode?: "numeric";
+  type?: "email";
   wide?: boolean;
 };
 
@@ -27,6 +28,7 @@ const SUPPLIER_FIELDS: SupplierField[] = [
   { name: "supplynumber", label: "사업자등록번호", inputMode: "numeric" as const, maxLength: 12 },
   { name: "supplyceoname", label: "대표자", hint: "서명 또는 인", maxLength: 200 },
   { name: "supplyphone", label: "연락처", inputMode: "numeric" as const, maxLength: 13 },
+  { name: "supplyemail", label: "이메일", type: "email", maxLength: 320 },
 ];
 
 export function InstructorContractInstructorManager({ initialInstructors }: { initialInstructors: InstructorContractInstructor[] }) {
@@ -79,7 +81,7 @@ export function InstructorContractInstructorManager({ initialInstructors }: { in
         <div className="flex items-end justify-end"><Button type="submit" disabled={saving}>{saving ? <Loader2 className="animate-spin" /> : <Plus />}저장</Button></div>
       </> : null}
       {partyType === "supplier" ? <>
-        {SUPPLIER_FIELDS.map(({ name, label, hint, inputMode, maxLength, wide }) => <div key={name} className={`space-y-2${wide ? " sm:col-span-2" : ""}`}><Label htmlFor={`supplier-detail-${name}`}>{label}{hint ? <span className="ml-1 font-normal text-muted-foreground">({hint})</span> : null}</Label><Input id={`supplier-detail-${name}`} inputMode={inputMode} maxLength={maxLength} value={details[name] ?? ""} onChange={(event) => setDetails((current) => ({ ...current, [name]: name === "supplynumber" ? normalizeBusinessRegistrationNumber(event.target.value) : name === "supplyphone" ? normalizeInstructorPhone(event.target.value).slice(0, 13) : event.target.value }))} /></div>)}
+        {SUPPLIER_FIELDS.map(({ name, label, hint, inputMode, type, maxLength, wide }) => <div key={name} className={`space-y-2${wide ? " sm:col-span-2" : ""}`}><Label htmlFor={`supplier-detail-${name}`}>{label}{hint ? <span className="ml-1 font-normal text-muted-foreground">({hint})</span> : null}</Label><Input id={`supplier-detail-${name}`} type={type} inputMode={inputMode} maxLength={maxLength} value={details[name] ?? ""} onChange={(event) => setDetails((current) => ({ ...current, [name]: name === "supplynumber" ? normalizeBusinessRegistrationNumber(event.target.value) : name === "supplyphone" ? normalizeInstructorPhone(event.target.value).slice(0, 13) : event.target.value }))} /></div>)}
         <div className="flex items-end justify-end"><Button type="submit" disabled={saving}>{saving ? <Loader2 className="animate-spin" /> : <Plus />}저장</Button></div>
       </> : null}
     </form>
