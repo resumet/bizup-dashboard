@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,53 @@ import {
 import { IntakeProgress } from "./progress";
 
 const sectionClass = "space-y-5 rounded-xl border bg-card p-5 sm:p-6";
+const SECTION_NAVIGATION = [
+  { id: "intake-basic", label: "기본 정보" },
+  { id: "intake-filming", label: "촬영 환경·소재" },
+  { id: "intake-content", label: "강의 내용 소개" },
+  { id: "intake-career", label: "강사 이력" },
+  { id: "intake-evidence", label: "증빙 자료" },
+  { id: "intake-results", label: "수강생 성과" },
+  { id: "intake-reviews", label: "수강 후기" },
+  { id: "intake-differentiators", label: "강의 차별점" },
+  { id: "intake-webinar", label: "무료 웨비나" },
+  { id: "intake-strengths", label: "분야 강점" },
+  { id: "intake-audience", label: "추천 대상" },
+  { id: "intake-benefits", label: "수강생 혜택" },
+  { id: "intake-opportunity", label: "기회 증거" },
+  { id: "intake-experience", label: "기존 강의·자료" },
+  { id: "intake-revenue", label: "매출과 수익" },
+  { id: "intake-students", label: "출연 가능 수강생" },
+  { id: "intake-accounts", label: "계정 설정" },
+] as const;
+
+function IntakeSectionNavigator() {
+  const [activeId, setActiveId] = useState<(typeof SECTION_NAVIGATION)[number]["id"]>(SECTION_NAVIGATION[0].id);
+
+  useEffect(() => {
+    const sections = Array.from(document.querySelectorAll<HTMLElement>("[data-instructor-intake-form] fieldset > section"));
+    sections.forEach((section, index) => {
+      const item = SECTION_NAVIGATION[index];
+      if (item) section.id = item.id;
+    });
+    const updateActive = () => {
+      const current = sections.reduce<(typeof SECTION_NAVIGATION)[number]>((selected, section, index) => {
+        const item = SECTION_NAVIGATION[index];
+        return item && section.getBoundingClientRect().top <= 140 ? item : selected;
+      }, SECTION_NAVIGATION[0]);
+      setActiveId(current.id);
+    };
+    updateActive();
+    window.addEventListener("scroll", updateActive, { passive: true });
+    window.addEventListener("resize", updateActive);
+    return () => {
+      window.removeEventListener("scroll", updateActive);
+      window.removeEventListener("resize", updateActive);
+    };
+  }, []);
+
+  return <aside className="hidden xl:block"><nav className="sticky top-6 rounded-xl border bg-card p-3" aria-label="강사 정보 섹션"><p className="px-2 pb-2 text-sm font-semibold">섹션</p><ol className="space-y-1">{SECTION_NAVIGATION.map((item) => <li key={item.id}><button type="button" className={`w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors ${activeId === item.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`} aria-current={activeId === item.id ? "location" : undefined} onClick={() => document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" })}>{item.label}</button></li>)}</ol></nav></aside>;
+}
 function readAnswers(form: HTMLFormElement): Answers {
   const data = new FormData(form);
   const text = (key: string) => String(data.get(key) ?? "").trim();
@@ -202,7 +249,9 @@ export function IntakeForm({ token, initialAnswers, initialPhotos, initialImages
     finally { setBusy(false); }
   }
 
-  return <form ref={formRef} className="space-y-6" noValidate onChange={() => { if (formRef.current) setAnswers(readAnswers(formRef.current)); }} onSubmit={(event) => { event.preventDefault(); void save(true); }}>
+  return <form ref={formRef} data-instructor-intake-form className="space-y-6" noValidate onChange={() => { if (formRef.current) setAnswers(readAnswers(formRef.current)); }} onSubmit={(event) => { event.preventDefault(); void save(true); }}>
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_11rem]">
+      <div className="min-w-0 space-y-6">
     <IntakeProgress answers={answers} photoCount={photos.length} imagePaths={imagePaths} />
     <fieldset disabled={busy} className="space-y-6">
       <section className={sectionClass}>
@@ -261,5 +310,8 @@ export function IntakeForm({ token, initialAnswers, initialPhotos, initialImages
       <section className={sectionClass}><h2 className="text-lg font-semibold">계정 설정 정보</h2><div className="space-y-4"><div className="flex flex-wrap items-center gap-2"><p className="font-medium">23. 인스타 신규계정 생성후 아이디, 비밀번호 (기존 계정이 있다면 해당 계정 정보) 등록</p><DescriptionLink fieldIndex={22} /></div><div className="grid gap-5 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="instagramAccountId">아이디</Label><Input id="instagramAccountId" name="instagramAccountId" maxLength={200} defaultValue={initialAnswers.instagramAccountId} /></div><div className="space-y-2"><Label htmlFor="instagramAccountPassword">비밀번호</Label><Input id="instagramAccountPassword" name="instagramAccountPassword" type="password" maxLength={500} defaultValue={initialAnswers.instagramAccountPassword} /></div></div></div><div className="space-y-2"><div className="flex gap-2"><Label htmlFor="blueBadge">24. 블루뱃지</Label><DescriptionLink fieldIndex={23} /></div><Textarea id="blueBadge" name="blueBadge" rows={3} maxLength={1000} defaultValue={initialAnswers.blueBadge} /></div><div className="space-y-2"><div className="flex gap-2"><Label htmlFor="twoFactorSecurity">25. 2차 보안</Label><DescriptionLink fieldIndex={24} /></div><Textarea id="twoFactorSecurity" name="twoFactorSecurity" rows={3} maxLength={1000} defaultValue={initialAnswers.twoFactorSecurity} /></div><div className="space-y-4"><div className="flex gap-2"><p className="font-medium">26. 인포크 링크 아이디, 비밀번호</p><DescriptionLink fieldIndex={25} /></div><div className="grid gap-5 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="infokLinkId">아이디</Label><Input id="infokLinkId" name="infokLinkId" maxLength={200} defaultValue={initialAnswers.infokLinkId} /></div><div className="space-y-2"><Label htmlFor="infokLinkPassword">비밀번호</Label><Input id="infokLinkPassword" name="infokLinkPassword" type="password" maxLength={500} defaultValue={initialAnswers.infokLinkPassword} /></div></div></div></section>
     </fieldset>
     <div className="sticky bottom-0 space-y-3 rounded-xl border bg-background/95 p-4 backdrop-blur">{message ? <p role="status" className="text-sm">{message}</p> : null}{error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}<div className="flex gap-3"><Button type="button" variant="outline" className="flex-1" disabled={busy} onClick={() => void save(false)}>중간 저장</Button><Button type="submit" className="flex-1" disabled={busy}>{busy ? "저장 중…" : "정보 제출"}</Button></div></div>
+      </div>
+      <IntakeSectionNavigator />
+    </div>
   </form>;
 }

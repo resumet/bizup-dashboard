@@ -32,7 +32,7 @@ export default async function PublicInstructorIntake({
     signedImageGroups(settings.exampleImagePaths),
   ]);
   return (
-    <main className="mx-auto max-w-3xl space-y-7 px-4 py-8 sm:px-6">
+    <main className="mx-auto max-w-6xl space-y-7 px-4 py-8 sm:px-6">
       <h1 className="text-2xl font-semibold">강사 정보 입력</h1>
       <IntakeForm
         token={token}
