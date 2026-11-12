@@ -12,13 +12,22 @@ import type { InstructorContractInstructor } from "@/lib/contracts/instructor-co
 import { normalizeBusinessRegistrationNumber, normalizeInstructorPhone } from "@/lib/contracts/instructor-contract";
 
 const empty = { instructorName: "", address: "", phone: "", email: "" };
-const SUPPLIER_FIELDS = [
+type SupplierField = {
+  name: "supplyinstructorName" | "supplyaddress" | "supplynumber" | "supplyceoname" | "supplyphone";
+  label: string;
+  maxLength: number;
+  hint?: string;
+  inputMode?: "numeric";
+  wide?: boolean;
+};
+
+const SUPPLIER_FIELDS: SupplierField[] = [
   { name: "supplyinstructorName", label: "상호", maxLength: 200 },
   { name: "supplyaddress", label: "주소", maxLength: 500, wide: true },
   { name: "supplynumber", label: "사업자등록번호", inputMode: "numeric" as const, maxLength: 12 },
   { name: "supplyceoname", label: "대표자", hint: "서명 또는 인", maxLength: 200 },
   { name: "supplyphone", label: "연락처", inputMode: "numeric" as const, maxLength: 13 },
-] as const;
+];
 
 export function InstructorContractInstructorManager({ initialInstructors }: { initialInstructors: InstructorContractInstructor[] }) {
   const [instructors, setInstructors] = useState(initialInstructors);
