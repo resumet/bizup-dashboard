@@ -330,6 +330,35 @@ export async function createInstructorContractInstructor(
   return normalizeParty(data as InstructorRow);
 }
 
+export async function updateInstructorContractInstructor(
+  context: ContractContext,
+  instructorId: string,
+  input: Omit<InstructorContractParty, "id" | "updatedAt">,
+) {
+  const { data, error } = await context.admin
+    .from("instructor_contract_instructors")
+    .update({
+      name: input.instructorName,
+      address: input.address,
+      phone: input.phone,
+      email: input.email,
+      party_type: input.partyType,
+      details: input.details,
+      updated_by: context.user.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("workspace_id", context.workspaceId)
+    .eq("id", instructorId)
+    .select(INSTRUCTOR_COLUMNS)
+    .maybeSingle();
+  if (error) {
+    if (error.code === "23505") throw new InstructorContractError("같은 이름의 거래처 정보가 이미 있습니다.", 409);
+    databaseError(error);
+  }
+  if (!data) throw new InstructorContractError("거래처 정보를 찾을 수 없습니다.", 404);
+  return normalizeParty(data as InstructorRow);
+}
+
 export async function deleteInstructorContractInstructor(context: ContractContext, instructorId: string) {
   const { data, error } = await context.admin
     .from("instructor_contract_instructors")

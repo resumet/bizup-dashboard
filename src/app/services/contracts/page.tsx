@@ -45,7 +45,7 @@ export default async function ContractsPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" asChild>
-              <Link href="/services/contracts/instructors"><UsersRound aria-hidden="true" />강사 정보</Link>
+              <Link href="/services/contracts/instructors"><UsersRound aria-hidden="true" />거래처 정보</Link>
             </Button>
             {context.isAdmin ? (
               <Button variant="outline" asChild>

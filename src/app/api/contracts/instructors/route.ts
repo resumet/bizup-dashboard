@@ -3,14 +3,14 @@ import {
   assertInstructorContractOrigin,
   createInstructorContractInstructor,
   instructorContractResponseError,
-  loadInstructorContractInstructors,
+  loadInstructorContractParties,
   requireInstructorContractContext,
 } from "@/lib/contracts/instructor-contract-template-server";
 
 export async function GET() {
   try {
     const context = await requireInstructorContractContext();
-    return Response.json({ instructors: await loadInstructorContractInstructors(context) });
+    return Response.json({ instructors: await loadInstructorContractParties(context) });
   } catch (error) {
     return instructorContractResponseError(error);
   }
