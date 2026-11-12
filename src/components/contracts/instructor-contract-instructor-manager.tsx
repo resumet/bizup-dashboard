@@ -56,6 +56,7 @@ export function InstructorContractInstructorManager({ initialParties }: { initia
   const [partyType, setPartyType] = useState<InstructorContractParty["partyType"]>("instructor");
   const [details, setDetails] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<InstructorContractParty | null>(null);
+  const [view, setView] = useState<"list" | "form">("list");
   const supplierName = details.supplyinstructorName?.trim() ?? "";
 
   function resetForm() {
@@ -63,6 +64,17 @@ export function InstructorContractInstructorManager({ initialParties }: { initia
     setDetails({});
     setPartyType("instructor");
     setEditing(null);
+    setError("");
+  }
+
+  function showCreate() {
+    resetForm();
+    setView("form");
+  }
+
+  function showList() {
+    resetForm();
+    setView("list");
   }
 
   function change(key: keyof typeof form, value: string) {
@@ -75,6 +87,7 @@ export function InstructorContractInstructorManager({ initialParties }: { initia
     setPartyType(party.partyType);
     setForm({ instructorName: party.instructorName, address: party.address, phone: party.phone, email: party.email });
     setDetails(party.details);
+    setView("form");
   }
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
@@ -101,7 +114,7 @@ export function InstructorContractInstructorManager({ initialParties }: { initia
           : [...current, result.instructor!];
         return next.sort((left, right) => left.instructorName.localeCompare(right.instructorName, "ko"));
       });
-      resetForm();
+      showList();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "거래처 정보를 저장하지 못했습니다.");
     } finally {
@@ -120,7 +133,6 @@ export function InstructorContractInstructorManager({ initialParties }: { initia
         throw new Error(body.message ?? "거래처 정보를 삭제하지 못했습니다.");
       }
       setParties((current) => current.filter((item) => item.id !== party.id));
-      if (editing?.id === party.id) resetForm();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "거래처 정보를 삭제하지 못했습니다.");
     } finally {
@@ -128,22 +140,29 @@ export function InstructorContractInstructorManager({ initialParties }: { initia
     }
   }
 
-  return <div className="space-y-6">
-    <form className="grid gap-4 rounded-xl border bg-card p-5 sm:grid-cols-2" onSubmit={save}>
-      <div className="flex items-center justify-between gap-3 sm:col-span-2">
-        <p className="font-semibold">{editing ? "거래처 정보 수정" : "거래처 정보 등록"}</p>
-        {editing ? <Button type="button" variant="ghost" size="sm" onClick={resetForm}><X aria-hidden="true" />취소</Button> : null}
-      </div>
-      <div className="space-y-2"><Label>거래처 유형</Label><Select value={partyType} onValueChange={(value) => setPartyType(value as InstructorContractParty["partyType"])}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="instructor">강사 정보</SelectItem><SelectItem value="supplier">강사공급사 정보</SelectItem></SelectContent></Select></div>
-      {partyType === "instructor" ? <>
-        <div className="space-y-2"><Label htmlFor="contract-instructor-name">강사명</Label><Input id="contract-instructor-name" value={form.instructorName} maxLength={200} required onChange={(event) => change("instructorName", event.target.value)} /></div>
-        <div className="space-y-2"><Label htmlFor="contract-instructor-phone">연락처</Label><Input id="contract-instructor-phone" type="tel" inputMode="numeric" value={form.phone} maxLength={13} placeholder="010-0000-0000" onChange={(event) => change("phone", normalizeInstructorPhone(event.target.value).slice(0, 13))} /></div>
-        <div className="space-y-2 sm:col-span-2"><Label htmlFor="contract-instructor-address">주소</Label><Input id="contract-instructor-address" value={form.address} maxLength={500} onChange={(event) => change("address", event.target.value)} /></div>
-        <div className="space-y-2"><Label htmlFor="contract-instructor-email">이메일</Label><Input id="contract-instructor-email" type="email" value={form.email} maxLength={320} onChange={(event) => change("email", event.target.value)} /></div>
-      </> : null}
-      {partyType === "supplier" ? SUPPLIER_FIELDS.map(({ name, label, hint, inputMode, type, maxLength, wide }) => <div key={name} className={`space-y-2${wide ? " sm:col-span-2" : ""}`}><Label htmlFor={`supplier-detail-${name}`}>{label}{hint ? <span className="ml-1 font-normal text-muted-foreground">({hint})</span> : null}</Label><Input id={`supplier-detail-${name}`} type={type} inputMode={inputMode} maxLength={maxLength} value={details[name] ?? ""} onChange={(event) => setDetails((current) => ({ ...current, [name]: name === "supplynumber" ? normalizeBusinessRegistrationNumber(event.target.value) : name === "supplyphone" ? normalizeInstructorPhone(event.target.value).slice(0, 13) : event.target.value }))} /></div>) : null}
-      <div className="flex items-end justify-end sm:col-span-2"><Button type="submit" disabled={saving}>{saving ? <Loader2 className="animate-spin" /> : editing ? <Pencil /> : <Plus />}{editing ? "수정 저장" : "저장"}</Button></div>
-    </form>
+  if (view === "form") {
+    return <div className="space-y-6">
+      <form className="grid gap-4 rounded-xl border bg-card p-5 sm:grid-cols-2" onSubmit={save}>
+        <div className="flex items-center justify-between gap-3 sm:col-span-2">
+          <p className="font-semibold">{editing ? "거래처 정보 수정" : "거래처 정보 추가"}</p>
+          <Button type="button" variant="ghost" size="sm" onClick={showList}><X aria-hidden="true" />취소</Button>
+        </div>
+        <div className="space-y-2"><Label>거래처 유형</Label><Select value={partyType} onValueChange={(value) => setPartyType(value as InstructorContractParty["partyType"])}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="instructor">강사 정보</SelectItem><SelectItem value="supplier">강사공급사 정보</SelectItem></SelectContent></Select></div>
+        {partyType === "instructor" ? <>
+          <div className="space-y-2"><Label htmlFor="contract-instructor-name">강사명</Label><Input id="contract-instructor-name" value={form.instructorName} maxLength={200} required onChange={(event) => change("instructorName", event.target.value)} /></div>
+          <div className="space-y-2"><Label htmlFor="contract-instructor-phone">연락처</Label><Input id="contract-instructor-phone" type="tel" inputMode="numeric" value={form.phone} maxLength={13} placeholder="010-0000-0000" onChange={(event) => change("phone", normalizeInstructorPhone(event.target.value).slice(0, 13))} /></div>
+          <div className="space-y-2 sm:col-span-2"><Label htmlFor="contract-instructor-address">주소</Label><Input id="contract-instructor-address" value={form.address} maxLength={500} onChange={(event) => change("address", event.target.value)} /></div>
+          <div className="space-y-2"><Label htmlFor="contract-instructor-email">이메일</Label><Input id="contract-instructor-email" type="email" value={form.email} maxLength={320} onChange={(event) => change("email", event.target.value)} /></div>
+        </> : null}
+        {partyType === "supplier" ? SUPPLIER_FIELDS.map(({ name, label, hint, inputMode, type, maxLength, wide }) => <div key={name} className={`space-y-2${wide ? " sm:col-span-2" : ""}`}><Label htmlFor={`supplier-detail-${name}`}>{label}{hint ? <span className="ml-1 font-normal text-muted-foreground">({hint})</span> : null}</Label><Input id={`supplier-detail-${name}`} type={type} inputMode={inputMode} maxLength={maxLength} value={details[name] ?? ""} onChange={(event) => setDetails((current) => ({ ...current, [name]: name === "supplynumber" ? normalizeBusinessRegistrationNumber(event.target.value) : name === "supplyphone" ? normalizeInstructorPhone(event.target.value).slice(0, 13) : event.target.value }))} /></div>) : null}
+        <div className="flex items-end justify-end sm:col-span-2"><Button type="submit" disabled={saving}>{saving ? <Loader2 className="animate-spin" /> : editing ? <Pencil /> : <Plus />}{editing ? "수정 저장" : "저장"}</Button></div>
+      </form>
+      {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
+    </div>;
+  }
+
+  return <div className="space-y-4">
+    <div className="flex items-center justify-end"><Button type="button" onClick={showCreate}><Plus aria-hidden="true" />추가</Button></div>
     {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
     {parties.length ? <div className="overflow-hidden rounded-xl border bg-card"><ul className="divide-y">{parties.map((party) => <li key={party.id} className="flex items-center gap-4 px-5 py-4"><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="truncate font-semibold">{party.instructorName}</p><Badge variant="secondary">{partyLabel(party.partyType)}</Badge></div><p className="truncate text-sm text-muted-foreground">{partySummary(party)}</p></div><Button type="button" size="icon-sm" variant="ghost" aria-label={`${party.instructorName} 수정`} onClick={() => startEdit(party)}><Pencil /></Button><Button type="button" size="icon-sm" variant="ghost" className="text-destructive" aria-label={`${party.instructorName} 삭제`} disabled={deleting === party.id} onClick={() => void remove(party)}>{deleting === party.id ? <Loader2 className="animate-spin" /> : <Trash2 />}</Button></li>)}</ul></div> : <p className="rounded-xl border border-dashed py-16 text-center text-sm text-muted-foreground">등록된 거래처 정보가 없습니다.</p>}
   </div>;
