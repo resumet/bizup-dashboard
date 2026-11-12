@@ -55,7 +55,10 @@ function IntakeSectionNavigator() {
     const sections = Array.from(document.querySelectorAll<HTMLElement>("[data-instructor-intake-form] fieldset > section"));
     sections.forEach((section, index) => {
       const item = SECTION_NAVIGATION[index];
-      if (item) section.id = item.id;
+      if (item) {
+        section.id = item.id;
+        section.dataset.sectionNumber = `${String(index + 1).padStart(2, "0")}. ${item.label}`;
+      }
     });
     const updateActive = () => {
       const current = sections.reduce<(typeof SECTION_NAVIGATION)[number]>((selected, section, index) => {
@@ -73,7 +76,7 @@ function IntakeSectionNavigator() {
     };
   }, []);
 
-  return <aside className="hidden xl:block"><nav className="sticky top-6 rounded-xl border bg-card p-3" aria-label="강사 정보 섹션"><p className="px-2 pb-2 text-sm font-semibold">섹션</p><ol className="space-y-1">{SECTION_NAVIGATION.map((item) => <li key={item.id}><button type="button" className={`w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors ${activeId === item.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`} aria-current={activeId === item.id ? "location" : undefined} onClick={() => document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" })}>{item.label}</button></li>)}</ol></nav></aside>;
+  return <aside className="hidden lg:block"><nav className="sticky top-6 max-h-[calc(100dvh-3rem)] overflow-y-auto rounded-xl border bg-card p-3" aria-label="강사 정보 섹션"><p className="px-2 pb-2 text-sm font-semibold">섹션</p><ol className="space-y-1">{SECTION_NAVIGATION.map((item, index) => <li key={item.id}><button type="button" className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${activeId === item.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`} aria-current={activeId === item.id ? "location" : undefined} onClick={() => document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" })}><span className="w-5 shrink-0 text-xs tabular-nums">{String(index + 1).padStart(2, "0")}</span><span>{item.label}</span></button></li>)}</ol></nav></aside>;
 }
 function readAnswers(form: HTMLFormElement): Answers {
   const data = new FormData(form);
@@ -250,10 +253,10 @@ export function IntakeForm({ token, initialAnswers, initialPhotos, initialImages
   }
 
   return <form ref={formRef} data-instructor-intake-form className="space-y-6" noValidate onChange={() => { if (formRef.current) setAnswers(readAnswers(formRef.current)); }} onSubmit={(event) => { event.preventDefault(); void save(true); }}>
-    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_11rem]">
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_11rem]">
       <div className="min-w-0 space-y-6">
     <IntakeProgress answers={answers} photoCount={photos.length} imagePaths={imagePaths} />
-    <fieldset disabled={busy} className="space-y-6">
+    <fieldset disabled={busy} className="space-y-6 [&>section]:scroll-mt-6 [&>section]:before:mb-3 [&>section]:before:block [&>section]:before:text-sm [&>section]:before:font-semibold [&>section]:before:text-primary [&>section]:before:content-[attr(data-section-number)]">
       <section className={sectionClass}>
         <h2 className="text-lg font-semibold">기본 정보</h2>
         <div className="grid gap-5 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="realName">1. 본명</Label><Input id="realName" name="realName" autoComplete="name" maxLength={80} defaultValue={initialAnswers.realName} /></div><div className="space-y-2"><Label htmlFor="nickname">2. 닉네임</Label><Input id="nickname" name="nickname" maxLength={80} defaultValue={initialAnswers.nickname} /></div><div className="space-y-2"><Label htmlFor="phone">3. 휴대폰번호</Label><Input id="phone" name="phone" autoComplete="tel" inputMode="tel" maxLength={30} defaultValue={initialAnswers.phone} placeholder="010-0000-0000" onBlur={(event) => { event.currentTarget.value = normalizeKoreanMobilePhone(event.currentTarget.value); if (formRef.current) setAnswers(readAnswers(formRef.current)); }} /></div><div className="space-y-2"><Label htmlFor="email">4. 이메일 주소</Label><Input id="email" name="email" autoComplete="email" inputMode="email" type="email" maxLength={254} defaultValue={initialAnswers.email} placeholder="name@example.com" onBlur={(event) => { event.currentTarget.value = event.currentTarget.value.trim().toLowerCase(); if (formRef.current) setAnswers(readAnswers(formRef.current)); }} /></div></div>
