@@ -53,6 +53,14 @@ export const createInstructorContractSchema = z.object({
   values: instructorContractValuesSchema,
 });
 
+const SUPPLIER_DETAIL_KEYS = new Set([
+  "supplyinstructorName",
+  "supplyaddress",
+  "supplynumber",
+  "supplyceoname",
+  "supplyphone",
+]);
+
 export const instructorContractInstructorSchema = z.object({
   partyType: z.enum(["instructor", "supplier"]).default("instructor"),
   instructorName: z.string().trim().min(1, "강사명을 입력해 주세요.").max(200),
@@ -66,6 +74,13 @@ export const instructorContractInstructorSchema = z.object({
     "올바른 이메일 주소를 입력해 주세요.",
   ),
   details: z.record(z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]*$/u), z.string().max(10_000)).default({}),
+}).superRefine((value, context) => {
+  if (value.partyType !== "supplier") return;
+  for (const key of Object.keys(value.details)) {
+    if (!SUPPLIER_DETAIL_KEYS.has(key)) {
+      context.addIssue({ code: "custom", path: ["details", key], message: "강사공급사 계약서에서 지원하지 않는 변수입니다." });
+    }
+  }
 });
 
 export const saveInstructorContractTemplateSchema = z.object({

@@ -8,40 +8,36 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { InstructorContractInstructor, InstructorContractTemplateRecord } from "@/lib/contracts/instructor-contract";
-import { getInstructorContractTemplateVariables, normalizeBusinessRegistrationNumber, normalizeInstructorPhone } from "@/lib/contracts/instructor-contract";
+import type { InstructorContractInstructor } from "@/lib/contracts/instructor-contract";
+import { normalizeBusinessRegistrationNumber, normalizeInstructorPhone } from "@/lib/contracts/instructor-contract";
 
 const empty = { instructorName: "", address: "", phone: "", email: "" };
+const SUPPLIER_FIELDS = [
+  { name: "supplyinstructorName", label: "상호", maxLength: 200 },
+  { name: "supplyaddress", label: "주소", maxLength: 500, wide: true },
+  { name: "supplynumber", label: "사업자등록번호", inputMode: "numeric" as const, maxLength: 12 },
+  { name: "supplyceoname", label: "대표자", hint: "서명 또는 인", maxLength: 200 },
+  { name: "supplyphone", label: "연락처", inputMode: "numeric" as const, maxLength: 13 },
+] as const;
 
-export function InstructorContractInstructorManager({ initialInstructors, templates }: { initialInstructors: InstructorContractInstructor[]; templates: InstructorContractTemplateRecord[] }) {
+export function InstructorContractInstructorManager({ initialInstructors }: { initialInstructors: InstructorContractInstructor[] }) {
   const [instructors, setInstructors] = useState(initialInstructors);
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState("");
   const [error, setError] = useState("");
   const [partyType, setPartyType] = useState<"instructor" | "supplier">("instructor");
-  const [supplierTemplateId, setSupplierTemplateId] = useState("");
   const [details, setDetails] = useState<Record<string, string>>({});
-  const supplierTemplates = templates.filter((template) => template.name.includes("강사공급사"));
-  const supplierTemplate = supplierTemplates.find((template) => template.id === supplierTemplateId);
-  const supplierVariables = supplierTemplate ? getInstructorContractTemplateVariables(supplierTemplate.template) : [];
-  const supplierNameVariable = supplierVariables.find(({ name, label }) => /(?:supplier|company|business|name)/iu.test(name) || /(?:강사공급사|공급사|회사|상호|성명|이름)/u.test(label ?? "")) ?? supplierVariables[0];
-  const supplierName = supplierNameVariable ? details[supplierNameVariable.name]?.trim() ?? "" : "";
+  const supplierName = details.supplyinstructorName?.trim() ?? "";
 
   function change(key: keyof typeof form, value: string) { setForm((current) => ({ ...current, [key]: value })); }
-  function selectSupplierTemplate(templateId: string) {
-    setSupplierTemplateId(templateId);
-    setDetails({});
-    setError("");
-  }
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
     setSaving(true); setError("");
     try {
-      if (partyType === "supplier" && !supplierTemplate) throw new Error("강사공급사 계약서 템플릿을 선택해 주세요.");
-      if (partyType === "supplier" && !supplierName) throw new Error("계약서에 있는 공급사명 변수를 입력해 주세요.");
-      const supplierDetails = Object.fromEntries(supplierVariables.map(({ name }) => [name, details[name] ?? ""]));
+      if (partyType === "supplier" && !supplierName) throw new Error("상호를 입력해 주세요.");
+      const supplierDetails = Object.fromEntries(SUPPLIER_FIELDS.map(({ name }) => [name, details[name] ?? ""]));
       const payload = partyType === "supplier"
         ? { partyType, instructorName: supplierName, address: "", phone: "", email: "", details: supplierDetails }
         : { ...form, partyType, details: {} };
@@ -66,7 +62,6 @@ export function InstructorContractInstructorManager({ initialInstructors, templa
   return <div className="space-y-6">
     <form className="grid gap-4 rounded-xl border bg-card p-5 sm:grid-cols-2" onSubmit={save}>
       <div className="space-y-2"><Label>거래처 유형</Label><Select value={partyType} onValueChange={(value) => setPartyType(value as "instructor" | "supplier")}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="instructor">강사정보</SelectItem><SelectItem value="supplier">강사공급사정보</SelectItem></SelectContent></Select></div>
-      {partyType === "supplier" ? <div className="space-y-2"><Label>강사공급사 계약서 템플릿</Label><Select value={supplierTemplateId} onValueChange={selectSupplierTemplate}><SelectTrigger><SelectValue placeholder="템플릿 선택" /></SelectTrigger><SelectContent>{supplierTemplates.map((template) => <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>)}</SelectContent></Select></div> : null}
       {partyType === "instructor" ? <>
         <div className="space-y-2"><Label htmlFor="contract-instructor-name">강사명</Label><Input id="contract-instructor-name" value={form.instructorName} maxLength={200} required onChange={(event) => change("instructorName", event.target.value)} /></div>
         <div className="space-y-2"><Label htmlFor="contract-instructor-phone">연락처</Label><Input id="contract-instructor-phone" type="tel" inputMode="numeric" value={form.phone} maxLength={13} placeholder="010-0000-0000" onChange={(event) => change("phone", normalizeInstructorPhone(event.target.value).slice(0, 13))} /></div>
@@ -74,9 +69,9 @@ export function InstructorContractInstructorManager({ initialInstructors, templa
         <div className="space-y-2"><Label htmlFor="contract-instructor-email">이메일</Label><Input id="contract-instructor-email" type="email" value={form.email} maxLength={320} onChange={(event) => change("email", event.target.value)} /></div>
         <div className="flex items-end justify-end"><Button type="submit" disabled={saving}>{saving ? <Loader2 className="animate-spin" /> : <Plus />}저장</Button></div>
       </> : null}
-      {partyType === "supplier" && supplierTemplate ? <>
-        {supplierVariables.map(({ name, label }) => { const business = /(?:business.*(?:number|registration)|business_number|businessRegistrationNumber)/iu.test(name) || /사업자등록번호/u.test(label ?? ""); const phone = /(?:phone|tel)/iu.test(name) || /전화번호/u.test(label ?? ""); return <div key={name} className="space-y-2"><Label htmlFor={`supplier-detail-${name}`}>{label || `변수: ${name}`}</Label><Input id={`supplier-detail-${name}`} inputMode={business || phone ? "numeric" : undefined} maxLength={business ? 12 : phone ? 13 : undefined} value={details[name] ?? ""} onChange={(event) => setDetails((current) => ({ ...current, [name]: business ? normalizeBusinessRegistrationNumber(event.target.value) : phone ? normalizeInstructorPhone(event.target.value).slice(0, 13) : event.target.value }))} /></div> })}
-        <div className="flex items-end justify-end"><Button type="submit" disabled={saving || supplierVariables.length === 0}>{saving ? <Loader2 className="animate-spin" /> : <Plus />}저장</Button></div>
+      {partyType === "supplier" ? <>
+        {SUPPLIER_FIELDS.map(({ name, label, hint, inputMode, maxLength, wide }) => <div key={name} className={`space-y-2${wide ? " sm:col-span-2" : ""}`}><Label htmlFor={`supplier-detail-${name}`}>{label}{hint ? <span className="ml-1 font-normal text-muted-foreground">({hint})</span> : null}</Label><Input id={`supplier-detail-${name}`} inputMode={inputMode} maxLength={maxLength} value={details[name] ?? ""} onChange={(event) => setDetails((current) => ({ ...current, [name]: name === "supplynumber" ? normalizeBusinessRegistrationNumber(event.target.value) : name === "supplyphone" ? normalizeInstructorPhone(event.target.value).slice(0, 13) : event.target.value }))} /></div>)}
+        <div className="flex items-end justify-end"><Button type="submit" disabled={saving}>{saving ? <Loader2 className="animate-spin" /> : <Plus />}저장</Button></div>
       </> : null}
     </form>
     {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
