@@ -112,15 +112,20 @@ export function InstructorContractWriter({
           : variable === "instagram_number_of_reels"
             ? normalizeContractNumberInput(value)
         : value;
-    setValues((current) => ({
-      ...current,
-      customValues: { ...current.customValues, [variable]: normalizedValue },
-      ...(variable === "instructorName" ? { instructorName: normalizedValue } : {}),
-      ...(variable === "lectureName" ? { lectureName: normalizedValue } : {}),
-      ...(variable === "address" ? { address: normalizedValue } : {}),
-      ...(variable === "phone" ? { phone: normalizedValue } : {}),
-      ...(variable === "email" ? { email: normalizedValue } : {}),
-    }));
+    setValues((current) => {
+      const customValues = { ...current.customValues, [variable]: normalizedValue };
+      if (variable === "contract_date") delete customValues.contract_date;
+      return {
+        ...current,
+        customValues,
+        ...(variable === "contract_date" ? { contractDate: normalizedValue } : {}),
+        ...(variable === "instructorName" ? { instructorName: normalizedValue } : {}),
+        ...(variable === "lectureName" ? { lectureName: normalizedValue } : {}),
+        ...(variable === "address" ? { address: normalizedValue } : {}),
+        ...(variable === "phone" ? { phone: normalizedValue } : {}),
+        ...(variable === "email" ? { email: normalizedValue } : {}),
+      };
+    });
   }
 
   function inputOptions(variable: string, label?: string) {
@@ -132,6 +137,7 @@ export function InstructorContractWriter({
   }
 
   function variableInputValue(variable: string, label?: string) {
+    if (variable === "contract_date") return values.contractDate;
     if (variable in values.customValues) {
       const value = values.customValues[variable] ?? "";
       if (/(?:business.*(?:number|registration)|business_number|businessRegistrationNumber|businessNo)/iu.test(variable) || /사업자등록번호/u.test(label ?? "")) return normalizeBusinessRegistrationNumber(value);

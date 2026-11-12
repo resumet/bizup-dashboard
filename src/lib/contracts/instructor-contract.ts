@@ -486,6 +486,7 @@ export function replaceInstructorContractVariables(
     companyAddress: COMPANY_CONTRACT_DETAILS.address,
     companyRepresentative: COMPANY_CONTRACT_DETAILS.representative,
     ...values.customValues,
+    contract_date: getKoreanDateWithWeekday(values.contractDate) || "작성일 입력 예정",
     ...(values.customValues.instagram_value_of_reels ? { instagram_value_of_reels: formatContractNumber(values.customValues.instagram_value_of_reels) } : {}),
   };
 

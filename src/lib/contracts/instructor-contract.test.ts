@@ -122,6 +122,25 @@ test("작성 날짜 변수를 입력 날짜로 바꾼다", () => {
   assert.equal(rendered.content, "작성일: 2026년 11월 06일(금)");
 });
 
+test("작성 날짜는 사용자 정의 변수에 같은 키가 있어도 요일을 포함한 계약 날짜로 표시한다", () => {
+  const template: InstructorContractTemplate = {
+    version: 2,
+    content: [{
+      id: "00000000-0000-4000-8000-000000000001",
+      type: "paragraph",
+      content: "작성일: {{contract_date}}",
+    }],
+  };
+  const [rendered] = renderInstructorContractTemplate(template, {
+    ...values,
+    contractDate: "2026-11-12",
+    customValues: { contract_date: "2026-11-12" },
+  });
+  assert.equal(rendered.type, "paragraph");
+  if (rendered.type !== "paragraph") return;
+  assert.equal(rendered.content, "작성일: 2026년 11월 12일(목)");
+});
+
 test("계약서 본문과 리치텍스트 안의 모든 사용자 변수를 수집하고 치환한다", () => {
   const template: InstructorContractTemplate = {
     version: 2,
