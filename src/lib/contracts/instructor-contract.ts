@@ -472,7 +472,6 @@ export function replaceInstructorContractVariables(
   const replacements: Record<string, string> = {
     instructorName: displayContractValue(values.instructorName, "강사명"),
     lectureName: displayContractValue(values.lectureName, "강의명"),
-    contract_date: getKoreanDateWithWeekday(values.contractDate) || "작성일 입력 예정",
     instagram_number_of_reels: displayContractValue(values.instagramNumberOfReels, "입력 예정"),
     instagram_value_of_reels: displayContractValue(formatContractNumber(values.instagramValueOfReels), "입력 예정"),
     startDate,
