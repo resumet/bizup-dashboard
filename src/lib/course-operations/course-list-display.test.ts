@@ -50,7 +50,18 @@ test("강의 운영 목록 관리 메뉴가 강의별 서비스로 연결된다"
       label: "강의별 해야할일",
       href: "/services/course-wbs?courseId=course%2F1",
     },
+    {
+      label: "광고성과 관리",
+      href: "/services/ad-performance/daily",
+    },
   ]);
+});
+
+test("연결된 광고성과 대시보드로 바로 이동한다", () => {
+  assert.equal(
+    getCourseManagementDestinations("course/1", "dashboard/1").at(-1)?.href,
+    "/services/ad-performance/dashboard%2F1",
+  );
 });
 
 test("WBS 전체 항목과 일정이 지난 항목 수를 함께 표시한다", () => {

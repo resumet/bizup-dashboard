@@ -19,6 +19,7 @@ type WbsProgressRow = {
 };
 
 type AdPerformanceDashboardRow = {
+  id: string;
   course_id: string | null;
   ad_performance_dashboard_metrics: Array<{
     google_spend: number | string;
@@ -45,7 +46,7 @@ const loadCachedCourseSummaries = unstable_cache(
       }),
       admin
         .from("ad_performance_dashboards")
-        .select("course_id,ad_performance_dashboard_metrics(google_spend,meta_spend,google_ad_leads,meta_ad_leads)")
+        .select("id,course_id,ad_performance_dashboard_metrics(google_spend,meta_spend,google_ad_leads,meta_ad_leads)")
         .eq("workspace_id", workspaceId)
         .eq("service_scope", "bizup"),
     ]);
@@ -87,6 +88,10 @@ const loadCachedCourseSummaries = unstable_cache(
         ),
       ),
     );
+    const dashboardIdByCourse = new Map(
+      ((adPerformanceResult.data ?? []) as AdPerformanceDashboardRow[])
+        .flatMap((dashboard) => dashboard.course_id ? [[dashboard.course_id, dashboard.id] as const] : []),
+    );
 
     return (coursesResult.data ?? []).map((course) => ({
       ...course,
@@ -98,6 +103,7 @@ const loadCachedCourseSummaries = unstable_cache(
       wbs_overdue_item_count: progressByCourse.get(course.id)?.overdue ?? 0,
       google_ad_lead_cost: adLeadCostsByCourse.get(course.id)?.googleAdLeadCost ?? null,
       meta_ad_lead_cost: adLeadCostsByCourse.get(course.id)?.metaAdLeadCost ?? null,
+      ad_performance_dashboard_id: dashboardIdByCourse.get(course.id) ?? null,
     })) as CourseSummary[];
   },
   [COURSE_OPERATIONS_LIST_CACHE_TAG],

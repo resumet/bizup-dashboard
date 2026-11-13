@@ -70,6 +70,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
     linkedProjectsResult,
     notesResult,
     instructorIntakeResult,
+    adPerformanceDashboardResult,
   ] =
     await Promise.all([
       supabase
@@ -94,6 +95,13 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
         .eq("course_id", courseId)
         .order("updated_at", { ascending: false })
         .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("ad_performance_dashboards")
+        .select("id")
+        .eq("workspace_id", membership.workspace_id)
+        .eq("course_id", courseId)
+        .eq("service_scope", "bizup")
         .maybeSingle(),
     ]);
 
@@ -227,6 +235,17 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
               <DropdownMenuItem asChild>
                 <Link href={`/services/course-wbs?courseId=${courseId}`}>
                   강의별 해야할일
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link
+                  href={
+                    adPerformanceDashboardResult.data
+                      ? `/services/ad-performance/${adPerformanceDashboardResult.data.id}`
+                      : "/services/ad-performance/daily"
+                  }
+                >
+                  광고성과 관리
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>

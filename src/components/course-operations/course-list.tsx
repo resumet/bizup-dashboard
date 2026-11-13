@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import {
   BookUser,
+  ChartNoAxesCombined,
   CalendarDays,
   ChevronDown,
   CircleDot,
@@ -102,15 +103,11 @@ type CourseDeletionBlocker = {
   leadCount: number;
   href: string;
 };
-const courseManagementIcons = [BookUser, Video, Radio, UsersRound, ClipboardList];
-const won = new Intl.NumberFormat("ko-KR", {
-  style: "currency",
-  currency: "KRW",
-  maximumFractionDigits: 0,
-});
+const courseManagementIcons = [BookUser, Video, Radio, CalendarDays, UsersRound, ClipboardList, ChartNoAxesCombined];
+const number = new Intl.NumberFormat("ko-KR");
 
 function formatAdLeadCost(value: number | null) {
-  return value === null ? "—" : won.format(value);
+  return value === null ? "—" : `${number.format(Math.round(value))}원`;
 }
 
 function formatCourseListWebinarDate(value: string) {
@@ -149,7 +146,10 @@ function CourseActionsMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-64">
-        {getCourseManagementDestinations(course.id).map((destination, index) => {
+        {getCourseManagementDestinations(
+          course.id,
+          course.ad_performance_dashboard_id,
+        ).map((destination, index) => {
           const Icon = courseManagementIcons[index] ?? EllipsisVertical;
           return (
             <DropdownMenuItem key={destination.href} asChild>
@@ -222,12 +222,12 @@ function CourseCards({ courses, canDelete, onStatus, onDelete, todayKoreaDate, s
         </div>
         {!subdued ? <div className="col-span-2 grid grid-cols-2 border-t text-sm">
           <div className="px-5 py-4">
-            <dt className="text-xs text-muted-foreground">Google 광고접수 DB 단가</dt>
-            <dd className="mt-1 font-medium tabular-nums">{formatAdLeadCost(course.google_ad_lead_cost)}</dd>
+            <dt className="text-xs text-muted-foreground">광고접수 DB 단가</dt>
+            <dd className="mt-1 font-medium tabular-nums">G : {formatAdLeadCost(course.google_ad_lead_cost)}</dd>
           </div>
           <div className="border-l px-5 py-4">
-            <dt className="text-xs text-muted-foreground">Meta 광고접수 DB 단가</dt>
-            <dd className="mt-1 font-medium tabular-nums">{formatAdLeadCost(course.meta_ad_lead_cost)}</dd>
+            <dt className="sr-only">Meta 광고접수 DB 단가</dt>
+            <dd className="mt-1 font-medium tabular-nums">M : {formatAdLeadCost(course.meta_ad_lead_cost)}</dd>
           </div>
         </div> : null}
       </dl>
@@ -294,8 +294,8 @@ function CourseTable({ courses, canDelete, onStatus, onDelete, todayKoreaDate, s
           </Badge>
         </TableCell>
         {!subdued ? <TableCell className="text-xs tabular-nums">
-          <div>Google {formatAdLeadCost(course.google_ad_lead_cost)}</div>
-          <div className="mt-1">Meta {formatAdLeadCost(course.meta_ad_lead_cost)}</div>
+          <div>G : {formatAdLeadCost(course.google_ad_lead_cost)}</div>
+          <div className="mt-1">M : {formatAdLeadCost(course.meta_ad_lead_cost)}</div>
         </TableCell> : null}
         <TableCell className="text-right"><CourseActionsMenu course={course} canDelete={canDelete} onStatus={onStatus} onDelete={onDelete} /></TableCell>
       </TableRow>)}</TableBody>

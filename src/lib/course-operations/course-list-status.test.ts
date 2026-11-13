@@ -36,6 +36,7 @@ function course(overrides: Partial<CourseSummary> = {}): CourseSummary {
     wbs_overdue_item_count: 0,
     google_ad_lead_cost: null,
     meta_ad_lead_cost: null,
+    ad_performance_dashboard_id: null,
     ...overrides,
   };
 }

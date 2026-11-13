@@ -19,6 +19,7 @@ export type CourseManagementDestination = {
 
 export function getCourseManagementDestinations(
   courseId: string,
+  adPerformanceDashboardId: string | null = null,
 ): CourseManagementDestination[] {
   const encodedCourseId = encodeURIComponent(courseId);
   return [
@@ -45,6 +46,12 @@ export function getCourseManagementDestinations(
     {
       label: "강의별 해야할일",
       href: `/services/course-wbs?courseId=${encodedCourseId}`,
+    },
+    {
+      label: "광고성과 관리",
+      href: adPerformanceDashboardId
+        ? `/services/ad-performance/${encodeURIComponent(adPerformanceDashboardId)}`
+        : "/services/ad-performance/daily",
     },
   ];
 }
