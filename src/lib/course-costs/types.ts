@@ -140,5 +140,6 @@ export const COURSE_COST_DEFAULT_CATEGORIES = {
     ["YOUTUBE_RS", "유튜브 출연 RS비용"],
     ["GOOGLE_AD", "구글광고비"],
     ["META_AD", "메타광고비"],
+    ["OFFLINE_VENUE", "오프라인 장소 이용료"],
   ],
 } as const;

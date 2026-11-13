@@ -21,7 +21,7 @@ export async function POST(_: Request, { params }: Context) {
     await admin.from("audit_logs").insert({
       workspace_id: workspaceId,
       actor_id: user.id,
-      event_type: "course_cost.ad_operation_recorded_in_ledger",
+      event_type: "course_cost.recorded_in_ledger",
       entity_type: "course_cost",
       entity_id: costId,
       metadata: { course_id: courseId, cash_ledger_entry_id: entryId },

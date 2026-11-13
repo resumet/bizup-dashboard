@@ -30,6 +30,7 @@ type FixedBurden = Exclude<CourseCostBurden, "UNCLASSIFIED">;
 type CostResponse = { costs: CourseCost[]; locked: boolean };
 type CostDraft = { key: string; id: string | null; value: CourseCostInput; attachments: CourseCostAttachment[]; cashLedgerEntryId: string | null };
 type DeletedCost = { id: string; version: number };
+const CASH_LEDGER_CATEGORY_CODES = new Set(["AD_OPERATION", "OFFLINE_VENUE"]);
 
 const BURDENS: Array<{ value: FixedBurden; label: string }> = [
   { value: "COMPANY", label: "회사 부담" },
@@ -475,7 +476,7 @@ export function CourseCostManager({ courseId, instructorName }: { courseId: stri
       >
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>{burden.label}</CardTitle><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={busy || items.length === 0} onClick={() => setSectionPaid(burden.value)}><CheckCircle2/>전체 지급완료</Button><Button type="button" variant="outline" disabled={busy || !hasPaidItem} onClick={() => setSectionDateToday(burden.value)}><CalendarDays/>정산일 오늘로</Button><Button type="button" variant="outline" disabled={busy} onClick={() => addDraft(burden.value)}><Plus/>기타 비용 추가</Button></div></div>
-          <div className="flex flex-wrap gap-2">{COURSE_COST_DEFAULT_CATEGORIES[burden.value].map(([code,name]) => <Button type="button" key={code} size="sm" variant="secondary" disabled={busy} onClick={() => code === "YOUTUBE_RS" ? openYoutubeRsDialog() : code === "YOUTUBE_FIXED" ? openYoutubeAppearanceFeeDialog() : addDraft(burden.value, code, name)}>{name} 등록</Button>)}</div>
+          <div className="flex flex-wrap gap-2">{COURSE_COST_DEFAULT_CATEGORIES[burden.value].map(([code,name]) => <Button type="button" key={code} size="sm" variant="secondary" className="rounded-full" disabled={busy} onClick={() => code === "YOUTUBE_RS" ? openYoutubeRsDialog() : code === "YOUTUBE_FIXED" ? openYoutubeAppearanceFeeDialog() : addDraft(burden.value, code, name)}>{name} 등록</Button>)}</div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className={`${COST_ROW_GRID} hidden border-b px-3 pb-2 text-xs font-medium text-muted-foreground xl:grid`}><span>이름</span><span>담당자</span><span>정산금액</span><span>비용상태</span><span>정산일</span><span className="sr-only">관리</span></div>
@@ -538,9 +539,9 @@ function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onEditC
     onBusy(true);
     onError("");
     try {
-      onApply(await request(`/api/course-operations/${courseId}/costs/${draft.id}/cash-ledger`, { method: "POST" }), "광고집행비를 입출금 장부에 기록했습니다.");
+      onApply(await request(`/api/course-operations/${courseId}/costs/${draft.id}/cash-ledger`, { method: "POST" }), `${draft.value.name || "비용"}을 입출금 장부에 기록했습니다.`);
     } catch (reason) {
-      onError(reason instanceof Error ? reason.message : "광고집행비를 입출금 장부에 기록하지 못했습니다.");
+      onError(reason instanceof Error ? reason.message : `${draft.value.name || "비용"}을 입출금 장부에 기록하지 못했습니다.`);
     } finally {
       onBusy(false);
     }
@@ -598,7 +599,7 @@ function CostEditor({ draft, locked, busy, courseId, onChange, onDelete, onEditC
       <Paperclip className="size-4"/>{draft.attachments.length ? <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-blue-600 text-[10px] text-white">{draft.attachments.length}</span> : null}
     </Button>
     <Button type="button" size="icon" variant="outline" className="size-10 shrink-0 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-300" title="비용 삭제" aria-label={`${draft.value.name || "새 비용"} 삭제`} disabled={busy} onClick={onDelete}><Trash2/></Button>
-    {draft.value.categoryCode === "AD_OPERATION" ? <Button type="button" size="icon" variant="outline" className="size-10 shrink-0 border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300" title={draft.id ? (draft.cashLedgerEntryId ? "입출금 장부 기록을 최신 비용으로 갱신" : "입출금 장부에 기록") : "비용 변경사항을 먼저 저장한 후 장부에 기록할 수 있습니다."} aria-label={`${draft.value.name || "광고집행비"} 입출금 장부에 기록`} disabled={busy || !draft.id} onClick={() => void recordInCashLedger()}><BookOpenCheck className="size-4"/></Button> : null}
+    {CASH_LEDGER_CATEGORY_CODES.has(draft.value.categoryCode) ? <Button type="button" size="icon" variant="outline" className="size-10 shrink-0 border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300" title={draft.id ? (draft.cashLedgerEntryId ? "입출금 장부 기록을 최신 비용으로 갱신" : "입출금 장부에 기록") : "비용 변경사항을 먼저 저장한 후 장부에 기록할 수 있습니다."} aria-label={`${draft.value.name || "비용"} 입출금 장부에 기록`} disabled={busy || !draft.id} onClick={() => void recordInCashLedger()}><BookOpenCheck className="size-4"/></Button> : null}
     {draft.value.calculationDetails ? <Button type="button" size="icon" variant="outline" className="size-10 shrink-0" title={`${draft.value.name} 상세 내역 보기 및 수정`} aria-label={`${draft.value.name} 상세 내역 보기 및 수정`} disabled={busy} onClick={onEditCalculation}><PencilLine/></Button> : null}
   </div>;
 
