@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { CalendarEventForm, selectClass } from "./event-form";
 import { CalendarBulkForm } from "./bulk-form";
 import { filterCalendarEvents, formatCalendarTime, formatLocation, formatTime, monthDays, shiftMonth } from "@/lib/shared-calendar/calendar";
+import { koreanHolidaysForDates, type KoreanHolidayMap } from "@/lib/shared-calendar/holidays";
 import type { CalendarCourse, CalendarEvent, CalendarSearchResult, CalendarSourceEvent, MeetingType } from "@/lib/shared-calendar/types";
 import { cn } from "@/lib/utils";
 
@@ -58,7 +59,17 @@ export function SharedCalendar({ today, initialDate = today, currentUserId, init
   const movePending = useRef(false);
   const [moving, setMoving] = useState(false);
   const [dropDate, setDropDate] = useState<string | null>(null);
+  const [holidays, setHolidays] = useState<KoreanHolidayMap>({});
   const days = monthDays(month);
+
+  useEffect(() => {
+    let active = true;
+    setHolidays({});
+    void koreanHolidaysForDates(days)
+      .then((nextHolidays) => { if (active) setHolidays(nextHolidays); })
+      .catch(() => { if (active) setHolidays({}); });
+    return () => { active = false; };
+  }, [month]);
 
   useEffect(() => {
     let active = true;
@@ -183,8 +194,9 @@ export function SharedCalendar({ today, initialDate = today, currentUserId, init
     {searchResults !== null ? <CalendarSearchResults results={searchResults} pending={searchPending} onSelect={selectSearchResult} /> : <>
     <div data-calendar-grid className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-background" aria-busy={loading}>
       <div className="grid shrink-0 grid-cols-7 bg-muted/40">{["일", "월", "화", "수", "목", "금", "토"].map((day, index) => <div key={day} className={cn("border-b py-1 text-center text-sm font-medium", index === 0 && "text-red-600", index === 6 && "text-blue-600")}>{day}</div>)}</div>
-      <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6">{days.map((date) => { const dayEvents = byDay.get(date) ?? []; const eventLineClamp = dayEvents.length >= 3 ? "line-clamp-1" : "line-clamp-3"; return <div key={date} data-calendar-date={date} onDoubleClick={() => addOnDate(date)} onDragOver={(e) => { if (dragging.current && !movePending.current) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropDate(date); } }} onDragLeave={(e) => { if (!(e.relatedTarget instanceof Node) || !e.currentTarget.contains(e.relatedTarget)) setDropDate((current) => current === date ? null : current); }} onDrop={(e) => { e.preventDefault(); void dropOnDate(date); }} className={cn("flex min-h-0 min-w-0 flex-col border-b border-r p-1 last:border-r-0", date.slice(0, 7) !== month && "bg-muted/30", selectedDate === date && "bg-blue-50/60", dropDate === date && "bg-blue-100 ring-2 ring-inset ring-blue-500")}>
-        <button type="button" aria-label={`${date} 일정 보기`} aria-pressed={selectedDate === date} onClick={(e) => { setSelectedDate(date); if (e.detail === 0) addOnDate(date); }} className={cn("grid size-[24px] shrink-0 place-items-center rounded-full text-sm focus-visible:outline-2 focus-visible:outline-ring", date === today && "bg-primary text-primary-foreground", date.slice(0, 7) !== month && "opacity-50")}>{Number(date.slice(8))}</button>
+      <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6">{days.map((date) => { const dayEvents = byDay.get(date) ?? []; const holidayNames = holidays[date] ?? []; const eventLineClamp = dayEvents.length >= 3 ? "line-clamp-1" : "line-clamp-3"; return <div key={date} data-calendar-date={date} onDoubleClick={() => addOnDate(date)} onDragOver={(e) => { if (dragging.current && !movePending.current) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropDate(date); } }} onDragLeave={(e) => { if (!(e.relatedTarget instanceof Node) || !e.currentTarget.contains(e.relatedTarget)) setDropDate((current) => current === date ? null : current); }} onDrop={(e) => { e.preventDefault(); void dropOnDate(date); }} className={cn("flex min-h-0 min-w-0 flex-col border-b border-r p-1 last:border-r-0", date.slice(0, 7) !== month && "bg-muted/30", selectedDate === date && "bg-blue-50/60", dropDate === date && "bg-blue-100 ring-2 ring-inset ring-blue-500")}>
+        <button type="button" aria-label={`${date} 일정 보기${holidayNames.length ? `, 공휴일 ${holidayNames.join(", ")}` : ""}`} aria-pressed={selectedDate === date} onClick={(e) => { setSelectedDate(date); if (e.detail === 0) addOnDate(date); }} className={cn("grid size-[24px] shrink-0 place-items-center rounded-full text-sm focus-visible:outline-2 focus-visible:outline-ring", date === today && "bg-primary text-primary-foreground", date !== today && holidayNames.length > 0 && "text-red-600", date.slice(0, 7) !== month && "opacity-50")}>{Number(date.slice(8))}</button>
+          {holidayNames.length ? <p data-calendar-holiday title={holidayNames.join(", ")} className="truncate px-1 text-[10px] font-medium text-red-600 sm:px-2 sm:text-xs">{holidayNames.join(", ")}</p> : null}
           <div data-calendar-events className="mt-0.5 min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain">{dayEvents.map((event) => "source" in event ? <CalendarSourceLink key={event.id} event={event} compact lineClamp={eventLineClamp} /> : <button key={event.id} type="button" disabled={moving} draggable={!moving} aria-label={`${event.title} 수정`} title={`${event.meeting_type.name} · ${event.title} · ${formatCalendarTime(event)} · ${formatLocation(event.location_kind, event.location_text)} · 더블클릭으로 수정`} onClick={(e) => { e.stopPropagation(); setSelectedDate(date); if (e.detail === 0) setEditor({ event, date }); }} onDoubleClick={(e) => { e.stopPropagation(); setSelectedDate(date); setEditor({ event, date }); }} onDragStart={(e) => { dragging.current = event; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", event.id); }} onDragEnd={() => { dragging.current = null; setDropDate(null); }} className={cn("block w-full cursor-grab rounded px-1 py-0.5 text-left text-[10px] font-medium whitespace-normal break-words focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing disabled:opacity-50 sm:px-2 sm:text-xs", eventLineClamp, eventColor(event))}><span className="hidden sm:inline">{event.time_tbd ? "시간 미정" : formatTime(event.start_minutes)} </span>{event.title}</button>)}</div>
       </div>; })}</div>
     </div>
