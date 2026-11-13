@@ -43,14 +43,16 @@ export const updateDashboardSchema = z.object({
   courseId: z.uuid(),
   startDate: dateValue,
   totalBudget: count,
-  metrics: z.array(metricSchema).max(1_000),
+  // 사전설정 저장은 이미 기록된 성과 데이터를 다시 저장하지 않는다. 그래야
+  // 이전에 수집된 행이 있어도 광고 시작일과 예산을 안전하게 수정할 수 있다.
+  metrics: z.array(metricSchema).max(1_000).optional(),
   renamedMetricDate: z.object({
     from: dateValue,
     to: dateValue,
   }).optional(),
 }).superRefine((value, context) => {
   const dates = new Set<string>();
-  value.metrics.forEach((metric, index) => {
+  value.metrics?.forEach((metric, index) => {
     if (dates.has(metric.metricDate)) {
       context.addIssue({ code: "custom", path: ["metrics", index, "metricDate"], message: "같은 날짜를 두 번 입력할 수 없습니다." });
     }
@@ -61,7 +63,7 @@ export const updateDashboardSchema = z.object({
   });
   if (
     value.renamedMetricDate &&
-    !value.metrics.some((metric) => metric.metricDate === value.renamedMetricDate?.to)
+    !value.metrics?.some((metric) => metric.metricDate === value.renamedMetricDate?.to)
   ) {
     context.addIssue({
       code: "custom",

@@ -96,7 +96,6 @@ export function AdPerformanceDashboard({
           courseId: draftCourseId,
           startDate: draftStartDate,
           totalBudget: draftTotalBudget,
-          metrics: initialData.metrics,
         }),
       });
       const result = (await response.json()) as { message?: string };

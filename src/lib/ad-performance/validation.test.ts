@@ -53,6 +53,14 @@ test("날짜별 지표는 중복되거나 광고 시작일보다 빠를 수 없�
   assert.equal(updateDashboardSchema.safeParse({ courseId, startDate: "2026-09-23", totalBudget: 0, metrics: [{ ...metric, organicLeads: { invalid: 1 } }] }).success, false);
 });
 
+test("사전설정은 기존 성과 데이터를 다시 검증하지 않고 저장할 수 있다", () => {
+  assert.equal(updateDashboardSchema.safeParse({
+    courseId,
+    startDate: "2026-09-24",
+    totalBudget: 0,
+  }).success, true);
+});
+
 test("날짜 변경은 변경 대상 원시데이터가 포함된 경우만 허용한다", () => {
   const renamed = { ...metric, metricDate: "2026-09-24" };
   assert.equal(updateDashboardSchema.safeParse({

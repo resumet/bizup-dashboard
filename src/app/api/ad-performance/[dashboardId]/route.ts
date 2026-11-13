@@ -42,7 +42,11 @@ export async function PUT(request: Request, { params }: Context) {
       .maybeSingle();
     if (courseError) throw new Error(`강의 조회 실패: ${courseError.code}`);
     if (!course) throw new Error("연결할 강의를 찾을 수 없습니다.");
-    const organicChannelIds = [...new Set(input.metrics.flatMap((metric) => Object.keys(metric.organicLeads)))];
+    const organicChannelIds = [
+      ...new Set(
+        input.metrics?.flatMap((metric) => Object.keys(metric.organicLeads)) ?? [],
+      ),
+    ];
     if (organicChannelIds.length) {
       const { data: channels, error: channelsError } = await admin
         .from("ad_performance_organic_channels")
@@ -81,7 +85,7 @@ export async function PUT(request: Request, { params }: Context) {
       if (existingMetric) throw new Error("이미 입력된 날짜입니다.");
     }
 
-    if (input.metrics.length) {
+    if (input.metrics?.length) {
       const { error: metricsError } = await admin.from("ad_performance_dashboard_metrics").upsert(
         input.metrics.map((metric) => ({
           dashboard_id: dashboardId,
