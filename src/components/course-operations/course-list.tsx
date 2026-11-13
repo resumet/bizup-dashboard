@@ -103,6 +103,15 @@ type CourseDeletionBlocker = {
   href: string;
 };
 const courseManagementIcons = [BookUser, Video, Radio, UsersRound, ClipboardList];
+const won = new Intl.NumberFormat("ko-KR", {
+  style: "currency",
+  currency: "KRW",
+  maximumFractionDigits: 0,
+});
+
+function formatAdLeadCost(value: number | null) {
+  return value === null ? "—" : won.format(value);
+}
 
 function formatCourseListWebinarDate(value: string) {
   if (Number.isNaN(Date.parse(value))) return "날짜 미정";
@@ -211,6 +220,16 @@ function CourseCards({ courses, canDelete, onStatus, onDelete, todayKoreaDate, s
             {formatCourseWbsProgress(course.wbs_overdue_item_count, course.wbs_total_item_count)}
           </dd>
         </div>
+        {!subdued ? <div className="col-span-2 grid grid-cols-2 border-t text-sm">
+          <div className="px-5 py-4">
+            <dt className="text-xs text-muted-foreground">Google 광고접수 DB 단가</dt>
+            <dd className="mt-1 font-medium tabular-nums">{formatAdLeadCost(course.google_ad_lead_cost)}</dd>
+          </div>
+          <div className="border-l px-5 py-4">
+            <dt className="text-xs text-muted-foreground">Meta 광고접수 DB 단가</dt>
+            <dd className="mt-1 font-medium tabular-nums">{formatAdLeadCost(course.meta_ad_lead_cost)}</dd>
+          </div>
+        </div> : null}
       </dl>
     </Card>
   ))}</div>;
@@ -258,7 +277,7 @@ function CourseTable({ courses, canDelete, onStatus, onDelete, todayKoreaDate, s
   if (!courses.length) return <div className="rounded-xl border border-dashed bg-background px-5 py-10 text-center text-sm text-muted-foreground">표시할 강의가 없습니다.</div>;
   return <Card className={`gap-0 overflow-hidden py-0 shadow-none ${subdued ? "bg-muted/30" : ""}`}>
     <Table>
-      <TableHeader><TableRow><TableHead>강사명</TableHead><TableHead>기수</TableHead><TableHead>강의명</TableHead><TableHead>웨비나 날짜</TableHead><TableHead>웨비나까지</TableHead><TableHead>WBS 일정</TableHead><TableHead className="w-16 text-right">관리</TableHead></TableRow></TableHeader>
+      <TableHeader><TableRow><TableHead>강사명</TableHead><TableHead>기수</TableHead><TableHead>강의명</TableHead><TableHead>웨비나 날짜</TableHead><TableHead>웨비나까지</TableHead><TableHead>WBS 일정</TableHead>{!subdued ? <TableHead>광고접수 DB 단가</TableHead> : null}<TableHead className="w-16 text-right">관리</TableHead></TableRow></TableHeader>
       <TableBody>{courses.map((course) => <TableRow key={course.id} className={subdued ? "text-muted-foreground" : ""}>
         <TableCell className="font-medium">{course.instructor_name || "강사 미지정"}</TableCell>
         <TableCell>{course.cohort ? `${course.cohort}기` : "-"}</TableCell>
@@ -274,6 +293,10 @@ function CourseTable({ courses, canDelete, onStatus, onDelete, todayKoreaDate, s
             {formatCourseWbsProgress(course.wbs_overdue_item_count, course.wbs_total_item_count)}
           </Badge>
         </TableCell>
+        {!subdued ? <TableCell className="text-xs tabular-nums">
+          <div>Google {formatAdLeadCost(course.google_ad_lead_cost)}</div>
+          <div className="mt-1">Meta {formatAdLeadCost(course.meta_ad_lead_cost)}</div>
+        </TableCell> : null}
         <TableCell className="text-right"><CourseActionsMenu course={course} canDelete={canDelete} onStatus={onStatus} onDelete={onDelete} /></TableCell>
       </TableRow>)}</TableBody>
     </Table>

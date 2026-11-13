@@ -60,17 +60,24 @@ export function AdPerformanceSummaryCards({ metrics, totalBudget, organicChannel
     { key: "total", label: "전체", count: summary.adLeads, spend: summary.spend },
   ].map((item) => ({ key: item.key, label: item.label, value: `${number.format(item.count)}건`,
     detail: formatWon(unitCost(item.spend, item.count)), valueLabel: `${item.label} 광고접수DB`, detailLabel: `${item.label} 광고접수DB단가` }));
+  const landingColumns = [
+    { key: "google", label: "Google", count: summary.googleLandingLeads, spend: summary.googleSpend },
+    { key: "meta", label: "Meta", count: summary.metaLandingLeads, spend: summary.metaSpend },
+    { key: "total", label: "전체", count: summary.paidLandingLeads, spend: summary.spend },
+  ].map((item) => ({ key: item.key, label: item.label, value: `${number.format(item.count)}건`,
+    detail: formatWon(unitCost(item.spend, item.count)), valueLabel: `${item.label} 랜딩페이지접수DB`, detailLabel: `${item.label} 랜딩페이지접수DB단가` }));
   const organicColumns = [
     ...summarizeOrganicChannels(metrics, organicChannels),
     { id: "__total__", name: "전체", count: summary.organicLandingLeads },
   ].map((item) => ({ key: item.id, label: item.name, value: `${number.format(item.count)}건`,
     valueLabel: `${item.name} 오가닉DB` }));
 
-  return <section aria-label="성과 요약" className={`${className} grid items-stretch gap-3 md:grid-cols-2 xl:grid-cols-[3fr_3fr_4fr_1.4fr]`}>
+  return <section aria-label="성과 요약" className={`${className} grid items-stretch gap-3 md:grid-cols-2 xl:grid-cols-[3fr_3fr_3fr_4fr_1.4fr]`}>
     <MetricCard title="집행비용" columns={spendColumns} />
-    <MetricCard title="광고접수DB" columns={adColumns} footer={<p>랜딩접수DB단가 <span className="ml-1 font-medium tabular-nums text-foreground">{formatWon(summary.paidLandingLeadCost)}</span></p>} />
+    <MetricCard title="광고접수DB" columns={adColumns} />
+    <MetricCard title="랜딩페이지접수DB" columns={landingColumns} />
     <MetricCard title="오가닉DB" columns={organicColumns} />
-    <MetricCard title="누적 단톡방 인원" columns={[{ key: "chat", label: "단톡방", value: `${number.format(summary.latestChatRoomMembers)}명`,
-      detail: formatWon(summary.chatRoomEntrantCost), valueLabel: "누적 단톡방 인원", detailLabel: "톡방접수DB단가" }]} />
+    <MetricCard title="단톡방 유입" columns={[{ key: "chat", label: "누적 단톡방 인원", value: `${number.format(summary.latestChatRoomMembers)}명`,
+      detail: formatWon(summary.chatRoomEntrantCost), valueLabel: "누적 단톡방 인원", detailLabel: "단톡방 유입단가" }]} />
   </section>;
 }

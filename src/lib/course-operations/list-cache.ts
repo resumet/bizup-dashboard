@@ -6,6 +6,7 @@ import { revalidateTag, unstable_cache } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { toKoreaDate } from "./schedule";
 import { normalizeRequiredTasks } from "./required-tasks";
+import { summarizeCourseAdLeadCosts } from "./ad-performance-costs";
 import type { CourseSummary } from "./types";
 
 export const COURSE_OPERATIONS_LIST_CACHE_TAG = "course-operations-list";
@@ -17,10 +18,20 @@ type WbsProgressRow = {
   overdue_item_count: number | string;
 };
 
+type AdPerformanceDashboardRow = {
+  course_id: string | null;
+  ad_performance_dashboard_metrics: Array<{
+    google_spend: number | string;
+    meta_spend: number | string;
+    google_ad_leads: number | string;
+    meta_ad_leads: number | string;
+  }> | null;
+};
+
 const loadCachedCourseSummaries = unstable_cache(
   async (workspaceId: string, todayKoreaDate: string) => {
     const admin = createAdminClient();
-    const [coursesResult, wbsProgressResult] = await Promise.all([
+    const [coursesResult, wbsProgressResult, adPerformanceResult] = await Promise.all([
       admin
         .from("courses")
         .select(
@@ -32,6 +43,11 @@ const loadCachedCourseSummaries = unstable_cache(
         p_workspace_id: workspaceId,
         p_today: todayKoreaDate,
       }),
+      admin
+        .from("ad_performance_dashboards")
+        .select("course_id,ad_performance_dashboard_metrics(google_spend,meta_spend,google_ad_leads,meta_ad_leads)")
+        .eq("workspace_id", workspaceId)
+        .eq("service_scope", "bizup"),
     ]);
     if (coursesResult.error) {
       throw new Error(
@@ -41,6 +57,11 @@ const loadCachedCourseSummaries = unstable_cache(
     if (wbsProgressResult.error) {
       throw new Error(
         `강의 WBS 진행 현황 조회 실패 (${wbsProgressResult.error.code}): ${wbsProgressResult.error.message}`,
+      );
+    }
+    if (adPerformanceResult.error) {
+      throw new Error(
+        `강의 광고성과 조회 실패 (${adPerformanceResult.error.code}): ${adPerformanceResult.error.message}`,
       );
     }
 
@@ -53,6 +74,19 @@ const loadCachedCourseSummaries = unstable_cache(
         },
       ]),
     );
+    const adLeadCostsByCourse = summarizeCourseAdLeadCosts(
+      ((adPerformanceResult.data ?? []) as AdPerformanceDashboardRow[]).flatMap(
+        (dashboard) => (dashboard.ad_performance_dashboard_metrics ?? []).map(
+          (metric) => ({
+            courseId: dashboard.course_id,
+            googleSpend: metric.google_spend,
+            metaSpend: metric.meta_spend,
+            googleAdLeads: metric.google_ad_leads,
+            metaAdLeads: metric.meta_ad_leads,
+          }),
+        ),
+      ),
+    );
 
     return (coursesResult.data ?? []).map((course) => ({
       ...course,
@@ -62,6 +96,8 @@ const loadCachedCourseSummaries = unstable_cache(
       required_tasks: normalizeRequiredTasks(course.required_tasks),
       wbs_total_item_count: progressByCourse.get(course.id)?.total ?? 0,
       wbs_overdue_item_count: progressByCourse.get(course.id)?.overdue ?? 0,
+      google_ad_lead_cost: adLeadCostsByCourse.get(course.id)?.googleAdLeadCost ?? null,
+      meta_ad_lead_cost: adLeadCostsByCourse.get(course.id)?.metaAdLeadCost ?? null,
     })) as CourseSummary[];
   },
   [COURSE_OPERATIONS_LIST_CACHE_TAG],

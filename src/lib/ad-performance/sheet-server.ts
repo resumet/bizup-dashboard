@@ -10,6 +10,7 @@ import {
   parseMeaningTrackingSheet,
 } from "@/lib/admin/meaning-tracking";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { invalidateCourseOperationsList } from "@/lib/course-operations/list-cache";
 import type {
   AdPerformanceSheetState,
   AdPerformanceTrackingImport,
@@ -484,5 +485,6 @@ export async function persistAdPerformanceSheetState(input: {
     p_metric_snapshot: metricSnapshot,
   });
   if (error) throw new Error(`시트 데이터 저장 실패: ${error.message}`);
+  invalidateCourseOperationsList();
   return { version: Number(data), metricCount: metricSnapshot.length };
 }

@@ -34,6 +34,8 @@ function course(overrides: Partial<CourseSummary> = {}): CourseSummary {
     course_materials_link: "https://example.com/materials",
     wbs_total_item_count: 0,
     wbs_overdue_item_count: 0,
+    google_ad_lead_cost: null,
+    meta_ad_lead_cost: null,
     ...overrides,
   };
 }

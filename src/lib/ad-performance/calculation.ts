@@ -86,6 +86,8 @@ export function summarizeAdPerformance(
     result.metaClicks += metric.metaClicks;
     result.googleAdLeads += metric.googleAdLeads;
     result.metaAdLeads += metric.metaAdLeads;
+    result.googleLandingLeads += metric.googleLandingLeads;
+    result.metaLandingLeads += metric.metaLandingLeads;
     result.spend += metric.googleSpend + metric.metaSpend;
     result.googleSpend += metric.googleSpend;
     result.metaSpend += metric.metaSpend;
@@ -99,6 +101,8 @@ export function summarizeAdPerformance(
     metaClicks: 0,
     googleAdLeads: 0,
     metaAdLeads: 0,
+    googleLandingLeads: 0,
+    metaLandingLeads: 0,
     spend: 0,
     googleSpend: 0,
     metaSpend: 0,

@@ -110,6 +110,8 @@ export type AdPerformanceSummary = {
   metaClicks: number;
   googleAdLeads: number;
   metaAdLeads: number;
+  googleLandingLeads: number;
+  metaLandingLeads: number;
   paidLandingLeads: number;
   organicLandingLeads: number;
   totalDatabaseLeads: number;

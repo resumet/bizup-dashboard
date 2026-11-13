@@ -114,6 +114,8 @@ export type CourseSummary = {
   course_materials_link: string;
   wbs_total_item_count: number;
   wbs_overdue_item_count: number;
+  google_ad_lead_cost: number | null;
+  meta_ad_lead_cost: number | null;
 };
 
 export type LinkableRosterJob = {

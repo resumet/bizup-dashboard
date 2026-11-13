@@ -155,6 +155,10 @@ test("Google과 Meta 광고 원시값을 합산해 핵심 성과를 계산한다
   assert.equal(result.spend, 500_000);
   assert.equal(result.googleSpend, 300_000);
   assert.equal(result.metaSpend, 200_000);
+  assert.equal(result.googleAdLeads, 20);
+  assert.equal(result.metaAdLeads, 10);
+  assert.equal(result.googleLandingLeads, 18);
+  assert.equal(result.metaLandingLeads, 7);
   assert.equal(result.remainingBudget, 500_000);
   assert.equal(result.googleClickConversionRate, 2.5);
   assert.equal(result.metaClickConversionRate, 5);
