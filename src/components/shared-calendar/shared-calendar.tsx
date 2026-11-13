@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Toast } from "radix-ui";
 import { ChevronLeft, ChevronRight, ListPlus, Plus, RefreshCw, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,17 +52,22 @@ export function SharedCalendar({ today, initialDate = today, currentUserId, init
   const [editor, setEditor] = useState<{ event: CalendarEvent | null; date: string } | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [error, setError] = useState(initialError ?? "");
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState<{ id: number; message: string } | null>(null);
   const [moveError, setMoveError] = useState("");
   const [loading, setLoading] = useState(false);
   const [reload, setReload] = useState(0);
   const mutation = useRef(0);
+  const noticeId = useRef(0);
   const dragging = useRef<CalendarEvent | null>(null);
   const movePending = useRef(false);
   const [moving, setMoving] = useState(false);
   const [dropDate, setDropDate] = useState<string | null>(null);
   const [holidays, setHolidays] = useState<KoreanHolidayMap>({});
   const days = monthDays(month);
+
+  function showNotice(message: string) {
+    setNotice({ id: ++noticeId.current, message });
+  }
 
   useEffect(() => {
     let active = true;
@@ -102,12 +109,12 @@ export function SharedCalendar({ today, initialDate = today, currentUserId, init
   function moveMonth(offset: number) {
     const next = shiftMonth(month, offset);
     if (next < "2000-01" || next > "2100-12") return;
-    setMonth(next); setSelectedDate(`${next}-01`); setEvents([]); setSources([]); setLoading(true); setNotice("");
+    setMonth(next); setSelectedDate(`${next}-01`); setEvents([]); setSources([]); setLoading(true); setNotice(null);
   }
 
   function addOnDate(date: string) {
     if (!types.length || loading || movePending.current) return;
-    setSelectedDate(date); setNotice(""); setEditor({ event: null, date });
+    setSelectedDate(date); setNotice(null); setEditor({ event: null, date });
   }
 
   async function search(event: React.FormEvent<HTMLFormElement>) {
@@ -133,7 +140,7 @@ export function SharedCalendar({ today, initialDate = today, currentUserId, init
     const event = dragging.current;
     dragging.current = null; setDropDate(null);
     if (!event || event.event_date === date || movePending.current) return;
-    movePending.current = true; setMoving(true); setNotice(""); setMoveError("");
+    movePending.current = true; setMoving(true); setNotice(null); setMoveError("");
     // Invalidate any in-flight refresh before starting and after finishing a move.
     mutation.current += 1;
     try {
@@ -142,7 +149,7 @@ export function SharedCalendar({ today, initialDate = today, currentUserId, init
       if (!response.ok) throw new Error(body.message || "일정 날짜를 변경하지 못했습니다.");
       const moved = body.event as CalendarEvent;
       setEvents((current) => [...current.filter((item) => item.id !== event.id), moved].sort((a, b) => a.start_minutes - b.start_minutes));
-      setSelectedDate(date); setMonth(date.slice(0, 7)); setError(""); setNotice("일정 날짜를 변경했습니다.");
+      setSelectedDate(date); setMonth(date.slice(0, 7)); setError(""); showNotice("일정 날짜를 변경했습니다.");
     } catch (failure) { setMoveError(failure instanceof Error ? failure.message : "일정 날짜를 변경하지 못했습니다."); }
     finally { mutation.current += 1; movePending.current = false; setMoving(false); setReload((value) => value + 1); }
   }
@@ -156,7 +163,7 @@ export function SharedCalendar({ today, initialDate = today, currentUserId, init
   const byDay = new Map<string, (CalendarEvent | CalendarSourceEvent)[]>();
   for (const event of [...visible, ...visibleSources]) { const list = byDay.get(event.event_date) ?? []; list.push(event); byDay.set(event.event_date, list); }
   for (const list of byDay.values()) list.sort((a, b) => a.start_minutes - b.start_minutes || a.id.localeCompare(b.id));
-  return <div className="flex min-h-0 flex-1 flex-col gap-2">
+  return <Toast.Provider label="공용 캘린더 알림" duration={4000}><div className="flex min-h-0 flex-1 flex-col gap-2">
     <div data-calendar-toolbar className="flex shrink-0 flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-2">
         <Button variant="outline" size="icon-sm" aria-label="이전 달" onClick={() => moveMonth(-1)}><ChevronLeft /></Button>
@@ -178,18 +185,18 @@ export function SharedCalendar({ today, initialDate = today, currentUserId, init
           <label className="flex items-center gap-2 whitespace-nowrap"><input type="checkbox" checked={showLeaves} onChange={(e) => { setShowLeaves(e.target.checked); setSources((current) => current.filter((event) => event.source !== "leave")); setSourcesWarning(""); setLoading(true); }} />직원 휴가 표시</label>
           <span id="calendar-mine-help" className="sr-only">참여자에 내가 포함된 공용 일정만 표시합니다. 연동 일정은 각각의 표시 옵션을 따릅니다.</span>
         </div>
-        <div role="group" aria-label="일정 관리" className="flex flex-wrap items-center gap-1 sm:gap-2">
+        <div role="group" aria-label="일정 관리" className="flex max-w-full shrink-0 flex-nowrap items-center gap-1 overflow-x-auto sm:gap-2">
+          {isAdmin ? <Button asChild variant="outline" size="sm" className="shrink-0 whitespace-nowrap px-2 sm:px-3"><Link href="/admin/calendar">회의 항목 추가</Link></Button> : null}
           <label className="sr-only" htmlFor="calendar-type-filter">회의 종류 필터</label>
-          <select id="calendar-type-filter" className={cn(selectClass, "w-[100px] max-w-48 px-2 sm:w-auto sm:px-3")} value={filter} onChange={(e) => setFilter(e.target.value)}><option value="">모든 종류</option>{types.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}</select>
-          <Button variant="outline" size="icon-sm" aria-label="일정 새로고침" disabled={loading} onClick={() => { setLoading(true); setReload((value) => value + 1); }}><RefreshCw className={loading ? "animate-spin" : ""} /></Button>
-          <Button variant="outline" size="sm" className="px-2 sm:px-3" disabled={!types.length || loading || moving} onClick={() => setBulkOpen(true)}><ListPlus className="hidden sm:block" />일괄 입력</Button>
-          <Button size="sm" className="px-2 sm:px-3" disabled={!types.length || loading || moving} onClick={() => addOnDate(selectedDate)}><Plus className="hidden sm:block" />일정 등록</Button>
+          <select id="calendar-type-filter" className={cn(selectClass, "w-[100px] max-w-48 shrink-0 px-2 sm:w-auto sm:px-3")} value={filter} onChange={(e) => setFilter(e.target.value)}><option value="">모든 종류</option>{types.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}</select>
+          <Button variant="outline" size="icon-sm" className="shrink-0" aria-label="일정 새로고침" disabled={loading} onClick={() => { setLoading(true); setReload((value) => value + 1); }}><RefreshCw className={loading ? "animate-spin" : ""} /></Button>
+          <Button variant="outline" size="sm" className="shrink-0 whitespace-nowrap px-2 sm:px-3" disabled={!types.length || loading || moving} onClick={() => setBulkOpen(true)}><ListPlus className="hidden sm:block" />일괄 입력</Button>
+          <Button size="sm" className="shrink-0 whitespace-nowrap px-2 sm:px-3" disabled={!types.length || loading || moving} onClick={() => addOnDate(selectedDate)}><Plus className="hidden sm:block" />일정 등록</Button>
         </div>
       </div>
     </div>
     {error || moveError || searchError ? <p role="alert" className="shrink-0 rounded-md border border-destructive/30 p-3 text-sm text-destructive">{error || moveError || searchError}</p> : null}
     {sourcesWarning ? <p role="alert" className="shrink-0 rounded-md border border-amber-300 p-3 text-sm text-amber-900">{sourcesWarning}</p> : null}
-    {notice ? <p role="status" className="shrink-0 text-sm text-emerald-700">{notice}</p> : null}
     {moving ? <p role="status" className="shrink-0 text-sm text-muted-foreground">일정 날짜를 변경하는 중…</p> : null}
     {searchResults !== null ? <CalendarSearchResults results={searchResults} pending={searchPending} onSelect={selectSearchResult} /> : <>
     <div data-calendar-grid className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-background" aria-busy={loading}>
@@ -204,16 +211,23 @@ export function SharedCalendar({ today, initialDate = today, currentUserId, init
     {bulkOpen ? <CalendarBulkForm year={Number(month.slice(0, 4))} types={types} courses={courses} isAdmin={isAdmin} onClose={() => setBulkOpen(false)} onImported={(added, meetingTypes, count, alreadyImported) => {
       mutation.current += 1; const ids = new Set(added.map((event) => event.id));
       setEvents((current) => [...current.filter((event) => !ids.has(event.id)), ...added].sort((a, b) => a.start_minutes - b.start_minutes));
-      setTypes(meetingTypes); setBulkOpen(false); setMoveError(""); setNotice(alreadyImported ? `이미 등록된 ${count}개 일정의 결과를 확인했습니다. 중복 추가하지 않았습니다.` : `${count}개 일정을 등록했습니다.`);
+      setTypes(meetingTypes); setBulkOpen(false); setMoveError(""); showNotice(alreadyImported ? `이미 등록된 ${count}개 일정의 결과를 확인했습니다. 중복 추가하지 않았습니다.` : `${count}개 일정을 등록했습니다.`);
       if (added[0]) { setSelectedDate(added[0].event_date); setMonth(added[0].event_date.slice(0, 7)); }
       setReload((value) => value + 1);
     }} /> : null}
     {editor ? <CalendarEventForm event={editor.event} date={editor.date} types={types} courses={courses} initialCourseId={initialCourseId} onClose={() => setEditor(null)} onSaved={(event) => {
       mutation.current += 1; setEvents((current) => [...current.filter((item) => item.id !== event.id), event].sort((a, b) => a.start_minutes - b.start_minutes));
-      setSelectedDate(event.event_date); setMonth(event.event_date.slice(0, 7)); setEditor(null); setMoveError(""); setNotice("일정을 저장했습니다."); setReload((value) => value + 1);
-    }} onDeleted={(id) => { mutation.current += 1; setEvents((current) => current.filter((event) => event.id !== id)); setEditor(null); setNotice("일정을 삭제했습니다."); }} /> : null}
+      setSelectedDate(event.event_date); setMonth(event.event_date.slice(0, 7)); setEditor(null); setMoveError(""); showNotice("일정을 저장했습니다."); setReload((value) => value + 1);
+    }} onDeleted={(id) => { mutation.current += 1; setEvents((current) => current.filter((event) => event.id !== id)); setEditor(null); showNotice("일정을 삭제했습니다."); }} /> : null}
     {details ? <CalendarSearchDetails result={details} onClose={() => setDetails(null)} /> : null}
-  </div>;
+    {notice ? <>
+      <Toast.Root key={notice.id} duration={4000} onOpenChange={(open) => { if (!open) setNotice((current) => current?.id === notice.id ? null : current); }} className="flex items-center gap-3 rounded-xl border bg-popover p-4 text-popover-foreground shadow-lg">
+        <Toast.Description className="min-w-0 flex-1 break-words text-sm">{notice.message}</Toast.Description>
+        <Toast.Close asChild><Button type="button" size="icon-sm" variant="ghost" aria-label="알림 닫기"><X /></Button></Toast.Close>
+      </Toast.Root>
+      {createPortal(<Toast.Viewport label="공용 캘린더 알림" aria-live="off" className="pointer-events-auto fixed inset-x-4 bottom-4 z-[100] mx-auto flex max-w-xl list-none flex-col gap-2 outline-none" />, document.body)}
+    </> : null}
+  </div></Toast.Provider>;
 }
 
 function CalendarSearchResults({ results, pending, onSelect }: { results: CalendarSearchResult[]; pending: boolean; onSelect: (result: CalendarSearchResult) => void }) {

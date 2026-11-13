@@ -1,6 +1,4 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { SharedCalendar } from "@/components/shared-calendar/shared-calendar";
 import { isDateKey, koreaToday, monthDays, uuidSchema } from "@/lib/shared-calendar/calendar";
 import { CalendarError, calendarContext, loadCalendarCourses, loadCalendarEvents, loadMeetingTypes } from "@/lib/shared-calendar/server";
@@ -24,10 +22,6 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const selectedCourse = uuidSchema.safeParse(courseId).success && result.courses.some((course) => course.id === courseId) ? courseId : undefined;
   return <main className="flex h-dvh min-h-0 flex-col overflow-hidden">
     <div className="mx-auto flex min-h-0 w-full max-w-[1900px] flex-1 flex-col gap-2 overflow-hidden px-5 py-2 lg:px-8">
-      <div className="flex shrink-0 items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">공용캘린더</h1>
-        {context.isAdmin ? <Button asChild variant="outline" size="sm"><Link href="/admin/calendar">회의 항목 추가</Link></Button> : null}
-      </div>
       <SharedCalendar today={today} initialDate={initialDate} currentUserId={context.user.id} initialEvents={result.events} initialSources={result.sources} initialSourcesWarning={result.sourcesWarning} initialTypes={result.types} courses={result.courses} initialError={result.error} initialCourseId={selectedCourse} isAdmin={context.isAdmin} />
     </div>
   </main>;
