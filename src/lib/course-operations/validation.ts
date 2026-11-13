@@ -2,6 +2,7 @@ import type { CourseOperationsInput } from "./types";
 import {
   isAllowedWebinarTime,
   isKoreaDateOnly,
+  toKoreaDate,
 } from "./schedule";
 import { decodeReadableUrl } from "./youtube-channels";
 import { normalizeRequiredTasks } from "./required-tasks";
@@ -136,6 +137,9 @@ export function parseCourseOperationsInput(
   const startsAt = timestamp(input.startsAt, "개강일");
   if (!isKoreaDateOnly(startsAt)) {
     throw new Error("개강일은 날짜만 입력해 주세요.");
+  }
+  if (toKoreaDate(startsAt) <= toKoreaDate(freeWebinarAt)) {
+    throw new Error("개강일은 무료 웨비나 날짜 다음 날부터 선택해 주세요.");
   }
 
   return {

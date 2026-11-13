@@ -85,6 +85,7 @@ import {
 import {
   koreaDateTimeToIso,
   koreaDateToIso,
+  nextKoreaDate,
   toKoreaDate,
   toWebinarTime,
   WEBINAR_TIME_OPTIONS,
@@ -601,13 +602,23 @@ export function CourseOperationsEditor({
     >,
     value: string,
   ) {
-    setDraft((current) => ({
-      ...current,
-      [field]: value,
-      ...(field === "freeWebinarAt"
-        ? { requiredTasks: applyTaskDeadlines(current.requiredTasks, value) }
-        : {}),
-    }));
+    setDraft((current) => {
+      const earliestStartDate = field === "freeWebinarAt"
+        ? nextKoreaDate(value)
+        : "";
+      return {
+        ...current,
+        [field]: value,
+        ...(field === "freeWebinarAt"
+          ? {
+              requiredTasks: applyTaskDeadlines(current.requiredTasks, value),
+              startsAt: current.startsAt && current.startsAt < earliestStartDate
+                ? ""
+                : current.startsAt,
+            }
+          : {}),
+      };
+    });
   }
 
   function selectBanner(file: File | undefined) {
@@ -1065,10 +1076,12 @@ export function CourseOperationsEditor({
               <div className="grid gap-2">
                 <Label htmlFor="starts-at">개강일</Label>
                 <Input
+                  key={`starts-at-${draft.freeWebinarAt}`}
                   id="starts-at"
                   className="h-10"
                   type="date"
                   required
+                  min={nextKoreaDate(draft.freeWebinarAt) || undefined}
                   value={draft.startsAt}
                   onChange={(event) =>
                     updateField("startsAt", event.target.value)

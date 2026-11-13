@@ -248,6 +248,14 @@ test("무료 웨비나는 지정 시간만, 개강일은 날짜만 허용한다"
       }),
     /개강일/u,
   );
+  assert.throws(
+    () =>
+      parseCourseOperationsInput({
+        ...validInput,
+        startsAt: "2026-09-01T00:00:00+09:00",
+      }),
+    /무료 웨비나 날짜 다음 날/u,
+  );
 });
 
 test("등록한 옵션의 할인가가 정가보다 높을 수 없다", () => {

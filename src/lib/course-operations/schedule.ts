@@ -64,3 +64,11 @@ export function koreaDateToIso(date: string) {
   const parsed = new Date(`${date}T00:00:00+09:00`);
   return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString();
 }
+
+export function nextKoreaDate(date: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(date)) return "";
+  const parsed = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return "";
+  parsed.setUTCDate(parsed.getUTCDate() + 1);
+  return parsed.toISOString().slice(0, 10);
+}
