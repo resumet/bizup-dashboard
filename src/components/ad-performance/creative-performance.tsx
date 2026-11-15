@@ -55,12 +55,12 @@ function AdTable({ rows, aggregated = false }: { rows: (CreativeRow & { statuses
   const totals = useMemo(() => summarizeCreativeRows(rows), [rows]);
   const totalLabels = google ? ["비용 합계", "노출수 합계", "클릭수 합계", "전환 합계"] : ["adCost 합계", "impression 합계", "linkClick 합계", "leads 합계"];
   return <>
-    <dl aria-label="상세 성과 전체 행 합계" className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-4 xl:grid-cols-4">
+    {!(google && aggregated) ? <dl aria-label="상세 성과 전체 행 합계" className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-4 xl:grid-cols-4">
       {(["cost", "impressions", "clicks", "conversions"] as const).map((key, index) => <div key={key} className="min-w-0 space-y-1">
         <dt className="text-xs text-muted-foreground">{totalLabels[index]}</dt>
         <dd className="break-words text-lg font-semibold tabular-nums">{number(totals[key])}</dd>
       </div>)}
-    </dl>
+    </dl> : null}
     <Table><TableHeader><TableRow>{headers.map(header => <TableHead key={header}>{header}</TableHead>)}</TableRow></TableHeader>
       <TableBody>{rows.slice(page * 100, (page + 1) * 100).map((row, index) => <TableRow key={`${page}-${index}`}>
         {google || aggregated ? <TableCell className="min-w-48 whitespace-normal break-words">{row.ad}</TableCell> : null}
