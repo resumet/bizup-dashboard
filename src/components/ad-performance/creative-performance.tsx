@@ -26,11 +26,12 @@ function Branch({ title, count, children }: { title: string; count: number; chil
 function AdTable({ rows }: { rows: CreativeRow[] }) {
   const [page, setPage] = useState(0);
   const google = rows[0]?.platform === "google";
-  const headers = google ? ["광고상태", "광고유형", "비용", "노출수", "클릭수", "전환", "웨비나네임"] : ["status", "adCost", "impression", "linkClick", "leads", "webinarName"];
+  const headers = google ? ["광고 이름", "광고상태", "광고유형", "비용", "노출수", "클릭수", "전환", "웨비나네임"] : ["status", "adCost", "impression", "linkClick", "leads", "webinarName"];
   const pageCount = Math.ceil(rows.length / 100);
   return <>
     <Table><TableHeader><TableRow>{headers.map(header => <TableHead key={header}>{header}</TableHead>)}</TableRow></TableHeader>
       <TableBody>{rows.slice(page * 100, (page + 1) * 100).map((row, index) => <TableRow key={`${page}-${index}`}>
+        {google ? <TableCell className="min-w-48 whitespace-normal break-words">{row.ad}</TableCell> : null}
         <TableCell>{row.status || "—"}</TableCell>{google ? <TableCell>{row.adType || "—"}</TableCell> : null}
         {[row.cost, row.impressions, row.clicks, row.conversions].map((value, column) => <TableCell key={column} className="text-right tabular-nums">{number(value)}</TableCell>)}
         <TableCell className="min-w-48 whitespace-normal">{row.webinar || "—"}</TableCell>
@@ -40,8 +41,10 @@ function AdTable({ rows }: { rows: CreativeRow[] }) {
   </>;
 }
 
-const levels = ["date", "campaign", "group", "ad"] as const;
+const googleLevels = ["date", "campaign", "group"] as const;
+const metaLevels = ["date", "campaign", "group", "ad"] as const;
 function Hierarchy({ rows, depth = 0 }: { rows: CreativeRow[]; depth?: number }) {
+  const levels = rows[0]?.platform === "google" ? googleLevels : metaLevels;
   if (depth === levels.length) return <AdTable rows={rows} />;
   return groupCreativeRows(rows, levels[depth]).map(([name, values]) => <Branch key={name} title={name} count={values.length}><Hierarchy rows={values} depth={depth + 1} /></Branch>);
 }
