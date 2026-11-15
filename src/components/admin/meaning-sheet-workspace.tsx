@@ -180,7 +180,7 @@ export function MeaningSheetWorkspace({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isTrackingFileDraggedOver, setIsTrackingFileDraggedOver] = useState(false);
   const [busyAction, setBusyAction] = useState<
-    "preview" | "connect" | "refresh" | "upload" | "reset" | "manual" | "export" | null
+    "preview" | "connect" | "refresh" | "upload" | "applicants" | "reset" | "manual" | "export" | null
   >(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -197,7 +197,7 @@ export function MeaningSheetWorkspace({
   const exportInProgressRef = useRef(false);
   const updateInProgressRef = useRef(false);
   const [pendingUpdate, setPendingUpdate] = useState<{
-    action: "upload" | "refresh";
+    action: "upload" | "refresh" | "applicants";
     file: File | null;
     preview: SheetUpdatePreview;
   } | null>(null);
@@ -408,7 +408,7 @@ export function MeaningSheetWorkspace({
     trackingFileInputRef.current.click();
   }
 
-  async function requestSheetUpdate(action: "upload" | "refresh", file: File | null, confirmation?: SheetUpdatePreview) {
+  async function requestSheetUpdate(action: "upload" | "refresh" | "applicants", file: File | null, confirmation?: SheetUpdatePreview) {
     if (updateInProgressRef.current || busyAction !== null) return;
     updateInProgressRef.current = true;
     setBusyAction(action);
@@ -421,7 +421,6 @@ export function MeaningSheetWorkspace({
         if (!file) throw new Error("추가할 엑셀 파일을 선택해 주세요.");
         const formData = new FormData();
         formData.set("file", file);
-        if (unifiedUpdate) formData.set("refreshSource", "true");
         formData.set("action", review.action);
         if (confirmation) {
           formData.set("version", String(confirmation.version));
@@ -430,13 +429,14 @@ export function MeaningSheetWorkspace({
         body = formData;
       } else body = JSON.stringify(review);
       const response = await fetch(
-        `/api/ad-performance/${dashboardId}/${action === "upload" ? "tracking-import" : "source-sheet"}`,
-        { method: "POST", body, ...(action === "refresh" ? { headers: { "Content-Type": "application/json" } } : {}) },
+        `/api/ad-performance/${dashboardId}/${action === "upload" ? "tracking-import" : action === "applicants" ? "update" : "source-sheet"}`,
+        { method: "POST", body, ...(action !== "upload" ? { headers: { "Content-Type": "application/json" } } : {}) },
       );
       const result = await response.json() as { preview?: SheetUpdatePreview; saved?: boolean; message?: string };
       if (result.preview && (response.ok || response.status === 409)) {
         setPendingUpdate({ action, file, preview: result.preview });
         setTrackingDialogOpen(false);
+        if (action === "applicants") setNotice("무료 신청자 명단을 갱신했습니다. 광고성과는 변경 내역 확인 후 적용됩니다.");
         if (response.status === 409) setError(result.message ?? "변경 내역을 다시 확인해 주세요.");
         return;
       }
@@ -612,6 +612,7 @@ export function MeaningSheetWorkspace({
         variant="outline"
         disabled={!sheetState || busyAction !== null}
         onClick={() => {
+          if (unifiedUpdate) { void requestSheetUpdate("applicants", null); return; }
           setSelectedFile(null);
           setIsTrackingFileDraggedOver(false);
           if (trackingFileInputRef.current) trackingFileInputRef.current.value = "";
@@ -619,7 +620,10 @@ export function MeaningSheetWorkspace({
           setTrackingDialogOpen(true);
         }}
       >
-        <Upload />{trackingImportLabel}
+        {busyAction === "applicants" ? <Loader2 className="animate-spin" /> : <Upload />}{busyAction === "applicants" ? "업데이트 중" : trackingImportLabel}
+      </Button> : null}
+      {unifiedUpdate && applicantApplyHref ? <Button type="button" variant="outline" asChild>
+        <a href={applicantApplyHref} target="_blank" rel="noopener noreferrer"><ExternalLink />신청자 화면 열기</a>
       </Button> : null}
       {!unifiedUpdate ? <Button
         type="button"
@@ -1078,7 +1082,7 @@ export function MeaningSheetWorkspace({
         </DialogContent>
       </Dialog>
 
-      {allowTrackingImport ? <Dialog
+      {allowTrackingImport && !unifiedUpdate ? <Dialog
         open={trackingDialogOpen}
         onOpenChange={(open) => {
           if (busyAction) return;
@@ -1112,7 +1116,6 @@ export function MeaningSheetWorkspace({
             ) : null}
             <div className="grid gap-2">
               <Label htmlFor="ad-tracking-file">엑셀 또는 CSV 파일</Label>
-              {unifiedUpdate ? <p className="text-xs text-muted-foreground">변경 내역 확인 시 원본시트를 먼저 불러온 뒤 유입엑셀 정보를 함께 비교합니다.</p> : null}
               <input
                 ref={trackingFileInputRef}
                 id="ad-tracking-file"

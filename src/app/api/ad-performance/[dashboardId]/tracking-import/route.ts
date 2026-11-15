@@ -81,10 +81,9 @@ export async function POST(request: Request, { params }: Context) {
     const supabase = await createClient();
     const user = await requireCourseOperationsUser(supabase);
     const { dashboardId } = await params;
-    const [context, formData] = await Promise.all([
-      requestContext(dashboardId, user.id),
-      request.formData(),
-    ]);
+    const context = await requestContext(dashboardId, user.id);
+    if (context.serviceScope === "bizup") throw new Error("엑셀 업로드 대신 업데이트 버튼으로 무료 신청자 명단을 가져와 주세요.");
+    const formData = await request.formData();
     const file = formData.get("file");
     if (!(file instanceof File)) {
       throw new Error("추가할 엑셀 파일을 선택해 주세요.");

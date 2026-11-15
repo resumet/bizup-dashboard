@@ -223,7 +223,7 @@ export function AdPerformanceDashboard({
                 aria-describedby="ad-applicant-list-url-help"
               />
               <p id="ad-applicant-list-url-help" className="text-xs text-muted-foreground">
-                업데이트 창에서 이 주소의 /apply 페이지를 새 탭으로 엽니다.
+                이 주소의 /apply 페이지에서 신청자 목록을 확인할 수 있습니다.
               </p>
             </div>
             <div className="space-y-2">
