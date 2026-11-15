@@ -20,10 +20,17 @@ const statusColors = {
   gray: "border-border bg-muted text-muted-foreground",
 };
 
-function Branch({ title, count, children, totals }: { title: string; count: number; children: ReactNode; totals?: ReturnType<typeof summarizeCreativeRows> }) {
+const hierarchyBackgrounds = {
+  date: "bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/40 dark:hover:bg-sky-900/50",
+  campaign: "bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/40 dark:hover:bg-violet-900/50",
+  group: "bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50",
+  ad: "hover:bg-muted/50",
+};
+
+function Branch({ title, count, children, totals, level }: { title: string; count: number; children: ReactNode; totals?: ReturnType<typeof summarizeCreativeRows>; level?: keyof typeof hierarchyBackgrounds }) {
   const [open, setOpen] = useState(false);
   return <details open={open} onToggle={event => setOpen(event.currentTarget.open)} className="rounded-lg border bg-background">
-    <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+    <summary className={`flex cursor-pointer list-none flex-wrap items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden ${level ? hierarchyBackgrounds[level] : "hover:bg-muted/50"}`}>
       <ChevronRight className={`size-4 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} aria-hidden="true" />
       <span className="min-w-0 flex-1 break-words">{title}</span><span className="shrink-0 text-xs text-muted-foreground">{count.toLocaleString("ko-KR")}행</span>
       {totals ? <span aria-label={`${title} 하위 데이터 전체 합계`} className="grid w-full grid-cols-2 gap-3 border-t pt-3 sm:grid-cols-4">
@@ -73,6 +80,7 @@ function Hierarchy({ rows, depth = 0 }: { rows: CreativeRow[]; depth?: number })
   if (depth === levels.length) return <AdTable rows={rows} />;
   const prefix = levels[depth] === "campaign" ? "(campaign) " : levels[depth] === "group" ? "(group) " : "";
   return groupCreativeRows(rows, levels[depth]).map(([name, values]) => <Branch key={name} title={`${prefix}${name}`} count={values.length}
+    level={levels[depth]}
     totals={levels[depth] === "campaign" || levels[depth] === "date" ? summarizeCreativeRows(values) : undefined}>
     <Hierarchy rows={values} depth={depth + 1} />
   </Branch>);
