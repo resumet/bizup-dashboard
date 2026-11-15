@@ -20,12 +20,21 @@ const statusColors = {
   gray: "border-border bg-muted text-muted-foreground",
 };
 
-function Branch({ title, count, children }: { title: string; count: number; children: ReactNode }) {
+function Branch({ title, count, children, totals }: { title: string; count: number; children: ReactNode; totals?: ReturnType<typeof summarizeCreativeRows> }) {
   const [open, setOpen] = useState(false);
   return <details open={open} onToggle={event => setOpen(event.currentTarget.open)} className="rounded-lg border bg-background">
-    <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+    <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
       <ChevronRight className={`size-4 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} aria-hidden="true" />
       <span className="min-w-0 flex-1 break-words">{title}</span><span className="shrink-0 text-xs text-muted-foreground">{count.toLocaleString("ko-KR")}행</span>
+      {totals ? <span aria-label={`${title} 하위 데이터 전체 합계`} className="grid w-full grid-cols-2 gap-3 border-t pt-3 sm:grid-cols-4">
+        {([
+          ["cost", "비용 합계"], ["impressions", "노출수 합계"],
+          ["clicks", "클릭수 합계"], ["conversions", "전환 합계"],
+        ] as const).map(([key, label]) => <span key={key} className="min-w-0 space-y-1">
+          <span className="block text-xs font-normal text-muted-foreground">{label}</span>
+          <span className="block break-words font-semibold tabular-nums">{number(totals[key])}</span>
+        </span>)}
+      </span> : null}
     </summary>
     {open ? <div className="space-y-2 border-t p-3 sm:p-4">{children}</div> : null}
   </details>;
@@ -63,7 +72,10 @@ function Hierarchy({ rows, depth = 0 }: { rows: CreativeRow[]; depth?: number })
   const levels = rows[0]?.platform === "google" ? googleLevels : metaLevels;
   if (depth === levels.length) return <AdTable rows={rows} />;
   const prefix = levels[depth] === "campaign" ? "(campaign) " : levels[depth] === "group" ? "(group) " : "";
-  return groupCreativeRows(rows, levels[depth]).map(([name, values]) => <Branch key={name} title={`${prefix}${name}`} count={values.length}><Hierarchy rows={values} depth={depth + 1} /></Branch>);
+  return groupCreativeRows(rows, levels[depth]).map(([name, values]) => <Branch key={name} title={`${prefix}${name}`} count={values.length}
+    totals={levels[depth] === "campaign" || levels[depth] === "date" ? summarizeCreativeRows(values) : undefined}>
+    <Hierarchy rows={values} depth={depth + 1} />
+  </Branch>);
 }
 
 export function CreativePerformance({ initialData }: { initialData: CreativeData }) {
@@ -117,7 +129,8 @@ export function CreativePerformance({ initialData }: { initialData: CreativeData
         {instructors.map(([instructor, rows]) => <Branch key={instructor} title={instructor} count={rows.length}>
           {(["google", "meta"] as const).map(platform => {
             const values = rows.filter(row => row.platform === platform);
-            return <Branch key={platform} title={platform === "google" ? "Google 데이터" : "Meta 데이터"} count={values.length}>
+            return <Branch key={platform} title={platform === "google" ? "Google 데이터" : "Meta 데이터"} count={values.length}
+              totals={platform === "google" ? summarizeCreativeRows(values) : undefined}>
               {values.length ? <Hierarchy rows={values} /> : <p className="text-sm text-muted-foreground">해당 매체 데이터가 없습니다.</p>}
             </Branch>;
           })}
