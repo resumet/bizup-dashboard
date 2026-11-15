@@ -16,6 +16,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { createPortal } from "react-dom";
+import { Toast } from "radix-ui";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -139,6 +140,7 @@ export function MeaningSheetWorkspace({
   applicantApplyHref,
   settingsContainer,
   unifiedUpdate = false,
+  freeChatRoomLinks,
 }: {
   dashboardId: string;
   dashboardStartDate: string;
@@ -151,8 +153,22 @@ export function MeaningSheetWorkspace({
   applicantApplyHref?: string | null;
   settingsContainer?: HTMLElement | null;
   unifiedUpdate?: boolean;
+  freeChatRoomLinks?: string[];
 }) {
   const router = useRouter();
+  const [chatLinkToast, setChatLinkToast] = useState<number | null>(null);
+  const chatLinkToastId = useRef(0);
+  const chatLinks = [...new Set((freeChatRoomLinks ?? []).map((link) => link.trim()).filter(Boolean))];
+
+  function openChatRoom(link?: string) {
+    try {
+      const url = new URL(link ?? "");
+      if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error("INVALID_URL");
+      window.open(url.href, "_blank", "noopener,noreferrer");
+    } catch {
+      setChatLinkToast(++chatLinkToastId.current);
+    }
+  }
   const [page, setPage] = useState(1);
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
   const [trackingDialogOpen, setTrackingDialogOpen] = useState(false);
@@ -1228,6 +1244,23 @@ export function MeaningSheetWorkspace({
             </DialogHeader>
 
             <div className="grid gap-4">
+              {freeChatRoomLinks !== undefined ? (
+                <Toast.Provider duration={5000} label="톡방 링크 알림">
+                  <div className="flex flex-wrap gap-2">
+                    {(chatLinks.length ? chatLinks : [""]).map((link, index) => (
+                      <Button key={link || "missing"} type="button" variant="outline" onClick={() => openChatRoom(link)}>
+                        <ExternalLink />{chatLinks.length > 1 ? `톡방 ${index + 1} 열기` : "톡방열기"}
+                      </Button>
+                    ))}
+                  </div>
+                  {chatLinkToast !== null ? <Toast.Root key={chatLinkToast} onOpenChange={(open) => {
+                    if (!open) setChatLinkToast((current) => current === chatLinkToast ? null : current);
+                  }} className="rounded-xl border bg-popover p-4 text-popover-foreground shadow-lg">
+                    <Toast.Description className="text-sm">강의 정보에서 무료특강 단톡방 링크를 저장해 주세요.</Toast.Description>
+                  </Toast.Root> : null}
+                  <Toast.Viewport className="fixed inset-x-4 bottom-4 z-[100] mx-auto flex max-w-sm list-none flex-col gap-2 outline-none" />
+                </Toast.Provider>
+              ) : null}
               <div className="grid gap-2">
                 <Label htmlFor="meaning-chat-members-cumulative">
                   톡방누적인원

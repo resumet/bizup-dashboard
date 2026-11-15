@@ -189,6 +189,7 @@ export function AdPerformanceDashboard({
           settingsContainer={settingsContainer}
           unifiedUpdate
           trackingImportLabel="업데이트"
+          freeChatRoomLinks={[course?.freeKakaoRoom1Link ?? "", course?.freeKakaoRoom2Link ?? ""]}
         />
       </div>
 

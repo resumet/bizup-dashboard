@@ -70,6 +70,8 @@ export type AdPerformanceDashboardData = {
 };
 
 export type AdPerformanceCourse = {
+  freeKakaoRoom1Link?: string;
+  freeKakaoRoom2Link?: string;
   freeWebinarAt?: string;
   status?: string | null;
   id: string;
