@@ -12,14 +12,18 @@ test("강의별 명단은 원자적으로 저장하고 중복·잘못된 형식�
       create table public.courses(id uuid primary key);
       insert into public.courses values ('${courseId}');`);
     await db.exec(await readFile("supabase/migrations/20261115174241_add_course_free_students.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations/20261115175453_add_free_student_applicant_count.sql", "utf8"));
     await db.exec("set role service_role");
     await db.query("insert into public.course_free_students(course_id,source_url,rows) values ($1,$2,$3)", [courseId, "https://example.test", JSON.stringify([{ username: "테스트", isNewUser: false }])]);
     await assert.rejects(db.query("insert into public.course_free_students(course_id,source_url) values ($1,'x')", [courseId]), /duplicate/);
-    await assert.rejects(db.query("update public.course_free_students set rows='{}' where course_id=$1", [courseId]), /check constraint/);
+    await assert.rejects(db.query("update public.course_free_students set rows='{}' where course_id=$1", [courseId]), /check constraint|non-array/);
     const before = await db.query<{ rows: unknown; updated_at: string }>("select rows,updated_at from public.course_free_students where course_id=$1", [courseId]);
     assert.deepEqual(before.rows[0].rows, [{ username: "테스트", isNewUser: false }]);
+    assert.equal((await db.query<{ applicant_count: number }>("select applicant_count from public.course_free_students")).rows[0].applicant_count, 1);
     const stale = await db.query("update public.course_free_students set rows='[]' where course_id=$1 and updated_at='2000-01-01' returning course_id", [courseId]);
     assert.equal(stale.rows.length, 0);
+    await db.query("update public.course_free_students set rows='[]' where course_id=$1", [courseId]);
+    assert.equal((await db.query<{ applicant_count: number }>("select applicant_count from public.course_free_students")).rows[0].applicant_count, 0);
     for (const role of ["anon", "authenticated"]) {
       await db.exec(`reset role; set role ${role}`);
       await assert.rejects(db.query("select * from public.course_free_students"), /permission denied/);

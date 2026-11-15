@@ -1,5 +1,6 @@
 import { authorizeFreeStudents, FreeStudentsError, loadFreeStudents } from "@/lib/free-students/server";
 import { fetchApplicants } from "@/lib/free-students/source";
+import { invalidateCourseOperationsList } from "@/lib/course-operations/list-cache";
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -19,6 +20,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ co
       : await admin.from("course_free_students").insert({ ...record, course_id: courseId }).select("course_id").single();
     if (result.error?.code === "23505" || (!result.error && !result.data)) throw new FreeStudentsError("다른 사용자가 명단을 갱신했습니다. 새로고침해 주세요.", 409);
     if (result.error) throw new FreeStudentsError("명단을 저장하지 못했습니다. 기존 명단은 유지됩니다.", 500);
+    invalidateCourseOperationsList();
     return Response.json({ rows, source_url: record.source_url, updated_at: record.updated_at }, { headers });
   } catch (error) {
     const message = error instanceof Error && error.name !== "TimeoutError" ? error.message : "가져오기 시간이 초과되었습니다. 다시 시도해 주세요.";

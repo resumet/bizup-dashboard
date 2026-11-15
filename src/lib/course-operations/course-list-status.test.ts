@@ -35,6 +35,7 @@ function course(overrides: Partial<CourseSummary> = {}): CourseSummary {
     wbs_total_item_count: 0,
     wbs_overdue_item_count: 0,
     google_ad_lead_cost: null,
+    free_applicant_count: null,
     meta_ad_lead_cost: null,
     ad_performance_dashboard_id: null,
     ...overrides,

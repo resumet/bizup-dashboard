@@ -115,6 +115,7 @@ export type CourseSummary = {
   wbs_total_item_count: number;
   wbs_overdue_item_count: number;
   google_ad_lead_cost: number | null;
+  free_applicant_count: number | null;
   meta_ad_lead_cost: number | null;
   ad_performance_dashboard_id: string | null;
 };

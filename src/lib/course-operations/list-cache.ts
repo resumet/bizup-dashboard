@@ -32,7 +32,7 @@ type AdPerformanceDashboardRow = {
 const loadCachedCourseSummaries = unstable_cache(
   async (workspaceId: string, todayKoreaDate: string) => {
     const admin = createAdminClient();
-    const [coursesResult, wbsProgressResult, adPerformanceResult] = await Promise.all([
+    const [coursesResult, wbsProgressResult, adPerformanceResult, applicantsResult] = await Promise.all([
       admin
         .from("courses")
         .select(
@@ -49,12 +49,17 @@ const loadCachedCourseSummaries = unstable_cache(
         .select("id,course_id,ad_performance_dashboard_metrics(google_spend,meta_spend,google_ad_leads,meta_ad_leads)")
         .eq("workspace_id", workspaceId)
         .eq("service_scope", "bizup"),
+      admin.from("course_free_students")
+        .select("course_id,applicant_count,courses!inner(workspace_id)")
+        .eq("courses.workspace_id", workspaceId),
     ]);
     if (coursesResult.error) {
       throw new Error(
         `강의 목록 조회 실패 (${coursesResult.error.code}): ${coursesResult.error.message}`,
       );
     }
+    if (applicantsResult.error) throw new Error("무료강의 신청자 수를 불러오지 못했습니다.");
+    const applicantsByCourse = new Map((applicantsResult.data ?? []).map(row => [row.course_id, row.applicant_count as number]));
     if (wbsProgressResult.error) {
       throw new Error(
         `강의 WBS 진행 현황 조회 실패 (${wbsProgressResult.error.code}): ${wbsProgressResult.error.message}`,
@@ -104,9 +109,10 @@ const loadCachedCourseSummaries = unstable_cache(
       google_ad_lead_cost: adLeadCostsByCourse.get(course.id)?.googleAdLeadCost ?? null,
       meta_ad_lead_cost: adLeadCostsByCourse.get(course.id)?.metaAdLeadCost ?? null,
       ad_performance_dashboard_id: dashboardIdByCourse.get(course.id) ?? null,
+      free_applicant_count: applicantsByCourse.get(course.id) ?? null,
     })) as CourseSummary[];
   },
-  [COURSE_OPERATIONS_LIST_CACHE_TAG],
+  [COURSE_OPERATIONS_LIST_CACHE_TAG, "free-applicant-count-v1"],
   {
     tags: [COURSE_OPERATIONS_LIST_CACHE_TAG],
     revalidate: COURSE_OPERATIONS_LIST_REVALIDATE_SECONDS,
