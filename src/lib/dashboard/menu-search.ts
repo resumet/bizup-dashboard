@@ -32,6 +32,7 @@ export const DASHBOARD_MENU_SEARCH_ITEMS: readonly DashboardMenuSearchItem[] = [
   { label: "유튜브 채널 관리", href: "/services/youtube-channels", group: "유용한 도구들" },
   { label: "성과기록", href: "/services/performance-records", group: "퍼포먼스 광고", keywords: ["광고 성과", "광고성과", "성과 재무"] },
   { label: "내부광고 성과기록", href: "/services/ad-performance", group: "성과기록", keywords: ["광고성과", "성과 재무"] },
+  { label: "소재성과 관리", href: "/services/ad-performance/creative", group: "성과기록", keywords: ["소재 성과", "구글", "메타", "광고 소재"] },
   { label: "외부광고 성과기록", href: "/services/external-marketing", group: "성과기록", keywords: ["외부마케팅", "외부 마케팅", "외부 마케팅 대행"] },
   { label: "입출금 장부", href: "/services/cash-ledger", group: "관리자" },
   { label: "수강생 명단 분석", href: "/services/course-roster", group: "수강생 및 메시지 관리" },

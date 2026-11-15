@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { ArrowLeft, ArrowRight, BarChart3, ImageIcon } from "lucide-react";
 
 import { BackLink } from "@/components/layout/back-link";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
@@ -41,8 +40,7 @@ export default async function AdPerformancePage() {
             <Card className="h-full min-h-72 transition-colors group-hover:border-primary/50 group-hover:bg-primary/[0.02]">
               <CardHeader>
                 <span className="mb-4 grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary"><ImageIcon className="size-7" aria-hidden="true" /></span>
-                <div className="flex flex-wrap items-center gap-3"><CardTitle className="text-2xl">소재성과 관리</CardTitle><Badge variant="secondary">준비 중</Badge></div>
-                <CardDescription className="pt-2 text-sm leading-6">광고 소재별 성과를 관리할 수 있도록 준비하고 있습니다.</CardDescription>
+                <CardTitle className="text-2xl">소재성과 관리</CardTitle>
               </CardHeader>
               <CardContent className="mt-auto flex items-center gap-2 font-medium text-primary">관리 화면 보기 <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden="true" /></CardContent>
             </Card>

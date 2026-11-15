@@ -1,9 +1,6 @@
 import { redirect } from "next/navigation";
-import { ArrowLeft, ImageIcon } from "lucide-react";
-
-import { BackLink } from "@/components/layout/back-link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { CreativePerformance } from "@/components/ad-performance/creative-performance";
+import { loadCreativeData } from "@/lib/ad-creative/server";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -12,24 +9,9 @@ export default async function AdCreativePerformancePage() {
   const supabase = await createClient();
   const user = await getAuthenticatedUser(supabase);
   if (!user) redirect("/login");
-  await requireCourseOperationsMembership(user.id);
-
-  return (
-    <main className="min-h-screen">
-      <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon-sm" asChild><BackLink href="/services/ad-performance"><ArrowLeft />뒤로가기</BackLink></Button>
-          <h1 className="text-3xl font-semibold tracking-tight">소재성과 관리</h1>
-        </div>
-
-        <Card className="mt-8">
-          <CardContent className="flex min-h-72 flex-col items-center justify-center px-6 py-12 text-center">
-            <span className="mb-4 grid size-12 place-items-center rounded-full bg-primary/10 text-primary"><ImageIcon className="size-5" /></span>
-            <h2 className="text-lg font-semibold">소재성과 관리는 준비 중입니다</h2>
-            <p className="mt-2 max-w-md text-sm text-muted-foreground">광고 소재별 성과를 확인하는 화면을 준비하고 있습니다.</p>
-          </CardContent>
-        </Card>
-      </div>
-    </main>
-  );
+  const membership = await requireCourseOperationsMembership(user.id);
+  const data = await loadCreativeData(membership.workspace_id).catch((error: unknown) => ({
+    url: "", updatedAt: "", rows: [], error: error instanceof Error ? error.message : "소재성과 데이터를 불러오지 못했습니다.",
+  }));
+  return <CreativePerformance initialData={data} />;
 }
