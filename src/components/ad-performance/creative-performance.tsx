@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { ArrowLeft, ChevronRight, Loader2, RefreshCw, Settings2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ArrowLeft, ChevronRight, Loader2, RefreshCw, Settings2 } from "lucide-react";
 import { BackLink } from "@/components/layout/back-link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { aggregateCreativeRows, creativeStatusTone, summarizeCreativeRows, groupCreativeRows, type CreativeData, type CreativeRow } from "@/lib/ad-creative/model";
+import { aggregateCreativeRows, creativeStatusTone, summarizeCreativeRows, groupCreativeRows, nextCreativeSort, sortCreativeRows, type CreativeData, type CreativeRow, type CreativeMetric, type CreativeSort } from "@/lib/ad-creative/model";
 
 const number = (value: number | null) => value === null ? "—" : value.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
 const statusColors = {
@@ -49,7 +49,10 @@ function Branch({ title, count, children, totals, level }: { title: string; coun
 
 function AdTable({ rows, aggregated = false }: { rows: (CreativeRow & { statuses?: string[] })[]; aggregated?: boolean }) {
   const [page, setPage] = useState(0);
+  const [sort, setSort] = useState<CreativeSort>(null);
+  const sortedRows = useMemo(() => sortCreativeRows(rows, sort), [rows, sort]);
   const google = rows[0]?.platform === "google";
+  const metricHeaders: Record<string, CreativeMetric> = { 비용: "cost", 노출수: "impressions", 클릭수: "clicks", 전환: "conversions", adCost: "cost", impression: "impressions", linkClick: "clicks", leads: "conversions" };
   const headers = google ? ["광고 이름", aggregated ? "최근 광고상태" : "광고상태", "광고유형", "비용", "노출수", "클릭수", "전환", "웨비나네임"] : [...(aggregated ? ["adName"] : []), aggregated ? "최근 status" : "status", "adCost", "impression", "linkClick", "leads", "webinarName"];
   const pageCount = Math.ceil(rows.length / 100);
   const totals = useMemo(() => summarizeCreativeRows(rows), [rows]);
@@ -61,8 +64,19 @@ function AdTable({ rows, aggregated = false }: { rows: (CreativeRow & { statuses
         <dd className="break-words text-lg font-semibold tabular-nums">{number(totals[key])}</dd>
       </div>)}
     </dl> : null}
-    <Table><TableHeader><TableRow>{headers.map(header => <TableHead key={header}>{header}</TableHead>)}</TableRow></TableHeader>
-      <TableBody>{rows.slice(page * 100, (page + 1) * 100).map((row, index) => <TableRow key={`${page}-${index}`}>
+    <Table><TableHeader><TableRow>{headers.map(header => {
+      const metric = aggregated ? metricHeaders[header] : undefined;
+      const direction = metric && sort?.key === metric ? sort.direction : undefined;
+      const SortIcon = direction === "descending" ? ArrowDown : direction === "ascending" ? ArrowUp : ArrowUpDown;
+      return <TableHead key={header} aria-sort={metric ? direction ?? "none" : undefined}>
+        {metric ? <button type="button" className="flex w-full items-center justify-end gap-1 rounded py-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+          aria-label={`${header}: ${direction === "descending" ? "오름차순 정렬" : direction === "ascending" ? "정렬 해제" : "내림차순 정렬"}`}
+          onClick={() => { setSort(current => nextCreativeSort(current, metric)); setPage(0); }}>
+          {header}<SortIcon className="size-3.5" aria-hidden="true" />
+        </button> : header}
+      </TableHead>;
+    })}</TableRow></TableHeader>
+      <TableBody>{sortedRows.slice(page * 100, (page + 1) * 100).map((row, index) => <TableRow key={`${page}-${index}`}>
         {google || aggregated ? <TableCell className="min-w-48 whitespace-normal break-words">{row.ad}</TableCell> : null}
         <TableCell><span className="flex flex-wrap gap-1">{(row.statuses ?? [row.status]).map(status => <Badge key={status} variant="outline" className={statusColors[creativeStatusTone(status)]}>{status || "미입력"}</Badge>)}</span></TableCell>{google ? <TableCell>{row.adType || "—"}</TableCell> : null}
         {[row.cost, row.impressions, row.clicks, row.conversions].map((value, column) => <TableCell key={column} className="text-right tabular-nums">{number(value)}</TableCell>)}

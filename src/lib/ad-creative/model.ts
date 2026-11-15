@@ -17,6 +17,24 @@ export type CreativeRow = {
 export type CreativeCourse = { name: string; instructor_name: string };
 export type CreativeData = { url: string; updatedAt: string; rows: CreativeRow[]; error?: string };
 export type CreativeAggregateRow = CreativeRow & { statuses: string[] };
+export type CreativeMetric = "cost" | "impressions" | "clicks" | "conversions";
+export type CreativeSort = { key: CreativeMetric; direction: "descending" | "ascending" } | null;
+
+export function nextCreativeSort(current: CreativeSort, key: CreativeMetric): CreativeSort {
+  if (current?.key !== key) return { key, direction: "descending" };
+  return current.direction === "descending" ? { key, direction: "ascending" } : null;
+}
+
+export function sortCreativeRows<T extends CreativeRow>(rows: readonly T[], sort: CreativeSort): T[] {
+  if (!sort) return [...rows];
+  return [...rows].sort((a, b) => {
+    const left = a[sort.key];
+    const right = b[sort.key];
+    if (left === null) return right === null ? 0 : 1;
+    if (right === null) return -1;
+    return sort.direction === "descending" ? right - left : left - right;
+  });
+}
 
 export function aggregateCreativeRows(rows: readonly CreativeRow[]): CreativeAggregateRow[] {
   const groups = new Map<string, CreativeRow[]>();

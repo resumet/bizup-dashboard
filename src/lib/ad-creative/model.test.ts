@@ -1,9 +1,35 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { aggregateCreativeRows, parseCreativeRows, assignCreativeInstructors, groupCreativeRows, summarizeCreativeRows, creativeStatusTone } from "./model";
+import { aggregateCreativeRows, parseCreativeRows, assignCreativeInstructors, groupCreativeRows, summarizeCreativeRows, creativeStatusTone, nextCreativeSort, sortCreativeRows } from "./model";
 
 const google = ["일", "캠페인", "광고그룹", "광고 이름", "광고 상태", "광고 유형", "비용", "노출수", "클릭수", "전환", "webinarName"];
 const meta = ["date", "campaignName", "adSetName", "adName", "status", "adCost", "impression", "linkClick", "leads", "webinarName"];
+
+test("소재 정렬은 내림차순, 오름차순, 해제로 순환하고 다른 열은 내림차순부터 시작한다", () => {
+  const descending = nextCreativeSort(null, "cost");
+  assert.deepEqual(descending, { key: "cost", direction: "descending" });
+  const ascending = nextCreativeSort(descending, "cost");
+  assert.deepEqual(ascending, { key: "cost", direction: "ascending" });
+  assert.equal(nextCreativeSort(ascending, "cost"), null);
+  assert.deepEqual(nextCreativeSort(ascending, "clicks"), { key: "clicks", direction: "descending" });
+});
+
+test("네 성과 열은 전체 행을 숫자로 정렬하고 빈 값은 마지막, 동률은 원래 순서를 유지한다", () => {
+  const rows = parseCreativeRows("meta", [meta, ...[2, 10, null, 0, 2, ...Array.from({ length: 100 }, (_, i) => i + 20)].map((value, i) =>
+    ["2026-11-15", "c", "g", `광고 ${i}`, "ACTIVE", value, value, value, value, "웨비나"])]);
+  const original = structuredClone(rows);
+  for (const key of ["cost", "impressions", "clicks", "conversions"] as const) {
+    const descending = sortCreativeRows(rows, { key, direction: "descending" });
+    assert.equal(descending[0][key], 119);
+    assert.equal(descending.at(-1)?.[key], null);
+    const ascending = sortCreativeRows(rows, { key, direction: "ascending" });
+    assert.deepEqual(ascending.slice(0, 4).map(row => row[key]), [0, 2, 2, 10]);
+    assert.deepEqual(ascending.slice(1, 3).map(row => row.ad), ["광고 0", "광고 4"]);
+    assert.equal(ascending.at(-1)?.[key], null);
+  }
+  assert.deepEqual(sortCreativeRows(rows, null), original);
+  assert.deepEqual(rows, original);
+});
 
 test("소재별 보기는 날짜·캠페인·그룹이 달라도 광고 이름이 같으면 합산한다", () => {
   const rows = parseCreativeRows("meta", [meta,
