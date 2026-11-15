@@ -206,6 +206,9 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-48">
               <DropdownMenuItem asChild>
+                <Link href={`/services/course-operations/${courseId}/free-students`}>무료수강생 관리</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
                 <Link
                   href={
                     instructorIntakeResult.data
