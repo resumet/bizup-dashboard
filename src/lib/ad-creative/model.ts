@@ -16,6 +16,24 @@ export type CreativeRow = {
 };
 export type CreativeCourse = { name: string; instructor_name: string };
 export type CreativeData = { url: string; updatedAt: string; rows: CreativeRow[]; error?: string };
+export type CreativeAggregateRow = CreativeRow & { statuses: string[] };
+
+export function aggregateCreativeRows(rows: readonly CreativeRow[]): CreativeAggregateRow[] {
+  const groups = new Map<string, CreativeRow[]>();
+  for (const row of rows) {
+    const key = JSON.stringify([row.instructor, row.platform, row.ad]);
+    const values = groups.get(key) ?? [];
+    values.push(row);
+    groups.set(key, values);
+  }
+  return [...groups.values()].map(values => {
+    const date = values.reduce((latest, row) => row.date > latest ? row.date : latest, "");
+    const distinct = (key: "campaign" | "group" | "adType" | "webinar") => [...new Set(values.map(row => row[key]).filter(Boolean))].sort().join(" / ");
+    const statuses = [...new Set(values.filter(row => row.date === date).map(row => row.status.trim()))].sort();
+    return { ...values[0], ...summarizeCreativeRows(values), date, statuses, status: statuses.join(" / "),
+      campaign: distinct("campaign"), group: distinct("group"), adType: distinct("adType"), webinar: distinct("webinar") };
+  }).sort((a, b) => a.ad.localeCompare(b.ad, "ko"));
+}
 
 export function creativeStatusTone(status: string) {
   const value = status.trim().toLowerCase().replace(/[\s-]+/gu, "_");

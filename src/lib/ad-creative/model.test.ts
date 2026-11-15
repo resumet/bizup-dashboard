@@ -1,9 +1,40 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseCreativeRows, assignCreativeInstructors, groupCreativeRows, summarizeCreativeRows, creativeStatusTone } from "./model";
+import { aggregateCreativeRows, parseCreativeRows, assignCreativeInstructors, groupCreativeRows, summarizeCreativeRows, creativeStatusTone } from "./model";
 
 const google = ["일", "캠페인", "광고그룹", "광고 이름", "광고 상태", "광고 유형", "비용", "노출수", "클릭수", "전환", "webinarName"];
 const meta = ["date", "campaignName", "adSetName", "adName", "status", "adCost", "impression", "linkClick", "leads", "webinarName"];
+
+test("소재별 보기는 날짜·캠페인·그룹이 달라도 광고 이름이 같으면 합산한다", () => {
+  const rows = parseCreativeRows("meta", [meta,
+    ["2026-11-14", "c1", "g1", "광고 A", "ACTIVE", "100", "1000", "10", "1.5", "미닝웨비나"],
+    ["2026-11-15", "c2", "g2", "광고 A", "PAUSED", "200", "2000", "20", "2.5", "미닝웨비나"],
+    ["2026-11-15", "c3", "g3", "광고 A", "ACTIVE", "300", "3000", "30", "", "다른웨비나"],
+    ["2026-11-15", "c1", "g1", "광고 B", "ACTIVE", "50", "500", "0", "", "미닝웨비나"],
+  ]);
+  const original = structuredClone(rows);
+  const result = aggregateCreativeRows(rows);
+  assert.equal(result.length, 2);
+  assert.deepEqual(summarizeCreativeRows([result[0]]), { cost: 600, impressions: 6000, clicks: 60, conversions: 4 });
+  assert.deepEqual(result[0].statuses, ["ACTIVE", "PAUSED"]);
+  assert.equal(result[1].conversions, null);
+  assert.deepEqual(summarizeCreativeRows(result), summarizeCreativeRows(rows));
+  assert.deepEqual(rows, original);
+  assert.equal(aggregateCreativeRows(rows.filter(row => row.date === "2026-11-14"))[0].cost, 100);
+});
+
+test("동일 광고 이름도 다른 강사·매체와 섞지 않고 최근 상태만 표시한다", () => {
+  const base = parseCreativeRows("meta", [meta, ["2026-11-14", "c", "g", "광고 A", "ACTIVE", "1", "2", "3", "0", "웨비나"]])[0];
+  const result = aggregateCreativeRows([
+    { ...base, instructor: "강사 A" }, { ...base, instructor: "강사 A", date: "2026-11-15", status: "PAUSED" },
+    { ...base, instructor: "강사 B" }, { ...base, instructor: "강사 A", platform: "google" },
+  ]);
+  assert.equal(result.length, 3);
+  const metaA = result.find(row => row.instructor === "강사 A" && row.platform === "meta")!;
+  assert.equal(metaA.cost, 2);
+  assert.deepEqual(metaA.statuses, ["PAUSED"]);
+  assert.equal(metaA.conversions, 0);
+});
 
 test("상세 표 합계는 100행을 넘어도 전체 행을 더하고 빈 값과 0을 구분한다", () => {
   const rows = parseCreativeRows("meta", [meta, ...Array.from({ length: 101 }, () => ["2026-11-15", "c", "g", "a", "ACTIVE", "1.5", "10", "0", "", "미닝웨비나"])]);

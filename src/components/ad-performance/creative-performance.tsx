@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { creativeStatusTone, summarizeCreativeRows, groupCreativeRows, type CreativeData, type CreativeRow } from "@/lib/ad-creative/model";
+import { aggregateCreativeRows, creativeStatusTone, summarizeCreativeRows, groupCreativeRows, type CreativeData, type CreativeRow } from "@/lib/ad-creative/model";
 
 const number = (value: number | null) => value === null ? "—" : value.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
 const statusColors = {
@@ -47,10 +47,10 @@ function Branch({ title, count, children, totals, level }: { title: string; coun
   </details>;
 }
 
-function AdTable({ rows }: { rows: CreativeRow[] }) {
+function AdTable({ rows, aggregated = false }: { rows: (CreativeRow & { statuses?: string[] })[]; aggregated?: boolean }) {
   const [page, setPage] = useState(0);
   const google = rows[0]?.platform === "google";
-  const headers = google ? ["광고 이름", "광고상태", "광고유형", "비용", "노출수", "클릭수", "전환", "웨비나네임"] : ["status", "adCost", "impression", "linkClick", "leads", "webinarName"];
+  const headers = google ? ["광고 이름", aggregated ? "최근 광고상태" : "광고상태", "광고유형", "비용", "노출수", "클릭수", "전환", "웨비나네임"] : [...(aggregated ? ["adName"] : []), aggregated ? "최근 status" : "status", "adCost", "impression", "linkClick", "leads", "webinarName"];
   const pageCount = Math.ceil(rows.length / 100);
   const totals = useMemo(() => summarizeCreativeRows(rows), [rows]);
   const totalLabels = google ? ["비용 합계", "노출수 합계", "클릭수 합계", "전환 합계"] : ["adCost 합계", "impression 합계", "linkClick 합계", "leads 합계"];
@@ -63,8 +63,8 @@ function AdTable({ rows }: { rows: CreativeRow[] }) {
     </dl>
     <Table><TableHeader><TableRow>{headers.map(header => <TableHead key={header}>{header}</TableHead>)}</TableRow></TableHeader>
       <TableBody>{rows.slice(page * 100, (page + 1) * 100).map((row, index) => <TableRow key={`${page}-${index}`}>
-        {google ? <TableCell className="min-w-48 whitespace-normal break-words">{row.ad}</TableCell> : null}
-        <TableCell><Badge variant="outline" className={statusColors[creativeStatusTone(row.status)]}>{row.status || "미입력"}</Badge></TableCell>{google ? <TableCell>{row.adType || "—"}</TableCell> : null}
+        {google || aggregated ? <TableCell className="min-w-48 whitespace-normal break-words">{row.ad}</TableCell> : null}
+        <TableCell><span className="flex flex-wrap gap-1">{(row.statuses ?? [row.status]).map(status => <Badge key={status} variant="outline" className={statusColors[creativeStatusTone(status)]}>{status || "미입력"}</Badge>)}</span></TableCell>{google ? <TableCell>{row.adType || "—"}</TableCell> : null}
         {[row.cost, row.impressions, row.clicks, row.conversions].map((value, column) => <TableCell key={column} className="text-right tabular-nums">{number(value)}</TableCell>)}
         <TableCell className="min-w-48 whitespace-normal">{row.webinar || "—"}</TableCell>
       </TableRow>)}</TableBody>
@@ -74,6 +74,11 @@ function AdTable({ rows }: { rows: CreativeRow[] }) {
 }
 
 const googleLevels = ["date", "campaign", "group"] as const;
+function CreativeTable({ rows }: { rows: CreativeRow[] }) {
+  const aggregated = useMemo(() => aggregateCreativeRows(rows), [rows]);
+  return <AdTable rows={aggregated} aggregated />;
+}
+
 const metaLevels = ["date", "campaign", "group", "ad"] as const;
 function Hierarchy({ rows, depth = 0 }: { rows: CreativeRow[]; depth?: number }) {
   const levels = rows[0]?.platform === "google" ? googleLevels : metaLevels;
@@ -96,6 +101,7 @@ export function CreativePerformance({ initialData }: { initialData: CreativeData
   const [query, setQuery] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [view, setView] = useState<"date" | "creative">("date");
   const filtered = useMemo(() => data.rows.filter(row => (!from || row.date >= from) && (!to || row.date <= to) &&
     [row.instructor, row.webinar, row.campaign, row.group, row.ad].some(value => value.toLocaleLowerCase("ko-KR").includes(query.trim().toLocaleLowerCase("ko-KR")))), [data.rows, from, to, query]);
   const instructors = useMemo(() => groupCreativeRows(filtered, "instructor"), [filtered]);
@@ -125,6 +131,13 @@ export function CreativePerformance({ initialData }: { initialData: CreativeData
     {error && !settingsOpen ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
     {notice ? <p role="status" className="text-sm text-emerald-700">{notice}</p> : null}
     {data.url ? <>
+      <div className="space-y-2">
+        <div role="group" aria-label="성과 보기 방식" className="flex gap-2">
+          <Button variant={view === "date" ? "default" : "outline"} aria-pressed={view === "date"} onClick={() => setView("date")}>날짜별 보기</Button>
+          <Button variant={view === "creative" ? "default" : "outline"} aria-pressed={view === "creative"} onClick={() => setView("creative")}>소재별 보기</Button>
+        </div>
+        {view === "creative" ? <p className="text-xs text-muted-foreground">선택한 기간과 검색 조건 안에서 같은 광고 이름의 성과를 캠페인·그룹에 관계없이 합산합니다. 상태는 해당 소재의 가장 최근 날짜 기준입니다.</p> : null}
+      </div>
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-60 flex-1 space-y-2"><Label htmlFor="creative-search">검색</Label><Input id="creative-search" placeholder="강사, 웨비나, 캠페인, 그룹, 광고명" value={query} onChange={event => setQuery(event.target.value)} /></div>
         <div className="space-y-2"><Label htmlFor="creative-from">시작일</Label><Input id="creative-from" type="date" value={from} max={to || undefined} onChange={event => setFrom(event.target.value)} /></div>
@@ -133,13 +146,13 @@ export function CreativePerformance({ initialData }: { initialData: CreativeData
       </div>
       <p className="text-xs text-muted-foreground">{filtered.length.toLocaleString("ko-KR")}행 · 마지막 갱신 {new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "short" }).format(new Date(data.updatedAt))}</p>
       {filtered.some(row => row.instructor === "강사 미분류") ? <p className="text-sm text-muted-foreground">강사 미분류 데이터는 원본 시트에 강사명 열을 입력하거나, webinarName을 ‘강사명웨비나’ 형식 또는 등록된 강의명과 동일하게 맞춰 주세요.</p> : null}
-      <div key={`${data.updatedAt}:${query}:${from}:${to}`} className="space-y-3">
+      <div key={`${view}:${data.updatedAt}:${query}:${from}:${to}`} className="space-y-3">
         {instructors.map(([instructor, rows]) => <Branch key={instructor} title={instructor} count={rows.length}>
           {(["google", "meta"] as const).map(platform => {
             const values = rows.filter(row => row.platform === platform);
             return <Branch key={platform} title={platform === "google" ? "Google 데이터" : "Meta 데이터"} count={values.length}
               totals={platform === "google" ? summarizeCreativeRows(values) : undefined}>
-              {values.length ? <Hierarchy rows={values} /> : <p className="text-sm text-muted-foreground">해당 매체 데이터가 없습니다.</p>}
+              {values.length ? (view === "date" ? <Hierarchy rows={values} /> : <CreativeTable rows={values} />) : <p className="text-sm text-muted-foreground">해당 매체 데이터가 없습니다.</p>}
             </Branch>;
           })}
         </Branch>)}
