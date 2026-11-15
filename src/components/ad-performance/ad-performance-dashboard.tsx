@@ -178,7 +178,7 @@ export function AdPerformanceDashboard({
         ) : null}
 
         <AdPerformanceSummaryCards metrics={initialData.metrics} totalBudget={totalBudget} organicChannels={initialData.organicChannels} />
-        <AdPerformanceOutcomeCard metrics={initialData.metrics} webinar={courseId === initialData.course?.id ? webinarOutcome : null} courseId={courseId} error={webinarError} />
+        <AdPerformanceOutcomeCard collapsible metrics={initialData.metrics} webinar={courseId === initialData.course?.id ? webinarOutcome : null} courseId={courseId} error={webinarError} />
 
         <AdPerformanceSheetWorkspace
           dashboardId={initialData.id}

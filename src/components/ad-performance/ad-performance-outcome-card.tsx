@@ -1,14 +1,23 @@
+"use client";
+
 import Link from "next/link";
+import { useId, useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { adPerformanceOutcomeSummary, getAdPerformanceOutcome, type AdPerformanceWebinarOutcome } from "@/lib/ad-performance/outcome-summary";
 import type { AdPerformanceDailyMetric } from "@/lib/ad-performance/types";
 
-export function AdPerformanceOutcomeCard({ metrics, webinar = null, courseId, error }: {
+export function AdPerformanceOutcomeCard({ metrics, webinar = null, courseId, error, collapsible = false }: {
   metrics: AdPerformanceDailyMetric[];
   webinar?: AdPerformanceWebinarOutcome | null;
   courseId?: string;
   error?: string;
+  collapsible?: boolean;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const contentId = useId();
+  const isOpen = !collapsible || expanded;
   const summary = adPerformanceOutcomeSummary(metrics, webinar);
   const outcome = getAdPerformanceOutcome(metrics, webinar);
   const format = (value: number | null, unit: string) => value === null ? "미입력" : `${value.toLocaleString("ko-KR")}${unit}`;
@@ -21,8 +30,17 @@ export function AdPerformanceOutcomeCard({ metrics, webinar = null, courseId, er
     { title: "전체 매출", value: format(outcome.revenue, "원"), details: [`광고비 대비 ${ratio(outcome.revenueMultiple, "배")}`] },
   ];
   return <Card className="mt-3">
-    <CardHeader><CardTitle>성과 요약</CardTitle></CardHeader>
-    <CardContent className="space-y-3">
+    <CardHeader className="flex flex-row items-center justify-between gap-3">
+      <CardTitle>성과 요약</CardTitle>
+      {collapsible ? <Button type="button" variant="ghost" size="sm"
+        aria-expanded={expanded} aria-controls={contentId}
+        aria-label={`성과 요약 ${expanded ? "접기" : "펼치기"}`}
+        onClick={() => setExpanded((current) => !current)}>
+        {expanded ? "접기" : "펼치기"}
+        <ChevronDown className={expanded ? "rotate-180 transition-transform" : "transition-transform"} />
+      </Button> : null}
+    </CardHeader>
+    <CardContent id={contentId} hidden={!isOpen} className="space-y-3">
       <p className="text-sm leading-7">{summary.split(/\(([^)]*)\)/gu).map((part, index) => index % 2 === 1
         ? <span key={index}>(<mark className="box-decoration-clone rounded-sm bg-yellow-200 px-1 font-bold text-neutral-950 underline underline-offset-2">{part}</mark>)</span>
         : part)}</p>
