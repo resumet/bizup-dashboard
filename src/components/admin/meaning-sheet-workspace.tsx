@@ -137,6 +137,8 @@ export function MeaningSheetWorkspace({
   trackingImportNoun = "유입 엑셀",
   cumulativeDbLabel = "누적비즈업 DB",
   applicantApplyHref,
+  settingsContainer,
+  unifiedUpdate = false,
 }: {
   dashboardId: string;
   dashboardStartDate: string;
@@ -147,6 +149,8 @@ export function MeaningSheetWorkspace({
   trackingImportNoun?: string;
   cumulativeDbLabel?: string;
   applicantApplyHref?: string | null;
+  settingsContainer?: HTMLElement | null;
+  unifiedUpdate?: boolean;
 }) {
   const router = useRouter();
   const [page, setPage] = useState(1);
@@ -401,6 +405,7 @@ export function MeaningSheetWorkspace({
         if (!file) throw new Error("추가할 엑셀 파일을 선택해 주세요.");
         const formData = new FormData();
         formData.set("file", file);
+        if (unifiedUpdate) formData.set("refreshSource", "true");
         formData.set("action", review.action);
         if (confirmation) {
           formData.set("version", String(confirmation.version));
@@ -558,8 +563,7 @@ export function MeaningSheetWorkspace({
     }
   }
 
-  const toolbar = (
-    <>
+  const sourceConnectionButton = (
       <Button
         type="button"
         variant="outline"
@@ -574,6 +578,19 @@ export function MeaningSheetWorkspace({
       >
         <Link2 />원본시트연결
       </Button>
+  );
+
+  const exportButton = (
+    <Button type="button" variant="outline" disabled={!dataRows.length || busyAction !== null}
+      onClick={() => void downloadExcel()} title="표의 전체 데이터를 엑셀로 다운로드">
+      {busyAction === "export" ? <Loader2 className="animate-spin" /> : <Download />}
+      {busyAction === "export" ? "엑셀 생성 중" : "엑셀 다운로드"}
+    </Button>
+  );
+
+  const toolbar = (
+    <>
+      {!unifiedUpdate ? sourceConnectionButton : null}
       {allowTrackingImport ? <Button
         type="button"
         variant="outline"
@@ -588,7 +605,7 @@ export function MeaningSheetWorkspace({
       >
         <Upload />{trackingImportLabel}
       </Button> : null}
-      <Button
+      {!unifiedUpdate ? <Button
         type="button"
         variant="outline"
         disabled={!sheetState || busyAction !== null}
@@ -600,23 +617,15 @@ export function MeaningSheetWorkspace({
           <RefreshCw />
         )}
         데이터 갱신
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        disabled={!dataRows.length || busyAction !== null}
-        onClick={() => void downloadExcel()}
-        title="표의 전체 데이터를 엑셀로 다운로드"
-      >
-        {busyAction === "export" ? <Loader2 className="animate-spin" /> : <Download />}
-        {busyAction === "export" ? "엑셀 생성 중" : "엑셀 다운로드"}
-      </Button>
+      </Button> : null}
+      {!unifiedUpdate ? exportButton : null}
     </>
   );
 
   return (
     <div className="mt-8 flex min-h-0 flex-1 flex-col gap-3">
       {toolbarContainer ? createPortal(toolbar, toolbarContainer) : null}
+      {unifiedUpdate && settingsContainer ? createPortal(sourceConnectionButton, settingsContainer) : null}
       {pendingUpdate ? <SheetUpdateDialog
         key={pendingUpdate.preview.fingerprint}
         preview={pendingUpdate.preview}
@@ -717,6 +726,7 @@ export function MeaningSheetWorkspace({
                 {isTableFullscreen ? <Minimize2 /> : <Maximize2 />}
                 {isTableFullscreen ? "전체화면 종료" : "전체보기"}
               </Button>
+              {unifiedUpdate ? exportButton : null}
             </div>
           </div>
 
@@ -1086,6 +1096,7 @@ export function MeaningSheetWorkspace({
             ) : null}
             <div className="grid gap-2">
               <Label htmlFor="ad-tracking-file">엑셀 또는 CSV 파일</Label>
+              {unifiedUpdate ? <p className="text-xs text-muted-foreground">변경 내역 확인 시 원본시트를 먼저 불러온 뒤 유입엑셀 정보를 함께 비교합니다.</p> : null}
               <input
                 ref={trackingFileInputRef}
                 id="ad-tracking-file"

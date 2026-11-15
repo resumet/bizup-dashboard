@@ -8,6 +8,7 @@ import {
   authorizeAdPerformanceDashboard,
   downloadAdPerformanceTrackingFile,
   loadAdPerformanceSheetState,
+  loadGoogleWorkbook,
   loadAdPerformanceSheetSyncState,
   parseAdPerformanceTrackingFile,
   persistAdPerformanceSheetState,
@@ -93,12 +94,19 @@ export async function POST(request: Request, { params }: Context) {
       context.startDate,
     );
     if (!current) throw new Error("원본 시트를 먼저 연결해 주세요.");
+    let source = current;
+    if (formData.get("refreshSource") === "true") {
+      const workbook = await loadGoogleWorkbook(current.spreadsheetUrl, context.startDate);
+      const selectedSheet = workbook.sheets.find((sheet) => sheet.name === current.sheetName);
+      if (!selectedSheet) throw new Error("연결된 시트를 원본 문서에서 찾을 수 없습니다.");
+      source = { ...current, spreadsheetId: workbook.spreadsheetId, sheetName: selectedSheet.name, sourceRows: selectedSheet.rows };
+    }
     const tracking = await parseAdPerformanceTrackingFile(
       file,
       context.serviceScope,
     );
     const next = applyTrackingToSheet({
-      ...current,
+      ...source,
       trackingFileName: file.name.replace(/[\\/]/gu, "").slice(0, 255),
     }, tracking, context.startDate);
     const preview = createSheetUpdatePreview({

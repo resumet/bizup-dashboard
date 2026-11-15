@@ -18,6 +18,25 @@ function state(): AdPerformanceSheetState {
 }
 function parse(rows: string[][]) { return parseMeaningTrackingApplyList([header, ...rows], "2026-10-04"); }
 
+test("갱신된 원본과 새 유입엑셀을 함께 비교하고 새 날짜에도 누적값을 적용한다", () => {
+  const current = state();
+  const original = structuredClone(current);
+  const sourceRows = structuredClone(current.sourceRows);
+  sourceRows[2][10] = "500";
+  sourceRows.push(["2026-10-04", "700"]);
+  const next = applyTrackingToSheet({ ...current, sourceRows }, parseMeaningTrackingApplyList([header,
+    ["2026-10-01", "그로스임팩트", "구글"],
+    ["2026-10-04", "그로스임팩트", "메타"],
+  ], "2026-10-05"), "2026-10-01");
+  const changes = compareSheetUpdates(current, next, "2026-10-01");
+  assert.ok(changes.some(change => change.date === "2026-10-01" && change.field.endsWith("(K열)") && change.before !== change.after));
+  assert.ok(changes.some(change => change.date === "2026-10-04" && change.field === "원본 날짜 행" && change.after === "있음"));
+  assert.ok(changes.some(change => change.date === "2026-10-04" && change.field === "랜딩접수 DB · 메타" && change.after === 1));
+  assert.equal(next.manualInputs["2026-10-04"].bizupDbCumulative, 2);
+  assert.equal(next.manualInputs["2026-10-01"].chatMembersCumulative, 10);
+  assert.deepEqual(current, original);
+});
+
 test("과거 전체 광고 유입과 누적값을 재계산하고 파일에서 빠진 날짜는 0으로 반영한다", () => {
   const before = state();
   const original = structuredClone(before);

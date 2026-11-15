@@ -76,6 +76,7 @@ export function AdPerformanceDashboard({
   const [sheetToolbarContainer, setSheetToolbarContainer] =
     useState<HTMLDivElement | null>(null);
   const pageError = initialData.loadError ?? "";
+  const [settingsContainer, setSettingsContainer] = useState<HTMLDivElement | null>(null);
   const course = initialData.courses.find((item) => item.id === courseId) ?? null;
   const draftCourse = initialData.courses.find((item) => item.id === draftCourseId);
 
@@ -185,6 +186,9 @@ export function AdPerformanceDashboard({
           sheetState={initialData.sheetState}
           toolbarContainer={sheetToolbarContainer}
           applicantApplyHref={applicantApplyUrl(applicantListUrl)}
+          settingsContainer={settingsContainer}
+          unifiedUpdate
+          trackingImportLabel="업데이트"
         />
       </div>
 
@@ -206,6 +210,7 @@ export function AdPerformanceDashboard({
           ) : null}
 
           <div className="space-y-4">
+            <div ref={setSettingsContainer} />
             <div className="space-y-2">
               <Label htmlFor="ad-applicant-list-url">비즈업 강의 신청자 목록 링크</Label>
               <Input
@@ -217,7 +222,7 @@ export function AdPerformanceDashboard({
                 aria-describedby="ad-applicant-list-url-help"
               />
               <p id="ad-applicant-list-url-help" className="text-xs text-muted-foreground">
-                유입엑셀 추가 창에서 이 주소의 /apply 페이지를 새 탭으로 엽니다.
+                업데이트 창에서 이 주소의 /apply 페이지를 새 탭으로 엽니다.
               </p>
             </div>
             <div className="space-y-2">
