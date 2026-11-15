@@ -38,6 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { AdPerformanceDashboardData } from "@/lib/ad-performance/types";
+import { applicantApplyUrl } from "@/lib/ad-performance/applicant-url";
 
 const number = new Intl.NumberFormat("ko-KR");
 
@@ -56,6 +57,8 @@ export function AdPerformanceDashboard({
   webinarError?: string;
 }) {
   const router = useRouter();
+  const [applicantListUrl, setApplicantListUrl] = useState(initialData.applicantListUrl ?? "");
+  const [draftApplicantListUrl, setDraftApplicantListUrl] = useState(initialData.applicantListUrl ?? "");
   const [courseId, setCourseId] = useState(initialData.course?.id ?? "");
   const [startDate, setStartDate] = useState(initialData.startDate);
   const [totalBudget, setTotalBudget] = useState(initialData.totalBudget);
@@ -77,6 +80,10 @@ export function AdPerformanceDashboard({
   const draftCourse = initialData.courses.find((item) => item.id === draftCourseId);
 
   async function saveSettings() {
+    if (draftApplicantListUrl.trim() && !applicantApplyUrl(draftApplicantListUrl)) {
+      setSettingsError("비즈업 강의 신청자 목록 링크를 확인해 주세요.");
+      return;
+    }
     if (!draftCourseId) {
       setSettingsError("강의를 선택해 주세요.");
       return;
@@ -96,6 +103,7 @@ export function AdPerformanceDashboard({
           courseId: draftCourseId,
           startDate: draftStartDate,
           totalBudget: draftTotalBudget,
+          applicantListUrl: draftApplicantListUrl.trim(),
         }),
       });
       const result = (await response.json()) as { message?: string };
@@ -105,6 +113,7 @@ export function AdPerformanceDashboard({
       setCourseId(draftCourseId);
       setStartDate(draftStartDate);
       setTotalBudget(draftTotalBudget);
+      setApplicantListUrl(draftApplicantListUrl.trim());
       setNotice("광고 설정을 저장했습니다.");
       setSettingsOpen(false);
       router.refresh();
@@ -121,6 +130,7 @@ export function AdPerformanceDashboard({
     setDraftCourseId(courseId);
     setDraftStartDate(startDate);
     setDraftTotalBudget(totalBudget);
+    setDraftApplicantListUrl(applicantListUrl);
     setSettingsError("");
     setSettingsOpen(true);
   }
@@ -174,6 +184,7 @@ export function AdPerformanceDashboard({
           dashboardStartDate={startDate}
           sheetState={initialData.sheetState}
           toolbarContainer={sheetToolbarContainer}
+          applicantApplyHref={applicantApplyUrl(applicantListUrl)}
         />
       </div>
 
@@ -181,7 +192,7 @@ export function AdPerformanceDashboard({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>광고 사전설정</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="sr-only">
               강의, 광고 시작일과 총예산을 설정합니다.
             </DialogDescription>
           </DialogHeader>
@@ -195,6 +206,20 @@ export function AdPerformanceDashboard({
           ) : null}
 
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="ad-applicant-list-url">비즈업 강의 신청자 목록 링크</Label>
+              <Input
+                id="ad-applicant-list-url"
+                type="url"
+                value={draftApplicantListUrl}
+                onChange={(event) => setDraftApplicantListUrl(event.target.value)}
+                placeholder="https://admin.systemnova.co.kr/free-courses/강의ID/"
+                aria-describedby="ad-applicant-list-url-help"
+              />
+              <p id="ad-applicant-list-url-help" className="text-xs text-muted-foreground">
+                유입엑셀 추가 창에서 이 주소의 /apply 페이지를 새 탭으로 엽니다.
+              </p>
+            </div>
             <div className="space-y-2">
               <Label>강의</Label>
               <Select value={draftCourseId} onValueChange={setDraftCourseId}>

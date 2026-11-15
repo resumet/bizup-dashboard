@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { applicantApplyUrl } from "./applicant-url";
 
 export const dateValue = z.string().regex(/^\d{4}-\d{2}-\d{2}$/u).refine((value) => {
   const date = new Date(`${value}T00:00:00Z`);
@@ -40,6 +41,10 @@ export function defaultAdPerformanceStartDate(now = new Date()) {
 }
 
 export const updateDashboardSchema = z.object({
+  applicantListUrl: z.string().trim().max(2048).refine(
+    (value) => !value || applicantApplyUrl(value) !== null,
+    "비즈업 강의 링크를 확인해 주세요. https://admin.systemnova.co.kr/free-courses/강의ID/ 형식으로 입력해 주세요.",
+  ).optional(),
   courseId: z.uuid(),
   startDate: dateValue,
   totalBudget: count,

@@ -62,6 +62,7 @@ export async function PUT(request: Request, { params }: Context) {
         course_id: input.courseId,
         start_date: input.startDate,
         total_budget: input.totalBudget,
+        ...(input.applicantListUrl !== undefined ? { applicant_list_url: input.applicantListUrl } : {}),
         updated_by: user.id,
         updated_at: now,
       })

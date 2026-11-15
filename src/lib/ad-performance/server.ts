@@ -43,6 +43,7 @@ type CourseRow = {
 };
 
 type DashboardRow = {
+  applicant_list_url?: string;
   id: string;
   course_id: string | null;
   start_date: string;
@@ -140,7 +141,7 @@ export async function loadAdPerformanceDashboard(
   const admin = createAdminClient();
   const dashboardResult = await admin
     .from("ad_performance_dashboards")
-    .select("id,course_id,start_date,total_budget,updated_at")
+    .select("id,course_id,start_date,total_budget,updated_at,applicant_list_url")
     .eq("workspace_id", workspaceId)
     .eq("service_scope", serviceScope)
     .eq("id", dashboardId)
@@ -183,6 +184,7 @@ export async function loadAdPerformanceDashboard(
   if (dashboard.course_id && !course) throw new Error("연결된 강의를 찾을 수 없습니다.");
   return {
     id: dashboard.id,
+    applicantListUrl: dashboard.applicant_list_url ?? "",
     course,
     courses,
     startDate: dashboard.start_date,

@@ -72,6 +72,15 @@ test("강의마다 하나의 광고성과 대시보드와 날짜별 지표를 �
        values ($1,$2,$3,'2026-09-01',1000000,$4,$4)`,
       [dashboardId, workspaceId, courseId, userId],
     );
+    await db.exec(await readFile("supabase/migrations/20261115025552_add_ad_performance_applicant_list_url.sql", "utf8"));
+    assert.equal((await db.query<{ applicant_list_url: string }>(
+      "select applicant_list_url from public.ad_performance_dashboards where id = $1", [dashboardId],
+    )).rows[0].applicant_list_url, "");
+    const applicantUrl = "https://admin.systemnova.co.kr/free-courses/88b413ed-0ee1-4fd5-872d-b7ede9cb1f53/";
+    await db.query("update public.ad_performance_dashboards set applicant_list_url = $1 where id = $2", [applicantUrl, dashboardId]);
+    assert.equal((await db.query<{ applicant_list_url: string }>(
+      "select applicant_list_url from public.ad_performance_dashboards where id = $1", [dashboardId],
+    )).rows[0].applicant_list_url, applicantUrl);
     await db.query(
       `insert into public.ad_performance_dashboard_metrics
         (dashboard_id,metric_date,google_impressions,meta_impressions,google_clicks,meta_clicks,

@@ -57,6 +57,7 @@ export type AdPerformanceSheetState = {
 };
 
 export type AdPerformanceDashboardData = {
+  applicantListUrl?: string;
   id: string;
   course: AdPerformanceCourse | null;
   courses: AdPerformanceCourse[];

@@ -136,6 +136,7 @@ export function MeaningSheetWorkspace({
   trackingImportLabel = "유입엑셀추가",
   trackingImportNoun = "유입 엑셀",
   cumulativeDbLabel = "누적비즈업 DB",
+  applicantApplyHref,
 }: {
   dashboardId: string;
   dashboardStartDate: string;
@@ -145,6 +146,7 @@ export function MeaningSheetWorkspace({
   trackingImportLabel?: string;
   trackingImportNoun?: string;
   cumulativeDbLabel?: string;
+  applicantApplyHref?: string | null;
 }) {
   const router = useRouter();
   const [page, setPage] = useState(1);
@@ -1066,6 +1068,22 @@ export function MeaningSheetWorkspace({
                 신청일, 유입경로, 진행매체 열이 있는 엑셀 또는 CSV 파일을 추가합니다.
               </DialogDescription>
             </DialogHeader>
+            {applicantApplyHref !== undefined ? (
+              <div className="grid justify-items-start gap-2">
+                {applicantApplyHref ? (
+                  <Button type="button" variant="outline" asChild>
+                    <a href={applicantApplyHref} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink />신청자 화면 열기
+                    </a>
+                  </Button>
+                ) : (
+                  <>
+                    <Button type="button" variant="outline" disabled><ExternalLink />신청자 화면 열기</Button>
+                    <p className="text-xs text-muted-foreground">사전설정에서 비즈업 강의 신청자 목록 링크를 등록해 주세요.</p>
+                  </>
+                )}
+              </div>
+            ) : null}
             <div className="grid gap-2">
               <Label htmlFor="ad-tracking-file">엑셀 또는 CSV 파일</Label>
               <input
