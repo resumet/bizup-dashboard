@@ -1,9 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseCreativeRows, assignCreativeInstructors, groupCreativeRows } from "./model";
+import { parseCreativeRows, assignCreativeInstructors, groupCreativeRows, summarizeCreativeRows, creativeStatusTone } from "./model";
 
 const google = ["일", "캠페인", "광고그룹", "광고 이름", "광고 상태", "광고 유형", "비용", "노출수", "클릭수", "전환", "webinarName"];
 const meta = ["date", "campaignName", "adSetName", "adName", "status", "adCost", "impression", "linkClick", "leads", "webinarName"];
+
+test("상세 표 합계는 100행을 넘어도 전체 행을 더하고 빈 값과 0을 구분한다", () => {
+  const rows = parseCreativeRows("meta", [meta, ...Array.from({ length: 101 }, () => ["2026-11-15", "c", "g", "a", "ACTIVE", "1.5", "10", "0", "", "미닝웨비나"])]);
+  assert.deepEqual(summarizeCreativeRows(rows), { cost: 151.5, impressions: 1010, clicks: 0, conversions: null });
+  assert.deepEqual(summarizeCreativeRows(rows.slice(0, 2)), { cost: 3, impressions: 20, clicks: 0, conversions: null });
+});
+
+test("상태 칩은 활성과 비활성·게재불가를 혼동하지 않는다", () => {
+  for (const status of ["사용중", "ACTIVE", "delivering"]) assert.equal(creativeStatusTone(status), "green");
+  assert.equal(creativeStatusTone("not_delivering"), "red");
+  assert.equal(creativeStatusTone("PAUSED"), "amber");
+  assert.equal(creativeStatusTone("pending_review"), "blue");
+  for (const status of ["INACTIVE", "unknown", ""]) assert.equal(creativeStatusTone(status), "gray");
+});
 
 test("실제 Google 한국어 헤더와 날짜·소수 전환·빈 숫자를 읽는다", () => {
   const rows = parseCreativeRows("google", [google, [new Date("2026-11-15T00:00:00Z"), "campaign", "group", "ad", "사용중", "동영상", "₩1,234", "500", "0", "1.5", "미닝웨비나"], []]);

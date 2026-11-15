@@ -17,6 +17,27 @@ export type CreativeRow = {
 export type CreativeCourse = { name: string; instructor_name: string };
 export type CreativeData = { url: string; updatedAt: string; rows: CreativeRow[]; error?: string };
 
+export function creativeStatusTone(status: string) {
+  const value = status.trim().toLowerCase().replace(/[\s-]+/gu, "_");
+  if (["사용중", "사용_중", "게재중", "게재_중", "활성", "active", "enabled", "delivering", "eligible"].includes(value)) return "green";
+  if (["일시중지", "일시_중지", "paused", "campaign_paused", "adset_paused"].includes(value)) return "amber";
+  if (["not_delivering", "disapproved", "rejected", "비승인", "게재불가", "게재_불가", "with_issues"].includes(value)) return "red";
+  if (["pending_review", "in_review", "검토중", "검토_중", "심사중", "심사_중", "pending"].includes(value)) return "blue";
+  return "gray";
+}
+
+export function summarizeCreativeRows(rows: readonly CreativeRow[]) {
+  const totals: Pick<CreativeRow, "cost" | "impressions" | "clicks" | "conversions"> = {
+    cost: null, impressions: null, clicks: null, conversions: null,
+  };
+  for (const row of rows) {
+    for (const key of ["cost", "impressions", "clicks", "conversions"] as const) {
+      if (row[key] !== null) totals[key] = (totals[key] ?? 0) + row[key];
+    }
+  }
+  return totals;
+}
+
 const normalize = (value: string) => value.normalize("NFKC").replace(/[\s_-]/gu, "").toLowerCase();
 const aliases = {
   date: ["날짜", "일", "date", "day", "segments.date", "dateStart", "date_start"],

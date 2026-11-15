@@ -4,13 +4,21 @@ import { useMemo, useState, type ReactNode } from "react";
 import { ArrowLeft, ChevronRight, Loader2, RefreshCw, Settings2 } from "lucide-react";
 import { BackLink } from "@/components/layout/back-link";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { groupCreativeRows, type CreativeData, type CreativeRow } from "@/lib/ad-creative/model";
+import { creativeStatusTone, summarizeCreativeRows, groupCreativeRows, type CreativeData, type CreativeRow } from "@/lib/ad-creative/model";
 
 const number = (value: number | null) => value === null ? "—" : value.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
+const statusColors = {
+  green: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
+  amber: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200",
+  red: "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-200",
+  blue: "border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200",
+  gray: "border-border bg-muted text-muted-foreground",
+};
 
 function Branch({ title, count, children }: { title: string; count: number; children: ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -28,11 +36,19 @@ function AdTable({ rows }: { rows: CreativeRow[] }) {
   const google = rows[0]?.platform === "google";
   const headers = google ? ["광고 이름", "광고상태", "광고유형", "비용", "노출수", "클릭수", "전환", "웨비나네임"] : ["status", "adCost", "impression", "linkClick", "leads", "webinarName"];
   const pageCount = Math.ceil(rows.length / 100);
+  const totals = useMemo(() => summarizeCreativeRows(rows), [rows]);
+  const totalLabels = google ? ["비용 합계", "노출수 합계", "클릭수 합계", "전환 합계"] : ["adCost 합계", "impression 합계", "linkClick 합계", "leads 합계"];
   return <>
+    <dl aria-label="상세 성과 전체 행 합계" className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-4 xl:grid-cols-4">
+      {(["cost", "impressions", "clicks", "conversions"] as const).map((key, index) => <div key={key} className="min-w-0 space-y-1">
+        <dt className="text-xs text-muted-foreground">{totalLabels[index]}</dt>
+        <dd className="break-words text-lg font-semibold tabular-nums">{number(totals[key])}</dd>
+      </div>)}
+    </dl>
     <Table><TableHeader><TableRow>{headers.map(header => <TableHead key={header}>{header}</TableHead>)}</TableRow></TableHeader>
       <TableBody>{rows.slice(page * 100, (page + 1) * 100).map((row, index) => <TableRow key={`${page}-${index}`}>
         {google ? <TableCell className="min-w-48 whitespace-normal break-words">{row.ad}</TableCell> : null}
-        <TableCell>{row.status || "—"}</TableCell>{google ? <TableCell>{row.adType || "—"}</TableCell> : null}
+        <TableCell><Badge variant="outline" className={statusColors[creativeStatusTone(row.status)]}>{row.status || "미입력"}</Badge></TableCell>{google ? <TableCell>{row.adType || "—"}</TableCell> : null}
         {[row.cost, row.impressions, row.clicks, row.conversions].map((value, column) => <TableCell key={column} className="text-right tabular-nums">{number(value)}</TableCell>)}
         <TableCell className="min-w-48 whitespace-normal">{row.webinar || "—"}</TableCell>
       </TableRow>)}</TableBody>
@@ -46,7 +62,8 @@ const metaLevels = ["date", "campaign", "group", "ad"] as const;
 function Hierarchy({ rows, depth = 0 }: { rows: CreativeRow[]; depth?: number }) {
   const levels = rows[0]?.platform === "google" ? googleLevels : metaLevels;
   if (depth === levels.length) return <AdTable rows={rows} />;
-  return groupCreativeRows(rows, levels[depth]).map(([name, values]) => <Branch key={name} title={name} count={values.length}><Hierarchy rows={values} depth={depth + 1} /></Branch>);
+  const prefix = levels[depth] === "campaign" ? "(campaign) " : levels[depth] === "group" ? "(group) " : "";
+  return groupCreativeRows(rows, levels[depth]).map(([name, values]) => <Branch key={name} title={`${prefix}${name}`} count={values.length}><Hierarchy rows={values} depth={depth + 1} /></Branch>);
 }
 
 export function CreativePerformance({ initialData }: { initialData: CreativeData }) {
