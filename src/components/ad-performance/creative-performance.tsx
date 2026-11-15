@@ -131,20 +131,19 @@ export function CreativePerformance({ initialData }: { initialData: CreativeData
     {error && !settingsOpen ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
     {notice ? <p role="status" className="text-sm text-emerald-700">{notice}</p> : null}
     {data.url ? <>
-      <div className="space-y-2">
-        <div role="group" aria-label="성과 보기 방식" className="flex gap-2">
-          <Button variant={view === "date" ? "default" : "outline"} aria-pressed={view === "date"} onClick={() => setView("date")}>날짜별 보기</Button>
-          <Button variant={view === "creative" ? "default" : "outline"} aria-pressed={view === "creative"} onClick={() => setView("creative")}>소재별 보기</Button>
-        </div>
-        {view === "creative" ? <p className="text-xs text-muted-foreground">선택한 기간과 검색 조건 안에서 같은 광고 이름의 성과를 캠페인·그룹에 관계없이 합산합니다. 상태는 해당 소재의 가장 최근 날짜 기준입니다.</p> : null}
-      </div>
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-60 flex-1 space-y-2"><Label htmlFor="creative-search">검색</Label><Input id="creative-search" placeholder="강사, 웨비나, 캠페인, 그룹, 광고명" value={query} onChange={event => setQuery(event.target.value)} /></div>
         <div className="space-y-2"><Label htmlFor="creative-from">시작일</Label><Input id="creative-from" type="date" value={from} max={to || undefined} onChange={event => setFrom(event.target.value)} /></div>
         <div className="space-y-2"><Label htmlFor="creative-to">종료일</Label><Input id="creative-to" type="date" value={to} min={from || undefined} onChange={event => setTo(event.target.value)} /></div>
         <Button variant="ghost" onClick={() => { setQuery(""); setFrom(""); setTo(""); }}>필터 초기화</Button>
       </div>
-      <p className="text-xs text-muted-foreground">{filtered.length.toLocaleString("ko-KR")}행 · 마지막 갱신 {new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "short" }).format(new Date(data.updatedAt))}</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">{filtered.length.toLocaleString("ko-KR")}행 · 마지막 갱신 {new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "short" }).format(new Date(data.updatedAt))}</p>
+        <div role="group" aria-label="성과 보기 방식" className="ml-auto flex gap-2">
+          <Button variant={view === "date" ? "default" : "outline"} aria-pressed={view === "date"} onClick={() => setView("date")}>날짜별 보기</Button>
+          <Button variant={view === "creative" ? "default" : "outline"} aria-pressed={view === "creative"} onClick={() => setView("creative")}>소재별 보기</Button>
+        </div>
+      </div>
       {filtered.some(row => row.instructor === "강사 미분류") ? <p className="text-sm text-muted-foreground">강사 미분류 데이터는 원본 시트에 강사명 열을 입력하거나, webinarName을 ‘강사명웨비나’ 형식 또는 등록된 강의명과 동일하게 맞춰 주세요.</p> : null}
       <div key={`${view}:${data.updatedAt}:${query}:${from}:${to}`} className="space-y-3">
         {instructors.map(([instructor, rows]) => <Branch key={instructor} title={instructor} count={rows.length}>
