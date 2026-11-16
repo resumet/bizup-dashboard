@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, BookOpenCheck, Loader2, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BarChart3, BookOpenCheck, ImageIcon, Loader2, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 
 import { BackLink } from "@/components/layout/back-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -47,8 +47,8 @@ function DashboardRow({ dashboard, busy, onDelete }: {
     <TableCell className="tabular-nums">{number.format(dashboard.paidLandingLeads + dashboard.organicLandingLeads)}건</TableCell>
     <TableCell className="tabular-nums">{dashboard.chatRoomMembers === null ? "-" : `${number.format(dashboard.chatRoomMembers)}명`}</TableCell>
     <TableCell className="tabular-nums">{landingLeadCost === null ? "-" : won.format(Math.round(landingLeadCost))}</TableCell>
-    <TableCell><Button asChild size="sm"><Link href={`/services/ad-performance/${dashboard.id}`}>광고성과 <ArrowRight /></Link></Button></TableCell>
-    <TableCell><Button asChild size="sm" variant="outline"><Link href={creativeHref}>소재성과 <ArrowRight /></Link></Button></TableCell>
+    <TableCell><Button asChild size="icon-sm" aria-label={`${courseName} 광고성과`} title="광고성과"><Link href={`/services/ad-performance/${dashboard.id}`}><BarChart3 /></Link></Button></TableCell>
+    <TableCell><Button asChild size="icon-sm" variant="outline" aria-label={`${courseName} 소재성과`} title="소재성과"><Link href={creativeHref}><ImageIcon /></Link></Button></TableCell>
     <TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon-sm" variant="ghost" disabled={busy} aria-label={`${courseName} 메뉴`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem variant="destructive" disabled={busy} onSelect={onDelete}><Trash2 />삭제</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
   </TableRow>;
 }
