@@ -2,108 +2,25 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState, type FormEvent } from "react";
-import {
-  BookUser,
-  ChartNoAxesCombined,
-  CalendarDays,
-  ChevronDown,
-  CircleDot,
-  ClipboardList,
-  EllipsisVertical,
-  Grid2X2,
-  List,
-  Loader2,
-  Plus,
-  Radio,
-  Trash2,
-  UsersRound,
-  Video,
-} from "lucide-react";
-
+import { useMemo, useState } from "react";
+import { CalendarDays, ChevronDown, EllipsisVertical, Grid2X2, List, Plus } from "lucide-react";
 import { CourseListCalendar } from "@/components/course-operations/course-list-calendar";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { CourseManagementMenu } from "@/components/course-operations/course-management-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { CourseSummary } from "@/lib/course-operations/types";
 import { courseBannerUrl } from "@/lib/course-operations/banner";
-import {
-  COURSE_LIST_COLLAPSIBLE_STATUS_ORDER,
-  COURSE_LIST_INITIAL_OPEN_STATUSES,
-  formatCourseWbsProgress,
-  getCourseManagementDestinations,
-} from "@/lib/course-operations/course-list-display";
+import { COURSE_LIST_COLLAPSIBLE_STATUS_ORDER, COURSE_LIST_INITIAL_OPEN_STATUSES, formatCourseWbsProgress } from "@/lib/course-operations/course-list-display";
 import { partitionCoursesByStatus } from "@/lib/course-operations/course-list-status";
-import {
-  COURSE_STATUSES,
-  COURSE_STATUS_LABELS,
-  isCourseStatus,
-  type CourseStatus,
-} from "@/lib/course-operations/course-status";
-import {
-  formatWebinarCountdown,
-  sortByNearestWebinar,
-} from "@/lib/course-operations/webinar-proximity";
-import {
-  formatDashboardCohort,
-  formatDashboardWebinarDate,
-} from "@/lib/dashboard/course-metadata";
+import { COURSE_STATUS_LABELS, type CourseStatus } from "@/lib/course-operations/course-status";
+import { formatWebinarCountdown, sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
+import { formatDashboardCohort, formatDashboardWebinarDate } from "@/lib/dashboard/course-metadata";
 
 type ViewMode = "cards" | "list" | "calendar";
 type CollapsibleCourseStatus = Exclude<CourseStatus, "ongoing">;
-type CourseDeletionBlocker = {
-  id: string;
-  title: string;
-  status: "draft" | "published";
-  updatedAt: string;
-  leadCount: number;
-  href: string;
-};
-const courseManagementIcons = [BookUser, Video, Radio, CalendarDays, UsersRound, ClipboardList, ChartNoAxesCombined];
 const number = new Intl.NumberFormat("ko-KR");
 
 function formatAdLeadCost(value: number | null) {
@@ -122,71 +39,12 @@ function CourseSectionHeading({ title, count }: { title: string; count: number }
   </div>;
 }
 
-function CourseActionsMenu({
-  course,
-  canDelete,
-  onStatus,
-  onDelete,
-}: {
-  course: CourseSummary;
-  canDelete: boolean;
-  onStatus: (course: CourseSummary) => void;
-  onDelete: (course: CourseSummary) => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label={`${course.name} 관리 메뉴`}
-        >
-          <EllipsisVertical />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-64">
-        {getCourseManagementDestinations(
-          course.id,
-          course.ad_performance_dashboard_id,
-        ).map((destination, index) => {
-          const Icon = courseManagementIcons[index] ?? EllipsisVertical;
-          return (
-            <DropdownMenuItem key={destination.href} asChild>
-              <Link href={destination.href}>
-                <Icon />
-                {destination.label}
-              </Link>
-            </DropdownMenuItem>
-          );
-        })}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => onStatus(course)}>
-          <CircleDot />
-          상태
-          <span className="ml-auto text-xs text-muted-foreground">
-            {COURSE_STATUS_LABELS[course.status]}
-          </span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          variant="destructive"
-          disabled={!canDelete}
-          onSelect={() => onDelete(course)}
-        >
-          <Trash2 />
-          삭제
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+function CourseActionsMenu({ course }: { course: CourseSummary }) {
+  return <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={`${course.name} 관리 메뉴`}><EllipsisVertical /></Button></DropdownMenuTrigger><CourseManagementMenu courseId={course.id} /></DropdownMenu>;
 }
 
-function CourseCards({ courses, canDelete, onStatus, onDelete, todayKoreaDate, subdued = false }: {
+function CourseCards({ courses, todayKoreaDate, subdued = false }: {
   courses: CourseSummary[];
-  canDelete: boolean;
-  onStatus: (course: CourseSummary) => void;
-  onDelete: (course: CourseSummary) => void;
   todayKoreaDate: string;
   subdued?: boolean;
 }) {
@@ -194,7 +52,7 @@ function CourseCards({ courses, canDelete, onStatus, onDelete, todayKoreaDate, s
   return <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{courses.map((course, index) => (
     <Card key={course.id} className={`relative gap-0 overflow-hidden py-0 shadow-none transition-colors hover:ring-foreground/20 ${subdued ? "bg-muted/30" : ""}`}>
       <div className="absolute right-2 top-2 z-10 rounded-lg border bg-background/95">
-        <CourseActionsMenu course={course} canDelete={canDelete} onStatus={onStatus} onDelete={onDelete} />
+        <CourseActionsMenu course={course} />
       </div>
       {course.banner_image_path ? <Link href={`/services/course-operations/${course.id}`} className={`relative block aspect-video overflow-hidden border-b bg-muted ${subdued ? "grayscale-[35%]" : ""}`} aria-label={`${course.name} 강의 배너로 상세보기`}>
         <Image src={courseBannerUrl(course.id, course.updated_at)} alt={`${course.name} 배너`} fill unoptimized loading={index < 2 && !subdued ? "eager" : "lazy"} priority={index < 2 && !subdued} sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw" className="object-cover" />
@@ -270,11 +128,8 @@ function CourseStatusSection({
   );
 }
 
-function CourseTable({ courses, canDelete, onStatus, onDelete, todayKoreaDate, subdued = false }: {
+function CourseTable({ courses, todayKoreaDate, subdued = false }: {
   courses: CourseSummary[];
-  canDelete: boolean;
-  onStatus: (course: CourseSummary) => void;
-  onDelete: (course: CourseSummary) => void;
   todayKoreaDate: string;
   subdued?: boolean;
 }) {
@@ -302,7 +157,7 @@ function CourseTable({ courses, canDelete, onStatus, onDelete, todayKoreaDate, s
           <div>G : {formatAdLeadCost(course.google_ad_lead_cost)}</div>
           <div className="mt-1">M : {formatAdLeadCost(course.meta_ad_lead_cost)}</div>
         </TableCell> : null}
-        <TableCell className="text-right"><CourseActionsMenu course={course} canDelete={canDelete} onStatus={onStatus} onDelete={onDelete} /></TableCell>
+        <TableCell className="text-right"><CourseActionsMenu course={course} /></TableCell>
       </TableRow>)}</TableBody>
     </Table>
   </Card>;
@@ -310,23 +165,12 @@ function CourseTable({ courses, canDelete, onStatus, onDelete, todayKoreaDate, s
 
 export function CourseOperationsList({
   courses,
-  canDelete,
   todayKoreaDate,
 }: {
   courses: CourseSummary[];
-  canDelete: boolean;
   todayKoreaDate: string;
 }) {
-  const router = useRouter();
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [deleteTarget, setDeleteTarget] = useState<CourseSummary | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState("");
-  const [deleteBlockers, setDeleteBlockers] = useState<CourseDeletionBlocker[]>([]);
-  const [statusTarget, setStatusTarget] = useState<CourseSummary | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState<CourseStatus>("ongoing");
-  const [savingStatus, setSavingStatus] = useState(false);
-  const [statusError, setStatusError] = useState("");
   const [openStatuses, setOpenStatuses] = useState<
     Record<CollapsibleCourseStatus, boolean>
   >({ ...COURSE_LIST_INITIAL_OPEN_STATUSES });
@@ -365,12 +209,6 @@ export function CourseOperationsList({
     }[status],
   }));
 
-  function openStatusDialog(course: CourseSummary) {
-    setStatusError("");
-    setSelectedStatus(course.status);
-    setStatusTarget(course);
-  }
-
   function toggleStatusSection(status: CollapsibleCourseStatus) {
     setOpenStatuses((current) => ({
       ...current,
@@ -378,79 +216,6 @@ export function CourseOperationsList({
     }));
   }
 
-  async function saveCourseStatus(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!statusTarget) return;
-    setSavingStatus(true);
-    setStatusError("");
-    try {
-      const response = await fetch(
-        `/api/course-operations/${statusTarget.id}/status`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: selectedStatus }),
-        },
-      );
-      const body = (await response.json()) as { message?: string };
-      if (!response.ok) {
-        throw new Error(body.message || "강의 상태 저장에 실패했습니다.");
-      }
-      setStatusTarget(null);
-      router.refresh();
-    } catch (caught) {
-      setStatusError(
-        caught instanceof Error
-          ? caught.message
-          : "강의 상태 저장에 실패했습니다.",
-      );
-    } finally {
-      setSavingStatus(false);
-    }
-  }
-
-  async function deleteCourse() {
-    if (!canDelete || !deleteTarget) return;
-    setDeleting(true);
-    setDeleteError("");
-    try {
-      const response = await fetch(
-        `/api/course-operations/${deleteTarget.id}`,
-        { method: "DELETE" },
-      );
-      const body = (await response.json()) as {
-        code?: string;
-        message?: string;
-        documents?: CourseDeletionBlocker[];
-      };
-      if (!response.ok) {
-        if (
-          response.status === 409 &&
-          body.code === "COURSE_DOCUMENTS_MUST_BE_REMOVED" &&
-          Array.isArray(body.documents)
-        ) {
-          setDeleteBlockers(body.documents);
-          return;
-        }
-        throw new Error(body.message || "강의 삭제에 실패했습니다.");
-      }
-      setDeleteTarget(null);
-      setDeleteBlockers([]);
-      router.refresh();
-    } catch (caught) {
-      setDeleteError(
-        caught instanceof Error ? caught.message : "강의 삭제에 실패했습니다.",
-      );
-    } finally {
-      setDeleting(false);
-    }
-  }
-
-  function openDeleteDialog(course: CourseSummary) {
-    setDeleteError("");
-    setDeleteBlockers([]);
-    setDeleteTarget(course);
-  }
 
   return (
     <>
@@ -496,142 +261,18 @@ export function CourseOperationsList({
 
       {viewMode === "cards" ? (
         <div className="space-y-10">
-          <section aria-label="진행 강의"><CourseSectionHeading title="진행" count={listOngoingCourses.length} /><CourseCards courses={listOngoingCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} todayKoreaDate={todayKoreaDate} /></section>
-          {collapsibleSections.map((section) => <CourseStatusSection key={section.status} title={section.title} count={section.courses.length} open={openStatuses[section.status]} onToggle={() => toggleStatusSection(section.status)}><CourseCards courses={section.courses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} todayKoreaDate={todayKoreaDate} subdued /></CourseStatusSection>)}
+          <section aria-label="진행 강의"><CourseSectionHeading title="진행" count={listOngoingCourses.length} /><CourseCards courses={listOngoingCourses} todayKoreaDate={todayKoreaDate} /></section>
+          {collapsibleSections.map((section) => <CourseStatusSection key={section.status} title={section.title} count={section.courses.length} open={openStatuses[section.status]} onToggle={() => toggleStatusSection(section.status)}><CourseCards courses={section.courses} todayKoreaDate={todayKoreaDate} subdued /></CourseStatusSection>)}
         </div>
       ) : viewMode === "list" ? (
         <div className="space-y-10">
-          <section aria-label="진행 강의"><CourseSectionHeading title="진행" count={listOngoingCourses.length} /><CourseTable courses={listOngoingCourses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} todayKoreaDate={todayKoreaDate} /></section>
-          {collapsibleSections.map((section) => <CourseStatusSection key={section.status} title={section.title} count={section.courses.length} open={openStatuses[section.status]} onToggle={() => toggleStatusSection(section.status)}><CourseTable courses={section.courses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} todayKoreaDate={todayKoreaDate} subdued /></CourseStatusSection>)}
+          <section aria-label="진행 강의"><CourseSectionHeading title="진행" count={listOngoingCourses.length} /><CourseTable courses={listOngoingCourses} todayKoreaDate={todayKoreaDate} /></section>
+          {collapsibleSections.map((section) => <CourseStatusSection key={section.status} title={section.title} count={section.courses.length} open={openStatuses[section.status]} onToggle={() => toggleStatusSection(section.status)}><CourseTable courses={section.courses} todayKoreaDate={todayKoreaDate} subdued /></CourseStatusSection>)}
         </div>
       ) : (
-        <div className="space-y-10"><section aria-label="진행 강의 일정"><CourseSectionHeading title="진행" count={ongoingCourses.length} />{ongoingCourses.length ? <CourseListCalendar courses={ongoingCourses} /> : <div className="rounded-xl border border-dashed px-5 py-10 text-center text-sm text-muted-foreground">진행 중인 강의가 없습니다.</div>}</section>{collapsibleSections.map((section) => <CourseStatusSection key={section.status} title={section.title} count={section.courses.length} open={openStatuses[section.status]} onToggle={() => toggleStatusSection(section.status)}><CourseTable courses={section.courses} canDelete={canDelete} onStatus={openStatusDialog} onDelete={openDeleteDialog} todayKoreaDate={todayKoreaDate} subdued /></CourseStatusSection>)}</div>
+        <div className="space-y-10"><section aria-label="진행 강의 일정"><CourseSectionHeading title="진행" count={ongoingCourses.length} />{ongoingCourses.length ? <CourseListCalendar courses={ongoingCourses} /> : <div className="rounded-xl border border-dashed px-5 py-10 text-center text-sm text-muted-foreground">진행 중인 강의가 없습니다.</div>}</section>{collapsibleSections.map((section) => <CourseStatusSection key={section.status} title={section.title} count={section.courses.length} open={openStatuses[section.status]} onToggle={() => toggleStatusSection(section.status)}><CourseTable courses={section.courses} todayKoreaDate={todayKoreaDate} subdued /></CourseStatusSection>)}</div>
       )}
 
-      <Dialog
-        open={Boolean(statusTarget)}
-        onOpenChange={(openState) => {
-          if (!openState && !savingStatus) {
-            setStatusTarget(null);
-            setStatusError("");
-          }
-        }}
-      >
-        <DialogContent>
-          <form className="grid gap-5" onSubmit={saveCourseStatus}>
-            <DialogHeader>
-              <DialogTitle>강의 상태 변경</DialogTitle>
-              <DialogDescription className="sr-only">
-                강의 목록에 적용할 상태를 선택합니다.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-2">
-              <Label htmlFor="course-status">상태</Label>
-              <Select
-                value={selectedStatus}
-                disabled={savingStatus}
-                onValueChange={(value) => {
-                  if (isCourseStatus(value)) setSelectedStatus(value);
-                }}
-              >
-                <SelectTrigger id="course-status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {COURSE_STATUSES.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {COURSE_STATUS_LABELS[status]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {statusError ? (
-              <Alert variant="destructive">
-                <AlertTitle>상태를 저장할 수 없습니다</AlertTitle>
-                <AlertDescription>{statusError}</AlertDescription>
-              </Alert>
-            ) : null}
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button type="button" variant="outline" disabled={savingStatus}>
-                  취소
-                </Button>
-              </DialogClose>
-              <Button type="submit" disabled={savingStatus || !statusTarget}>
-                {savingStatus ? <Loader2 className="animate-spin" /> : null}
-                {savingStatus ? "저장 중..." : "저장"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog
-        open={Boolean(deleteTarget)}
-        onOpenChange={(openState) => {
-          if (!openState && !deleting) {
-            setDeleteTarget(null);
-            setDeleteError("");
-            setDeleteBlockers([]);
-          }
-        }}
-      >
-        <AlertDialogContent className="max-h-[min(42rem,calc(100vh-2rem))] overflow-y-auto">
-          <AlertDialogHeader>
-            <AlertDialogTitle>강의를 삭제할까요?</AlertDialogTitle>
-            <AlertDialogDescription>
-              &apos;{deleteTarget?.name}&apos;의 강의 정보와 옵션, 유튜브 출연
-              정보가 삭제됩니다. 연결된 수강생 명단과 문자 제작물은 삭제되지
-              않고 강의 연결만 해제됩니다. 이 작업은 되돌릴 수 없습니다.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {deleteError ? (
-            <Alert variant="destructive">
-              <AlertTitle>강의를 삭제할 수 없습니다</AlertTitle>
-              <AlertDescription>{deleteError}</AlertDescription>
-            </Alert>
-          ) : null}
-          {deleteBlockers.length ? (
-            <Alert variant="destructive">
-              <AlertTitle>연결된 문서를 먼저 삭제해 주세요</AlertTitle>
-              <AlertDescription className="space-y-3">
-                <p>
-                  이 강의에는 연결된 콘텐츠 문서가 있어 삭제할 수 없습니다. 아래 문서를
-                  삭제한 뒤 다시 시도해 주세요.
-                </p>
-                <ul className="space-y-2" aria-label="삭제가 필요한 연결 문서">
-                  {deleteBlockers.map((document) => (
-                    <li key={document.id} className="rounded-md border border-destructive/25 bg-background p-3">
-                      <div className="font-medium text-foreground">{document.title}</div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {document.status === "published" ? "공개" : "비공개"} · 수집 리드 {document.leadCount}건
-                      </div>
-                      <Button asChild size="sm" variant="outline" className="mt-3">
-                        <Link href={document.href}>문서 관리에서 열기</Link>
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>취소</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={deleting || !canDelete}
-              onClick={(event) => {
-                event.preventDefault();
-                void deleteCourse();
-              }}
-            >
-              {deleting ? <Loader2 className="animate-spin" /> : <Trash2 />}
-              {deleting ? "삭제 중..." : "삭제"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

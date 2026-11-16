@@ -1,3 +1,4 @@
+import { getCourseNavigationItems } from "./course-menu";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -8,60 +9,13 @@ import {
   getCourseManagementDestinations,
 } from "./course-list-display";
 
-test("완료를 진행 다음에 두고 보류를 상태 목록 맨 아래로 보낸다", () => {
-  assert.deepEqual(COURSE_LIST_COLLAPSIBLE_STATUS_ORDER, [
-    "completed",
-    "canceled",
-    "on_hold",
-  ]);
+test("완료·취소·보류 순서와 접힌 초기 상태를 유지한다", () => {
+  assert.deepEqual(COURSE_LIST_COLLAPSIBLE_STATUS_ORDER, ["completed", "canceled", "on_hold"]);
+  assert.deepEqual(COURSE_LIST_INITIAL_OPEN_STATUSES, { completed: false, canceled: false, on_hold: false });
 });
 
-test("완료·취소·보류 목록은 모두 닫힌 상태로 시작한다", () => {
-  assert.deepEqual(COURSE_LIST_INITIAL_OPEN_STATUSES, {
-    completed: false,
-    canceled: false,
-    on_hold: false,
-  });
-});
-
-test("강의 운영 목록 관리 메뉴가 강의별 서비스로 연결된다", () => {
-  assert.deepEqual(getCourseManagementDestinations("course/1"), [
-    {
-      label: "강사 정보 받기",
-      href: "/services/instructor-intakes?courseId=course%2F1",
-    },
-    {
-      label: "강사 인스타그램 관리",
-      href: "/services/instagram-management/course%2F1",
-    },
-    {
-      label: "강사 출연 유튜브 관리",
-      href: "/services/youtube-management/course%2F1",
-    },
-    {
-      label: "웨비나 정보",
-      href: "/services/webinar-information/course%2F1",
-    },
-    {
-      label: "수강생 관리 및 정산",
-      href: "/services/course-operations/students-settlements/course%2F1",
-    },
-    {
-      label: "강의별 해야할일",
-      href: "/services/course-wbs?courseId=course%2F1",
-    },
-    {
-      label: "광고성과 관리",
-      href: "/services/ad-performance/daily",
-    },
-  ]);
-});
-
-test("연결된 광고성과 대시보드로 바로 이동한다", () => {
-  assert.equal(
-    getCourseManagementDestinations("course/1", "dashboard/1").at(-1)?.href,
-    "/services/ad-performance/dashboard%2F1",
-  );
+test("강의 목록 메뉴는 공통 정의의 항목과 순서를 사용한다", () => {
+  assert.deepEqual(getCourseManagementDestinations("course/1"), getCourseNavigationItems("course/1"));
 });
 
 test("WBS 전체 항목과 일정이 지난 항목 수를 함께 표시한다", () => {

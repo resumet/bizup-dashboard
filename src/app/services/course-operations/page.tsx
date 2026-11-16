@@ -7,7 +7,6 @@ import {
 
 import { BackLink } from "@/components/layout/back-link";
 import { CourseOperationsList } from "@/components/course-operations/course-list";
-import { hasAdminAccess } from "@/lib/admin/access";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { getCachedCourseSummaries } from "@/lib/course-operations/list-cache";
@@ -82,7 +81,6 @@ export default async function CourseOperationsPage() {
           <div>
             <CourseOperationsList
               courses={courses}
-              canDelete={hasAdminAccess(user.email, membership.role)}
               todayKoreaDate={todayKoreaDate}
             />
           </div>

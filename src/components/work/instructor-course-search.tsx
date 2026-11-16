@@ -2,18 +2,8 @@
 
 import Link from "next/link";
 import { useDeferredValue, useId, useState } from "react";
-import {
-  ArrowRight,
-  BookOpenText,
-  Camera,
-  ClipboardList,
-  MonitorPlay,
-  Radio,
-  Search,
-  UsersRound,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowRight, Search, X } from "lucide-react";
+import { courseMenuIcons } from "@/components/course-operations/course-management-menu";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +11,6 @@ import {
   filterCoursesByInstructor,
   getCourseDestinations,
   getOngoingInstructorNames,
-  type CourseDestination,
   type InstructorCourseSearchItem,
 } from "@/lib/work/instructor-course-search";
 
@@ -30,14 +19,6 @@ type InstructorCourseSearchProps = {
   loadError?: string;
 };
 
-const destinationIcons: Record<CourseDestination["kind"], LucideIcon> = {
-  detail: BookOpenText,
-  instagram: Camera,
-  youtube: MonitorPlay,
-  webinar: Radio,
-  students: UsersRound,
-  wbs: ClipboardList,
-};
 
 const instructorColorClasses = [
   "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-300 dark:hover:bg-sky-950",
@@ -149,7 +130,7 @@ export function InstructorCourseSearch({
                   <div className="mt-4 grid gap-2 sm:grid-cols-2">
                     {getCourseDestinations(course.id).map(
                       (destination) => {
-                        const Icon = destinationIcons[destination.kind];
+                        const Icon = courseMenuIcons[destination.kind];
                         return (
                           <Button
                             key={destination.href}

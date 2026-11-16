@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
 import { ArrowLeft, EllipsisVertical } from "lucide-react";
 
+import { CourseManagementMenu } from "@/components/course-operations/course-management-menu";
 import { BackLink } from "@/components/layout/back-link";
 import { Suspense } from "react";
 import { CourseCalendarSection } from "@/components/shared-calendar/course-calendar-section";
@@ -10,8 +10,6 @@ import { PendingLinkLabel } from "@/components/navigation/pending-link-label";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { courseBannerUrl } from "@/lib/course-operations/banner";
@@ -69,8 +67,6 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
     linkedJobsResult,
     linkedProjectsResult,
     notesResult,
-    instructorIntakeResult,
-    adPerformanceDashboardResult,
   ] =
     await Promise.all([
       supabase
@@ -88,21 +84,6 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
         .select("id,content,created_by,author_email,created_at,updated_at")
         .eq("course_id", courseId)
         .order("created_at", { ascending: false }),
-      supabase
-        .from("instructor_intakes")
-        .select("id")
-        .eq("workspace_id", membership.workspace_id)
-        .eq("course_id", courseId)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from("ad_performance_dashboards")
-        .select("id")
-        .eq("workspace_id", membership.workspace_id)
-        .eq("course_id", courseId)
-        .eq("service_scope", "bizup")
-        .maybeSingle(),
     ]);
 
   const loadError =
@@ -204,54 +185,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
                 <EllipsisVertical />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-48">
-              <DropdownMenuItem asChild>
-                <Link href={`/services/course-operations/${courseId}/free-students`}>무료수강생 관리</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link
-                  href={
-                    instructorIntakeResult.data
-                      ? `/services/instructor-intakes/${instructorIntakeResult.data.id}`
-                      : `/services/instructor-intakes?courseId=${encodeURIComponent(courseId)}`
-                  }
-                >
-                  강사 정보 받기
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`/services/instagram-management/${courseId}`}>강사 인스타그램 관리</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`/services/youtube-management/${courseId}`}>강사 출연 유튜브 관리</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`/services/webinar-information/${courseId}`}>웨비나 정보</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link
-                  href={`/services/course-operations/students-settlements/${courseId}`}
-                >
-                  수강생관리 및 정산
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`/services/course-wbs?courseId=${courseId}`}>
-                  강의별 해야할일
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link
-                  href={
-                    adPerformanceDashboardResult.data
-                      ? `/services/ad-performance/${adPerformanceDashboardResult.data.id}`
-                      : "/services/ad-performance/daily"
-                  }
-                >
-                  광고성과 관리
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
+            <CourseManagementMenu courseId={courseId} />
           </DropdownMenu>
         </div>
       </header>

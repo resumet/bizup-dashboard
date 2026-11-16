@@ -12,49 +12,7 @@ export const COURSE_LIST_INITIAL_OPEN_STATUSES = {
   on_hold: false,
 } as const;
 
-export type CourseManagementDestination = {
-  label: string;
-  href: string;
-};
-
-export function getCourseManagementDestinations(
-  courseId: string,
-  adPerformanceDashboardId: string | null = null,
-): CourseManagementDestination[] {
-  const encodedCourseId = encodeURIComponent(courseId);
-  return [
-    {
-      label: "강사 정보 받기",
-      href: `/services/instructor-intakes?courseId=${encodedCourseId}`,
-    },
-    {
-      label: "강사 인스타그램 관리",
-      href: `/services/instagram-management/${encodedCourseId}`,
-    },
-    {
-      label: "강사 출연 유튜브 관리",
-      href: `/services/youtube-management/${encodedCourseId}`,
-    },
-    {
-      label: "웨비나 정보",
-      href: `/services/webinar-information/${encodedCourseId}`,
-    },
-    {
-      label: "수강생 관리 및 정산",
-      href: `/services/course-operations/students-settlements/${encodedCourseId}`,
-    },
-    {
-      label: "강의별 해야할일",
-      href: `/services/course-wbs?courseId=${encodedCourseId}`,
-    },
-    {
-      label: "광고성과 관리",
-      href: adPerformanceDashboardId
-        ? `/services/ad-performance/${encodeURIComponent(adPerformanceDashboardId)}`
-        : "/services/ad-performance/daily",
-    },
-  ];
-}
+export { getCourseNavigationItems as getCourseManagementDestinations } from "./course-menu";
 
 export function formatCourseWbsProgress(
   overdueItemCount: number,
