@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, BookOpenCheck, Loader2, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, BookOpenCheck, Loader2, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 
 import { BackLink } from "@/components/layout/back-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatWebinarDate, getWebinarDayDifference } from "@/lib/course-operations/webinar-proximity";
 import type { AdPerformanceDashboardSummary, AdPerformanceIndexData } from "@/lib/ad-performance/types";
@@ -46,8 +47,9 @@ function DashboardRow({ dashboard, busy, onDelete }: {
     <TableCell className="tabular-nums">{number.format(dashboard.paidLandingLeads + dashboard.organicLandingLeads)}건</TableCell>
     <TableCell className="tabular-nums">{dashboard.chatRoomMembers === null ? "-" : `${number.format(dashboard.chatRoomMembers)}명`}</TableCell>
     <TableCell className="tabular-nums">{landingLeadCost === null ? "-" : won.format(Math.round(landingLeadCost))}</TableCell>
-    <TableCell><div className="flex items-center gap-1"><Button asChild size="sm"><Link href={`/services/ad-performance/${dashboard.id}`}>광고성과 <ArrowRight /></Link></Button><Button type="button" size="icon-sm" variant="ghost" disabled={busy} aria-label={`${courseName} 광고성과 삭제`} onClick={onDelete}><Trash2 className="size-4 text-destructive" /></Button></div></TableCell>
+    <TableCell><Button asChild size="sm"><Link href={`/services/ad-performance/${dashboard.id}`}>광고성과 <ArrowRight /></Link></Button></TableCell>
     <TableCell><Button asChild size="sm" variant="outline"><Link href={creativeHref}>소재성과 <ArrowRight /></Link></Button></TableCell>
+    <TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon-sm" variant="ghost" disabled={busy} aria-label={`${courseName} 메뉴`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem variant="destructive" disabled={busy} onSelect={onDelete}><Trash2 />삭제</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
   </TableRow>;
 }
 
@@ -107,7 +109,7 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
 
       <section className="mt-8">
         {dashboards.length ? <div className="rounded-xl border"><Table><TableHeader><TableRow>
-          {['강의명', '강사명', '웨비나 날짜', 'D-며칠', '광고 시작 날짜', '누적 집행비', '기록 일수', 'DB 총합', '단톡방 총합', '랜딩접수DB 단가', '광고성과', '소재성과'].map((label) => <TableHead key={label}>{label}</TableHead>)}
+          {['강의명', '강사명', '웨비나 날짜', 'D-며칠', '광고 시작 날짜', '누적 집행비', '기록 일수', 'DB 총합', '단톡방 총합', '랜딩접수DB 단가', '광고성과', '소재성과'].map((label) => <TableHead key={label}>{label}</TableHead>)}<TableHead><span className="sr-only">관리</span></TableHead>
         </TableRow></TableHeader><TableBody>{dashboards.map((dashboard) => <DashboardRow key={dashboard.id} dashboard={dashboard} busy={deletingId === dashboard.id} onDelete={() => void deleteDashboard(dashboard)} />)}</TableBody></Table></div> : (
           <Card><CardContent className="flex min-h-64 flex-col items-center justify-center text-center"><span className="mb-4 grid size-12 place-items-center rounded-full bg-primary/10 text-primary"><BookOpenCheck className="size-5" /></span><h3 className="font-semibold">아직 광고성과 대시보드가 없습니다</h3><p className="mt-2 max-w-md text-sm text-muted-foreground">대시보드를 만든 뒤 사전설정에서 강의와 광고 조건을 선택하세요.</p></CardContent></Card>
         )}
