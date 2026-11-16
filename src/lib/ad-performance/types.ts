@@ -91,6 +91,7 @@ export type AdPerformanceDashboardSummary = {
   paidLandingLeads: number;
   organicLandingLeads: number;
   adminCumulativeLeads: number;
+  chatRoomMembers: number | null;
   updatedAt: string;
 };
 

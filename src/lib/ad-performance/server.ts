@@ -59,6 +59,12 @@ type DashboardRow = {
   admin_cumulative_leads?: number | string;
 };
 
+type ChatRoomMetricRow = {
+  dashboard_id: string;
+  metric_date: string;
+  chat_room_members: number | string | null;
+};
+
 const metricColumns = "dashboard_id,metric_date,google_impressions,meta_impressions,google_clicks,meta_clicks,google_ad_leads,meta_ad_leads,google_spend,meta_spend,google_landing_leads,meta_landing_leads,admin_cumulative_leads,chat_room_members";
 
 function toCourse(row: CourseRow): AdPerformanceCourse {
@@ -114,6 +120,15 @@ export async function loadAdPerformanceIndex(workspaceId: string): Promise<AdPer
   if (dashboardsResult.error) throw new Error(`광고성과 목록 조회 실패: ${dashboardsResult.error.code}`);
 
   const rows = (dashboardsResult.data ?? []) as DashboardRow[];
+  const dashboardIds = rows.map((row) => row.id);
+  const chatRoomMetricsResult = dashboardIds.length
+    ? await admin.from("ad_performance_dashboard_metrics").select("dashboard_id,metric_date,chat_room_members").in("dashboard_id", dashboardIds).order("metric_date", { ascending: true })
+    : { data: [], error: null };
+  if (chatRoomMetricsResult.error) throw new Error(`단톡방 인원 조회 실패: ${chatRoomMetricsResult.error.code}`);
+  const chatRoomMembersByDashboard = new Map<string, number>();
+  for (const metric of (chatRoomMetricsResult.data ?? []) as ChatRoomMetricRow[]) {
+    if (metric.chat_room_members !== null) chatRoomMembersByDashboard.set(metric.dashboard_id, Number(metric.chat_room_members));
+  }
   const courses = sortByNearestWebinar((coursesResult.data ?? []) as CourseRow[]).map(toCourse);
   const courseMap = new Map(courses.map((course) => [course.id, course]));
   const dashboards = rows.map<AdPerformanceDashboardSummary>((row) => {
@@ -129,6 +144,7 @@ export async function loadAdPerformanceIndex(workspaceId: string): Promise<AdPer
       paidLandingLeads: Number(row.paid_landing_leads ?? 0),
       organicLandingLeads: Number(row.organic_landing_leads ?? 0),
       adminCumulativeLeads: Number(row.admin_cumulative_leads ?? 0),
+      chatRoomMembers: chatRoomMembersByDashboard.get(row.id) ?? null,
       updatedAt: row.updated_at,
     };
   });
