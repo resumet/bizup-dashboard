@@ -105,7 +105,7 @@ function Hierarchy({ rows, depth = 0 }: { rows: CreativeRow[]; depth?: number })
   </Branch>);
 }
 
-export function CreativePerformance({ initialData }: { initialData: CreativeData }) {
+export function CreativePerformance({ initialData, initialInstructor = "", initialWebinar = "" }: { initialData: CreativeData; initialInstructor?: string; initialWebinar?: string }) {
   const [data, setData] = useState(initialData);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [url, setUrl] = useState(initialData.url);
@@ -117,7 +117,8 @@ export function CreativePerformance({ initialData }: { initialData: CreativeData
   const [to, setTo] = useState("");
   const [view, setView] = useState<"date" | "creative">("date");
   const filtered = useMemo(() => data.rows.filter(row => (!from || row.date >= from) && (!to || row.date <= to) &&
-    [row.instructor, row.webinar, row.campaign, row.group, row.ad].some(value => value.toLocaleLowerCase("ko-KR").includes(query.trim().toLocaleLowerCase("ko-KR")))), [data.rows, from, to, query]);
+    (!initialInstructor && !initialWebinar || row.instructor === initialInstructor || row.webinar.includes(initialWebinar)) &&
+    [row.instructor, row.webinar, row.campaign, row.group, row.ad].some(value => value.toLocaleLowerCase("ko-KR").includes(query.trim().toLocaleLowerCase("ko-KR")))), [data.rows, from, initialInstructor, initialWebinar, to, query]);
   const instructors = useMemo(() => groupCreativeRows(filtered, "instructor"), [filtered]);
 
   async function sync(nextUrl: string) {

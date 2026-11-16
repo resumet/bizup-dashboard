@@ -21,6 +21,9 @@ function DashboardCard({ dashboard, busy, onDelete }: {
   onDelete: () => void;
 }) {
   const courseName = dashboard.course?.name ?? "강의 미설정";
+  const creativeHref = dashboard.course
+    ? `/services/ad-performance/creative?${new URLSearchParams({ instructor: dashboard.course.instructorName, webinar: courseName })}`
+    : "/services/ad-performance/creative";
   return (
     <Card className="group overflow-hidden transition hover:border-primary/40 hover:shadow-md">
       <CardHeader className="border-b bg-muted/25">
@@ -41,7 +44,10 @@ function DashboardCard({ dashboard, busy, onDelete }: {
         <div><p className="text-xs text-muted-foreground">랜딩접수 DB(오가닉)</p><p className="mt-1 font-semibold tabular-nums">{number.format(dashboard.organicLandingLeads)}건</p></div>
         <div><p className="text-xs text-muted-foreground">DB 총합</p><p className="mt-1 font-semibold tabular-nums">{number.format(dashboard.paidLandingLeads + dashboard.organicLandingLeads)}건</p></div>
         <div><p className="text-xs text-muted-foreground">비즈업에 등록된 DB 갯수</p><p className="mt-1 font-semibold tabular-nums">{number.format(dashboard.adminCumulativeLeads)}건</p></div>
-        <Button asChild className="col-span-2 mt-1"><Link href={`/services/ad-performance/${dashboard.id}`}>대시보드 열기 <ArrowRight /></Link></Button>
+        <div className="col-span-2 mt-1 grid gap-2 sm:grid-cols-2">
+          <Button asChild><Link href={`/services/ad-performance/${dashboard.id}`}>광고성과 <ArrowRight /></Link></Button>
+          <Button asChild variant="outline"><Link href={creativeHref}>소재성과 <ArrowRight /></Link></Button>
+        </div>
       </CardContent>
     </Card>
   );
@@ -91,7 +97,7 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
   return <main className="min-h-screen">
     <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon-sm" asChild><BackLink href="/services/ad-performance"><ArrowLeft />뒤로가기</BackLink></Button>
+        <Button variant="ghost" size="icon-sm" asChild><BackLink href="/work"><ArrowLeft />뒤로가기</BackLink></Button>
         <h1 className="text-3xl font-semibold tracking-tight">내부광고 성과기록</h1>
       </div>
       {error ? <Alert variant="destructive" className="mt-6"><AlertTriangle /><AlertTitle>확인이 필요합니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
