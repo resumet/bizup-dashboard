@@ -254,6 +254,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   const [courseReady, setCourseReady] = useState(false);
   const [overviewFailed, setOverviewFailed] = useState(false);
   const [saving, setSaving] = useState(false);
+  const saveInFlight = useRef(false);
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -387,8 +388,12 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   function clearFeedback() { setError(""); setNotice(""); setConflictTarget(null); }
 
   function editItem(id: string, change: Partial<WbsItem>) {
-    if (saving || loadingWbs || !courseReady) return;
+    if (saveInFlight.current || saving || loadingWbs || !courseReady) return;
     if (id === WEBINAR_ITEM_ID && ("title" in change || "startDate" in change || "dueDate" in change)) return;
+    if ("completed" in change) {
+      void saveWbs(items.map((item) => item.id === id ? { ...item, ...change } : item));
+      return;
+    }
     setItems((current) => current.map((item) => item.id === id ? { ...item, ...change } : item));
     setDirty(true);
     clearFeedback();
@@ -541,19 +546,21 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
     setError("");
   }
 
-  async function saveWbs() {
-    if (!courseId || saving || loadingWbs || !courseReady) return;
-    const validationError = validateItems(items);
+  async function saveWbs(nextItems = items) {
+    if (!courseId || saveInFlight.current || saving || loadingWbs || !courseReady) return;
+    const validationError = validateItems(nextItems);
     if (validationError) { setError(validationError); return; }
+    saveInFlight.current = true;
     setSaving(true);
+    setItems(nextItems);
     clearFeedback();
     try {
       const response = await fetch(`/api/course-wbs/${encodeURIComponent(courseId)}`, {
-        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items: ordered(items), expectedUpdatedAt: updatedAt || null }),
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items: ordered(nextItems), expectedUpdatedAt: updatedAt || null }),
       });
       const body = await responseJson<WbsResponse>(response);
       const savedWbs = body.wbs;
-      const savedItems = ordered(savedWbs?.items ?? items);
+      const savedItems = ordered(savedWbs?.items ?? nextItems);
       setItems(savedItems);
       setPeople((current) => withSavedPeople(current, savedItems));
       setCourses((current) => current.map((entry) => entry.id === courseId ? { ...entry, webinarAt: body.webinarAt } : entry));
@@ -581,9 +588,10 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
         })
         .catch(() => undefined);
     } catch (caught) {
+      setItems(items);
       setConflictTarget(caught instanceof ApiError && caught.status === 409 ? "wbs" : null);
       setError(caught instanceof Error ? caught.message : "WBS 저장에 실패했습니다.");
-    } finally { setSaving(false); }
+    } finally { saveInFlight.current = false; setSaving(false); }
   }
 
   return <>
