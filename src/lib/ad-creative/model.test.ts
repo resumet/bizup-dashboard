@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { aggregateCreativeRows, parseCreativeRows, assignCreativeInstructors, groupCreativeRows, summarizeCreativeRows, creativeStatusTone, nextCreativeSort, sortCreativeRows } from "./model";
+import { aggregateCreativeRows, parseCreativeRows, assignCreativeInstructors, groupCreativeRows, summarizeCreativeRows, creativeStatusTone, creativeUnitCost, nextCreativeSort, sortCreativeRows } from "./model";
 
 const google = ["일", "캠페인", "광고그룹", "광고 이름", "광고 상태", "광고 유형", "비용", "노출수", "클릭수", "전환", "webinarName"];
 const meta = ["date", "campaignName", "adSetName", "adName", "status", "adCost", "impression", "linkClick", "leads", "webinarName"];
@@ -108,4 +108,11 @@ test("강사 열, 등록 강의명, 웨비나 이름으로 분류하고 미분�
   const assigned = assignCreativeInstructors(rows, [{ name: "강의 A", instructor_name: "강사 A" }]);
   assert.deepEqual(assigned.map(row => row.instructor), ["명시 강사", "강사 A", "라스트원", "강사 미분류"]);
   assert.deepEqual(groupCreativeRows(assigned.reverse(), "date").map(([date]) => date), ["2026-11-15", "2026-11-14", "2026-11-13", "2026-11-12"]);
+});
+
+test("비용과 성과 수치를 기준으로 회당 단가를 계산하고 0 또는 누락 수치는 제외한다", () => {
+  assert.equal(creativeUnitCost(872_272, 15_635), 872_272 / 15_635);
+  assert.equal(creativeUnitCost(100, 0), null);
+  assert.equal(creativeUnitCost(null, 10), null);
+  assert.equal(creativeUnitCost(100, null), null);
 });

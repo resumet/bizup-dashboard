@@ -9,9 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { aggregateCreativeRows, creativeStatusTone, summarizeCreativeRows, groupCreativeRows, nextCreativeSort, sortCreativeRows, type CreativeData, type CreativeRow, type CreativeMetric, type CreativeSort } from "@/lib/ad-creative/model";
+import { aggregateCreativeRows, creativeStatusTone, creativeUnitCost, summarizeCreativeRows, groupCreativeRows, nextCreativeSort, sortCreativeRows, type CreativeData, type CreativeRow, type CreativeMetric, type CreativeSort } from "@/lib/ad-creative/model";
 
 const number = (value: number | null) => value === null ? "—" : value.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
+function unitCost(cost: number | null, quantity: number | null) {
+  const value = creativeUnitCost(cost, quantity);
+  return value === null ? null : `${number(Math.round(value))}원/회`;
+}
 const statusColors = {
   green: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
   amber: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200",
@@ -40,6 +44,7 @@ function Branch({ title, count, children, totals, level }: { title: string; coun
         ] as const).map(([key, label]) => <span key={key} className="min-w-0 space-y-1">
           <span className="block text-xs font-normal text-muted-foreground">{label}</span>
           <span className="block break-words font-semibold tabular-nums">{number(totals[key])}</span>
+          {key !== "cost" && unitCost(totals.cost, totals[key]) ? <span className="block text-xs font-normal text-muted-foreground">({unitCost(totals.cost, totals[key])})</span> : null}
         </span>)}
       </span> : null}
     </summary>
@@ -79,7 +84,7 @@ function AdTable({ rows, aggregated = false }: { rows: (CreativeRow & { statuses
       <TableBody>{sortedRows.slice(page * 100, (page + 1) * 100).map((row, index) => <TableRow key={`${page}-${index}`}>
         {google || aggregated ? <TableCell className="min-w-48 whitespace-normal break-words">{row.ad}</TableCell> : null}
         <TableCell><span className="flex flex-wrap gap-1">{(row.statuses ?? [row.status]).map(status => <Badge key={status} variant="outline" className={statusColors[creativeStatusTone(status)]}>{status || "미입력"}</Badge>)}</span></TableCell>{google ? <TableCell>{row.adType || "—"}</TableCell> : null}
-        {[row.cost, row.impressions, row.clicks, row.conversions].map((value, column) => <TableCell key={column} className="text-right tabular-nums">{number(value)}</TableCell>)}
+        {[row.cost, row.impressions, row.clicks, row.conversions].map((value, column) => <TableCell key={column} className="text-right tabular-nums">{number(value)}{column > 0 && unitCost(row.cost, value) ? <span className="ml-1 text-xs text-muted-foreground">({unitCost(row.cost, value)})</span> : null}</TableCell>)}
         <TableCell className="min-w-48 whitespace-normal">{row.webinar || "—"}</TableCell>
       </TableRow>)}</TableBody>
     </Table>
@@ -100,7 +105,7 @@ function Hierarchy({ rows, depth = 0 }: { rows: CreativeRow[]; depth?: number })
   const prefix = levels[depth] === "campaign" ? "(campaign) " : levels[depth] === "group" ? "(group) " : "";
   return groupCreativeRows(rows, levels[depth]).map(([name, values]) => <Branch key={name} title={`${prefix}${name}`} count={values.length}
     level={levels[depth]}
-    totals={levels[depth] === "campaign" || levels[depth] === "date" ? summarizeCreativeRows(values) : undefined}>
+    totals={levels[depth] === "ad" ? undefined : summarizeCreativeRows(values)}>
     <Hierarchy rows={values} depth={depth + 1} />
   </Branch>);
 }
@@ -165,7 +170,7 @@ export function CreativePerformance({ initialData, initialInstructor = "", initi
           {(["google", "meta"] as const).map(platform => {
             const values = rows.filter(row => row.platform === platform);
             return <Branch key={platform} title={platform === "google" ? "Google 데이터" : "Meta 데이터"} count={values.length}
-              totals={platform === "google" ? summarizeCreativeRows(values) : undefined}>
+              totals={summarizeCreativeRows(values)}>
               {values.length ? (view === "date" ? <Hierarchy rows={values} /> : <CreativeTable rows={values} />) : <p className="text-sm text-muted-foreground">해당 매체 데이터가 없습니다.</p>}
             </Branch>;
           })}

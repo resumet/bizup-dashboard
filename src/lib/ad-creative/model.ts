@@ -74,6 +74,11 @@ export function summarizeCreativeRows(rows: readonly CreativeRow[]) {
   return totals;
 }
 
+export function creativeUnitCost(cost: number | null, quantity: number | null) {
+  if (cost === null || quantity === null || quantity <= 0) return null;
+  return cost / quantity;
+}
+
 const normalize = (value: string) => value.normalize("NFKC").replace(/[\s_-]/gu, "").toLowerCase();
 const aliases = {
   date: ["날짜", "일", "date", "day", "segments.date", "dateStart", "date_start"],
