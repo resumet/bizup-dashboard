@@ -68,17 +68,16 @@ export async function POST(_: Request, { params }: Context) {
       settlement.analysis_snapshot,
     );
     const analysis = settlement.analysis_snapshot as SettlementAnalysis;
-    const totalInstructor = analysis.totals;
     const instructor = analysis.instructorResults?.find(
       (item) => normalizeName(item.instructor) === normalizeName(course.instructor_name),
     );
     if (!instructor) throw new Error("정산 분석에서 강사 지급액을 계산할 강사를 찾을 수 없습니다.");
     const manualCash = await loadManualCashSummary(admin, settlement.course_id);
     const instructorPayoutAmount = calculateCostSettlement({
-      totalSales: totalInstructor.totalSales,
-      pgFee: totalInstructor.pgFee,
-      novaFee: totalInstructor.systemNovaFee,
-      additionalServiceFee: totalInstructor.additionalServiceFee,
+      totalSales: instructor.totalSales,
+      pgFee: instructor.pgFee,
+      novaFee: instructor.systemNovaFee,
+      additionalServiceFee: instructor.additionalServiceFee,
       manualCashSales: manualCash.amount,
       costs: costs.map(settlementCost),
       instructorRatioPercent: draft.instructorRatioPercent,

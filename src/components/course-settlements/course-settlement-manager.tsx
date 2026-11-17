@@ -628,7 +628,7 @@ export function CourseSettlementManager({
 
           {showStatement && instructor ? (
             <SettlementStatement
-              instructor={analysis.totals}
+              instructor={instructor}
               manualCash={manualCash}
               monthlyAnalyses={analysis.monthlyAnalyses}
               courseId={courseId}
