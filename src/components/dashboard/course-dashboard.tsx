@@ -439,7 +439,7 @@ export function CourseDashboard({ data }: { data: DashboardData }) {
 
         <PreparationStatusTable rows={data.preparationStatuses} />
 
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
           <Card className="gap-0 overflow-hidden border-slate-200 bg-white py-0 shadow-sm">
             <SectionHeader title="현재 진행 중인 강의" href="/services/course-operations" />
             <CardContent className="p-4 sm:p-5">
