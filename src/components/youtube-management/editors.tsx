@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Copy, ExternalLink, ImagePlus, Save, Trash2, Link2 } from "lucide-react";
+import { Copy, ExternalLink, Hourglass, ImagePlus, Save, Trash2, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -57,6 +57,7 @@ function UrlDialog({value,onChange,title,disabled,notify,icon=false}:{value:stri
 
 export function AppearanceEditor({initial,publicMode=false,suggestions=[],landingUtms=[],addRequest=0,onSave,onDelete,onSaved,onDeleted}:{initial:Appearance[];publicMode?:boolean;suggestions?:Array<{channelName:string;channelUrl:string}>;landingUtms?:LandingUtm[];addRequest?:number;onSave:(row:Appearance)=>Promise<Appearance>;onDelete?:(row:Appearance)=>Promise<void>;onSaved?:(row:Appearance)=>void;onDeleted?:(id:string)=>void}){
   const [rows,setRows]=useState(initial);
+  const [savedRows,setSavedRows]=useState(initial);
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState("");
   const lastAddRequest=useRef(addRequest);
@@ -66,18 +67,38 @@ export function AppearanceEditor({initial,publicMode=false,suggestions=[],landin
     setRows(current=>[...current,emptyAppearance()]);
   },[addRequest,publicMode]);
   function update(index:number,patch:Partial<Appearance>){setRows(current=>current.map((row,i)=>i===index?{...row,...patch}:row));}
-  async function save(row:Appearance,index:number) {
+  function persist(row:Appearance,index:number) {
+    return onSave(row).then((saved) => {
+      update(index,saved);
+      setSavedRows(current=>{const next=[...current];next[index]=saved;return next;});
+      onSaved?.(saved);
+      return saved;
+    });
+  }
+  async function saveAll() {
+    const changedRows=rows.map((row,index)=>({row,index})).filter(({row,index})=>JSON.stringify(row)!==JSON.stringify(savedRows[index]));
+    if(!changedRows.length)return;
     setBusy(true); setMessage("");
-    try { const saved=await onSave(row);update(index,saved);onSaved?.(saved);setMessage("출연 정보를 저장했습니다."); }
+    try { for(const {row,index} of changedRows)await persist(row,index);setMessage("출연 정보를 저장했습니다."); }
     catch(error){setMessage(error instanceof Error?error.message:"저장하지 못했습니다.");}
     finally{setBusy(false);}
   }
+  async function autoSaveVideo(index:number) {
+    const row=rows[index];
+    if(!row?.id||row.video_url===savedRows[index]?.video_url)return;
+    setBusy(true); setMessage("");
+    try { await persist(row,index);setMessage("게시된 영상 주소를 저장했습니다."); }
+    catch(error){setMessage(error instanceof Error?error.message:"게시된 영상 주소를 저장하지 못했습니다.");}
+    finally{setBusy(false);}
+  }
+  const hasChanges=rows.some((row,index)=>JSON.stringify(row)!==JSON.stringify(savedRows[index]));
   const selectClass="h-9 w-full rounded-md border bg-background px-2 text-sm disabled:cursor-not-allowed disabled:opacity-50";
   return <div className="min-w-0 space-y-3">
     <datalist id="appearance-channel-suggestions">{suggestions.map((item,index)=><option key={index} value={item.channelName}>{item.channelUrl}</option>)}</datalist>
+    <div className="flex justify-end"><Button type="button" disabled={busy||!hasChanges} onClick={()=>void saveAll()}>{busy?<Hourglass className="animate-spin"/>:<Save />}{busy?"저장 중":"저장"}</Button></div>
     <div className="overflow-hidden rounded-lg border">
       <Table className={publicMode?"min-w-[1040px]":"min-w-[1300px]"}>
-        <TableHeader><TableRow><TableHead>채널이름</TableHead>{!publicMode&&<TableHead className="w-24 text-center">자체 진행</TableHead>}<TableHead>출연여부</TableHead><TableHead>촬영확정</TableHead><TableHead>촬영일정</TableHead><TableHead>업로드 일정</TableHead><TableHead>UTM</TableHead><TableHead>게시된 영상</TableHead><TableHead className="text-right">저장{!publicMode&&" / 작업"}</TableHead></TableRow></TableHeader>
+        <TableHeader><TableRow><TableHead>채널이름</TableHead>{!publicMode&&<TableHead className="w-24 text-center">자체 진행</TableHead>}<TableHead>출연여부</TableHead><TableHead>촬영확정</TableHead><TableHead>촬영일정</TableHead><TableHead>업로드 일정</TableHead><TableHead>UTM</TableHead><TableHead>게시된 영상</TableHead>{!publicMode&&<TableHead className="text-right">작업</TableHead>}</TableRow></TableHeader>
         <TableBody>
           {rows.map((row,index)=>{
             const formId=`appearance-${publicMode?"public":"admin"}-${index}`;
@@ -104,16 +125,11 @@ export function AppearanceEditor({initial,publicMode=false,suggestions=[],landin
                   {row.landing_utm&&<Button type="button" variant="ghost" size="icon-sm" aria-label={`${index+1}번 UTM 복사`} onClick={()=>void navigator.clipboard.writeText(row.landing_utm).then(()=>setMessage("UTM을 복사했습니다.")).catch(()=>setMessage("복사하지 못했습니다."))}><Copy /></Button>}
                 </div>
               </TableCell>
-              <TableCell><UrlDialog title="게시된 영상 주소" value={row.video_url} disabled={busy} onChange={value=>update(index,{video_url:value})} notify={setMessage} /></TableCell>
-              <TableCell>
-                <form id={formId} className="flex justify-end gap-1" onSubmit={event=>{event.preventDefault();void save(row,index);}}>
-                  {!publicMode&&<Button type="button" size="icon-sm" variant="ghost" disabled={busy} aria-label={`${index+1}번 출연 삭제`} onClick={async()=>{if(!window.confirm("출연 정보를 삭제하시겠습니까?"))return;setBusy(true);try{if(row.id&&onDelete)await onDelete(row);setRows(current=>current.filter((_,i)=>i!==index));if(row.id)onDeleted?.(row.id);setMessage("삭제했습니다.");}catch(error){setMessage(error instanceof Error?error.message:"삭제하지 못했습니다.");}finally{setBusy(false);}}}><Trash2 /></Button>}
-                  <Button type="submit" variant="outline" size="sm" disabled={busy}>{busy?"저장 중…":"저장"}</Button>
-                </form>
-              </TableCell>
+              <TableCell className="min-w-56"><Input form={formId} className="h-9" aria-label={`${index+1}번 게시된 영상 주소`} type="url" placeholder="https://" value={row.video_url} disabled={busy} onChange={event=>update(index,{video_url:event.target.value})} onBlur={()=>void autoSaveVideo(index)} /></TableCell>
+              {!publicMode&&<TableCell><div className="flex justify-end"><Button type="button" size="icon-sm" variant="ghost" disabled={busy} aria-label={`${index+1}번 출연 삭제`} onClick={async()=>{if(!window.confirm("출연 정보를 삭제하시겠습니까?"))return;setBusy(true);try{if(row.id&&onDelete)await onDelete(row);setRows(current=>current.filter((_,i)=>i!==index));setSavedRows(current=>current.filter((_,i)=>i!==index));if(row.id)onDeleted?.(row.id);setMessage("삭제했습니다.");}catch(error){setMessage(error instanceof Error?error.message:"삭제하지 못했습니다.");}finally{setBusy(false);}}}><Trash2 /></Button></div></TableCell>}
             </TableRow>;
           })}
-          {!rows.length&&<TableRow><TableCell colSpan={publicMode?8:9} className="py-8 text-center text-muted-foreground">등록된 출연 요청이 없습니다.</TableCell></TableRow>}
+          {!rows.length&&<TableRow><TableCell colSpan={publicMode?7:9} className="py-8 text-center text-muted-foreground">등록된 출연 요청이 없습니다.</TableCell></TableRow>}
         </TableBody>
       </Table>
     </div>

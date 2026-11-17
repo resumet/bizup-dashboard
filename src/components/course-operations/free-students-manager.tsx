@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Loader2, Download } from "lucide-react";
+import { Loader2, Download, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { applicantColumns, applicantValue, filterApplicants, type FreeStudentsSnapshot } from "@/lib/free-students/model";
+import { freeStudentsPhoneSalesCsv } from "@/lib/free-students/phone-sales";
 
 export function FreeStudentsManager({ courseId, landingPageLink, initialSnapshot }: { courseId: string; landingPageLink: string; initialSnapshot: FreeStudentsSnapshot | null }) {
   const [snapshot, setSnapshot] = useState(initialSnapshot);
@@ -27,10 +28,27 @@ export function FreeStudentsManager({ courseId, landingPageLink, initialSnapshot
     } catch (reason) { setError(reason instanceof Error ? reason.message : "명단을 가져오지 못했습니다."); }
     finally { setBusy(false); }
   }
+  function downloadPhoneSalesList() {
+    const { contacts, csv } = freeStudentsPhoneSalesCsv(snapshot?.rows ?? []);
+    if (!contacts.length) {
+      setError("유효한 국내 휴대전화 번호가 있는 무료 수강생이 없습니다.");
+      return;
+    }
+    setError(""); setNotice(`${contacts.length.toLocaleString("ko-KR")}명의 전화세일즈 명단을 다운로드했습니다.`);
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "무료수강생_전화세일즈명단.csv";
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
   return <section className="space-y-4">
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="w-full space-y-2 sm:max-w-sm"><Label htmlFor="free-student-search">명단 검색</Label><Input id="free-student-search" placeholder="이름, 연락처, 유입경로 등 모든 항목 검색" value={query} onChange={event => { setQuery(event.target.value); setPage(0); }} /></div>
-      <Button disabled={busy || !landingPageLink} onClick={() => void importStudents()}>{busy ? <Loader2 className="animate-spin" /> : <Download />}{busy ? "명단 가져오는 중" : "명단 가져오기"}</Button>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" disabled={busy || !snapshot?.rows.length} onClick={downloadPhoneSalesList}><FileSpreadsheet />전화세일즈 목록 만들기</Button>
+        <Button disabled={busy || !landingPageLink} onClick={() => void importStudents()}>{busy ? <Loader2 className="animate-spin" /> : <Download />}{busy ? "명단 가져오는 중" : "명단 가져오기"}</Button>
+      </div>
     </div>
     {!landingPageLink ? <p className="text-sm text-muted-foreground">강의 상세에서 무료 랜딩페이지 링크를 저장해 주세요.</p> : null}
     {snapshot && snapshot.source_url !== landingPageLink ? <p role="status" className="text-sm text-amber-700">저장된 명단과 현재 강의 링크가 다릅니다. 명단 가져오기로 갱신해 주세요.</p> : null}
