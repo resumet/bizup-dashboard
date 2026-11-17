@@ -2,6 +2,7 @@
 
 import { COURSE_STATUS_LABELS, isSelectableCourse } from "@/lib/course-operations/course-status";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
   ArrowDown, ArrowUp, CalendarDays, ChevronDown, ClipboardList, ExternalLink, GripVertical,
@@ -258,11 +259,18 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [saveToast, setSaveToast] = useState(0);
   const [conflictTarget, setConflictTarget] = useState<"wbs" | null>(null);
   const [today, setToday] = useState(() => toKoreaDate(new Date().toISOString()));
   const loadSequence = useRef(0);
   const addedItemId = useRef<string | null>(null);
   const titleInputs = useRef(new Map<string, HTMLButtonElement>());
+
+  useEffect(() => {
+    if (!saveToast) return;
+    const timer = window.setTimeout(() => setSaveToast(0), 4_000);
+    return () => window.clearTimeout(timer);
+  }, [saveToast]);
 
   const loadCourse = useCallback(async (id: string) => {
     const sequence = ++loadSequence.current;
@@ -577,7 +585,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
       ]);
       setSchedules((current) => [...current.filter((entry) => entry.courseId !== courseId), { courseId, items: savedItems }]);
       setDirty(false);
-      setNotice("이 강의의 WBS를 저장했습니다.");
+      setSaveToast((current) => current + 1);
       void fetch("/api/course-wbs", { cache: "no-store" })
         .then((response) => responseJson<CourseWbsBootstrap>(response))
         .then((overview) => {
@@ -595,6 +603,12 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   }
 
   return <>
+    {saveToast ? createPortal(
+      <div role="status" aria-live="polite" aria-atomic="true" className="pointer-events-none fixed bottom-5 left-1/2 z-[100] w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg bg-foreground px-4 py-3 text-sm text-background shadow-lg">
+        이 강의의 WBS를 저장했습니다.
+      </div>,
+      document.body,
+    ) : null}
     <header className="border-b bg-background" aria-label="강의별 해야할일 상단">
       <div className="mx-auto flex min-h-18 max-w-[1900px] items-center gap-3 px-5 py-3 lg:px-8">
         <Button variant="ghost" size="sm" asChild><BackLink href="/work">뒤로가기</BackLink></Button>
