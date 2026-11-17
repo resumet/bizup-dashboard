@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { sanitizeSettlementStatementDraft } from "./statement";
+import { distributeInstructorPayout, sanitizeSettlementStatementDraft } from "./statement";
 
 test("정산서를 저장할 때 비용 정보는 보존하고 첨부 객체는 분리한다", () => {
   const draft = sanitizeSettlementStatementDraft(
@@ -47,6 +47,18 @@ test("정산서를 저장할 때 비용 정보는 보존하고 첨부 객체는 
   assert.equal(draft.issuerBusinessNumber, "987-65-43210");
   assert.equal(draft.issuerRepresentative, "김비즈");
   assert.equal(draft.issuerContact, "bizup@example.com");
+});
+
+test("강사별 배분율이 100%일 때 반올림 차액을 마지막 강사에 반영한다", () => {
+  const result = distributeInstructorPayout(100, [
+    { name: "강사 A", ratioPercent: 33.3 },
+    { name: "강사 B", ratioPercent: 33.3 },
+    { name: "강사 C", ratioPercent: 33.4 },
+  ]);
+
+  assert.equal(result.totalRatioPercent, 100);
+  assert.equal(result.distributedAmount, 100);
+  assert.deepEqual(result.payouts.map((item) => item.amount), [33, 33, 34]);
 });
 
 test("잘못된 정산서 값은 허용 범위로 정리한다", () => {

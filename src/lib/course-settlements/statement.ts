@@ -20,9 +20,15 @@ export type SettlementStatementDraft = {
   issuerContact: string;
   status: "작성중" | "검토대기" | "정산확정";
   instructorRatioPercent: number;
+  instructorAllocations: InstructorAllocation[];
   costs: SettlementCost[];
   exceptionReason: string;
   confirmedAt: string;
+};
+
+export type InstructorAllocation = {
+  name: string;
+  ratioPercent: number;
 };
 
 const BURDENS = new Set<CostBurden>(["company", "instructor", "shared"]);
@@ -53,10 +59,39 @@ export function createSettlementStatementDraft(
     issuerContact: "",
     status: "작성중",
     instructorRatioPercent: 50,
+    instructorAllocations: [],
     costs: createDefaultSettlementCosts(),
     exceptionReason: "",
     confirmedAt: "",
   };
+}
+
+function sanitizeInstructorAllocations(value: unknown): InstructorAllocation[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item): InstructorAllocation[] => {
+    if (typeof item !== "object" || item === null) return [];
+    const input = item as Record<string, unknown>;
+    const name = stringValue(input.name, 100);
+    const ratio = Number(input.ratioPercent);
+    if (!name || !Number.isFinite(ratio)) return [];
+    return [{ name, ratioPercent: Math.min(100, Math.max(0, ratio)) }];
+  }).slice(0, 20);
+}
+
+export function distributeInstructorPayout(
+  totalAmount: number,
+  allocations: InstructorAllocation[],
+) {
+  const normalized = allocations.filter((item) => item.name && Number.isFinite(item.ratioPercent));
+  const totalRatioPercent = normalized.reduce((sum, item) => sum + item.ratioPercent, 0);
+  const payouts = normalized.map((item) => ({
+    ...item,
+    amount: roundWon(totalAmount * item.ratioPercent / 100),
+  }));
+  if (payouts.length && Math.abs(totalRatioPercent - 100) < 0.0001) {
+    payouts[payouts.length - 1].amount += roundWon(totalAmount) - payouts.reduce((sum, item) => sum + item.amount, 0);
+  }
+  return { payouts, totalRatioPercent, distributedAmount: payouts.reduce((sum, item) => sum + item.amount, 0) };
 }
 
 function stringValue(value: unknown, maxLength: number) {
@@ -124,6 +159,7 @@ export function sanitizeSettlementStatementDraft(
     instructorRatioPercent: Number.isFinite(ratio)
       ? Math.min(100, Math.max(0, ratio))
       : 50,
+    instructorAllocations: sanitizeInstructorAllocations(input.instructorAllocations),
     costs,
     exceptionReason: stringValue(input.exceptionReason, 2_000),
     confirmedAt: stringValue(input.confirmedAt, 40),

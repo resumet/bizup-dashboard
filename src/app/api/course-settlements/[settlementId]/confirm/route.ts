@@ -3,7 +3,7 @@ import {
   loadSettlementState,
   settlementError,
 } from "@/lib/course-settlements/server";
-import { sanitizeSettlementStatementDraft } from "@/lib/course-settlements/statement";
+import { distributeInstructorPayout, sanitizeSettlementStatementDraft } from "@/lib/course-settlements/statement";
 import { calculateCostSettlement, normalizeName, type SettlementAnalysis, type SettlementCost } from "@/lib/course-settlements/engine";
 import { loadManualCashSummary } from "@/lib/course-settlements/manual-cash-server";
 import { filterSettlementCosts, loadCourseCosts } from "@/lib/course-costs/server";
@@ -68,20 +68,25 @@ export async function POST(_: Request, { params }: Context) {
       settlement.analysis_snapshot,
     );
     const analysis = settlement.analysis_snapshot as SettlementAnalysis;
+    const totalInstructor = analysis.totals;
     const instructor = analysis.instructorResults?.find(
       (item) => normalizeName(item.instructor) === normalizeName(course.instructor_name),
     );
     if (!instructor) throw new Error("정산 분석에서 강사 지급액을 계산할 강사를 찾을 수 없습니다.");
     const manualCash = await loadManualCashSummary(admin, settlement.course_id);
     const instructorPayoutAmount = calculateCostSettlement({
-      totalSales: instructor.totalSales,
-      pgFee: instructor.pgFee,
-      novaFee: instructor.systemNovaFee,
-      additionalServiceFee: instructor.additionalServiceFee,
+      totalSales: totalInstructor.totalSales,
+      pgFee: totalInstructor.pgFee,
+      novaFee: totalInstructor.systemNovaFee,
+      additionalServiceFee: totalInstructor.additionalServiceFee,
       manualCashSales: manualCash.amount,
       costs: costs.map(settlementCost),
       instructorRatioPercent: draft.instructorRatioPercent,
     }).instructorFinal;
+    const instructorPayouts = distributeInstructorPayout(instructorPayoutAmount, draft.instructorAllocations);
+    if (!draft.instructorAllocations.length || Math.abs(instructorPayouts.totalRatioPercent - 100) >= 0.0001) {
+      throw new Error("강사를 한 명 이상 입력하고 강사별 배분율 합계를 100%로 맞춰 주세요.");
+    }
     const missingEvidence = costs.filter(
       (cost) => cost.evidenceRequired && cost.attachments.length === 0,
     );

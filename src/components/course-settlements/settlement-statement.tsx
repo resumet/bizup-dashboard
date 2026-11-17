@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { AlertTriangle, Building2, CheckCircle2, Download, Landmark, Loader2, Printer, ReceiptText, Save } from "lucide-react";
+import { AlertTriangle, Building2, CheckCircle2, Download, Landmark, Loader2, Plus, Printer, ReceiptText, Save, Trash2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import { calculateCostSettlement, roundWon, type AggregatedInstructorSettlement,
 import { escapePrintHtml } from "@/lib/course-settlements/print";
 import { printStatementWithStudents } from "@/lib/course-settlements/print-students";
 import { sharedCostEvidenceAppendixHtml } from "@/lib/course-settlements/shared-cost-evidence-appendix";
-import { createSettlementStatementDraft, type SettlementStatementDraft } from "@/lib/course-settlements/statement";
+import { createSettlementStatementDraft, distributeInstructorPayout, type SettlementStatementDraft } from "@/lib/course-settlements/statement";
 import { youtubeChannelCostAppendixHtml } from "@/lib/course-settlements/youtube-rs-appendix";
 
 const ISSUER = "주식회사 비즈업클래스";
@@ -195,7 +195,12 @@ export function SettlementStatement({ instructor, manualCash, monthlyAnalyses, c
     { code: "P", label: "최종 회사분", value: calculation.companyFinal, formula: "M − N − O", emphasized: true },
   ];
   const missingEvidence = appliedCourseCosts.filter((cost) => cost.evidenceRequired && cost.attachments.length === 0);
-  const targetCompanyName = draft.recipientCompanyName || instructor.instructor;
+  const instructorPayouts = useMemo(
+    () => distributeInstructorPayout(calculation.instructorFinal, draft.instructorAllocations),
+    [calculation.instructorFinal, draft.instructorAllocations],
+  );
+  const allocationIsValid = draft.instructorAllocations.length > 0 && Math.abs(instructorPayouts.totalRatioPercent - 100) < 0.0001;
+  const targetCompanyName = "전체 정산내역";
   const patchDraft = (patch: Partial<SettlementStatementDraft>) => onChange({ ...draft, ...patch });
 
   async function run(action: () => Promise<SettlementStatementDraft>, success: string) {
@@ -224,6 +229,7 @@ export function SettlementStatement({ instructor, manualCash, monthlyAnalyses, c
     const primarySummary = `<div class="summary-grid"><div class="summary-card primary"><span>전체 매출</span><strong>${currency(calculation.totalSales)}</strong></div><div class="summary-card"><span>공동 부담액</span><strong>${currency(calculation.costs.shared)}</strong></div><div class="summary-card success"><span>최종 강사 지급액</span><strong>${currency(calculation.instructorFinal)}</strong></div></div>`;
     const countSummary = `<div class="metric-grid"><div><span>전체 결제자 수</span><strong>${transactionMetrics.payerCount.toLocaleString("ko-KR")}명</strong></div><div><span>결제 건수</span><strong>${transactionMetrics.paymentCount.toLocaleString("ko-KR")}건</strong></div><div><span>환불 건수</span><strong>${transactionMetrics.refundCount.toLocaleString("ko-KR")}건</strong></div></div>`;
     const costs = [printCostSection("공동 부담액", "SHARED", appliedCourseCosts), printCostSection("회사 부담액", "COMPANY", appliedCourseCosts), printCostSection("강사 부담액", "INSTRUCTOR", appliedCourseCosts)].join("");
+    const allocationTable = `<h2>강사별 정산금액</h2><table><thead><tr><th>강사</th><th class="number">배분율</th><th class="number">정산금액</th></tr></thead><tbody>${instructorPayouts.payouts.map((item) => `<tr><td>${escapePrintHtml(item.name)}</td><td class="number">${item.ratioPercent}%</td><td class="number">${currency(item.amount)}</td></tr>`).join("") || '<tr><td colspan="3" class="empty">강사별 배분 내역이 없습니다.</td></tr>'}</tbody><tfoot><tr class="total"><td>합계</td><td class="number">${instructorPayouts.totalRatioPercent}%</td><td class="number">${currency(instructorPayouts.distributedAmount)}</td></tr></tfoot></table>`;
     const flow = calculationRows.map((row) => {
       const rowClass = [row.emphasized ? "highlight" : "", row.detail ? "detail" : ""].filter(Boolean).join(" ");
       return `<tr${rowClass ? ` class="${rowClass}"` : ""}><td class="code">${escapePrintHtml(row.code)}</td><th>${escapePrintHtml(row.label)}</th><td class="number">${currency(row.value)}</td><td class="formula">${escapePrintHtml(row.formula)}</td></tr>`;
@@ -233,7 +239,7 @@ export function SettlementStatement({ instructor, manualCash, monthlyAnalyses, c
     setPrinting(true);
     const youtubeCostAppendix = youtubeChannelCostAppendixHtml(appliedCourseCosts);
     const sharedEvidenceAppendix = sharedCostEvidenceAppendixHtml(appliedCourseCosts);
-    try { await printStatementWithStudents(`${draft.lectureName.replace(/[\\/:*?"<>|]/gu, "_")}_최종_정산서`, body, courseId, youtubeCostAppendix + sharedEvidenceAppendix); }
+    try { await printStatementWithStudents(`${draft.lectureName.replace(/[\\/:*?"<>|]/gu, "_")}_최종_정산서`, `${body}${allocationTable}`, courseId, youtubeCostAppendix + sharedEvidenceAppendix); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "정산서 인쇄 창을 열지 못했습니다. 다시 시도해 주세요."); }
     finally { setPrinting(false); }
   }
@@ -281,6 +287,11 @@ export function SettlementStatement({ instructor, manualCash, monthlyAnalyses, c
       </CardContent></Card>
 
       <Card><CardHeader><div className="flex items-center gap-3"><div className="rounded-xl bg-blue-100 p-2.5 text-blue-700 dark:bg-blue-950 dark:text-blue-300"><ReceiptText className="size-5" /></div><div><CardTitle>최종 정산 계산</CardTitle></div></div></CardHeader><CardContent className="space-y-5">
+        <section className="space-y-3 rounded-xl border p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold">강사별 정산 배분</h3><Button type="button" variant="outline" size="sm" disabled={confirmed} onClick={() => patchDraft({ instructorAllocations: [...draft.instructorAllocations, { name: "", ratioPercent: 0 }] })}><Plus />강사 추가</Button></div>
+          {draft.instructorAllocations.map((allocation, index) => <div key={`${index}-${allocation.name}`} className="grid gap-2 sm:grid-cols-[1fr_9rem_auto]"><Input aria-label={`강사 ${index + 1} 이름`} disabled={confirmed} placeholder="강사명" value={allocation.name} onChange={(event) => patchDraft({ instructorAllocations: draft.instructorAllocations.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item) })} /><Input aria-label={`강사 ${index + 1} 배분율`} disabled={confirmed} type="number" min="0" max="100" step="0.1" placeholder="배분율 (%)" value={allocation.ratioPercent} onChange={(event) => patchDraft({ instructorAllocations: draft.instructorAllocations.map((item, itemIndex) => itemIndex === index ? { ...item, ratioPercent: Number(event.target.value) } : item) })} /><Button type="button" variant="ghost" size="icon" disabled={confirmed} aria-label={`강사 ${index + 1} 삭제`} onClick={() => patchDraft({ instructorAllocations: draft.instructorAllocations.filter((_, itemIndex) => itemIndex !== index) })}><Trash2 /></Button></div>)}
+          <div className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${allocationIsValid ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}><span>배분율 합계 {instructorPayouts.totalRatioPercent}%</span><span>강사 지급 합계 {currency(instructorPayouts.distributedAmount)}</span></div>
+        </section>
         <div className="overflow-hidden rounded-xl border">
           <Table>
             <TableHeader className="bg-muted/50">
