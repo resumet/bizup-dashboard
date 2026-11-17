@@ -5,6 +5,7 @@ import {
   CalendarCheck2,
   CheckCircle2,
   ClipboardList,
+  CloudDownload,
   FileText,
   Loader2,
   NotebookPen,
@@ -120,6 +121,12 @@ export function PersonalDashboard({
   const [busy, setBusy] = useState("");
   const [assignmentError, setAssignmentError] = useState("");
   const [taskError, setTaskError] = useState("");
+  const [dailyUpdateOpen, setDailyUpdateOpen] = useState(false);
+  const [dailyUpdateCourses, setDailyUpdateCourses] = useState<Array<{ id: string; name: string; instructor_name: string }>>([]);
+  const [dailyUpdateLoading, setDailyUpdateLoading] = useState(false);
+  const [dailyUpdateRunning, setDailyUpdateRunning] = useState(false);
+  const [dailyUpdateError, setDailyUpdateError] = useState("");
+  const [dailyUpdateResults, setDailyUpdateResults] = useState<Record<string, { status: "running" | "done" | "failed"; message: string }>>({});
 
   const mentionSuggestions = useMemo(() => {
     if (!activeMention) return [];
@@ -254,10 +261,51 @@ export function PersonalDashboard({
     }
   }
 
+  async function openDailyUpdate() {
+    setDailyUpdateOpen(true);
+    setDailyUpdateError("");
+    setDailyUpdateResults({});
+    setDailyUpdateLoading(true);
+    try {
+      const result = await readJson<{ courses: Array<{ id: string; name: string; instructor_name: string }> }>(await fetch("/api/personal-dashboard/daily-update", { cache: "no-store" }));
+      setDailyUpdateCourses(result.courses);
+    } catch (error) {
+      setDailyUpdateError(error instanceof Error ? error.message : "업데이트 대상을 불러오지 못했습니다.");
+    } finally {
+      setDailyUpdateLoading(false);
+    }
+  }
+
+  async function runDailyUpdate() {
+    if (dailyUpdateRunning || dailyUpdateLoading) return;
+    setDailyUpdateRunning(true);
+    setDailyUpdateError("");
+    const results: Record<string, { status: "running" | "done" | "failed"; message: string }> = {};
+    setDailyUpdateResults(results);
+    for (const course of dailyUpdateCourses) {
+      results[course.id] = { status: "running", message: "무료 수강생 명단과 광고 성과를 업데이트하고 있습니다." };
+      setDailyUpdateResults({ ...results });
+      try {
+        const result = await readJson<{ freeStudents: { count: number }; adPerformance: { status: "updated" | "skipped"; metricCount?: number } }>(await fetch("/api/personal-dashboard/daily-update", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ courseId: course.id }),
+        }));
+        const adMessage = result.adPerformance.status === "updated" ? `광고 성과 ${result.adPerformance.metricCount?.toLocaleString("ko-KR") ?? 0}건 반영` : "광고 성과 설정 없음";
+        results[course.id] = { status: "done", message: `무료 수강생 ${result.freeStudents.count.toLocaleString("ko-KR")}명 · ${adMessage}` };
+      } catch (error) {
+        results[course.id] = { status: "failed", message: error instanceof Error ? error.message : "업데이트하지 못했습니다." };
+      }
+      setDailyUpdateResults({ ...results });
+    }
+    setDailyUpdateRunning(false);
+  }
+
   return (
     <main className="min-h-dvh bg-slate-50/70">
       <div className="mx-auto max-w-[1500px] space-y-6 px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
-        <h1 className="text-3xl font-semibold tracking-[-0.035em] text-slate-950">{userName}님의 개인 대시보드</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-3xl font-semibold tracking-[-0.035em] text-slate-950">{userName}님의 개인 대시보드</h1>
+          {isSuperAdmin ? <Button type="button" variant="outline" onClick={() => void openDailyUpdate()}><CloudDownload />업데이트</Button> : null}
+        </div>
 
         <section aria-labelledby="work-menu-title">
           <h2 id="work-menu-title" className="sr-only">업무 메뉴</h2>
@@ -471,6 +519,41 @@ export function PersonalDashboard({
             >
               {busy === `task-${completionTask?.id}` ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
               완료 저장
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dailyUpdateOpen} onOpenChange={(open) => {
+        if (!open && !dailyUpdateRunning) setDailyUpdateOpen(false);
+      }}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>아침 일괄 업데이트</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <ol className="space-y-2 text-sm text-slate-700">
+              <li className="rounded-lg border bg-slate-50 px-3 py-2.5"><strong>1. 진행 중인 강의의 광고 성과 업데이트</strong><p className="mt-1 text-xs text-muted-foreground">연결된 원본 시트와 최신 무료 수강생 정보를 기준으로 반영합니다.</p></li>
+              <li className="rounded-lg border bg-slate-50 px-3 py-2.5"><strong>2. 진행 중인 강의의 무료 수강생 명단 업데이트</strong><p className="mt-1 text-xs text-muted-foreground">각 강의의 랜딩페이지에서 최신 명단을 저장합니다.</p></li>
+            </ol>
+            {dailyUpdateLoading ? <div className="flex items-center gap-2 rounded-lg border px-3 py-3 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />진행 중인 강의를 확인하고 있습니다.</div> : null}
+            {!dailyUpdateLoading && !dailyUpdateCourses.length && !dailyUpdateError ? <p className="rounded-lg border border-dashed px-3 py-5 text-center text-sm text-muted-foreground">업데이트할 진행 중인 강의가 없습니다.</p> : null}
+            {dailyUpdateCourses.length ? <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+              {dailyUpdateCourses.map((course) => {
+                const result = dailyUpdateResults[course.id];
+                return <div key={course.id} className="flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm">
+                  {result?.status === "running" ? <Loader2 className="size-4 shrink-0 animate-spin text-blue-700" /> : result?.status === "done" ? <CheckCircle2 className="size-4 shrink-0 text-emerald-600" /> : <span className="grid size-4 shrink-0 place-items-center rounded-full border text-[10px] text-muted-foreground">·</span>}
+                  <div className="min-w-0"><strong className="block truncate">{course.instructor_name} · {course.name}</strong>{result ? <p className={cn("mt-0.5 text-xs", result.status === "failed" ? "text-red-700" : "text-muted-foreground")}>{result.message}</p> : null}</div>
+                </div>;
+              })}
+            </div> : null}
+            {dailyUpdateError ? <ErrorMessage>{dailyUpdateError}</ErrorMessage> : null}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button type="button" variant="outline" disabled={dailyUpdateRunning}>닫기</Button></DialogClose>
+            <Button type="button" disabled={dailyUpdateLoading || dailyUpdateRunning || !dailyUpdateCourses.length} onClick={() => void runDailyUpdate()}>
+              {dailyUpdateRunning ? <Loader2 className="animate-spin" /> : <CloudDownload />}
+              {dailyUpdateRunning ? "업데이트 진행 중" : "실행"}
             </Button>
           </DialogFooter>
         </DialogContent>
