@@ -1,7 +1,5 @@
 "use client";
-
 import { PaymentMethodBadge } from "@/components/jobs/payment-method";
-
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, MoreHorizontal, Send, Trash2 } from "lucide-react";
@@ -11,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatOrderStudentPhone, normalizeOrderStudentPhone, summarizeOrderStudents, type OrderStudent } from "@/lib/course-orders/student-roster";
 import { PaymentIdButton } from "@/components/jobs/payment-id-button";
+import { toast } from "@/components/ui/toast";
 
 const PAGE_SIZE = 50;
 const money = (value: number) => `${value.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}원`;
@@ -24,7 +23,6 @@ export function CourseOrderStudentRoster({ courseId, students, onDelete, onResto
   const [preparing, setPreparing] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const summary = useMemo(() => summarizeOrderStudents(students), [students]);
   const filtered = students.filter((student) => option === null || student.optionName === option);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -32,7 +30,7 @@ export function CourseOrderStudentRoster({ courseId, students, onDelete, onResto
   const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   async function saveRoster() {
-    setSaving(true); setError(""); setSaved(false);
+    setSaving(true); setError("");
     try {
       const response = await fetch(`/api/course-operations/${courseId}/paid-students`, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -40,7 +38,7 @@ export function CourseOrderStudentRoster({ courseId, students, onDelete, onResto
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message ?? "명단을 저장하지 못했습니다.");
-      setSaved(true);
+      toast("유료수강생 명단에 저장했습니다.");
       router.refresh();
       onSaved?.();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "명단을 저장하지 못했습니다."); }
@@ -73,7 +71,7 @@ export function CourseOrderStudentRoster({ courseId, students, onDelete, onResto
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">저장하기를 누르면 옵션 필터와 관계없이 이 명단 전체가 유료수강생 탭에 저장됩니다. 같은 주문은 갱신하고, 기존 수강생과 카톡방 참여 상태·비고는 유지합니다.</p>
-        {saved && <p role="status" className="text-sm text-emerald-700">유료수강생 명단에 저장했습니다.</p>}
+
         <div className="overflow-x-auto rounded-md border" role="region" aria-label="옵션별 매출 통계">
           <Table><TableHeader><TableRow><TableHead>옵션명</TableHead><TableHead className="text-right">인원</TableHead><TableHead className="text-right">결제금액</TableHead><TableHead className="text-right">매출 기여도</TableHead></TableRow></TableHeader>
             <TableBody>{summary.options.map((item) => <TableRow key={item.optionName}>

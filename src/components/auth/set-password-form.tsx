@@ -1,9 +1,7 @@
 "use client";
-
 import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -11,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import { saveAccountPassword } from "@/lib/supabase/password-setup";
+import { toast } from "@/components/ui/toast";
 
 export function SetPasswordForm({
   userId, email, minimumLength,
@@ -42,7 +41,7 @@ export function SetPasswordForm({
       }
       formElement.reset();
       completed = true;
-      setSaved(true);
+      setSaved(true); toast("\uC800\uC7A5\uD588\uC2B5\uB2C8\uB2E4.");
       router.replace("/");
       router.refresh();
     } catch {
@@ -74,7 +73,7 @@ export function SetPasswordForm({
             <Input id="confirm-password" name="confirmation" type="password" autoComplete="new-password" required disabled={loading || saved} />
           </div>
           {message ? <Alert variant="destructive" role="alert"><AlertDescription>{message}</AlertDescription></Alert> : null}
-          {saved ? <p role="status" className="text-sm">비밀번호가 저장되었습니다. 서비스로 이동합니다.</p> : null}
+
           <Button type="submit" className="w-full" disabled={loading || saved}>
             {loading ? <Loader2 className="animate-spin" /> : null}
             {saved ? "저장 완료" : loading ? "저장 중..." : "비밀번호 저장"}

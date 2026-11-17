@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -56,6 +55,7 @@ import { isProtectedAddressBook } from "@/lib/address-books/protected-book";
 import { ContactCoursesDialog } from "./contact-courses-dialog";
 import { getTemplateInputVariables } from "@/lib/messages/custom-template";
 import { formatTemplateSelectionLabel } from "@/lib/messages/shoong-guide";
+import { ToastNotice } from "@/components/ui/toast";
 type Contact = {
   id: string;
   name: string | null;
@@ -354,14 +354,7 @@ export function AddressBookDetail({
           </div>
         )}
       </div>
-      {result ? (
-        <Alert>
-          <AlertTitle>처리 결과</AlertTitle>
-          <AlertDescription className="whitespace-pre-line">
-            {result}
-          </AlertDescription>
-        </Alert>
-      ) : null}
+      <ToastNotice message={result} tone="info" onDismiss={() => setResult("")} />
       {mode === "automation" ? (
         <Card>
           <CardHeader>

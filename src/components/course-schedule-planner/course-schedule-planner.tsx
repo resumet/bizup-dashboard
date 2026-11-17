@@ -1,5 +1,4 @@
 "use client";
-
 import Link from "next/link";
 import { useMemo, useState, type DragEvent, type FormEvent } from "react";
 import {
@@ -17,7 +16,6 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +46,7 @@ import type {
   CourseScheduleDraftSize,
   CourseSchedulePlannerData,
 } from "@/lib/course-schedule-planner/types";
+import { ToastNotice } from "@/components/ui/toast";
 
 const DRAG_TYPE = "application/x-bizup-course-draft";
 const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
@@ -347,7 +346,7 @@ export function CourseSchedulePlanner({ initialData }: { initialData: CourseSche
 
   return <main className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8 lg:py-10">
     {error ? <p role="alert" className="mb-5 rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
-    {notice ? <p role="status" className="mb-5 rounded-xl bg-sky-50 p-3 text-sm text-sky-900">{notice}</p> : null}
+    <ToastNotice message={notice} onDismiss={() => setNotice("")} />
 
     <div className="grid items-start gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
       <aside className="space-y-5">

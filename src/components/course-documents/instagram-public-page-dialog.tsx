@@ -1,8 +1,6 @@
 "use client";
-
 import { useState } from "react";
 import { Check, Copy, ExternalLink, Link2, Loader2, LockKeyhole, RefreshCw, Share2 } from "lucide-react";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ToastNotice } from "@/components/ui/toast";
 
 export function InstagramPublicPageDialog({
   path,
@@ -150,7 +149,7 @@ export function InstagramPublicPageDialog({
         ) : null}
 
         {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
-        {notice ? <p className="text-sm text-muted-foreground" role="status">{notice}</p> : null}
+        <ToastNotice message={notice} onDismiss={() => setNotice("")} />
 
         <DialogFooter className="sm:justify-between">
           {enabled ? (

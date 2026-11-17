@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Eye, EyeOff, Plus, RefreshCw, Save, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { actionLabels, statusLabels, type PersonnelDetail, type PersonnelList } from "@/lib/personnel/model";
+import { ToastNotice } from "@/components/ui/toast";
 
 const api = "/api/hr/personnel";
 const selectClass = "h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm";
@@ -135,7 +135,7 @@ export function PersonnelManager({ today }: { today: string }) {
   return <div className="mx-auto max-w-[1900px] space-y-5 px-4 py-7 sm:px-6">
     <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-semibold">임직원 관리</h1><Button disabled={loadedKey !== key} onClick={() => { setSelected("new"); setMessage(""); }}><Plus className="size-4" />신규채용</Button></div>
     <form className="flex flex-wrap gap-2" onSubmit={event => { event.preventDefault(); setQ(search); setPage(0); }}><select aria-label="재직 상태" className={`${selectClass} sm:max-w-32`} value={status} onChange={event => { setStatus(event.target.value); setPage(0); }}><option value="all">전체</option>{Object.entries(statusLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select><Input className="min-w-0 flex-1 sm:max-w-sm" aria-label="이름 또는 이메일 검색" placeholder="이름 또는 이메일" maxLength={150} value={search} onChange={event => setSearch(event.target.value)} /><Button size="icon" variant="outline" aria-label="검색" title="검색"><Search /></Button><Button type="button" size="icon" variant="outline" title="새로고침" aria-label="새로고침" onClick={() => setRevision(value => value + 1)}><RefreshCw /></Button></form>
-    <ErrorMessage message={error} />{message && <p role="status" className="text-sm text-emerald-700">{message}</p>}
+    <ErrorMessage message={error} /><ToastNotice message={message} tone="success" onDismiss={() => setMessage("")} />
     {loadedKey !== key ? !error && <p role="status">직원 목록을 불러오는 중…</p> : <>
       <div className="overflow-x-auto border-y bg-background"><table className="w-full min-w-[620px] text-left text-sm"><thead><tr className="border-b"><th className="p-3">이름</th><th className="p-3">계정</th><th className="p-3">상태</th><th className="p-3">입사일</th></tr></thead><tbody>{result?.items.map(person => <tr className="border-b last:border-0" key={person.id}><td className="p-3"><button className="font-medium text-blue-700 underline underline-offset-4" onClick={() => { setSelected(person.id); setMessage(""); }}>{person.name}</button></td><td className="max-w-72 break-all p-3">{person.email}{!person.user_id && <span className="ml-2 text-xs text-muted-foreground">미연결</span>}</td><td className="p-3">{statusLabels[person.status]}</td><td className="p-3">{person.employment_start_date}</td></tr>)}</tbody></table></div>
       {!result?.items.length && <p className="py-6 text-center text-sm text-muted-foreground">해당하는 임직원이 없습니다.</p>}

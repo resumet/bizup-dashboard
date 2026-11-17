@@ -1,5 +1,4 @@
 "use client";
-
 import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -19,7 +18,6 @@ import {
   Umbrella,
   X,
 } from "lucide-react";
-
 import { annualLeaveDays } from "@/lib/hr-leave/policy";
 import type {
   HrLeaveDashboardData,
@@ -41,6 +39,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { ToastNotice } from "@/components/ui/toast";
 
 const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
 const STATUS_LABELS: Record<HrLeaveStatus, string> = {
@@ -202,7 +201,7 @@ export function HrLeaveDashboard({ initialData }: { initialData: HrLeaveDashboar
     </div>
 
     {error ? <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
-    {notice ? <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</p> : null}
+    <ToastNotice message={notice} onDismiss={() => setNotice("")} />
 
     <section aria-label="내 휴가 요약" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
       {[

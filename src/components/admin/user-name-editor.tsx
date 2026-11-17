@@ -1,11 +1,10 @@
 "use client";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Save } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/toast";
 
 export function UserNameEditor({ userId, initialName }: { userId: string; initialName: string }) {
   const router = useRouter();
@@ -36,7 +35,7 @@ export function UserNameEditor({ userId, initialName }: { userId: string; initia
       const nextName = body.name ?? trimmed;
       setName(nextName);
       setSavedName(nextName);
-      setSaved(true);
+      setSaved(true); toast("\uC800\uC7A5\uD588\uC2B5\uB2C8\uB2E4.");
       router.refresh();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "사용자 이름을 저장하지 못했습니다.");

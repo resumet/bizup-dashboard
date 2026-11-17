@@ -6,6 +6,7 @@ import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { inviteRedirectScript } from "@/lib/supabase/invite-redirect-script";
 import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
+import { ToastProvider } from "@/components/ui/toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,9 +46,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full bg-background text-foreground">
         <Script id="supabase-invite-redirect" strategy="beforeInteractive">{inviteRedirectScript}</Script>
-        <AppShell email={email} userName={userName} isSuperAdmin={isSuperAdmin}>
-          {children}
-        </AppShell>
+        <ToastProvider>
+          <AppShell email={email} userName={userName} isSuperAdmin={isSuperAdmin}>
+            {children}
+          </AppShell>
+        </ToastProvider>
       </body>
     </html>
   );

@@ -1,11 +1,11 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { emptyWebinarMetrics, formatMetric, isAutomaticWebinarField, parseEditableWebinarMetrics, ratio, ratioDefinitions, webinarFields, type WebinarField, type WebinarRecord } from "@/lib/course-webinars/metrics";
+import { ToastNotice } from "@/components/ui/toast";
 
 type Draft = Record<WebinarField, string>;
 const toDraft = (record: ReturnType<typeof emptyWebinarMetrics>): Draft => Object.fromEntries(webinarFields.map(({ key }) => [key, record[key]?.toString() ?? ""])) as Draft;
@@ -67,7 +67,7 @@ export function CourseWebinarEditor({ courseId }: { courseId: string }) {
       <CardHeader><CardTitle>라이브 웨비나 실적</CardTitle></CardHeader>
       <CardContent>
         {error && <p role="alert" className="mb-4 text-sm text-destructive">{error}</p>}
-        {notice && <p role="status" className="mb-4 text-sm text-emerald-700">{notice}</p>}
+        <ToastNotice message={notice} onDismiss={() => setNotice("")} />
         {loading && <p role="status" className="mb-4 text-sm text-muted-foreground">웨비나 정보를 불러오는 중입니다.</p>}
         <form onSubmit={save}>
           <fieldset disabled={!loaded || loading || saving} className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">

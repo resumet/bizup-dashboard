@@ -1,8 +1,6 @@
 "use client";
-
 import { useMemo, useState } from "react";
 import { ArrowRightLeft, Check, CheckCircle2, ChevronDown, ChevronUp, Clock3, EllipsisVertical, FileText, History, Inbox, LayoutGrid, List, Loader2, Pencil, Plus, RotateCcw, Save, Search, Trash2, UsersRound } from "lucide-react";
-
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { isCarriedTask, taskAppearsOnWorkday } from "@/lib/work-tasks/dates";
 import { normalizeWorkSearch, workReportMatches, workTaskMatches } from "@/lib/work-tasks/search";
 import type { WorkDailyReport, WorkTask, WorkTaskEvent, WorkTaskPerson } from "@/lib/work-tasks/types";
+import { ToastNotice } from "@/components/ui/toast";
 
 type Review = { checked_out_at: string; incomplete_count: number } | null;
 type CompletionFilter = "all" | "open" | "done";
@@ -413,7 +412,7 @@ export function HrTaskBoard({
                   {isCurrentUser ? <div className="space-y-2">
                     <Textarea value={reportDraft} onChange={(event) => { setReportDraft(event.target.value); setReportError(""); setReportNotice(""); }} maxLength={10000} rows={5} placeholder="오늘 진행한 업무, 결과, 공유할 내용을 작성하세요." className="bg-background" />
                     <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs text-muted-foreground">{reportDraft.length.toLocaleString("ko-KR")} / 10,000</span><Button size="sm" onClick={() => void saveReport()} disabled={busy === "report" || reportDraft.trim() === (report?.content ?? "")} >{busy === "report" ? <Loader2 className="animate-spin" /> : <Save />}업무보고 저장</Button></div>
-                    {reportError ? <p role="alert" className="text-xs text-destructive">{reportError}</p> : null}{reportNotice ? <p role="status" className="text-xs text-emerald-700">{reportNotice}</p> : null}
+                    {reportError ? <p role="alert" className="text-xs text-destructive">{reportError}</p> : null}<ToastNotice message={reportNotice} onDismiss={() => setReportNotice("")} />
                   </div> : report?.content ? <p className="whitespace-pre-wrap break-words rounded-lg border bg-background p-3 text-sm leading-6">{report.content}</p> : <p className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">아직 작성한 업무보고가 없습니다.</p>}
                 </section> : null}
               </CardContent>

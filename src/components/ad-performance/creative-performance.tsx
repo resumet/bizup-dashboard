@@ -1,5 +1,4 @@
 "use client";
-
 import { useMemo, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, ArrowLeft, ChevronRight, Loader2, RefreshCw, Settings2 } from "lucide-react";
 import { BackLink } from "@/components/layout/back-link";
@@ -10,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { aggregateCreativeRows, creativeStatusTone, creativeUnitCost, summarizeCreativeRows, groupCreativeRows, nextCreativeSort, sortCreativeRows, type CreativeData, type CreativeRow, type CreativeMetric, type CreativeSort } from "@/lib/ad-creative/model";
+import { ToastNotice } from "@/components/ui/toast";
 
 const number = (value: number | null) => value === null ? "—" : value.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
 function unitCost(cost: number | null, quantity: number | null) {
@@ -149,7 +149,7 @@ export function CreativePerformance({ initialData, initialInstructor = "", initi
       </div>
     </div>
     {error && !settingsOpen ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-    {notice ? <p role="status" className="text-sm text-emerald-700">{notice}</p> : null}
+    <ToastNotice message={notice} onDismiss={() => setNotice("")} />
     {data.url ? <>
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-60 flex-1 space-y-2"><Label htmlFor="creative-search">검색</Label><Input id="creative-search" placeholder="강사, 웨비나, 캠페인, 그룹, 광고명" value={query} onChange={event => setQuery(event.target.value)} /></div>

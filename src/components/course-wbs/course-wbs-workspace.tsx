@@ -1,14 +1,11 @@
 "use client";
-
 import { COURSE_STATUS_LABELS, isSelectableCourse } from "@/lib/course-operations/course-status";
 import Link from "next/link";
-import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
   ArrowDown, ArrowUp, CalendarDays, ChevronDown, ClipboardList, ExternalLink, GripVertical,
   LoaderCircle, MoreHorizontal, Plus, Save, Trash2,
 } from "lucide-react";
-
 import { WbsGantt } from "@/components/course-wbs/wbs-gantt";
 import { WbsAttention } from "./wbs-attention";
 import { WbsTaskLink } from "./task-link";
@@ -33,6 +30,7 @@ import { splitWbsCoursesByCompletion } from "@/lib/course-wbs/course-groups";
 import type { WbsItemSelection } from "@/lib/course-wbs/item-schedules";
 import type { CourseWbs, CourseWbsBootstrap, WbsCourse, WbsDashboard, WbsDashboardTask, WbsItem, WbsScheduleEntry, WbsSummary, WbsTemplate } from "@/lib/course-wbs/types";
 import { syncWebinarItem, webinarDateFromTimestamp, webinarDayLabel, WEBINAR_ITEM_ID } from "@/lib/course-wbs/webinar-date";
+import { toast,ToastNotice } from "@/components/ui/toast";
 
 type WbsResponse = { wbs: CourseWbs | null; webinarAt: string | null };
 
@@ -259,18 +257,11 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [saveToast, setSaveToast] = useState(0);
   const [conflictTarget, setConflictTarget] = useState<"wbs" | null>(null);
   const [today, setToday] = useState(() => toKoreaDate(new Date().toISOString()));
   const loadSequence = useRef(0);
   const addedItemId = useRef<string | null>(null);
   const titleInputs = useRef(new Map<string, HTMLButtonElement>());
-
-  useEffect(() => {
-    if (!saveToast) return;
-    const timer = window.setTimeout(() => setSaveToast(0), 4_000);
-    return () => window.clearTimeout(timer);
-  }, [saveToast]);
 
   const loadCourse = useCallback(async (id: string) => {
     const sequence = ++loadSequence.current;
@@ -585,7 +576,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
       ]);
       setSchedules((current) => [...current.filter((entry) => entry.courseId !== courseId), { courseId, items: savedItems }]);
       setDirty(false);
-      setSaveToast((current) => current + 1);
+      toast("이 강의의 WBS를 저장했습니다.");
       void fetch("/api/course-wbs", { cache: "no-store" })
         .then((response) => responseJson<CourseWbsBootstrap>(response))
         .then((overview) => {
@@ -603,12 +594,6 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   }
 
   return <>
-    {saveToast ? createPortal(
-      <div role="status" aria-live="polite" aria-atomic="true" className="pointer-events-none fixed bottom-5 left-1/2 z-[100] w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg bg-foreground px-4 py-3 text-sm text-background shadow-lg">
-        이 강의의 WBS를 저장했습니다.
-      </div>,
-      document.body,
-    ) : null}
     <header className="border-b bg-background" aria-label="강의별 해야할일 상단">
       <div className="mx-auto flex min-h-18 max-w-[1900px] items-center gap-3 px-5 py-3 lg:px-8">
         <Button variant="ghost" size="sm" asChild><BackLink href="/work">뒤로가기</BackLink></Button>
@@ -624,7 +609,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
       {error}{conflictTarget ? " 현재 편집한 내용은 화면에 남아 있습니다." : ""}
       {conflictTarget === "wbs" ? <div className="mt-3"><Button size="sm" variant="outline" onClick={reloadCurrentWbs}>최신 WBS 불러오기</Button></div> : null}
     </AlertDescription></Alert> : null}
-    {notice ? <Alert className="mb-5" role="status"><AlertDescription>{notice}</AlertDescription></Alert> : null}
+    <ToastNotice message={notice} onDismiss={() => setNotice("")} />
 
     {loading ? <div className="flex min-h-72 items-center justify-center text-sm text-muted-foreground"><LoaderCircle className="mr-2 size-4 animate-spin" /> 강의 목록을 불러오는 중...</div> : overviewFailed ? (
       <div className="rounded-xl border border-dashed bg-background px-6 py-16 text-center"><p className="text-sm text-muted-foreground">강의와 템플릿 목록을 불러오지 못했습니다.</p><Button className="mt-4" variant="outline" onClick={() => window.location.reload()}>다시 시도</Button></div>

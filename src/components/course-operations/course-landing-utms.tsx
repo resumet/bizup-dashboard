@@ -1,9 +1,6 @@
 "use client";
-
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Copy, ExternalLink, Share2, Trash2, Upload, X } from "lucide-react";
-import { createPortal } from "react-dom";
-import { Toast } from "radix-ui";
+import { Copy,ExternalLink,Share2,Trash2,Upload } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +8,7 @@ import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogT
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { LandingUtm, UtmImportResult } from "@/lib/course-landing-utms/model";
 import { formatLandingUtmShareContent } from "@/lib/course-landing-utms/share";
+import { ToastNotice } from "@/components/ui/toast";
 
 type Notify = (message: string, error?: boolean) => void;
 
@@ -128,7 +126,7 @@ export function CourseLandingUtms({ courseId, instructorName }: { courseId: stri
   }
 
   const busy = loading || saving || deleting;
-  return <Toast.Provider label="UTM 알림" duration={5000}><Card>
+  return <><Card>
     <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
       <CardTitle>랜딩페이지 UTM</CardTitle>
       <div className="flex flex-wrap items-center gap-2">
@@ -167,12 +165,6 @@ export function CourseLandingUtms({ courseId, instructorName }: { courseId: stri
       </DialogContent>
     </Dialog>
   </Card>
-    {toast && <>
-      <Toast.Root key={toast.id} data-utm-toast="" duration={toast.error ? 8000 : 5000} onOpenChange={open => { if (!open) setToast(current => current?.id === toast.id ? null : current); }} className="flex items-center gap-3 rounded-xl border bg-popover p-4 text-popover-foreground shadow-lg">
-        <Toast.Description className={`min-w-0 flex-1 break-words text-sm ${toast.error ? "text-destructive" : ""}`}>{toast.message}</Toast.Description>
-        <Toast.Close asChild><Button type="button" size="icon-sm" variant="ghost" aria-label="알림 닫기"><X /></Button></Toast.Close>
-      </Toast.Root>
-      {createPortal(<Toast.Viewport label="UTM 알림" aria-live="off" className="pointer-events-auto fixed inset-x-4 bottom-4 z-[100] mx-auto flex max-w-xl list-none flex-col gap-2 outline-none" />, document.body)}
-    </>}
-  </Toast.Provider>;
+    {toast ? <ToastNotice message={toast.message} eventKey={toast.id} tone={toast.error ? "error" : "success"} onDismiss={() => setToast(null)} /> : null}
+  </>;
 }

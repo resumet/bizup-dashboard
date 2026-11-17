@@ -1,12 +1,8 @@
 "use client";
-
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Toast } from "radix-ui";
-import { AlertTriangle, Ban, CalendarDays, Check, Circle, ClipboardList, EllipsisVertical, ExternalLink, FileSpreadsheet, ListPlus, Loader2, Pencil, Save, Settings, Trash2, Users, X } from "lucide-react";
-
+import { AlertTriangle,Ban,CalendarDays,Circle,ClipboardList,EllipsisVertical,ExternalLink,FileSpreadsheet,ListPlus,Loader2,Pencil,Save,Settings,Trash2,Users } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { InstagramChecklist } from "@/components/course-documents/instagram-checklist";
@@ -29,6 +25,7 @@ import { instagramDmMaterialValue } from "@/lib/course-documents/instagram-uploa
 import { instagramBulkFilmingSelectablePositions, mergeInstagramFilmingDates, parseInstagramBulkTitles } from "@/lib/course-documents/materials";
 import type { BlockedPhone, CourseDocumentCourse, CourseDocumentMaterial, CourseDocumentSummary } from "@/lib/course-documents/types";
 import { formatWebinarDate } from "@/lib/course-operations/webinar-proximity";
+import { ToastNotice } from "@/components/ui/toast";
 
 type LoadResponse = { courses?: CourseDocumentCourse[]; blockedPhones?: BlockedPhone[]; message?: string };
 
@@ -609,11 +606,11 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
       && matches(uploadFilter, material.uploadCompleted);
   }) ?? [];
   return (
-    <Toast.Provider label="인스타그램 관리 알림" duration={5000}>
+    <>
     <TooltipProvider delayDuration={300}>
     <div className="space-y-6">
       {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
-      {notice ? <Alert><AlertDescription className="flex items-center gap-2"><Check className="size-4 text-emerald-600" />{notice}</AlertDescription></Alert> : null}
+      <ToastNotice message={notice} onDismiss={() => setNotice("")} />
       {loading ? <div className="flex min-h-80 items-center justify-center gap-2 rounded-xl border border-dashed text-muted-foreground"><Loader2 className="animate-spin" />불러오는 중</div> : (
         <>
           {!courseId && <div className="flex flex-wrap justify-end gap-2">
@@ -854,15 +851,9 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
           </form>
         </DialogContent>
       </Dialog>
-      {toast ? <>
-        <Toast.Root key={toast.id} duration={5000} onOpenChange={(open) => { if (!open) setToast((current) => current?.id === toast.id ? null : current); }} className="flex items-center gap-3 rounded-xl border bg-popover p-4 text-popover-foreground shadow-lg">
-          <Toast.Description className="min-w-0 flex-1 break-words text-sm">{toast.message}</Toast.Description>
-          <Toast.Close asChild><Button type="button" size="icon-sm" variant="ghost" aria-label="알림 닫기"><X /></Button></Toast.Close>
-        </Toast.Root>
-        {createPortal(<Toast.Viewport label="인스타그램 관리 알림" aria-live="off" className="pointer-events-auto fixed inset-x-4 bottom-4 z-[100] mx-auto flex max-w-xl list-none flex-col gap-2 outline-none" />, document.body)}
-      </> : null}
+      {toast ? <ToastNotice message={toast.message} eventKey={toast.id} onDismiss={() => setToast(null)} /> : null}
     </div>
     </TooltipProvider>
-    </Toast.Provider>
+    </>
   );
 }

@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { FileUp, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { DocumentRenderer } from "./document-renderer";
 import { pdfNodes, validatePdfFile, type PdfImport, type PdfResult } from "@/lib/course-documents/pdf";
 import type { RichTextNode } from "@/lib/course-documents/types";
+import { ToastNotice } from "@/components/ui/toast";
 
 type Props = {
   documentId: string; accessToken?: string; onInsert: (nodes: RichTextNode[]) => void;
@@ -124,7 +124,7 @@ export function PdfImportDialog({ documentId, accessToken, onInsert }: Props) {
             </div>
           </form>
           {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-          {notice ? <p role="status" className="text-sm">{notice}</p> : null}
+          <ToastNotice message={notice} onDismiss={() => setNotice("")} />
           {job ? <div className="space-y-3">
             <div role="status" className="flex flex-wrap items-center gap-3 text-sm"><span>{job.stage} · {job.progress}%</span>
               <progress max={100} value={job.progress} aria-label="PDF 페이지 이미지 생성 진행률" className="h-2 w-48" />

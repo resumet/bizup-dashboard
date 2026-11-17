@@ -1,8 +1,6 @@
 "use client";
-
 import { useEffect, useState } from "react";
-import { Check, Loader2, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
-
+import { Loader2,Plus,RotateCcw,Save,Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +9,7 @@ import {
   defaultInstagramChecklistTemplateItems,
   type InstagramChecklistTemplateItem,
 } from "@/lib/course-documents/instagram-checklist";
+import { ToastNotice } from "@/components/ui/toast";
 
 type TemplateResponse = { items?: InstagramChecklistTemplateItem[]; message?: string };
 
@@ -75,7 +74,7 @@ export function InstagramChecklistTemplateManager() {
 
   return <div className="space-y-5">
     {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
-    {notice ? <Alert><Check className="text-emerald-600" /><AlertDescription>{notice}</AlertDescription></Alert> : null}
+    <ToastNotice message={notice} onDismiss={() => setNotice("")} />
     <Card>
       <CardHeader className="flex-row items-center justify-between gap-3">
         <CardTitle>공용 체크리스트 항목</CardTitle>

@@ -1,9 +1,6 @@
 "use client";
-
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { Toast } from "radix-ui";
 import { ChevronLeft, ChevronRight, ListPlus, Plus, RefreshCw, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +11,7 @@ import { filterCalendarEvents, formatCalendarTime, formatLocation, formatTime, m
 import { koreanHolidaysForDates, type KoreanHolidayMap } from "@/lib/shared-calendar/holidays";
 import type { CalendarCourse, CalendarEvent, CalendarSearchResult, CalendarSourceEvent, MeetingType } from "@/lib/shared-calendar/types";
 import { cn } from "@/lib/utils";
+import { ToastNotice } from "@/components/ui/toast";
 
 const COLORS: Record<string, string> = {
   instructor_zoom: "bg-blue-100 text-blue-900", rehearsal: "bg-amber-100 text-amber-950",
@@ -163,7 +161,7 @@ export function SharedCalendar({ today, initialDate = today, currentUserId, init
   const byDay = new Map<string, (CalendarEvent | CalendarSourceEvent)[]>();
   for (const event of [...visible, ...visibleSources]) { const list = byDay.get(event.event_date) ?? []; list.push(event); byDay.set(event.event_date, list); }
   for (const list of byDay.values()) list.sort((a, b) => a.start_minutes - b.start_minutes || a.id.localeCompare(b.id));
-  return <Toast.Provider label="공용 캘린더 알림" duration={4000}><div className="flex min-h-0 flex-1 flex-col gap-2">
+  return <><div className="flex min-h-0 flex-1 flex-col gap-2">
     <div data-calendar-toolbar className="flex shrink-0 flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-2">
         <Button variant="outline" size="icon-sm" aria-label="이전 달" onClick={() => moveMonth(-1)}><ChevronLeft /></Button>
@@ -220,14 +218,8 @@ export function SharedCalendar({ today, initialDate = today, currentUserId, init
       setSelectedDate(event.event_date); setMonth(event.event_date.slice(0, 7)); setEditor(null); setMoveError(""); showNotice("일정을 저장했습니다."); setReload((value) => value + 1);
     }} onDeleted={(id) => { mutation.current += 1; setEvents((current) => current.filter((event) => event.id !== id)); setEditor(null); showNotice("일정을 삭제했습니다."); }} /> : null}
     {details ? <CalendarSearchDetails result={details} onClose={() => setDetails(null)} /> : null}
-    {notice ? <>
-      <Toast.Root key={notice.id} duration={4000} onOpenChange={(open) => { if (!open) setNotice((current) => current?.id === notice.id ? null : current); }} className="flex items-center gap-3 rounded-xl border bg-popover p-4 text-popover-foreground shadow-lg">
-        <Toast.Description className="min-w-0 flex-1 break-words text-sm">{notice.message}</Toast.Description>
-        <Toast.Close asChild><Button type="button" size="icon-sm" variant="ghost" aria-label="알림 닫기"><X /></Button></Toast.Close>
-      </Toast.Root>
-      {createPortal(<Toast.Viewport label="공용 캘린더 알림" aria-live="off" className="pointer-events-auto fixed inset-x-4 bottom-4 z-[100] mx-auto flex max-w-xl list-none flex-col gap-2 outline-none" />, document.body)}
-    </> : null}
-  </div></Toast.Provider>;
+    {notice ? <ToastNotice message={notice.message} eventKey={notice.id} onDismiss={() => setNotice(null)} /> : null}
+  </div></>;
 }
 
 function CalendarSearchResults({ results, pending, onSelect }: { results: CalendarSearchResult[]; pending: boolean; onSelect: (result: CalendarSearchResult) => void }) {

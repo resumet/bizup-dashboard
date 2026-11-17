@@ -1,9 +1,7 @@
 "use client";
-
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Landmark, Loader2, RefreshCw, Save, TrendingDown, TrendingUp } from "lucide-react";
-
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BackLink } from "@/components/layout/back-link";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { forecastCashFlow } from "@/lib/cash-flow/calculation";
 import type { CashFlowCoursePlan, CashFlowDashboardData } from "@/lib/cash-flow/types";
+import { ToastNotice } from "@/components/ui/toast";
 
 const won = new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW", maximumFractionDigits: 0 });
 const number = new Intl.NumberFormat("ko-KR");
@@ -126,7 +125,7 @@ export function CashFlowDashboard({ initialData }: { initialData: CashFlowDashbo
         </div>
 
         {error ? <Alert variant="destructive" className="mt-6"><AlertTriangle /><AlertTitle>확인이 필요합니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
-        {notice ? <Alert className="mt-6"><CheckCircle2 /><AlertTitle>저장 완료</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert> : null}
+        <ToastNotice message={notice} onDismiss={() => setNotice("")} />
 
         <section className="mt-6 grid gap-4 md:grid-cols-2">
           <Card>

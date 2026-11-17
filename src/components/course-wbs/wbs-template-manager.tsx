@@ -1,5 +1,4 @@
 "use client";
-
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, LoaderCircle, Plus, Save, Trash2 } from "lucide-react";
@@ -14,6 +13,7 @@ import { parseWbsTemplateBody } from "@/lib/course-wbs/validation";
 import { WBS_INTERNAL_PAGES } from "@/lib/course-wbs/task-links";
 import { savedCourseLinkOptions, type WbsCourseLinkOption } from "@/lib/course-wbs/course-links";
 import type { CourseWbsBootstrap, WbsItem, WbsTemplate } from "@/lib/course-wbs/types";
+import { ToastNotice } from "@/components/ui/toast";
 
 const selectClass = "h-9 w-full rounded-lg border border-input bg-background px-2 text-sm disabled:opacity-60";
 
@@ -109,7 +109,7 @@ export function WbsTemplateManager({ canManage }: { canManage: boolean }) {
     </div></header>
     <div className="mx-auto max-w-[1900px] space-y-5 px-5 py-8 lg:px-8">
       {error ? <Alert variant="destructive" role="alert"><AlertDescription>{error}{conflict ? <Button className="ml-3" size="sm" variant="outline" disabled={saving} onClick={() => void reload()}>최신 템플릿 불러오기</Button> : null}</AlertDescription></Alert> : null}
-      {notice ? <Alert role="status"><AlertDescription>{notice}</AlertDescription></Alert> : null}
+      <ToastNotice message={notice} onDismiss={() => setNotice("")} />
       {loading ? <p className="flex items-center gap-2 py-12 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />템플릿을 불러오는 중...</p> : !template ? <Button variant="outline" onClick={() => void reload()}>다시 불러오기</Button> : <>
         <div className="flex flex-wrap items-end gap-4 rounded-xl border bg-background p-5">
           <div className="min-w-56 flex-1"><label htmlFor="wbs-template-name" className="mb-2 block text-sm font-medium">템플릿 이름</label><Input id="wbs-template-name" value={name} maxLength={120} disabled={disabled} onChange={(event) => { setName(event.target.value); setDirty(true); }} /></div>

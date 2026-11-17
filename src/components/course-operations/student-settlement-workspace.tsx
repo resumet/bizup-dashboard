@@ -1,9 +1,6 @@
 "use client";
-
-import type { ReactNode } from "react";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-
 import { CourseCostManager } from "@/components/course-costs/course-cost-manager";
 import { CourseOrdersManager } from "@/components/course-operations/course-orders-manager";
 import { CourseSettlementManager } from "@/components/course-settlements/course-settlement-manager";
@@ -15,6 +12,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { ToastNotice } from "@/components/ui/toast";
 
 export type StudentSettlementTab =
   | "orders"
@@ -78,7 +76,7 @@ export function StudentSettlementWorkspace({
         ) : null}
       </div>
 
-      {resetNotice ? <p role="status" className="text-sm">{resetNotice}</p> : null}
+      <ToastNotice message={resetNotice} onDismiss={() => setResetNotice("")} />
 
       <TabsContent value="orders" className="mt-0">
         <CourseOrdersManager

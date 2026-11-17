@@ -1,5 +1,4 @@
 "use client";
-
 import Image from "next/image";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,7 @@ import {
   type IntakeSettings,
   type MaterialImageCategory,
 } from "@/lib/instructor-intake/model";
+import { ToastNotice } from "@/components/ui/toast";
 
 const imageSections: Array<{
   category: MaterialImageCategory;
@@ -260,11 +260,7 @@ export function IntakeSettingsEditor({
       />
 
       <div className="sticky bottom-0 space-y-2 rounded-xl border bg-background/95 p-4 backdrop-blur">
-        {message ? (
-          <p role="status" className="text-sm">
-            {message}
-          </p>
-        ) : null}
+        <ToastNotice message={message} tone="success" onDismiss={() => setMessage("")} />
         {error ? (
           <p role="alert" className="text-sm text-destructive">
             {error}

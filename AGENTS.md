@@ -20,6 +20,14 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Put necessary guidance only where users act on it, such as field help, validation, empty states, or error messages.
 - In list and table views, when an item title already links to its detail screen, do not add a separate management/action column or open button for the same navigation.
 
+## 작업 결과 알림 공통 규칙
+
+- 페이지 정보를 저장·수정·삭제·등록·가져오기 등으로 업데이트한 결과는 반드시 `src/components/ui/toast.tsx`의 공통 Toast를 사용한다. 새 상단 성공 배너, 인라인 성공 문구, `window.alert`, 화면별 Toast 구현을 만들지 않는다.
+- 이벤트 핸들러에서 서버 성공을 확인한 뒤 `toast("저장했습니다.")`를 호출한다. 실패는 `toast(message, { tone: "error" })`, 안내는 `{ tone: "info" }`를 사용한다. 화면 이동이나 팝업 닫기 전에 호출한다. 렌더링 중에는 호출하지 않는다.
+- 기존 상태 기반 알림은 `<ToastNotice message={notice} onDismiss={() => setNotice("")} />`로 연결한다. 동일한 문구의 연속 이벤트는 `eventKey`를 변경하거나 이벤트 핸들러에서 `toast()`를 직접 호출한다.
+- `ToastProvider`는 루트 레이아웃에 한 번만 둔다. 토스트는 하단 중앙, 성공·안내 4초/오류 8초 자동 닫힘, 수동 닫기, 포커스·마우스 진입 시 일시정지, 스크린리더 알림을 공통으로 제공한다. 페이지별 위치·타이머·Portal을 추가하지 않는다.
+- 입력 필드 검증, 최초 조회 실패와 재시도, 진행 상태, 삭제 확인 대화상자, 지속적으로 확인해야 하는 업무 데이터는 해당 위치에 유지한다. 저장·삭제 결과 알림과 혼동하지 않는다.
+
 ## Deployment workflow
 
 When the user asks to deploy or apply changes, use the Git-backed production workflow unless they explicitly request a preview or a local-only deployment.

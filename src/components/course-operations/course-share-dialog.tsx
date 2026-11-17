@@ -1,9 +1,7 @@
 "use client";
-
 import Script from "next/script";
 import { useState } from "react";
-import { Check, Copy, MessageCircle, Share2 } from "lucide-react";
-
+import { Copy,MessageCircle,Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -24,6 +22,7 @@ import {
   type CourseShareData,
   type CourseShareSection,
 } from "@/lib/course-operations/share";
+import { ToastNotice } from "@/components/ui/toast";
 
 const DEFAULT_SECTIONS: CourseShareSection[] = ["schedule"];
 const KAKAO_JAVASCRIPT_KEY =
@@ -244,11 +243,7 @@ export function CourseShareDialog({
           </p>
         ) : null}
 
-        {notice ? (
-          <p className="flex items-center gap-2 text-sm text-emerald-700" role="status">
-            <Check className="size-4" />{notice}
-          </p>
-        ) : null}
+        <ToastNotice message={notice} onDismiss={() => setNotice("")} />
         {error ? (
           <p className="text-sm text-destructive" role="alert">{error}</p>
         ) : null}

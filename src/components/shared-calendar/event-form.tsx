@@ -1,5 +1,4 @@
 "use client";
-
 import { isSelectableCourse } from "@/lib/course-operations/course-status";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { CalendarPlus, Share2 } from "lucide-react";
@@ -10,6 +9,7 @@ import { DURATIONS, START_TIMES, calendarShareText, eventSchema, formatDuration,
 import type { CalendarCourse, CalendarDraft, CalendarEvent, CalendarPerson, MeetingType } from "@/lib/shared-calendar/types";
 import { buildGoogleCalendarUrl } from "@/lib/shared-calendar/google-calendar";
 import { LocationFields } from "./location-fields";
+import { ToastNotice } from "@/components/ui/toast";
 
 export const selectClass = "h-9 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50";
 
@@ -151,7 +151,7 @@ export function CalendarEventForm({ event, date, types, courses, initialCourseId
           <label className="grid gap-2">메모<textarea className="min-h-24 w-full rounded-md border bg-background p-3 text-sm" maxLength={2000} value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} /></label>
         </fieldset>
         {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-        {copyNotice ? <p role="status" className="text-sm text-muted-foreground">{copyNotice}</p> : null}
+        <ToastNotice message={copyNotice} onDismiss={() => setCopyNotice("")} />
         {manualCopy ? <label className="grid gap-2 text-sm">공유 텍스트<textarea aria-label="공유 텍스트" readOnly autoFocus onFocus={(e) => e.currentTarget.select()} className="min-h-40 rounded-md border p-3 text-sm" value={manualCopy} /></label> : null}
         {event ? <div className="space-y-2 rounded-md border p-3">
           <Button asChild type="button" variant="outline" className="w-full" disabled={busy}>

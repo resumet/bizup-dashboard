@@ -1,7 +1,5 @@
 "use client";
-
 import { useState, type FormEvent } from "react";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +9,7 @@ import {
   createDashboardMenuSearchKeywordSettings,
   type DashboardMenuSearchKeywordSettings,
 } from "@/lib/dashboard/menu-search-keywords";
+import { ToastNotice } from "@/components/ui/toast";
 
 function toDrafts(settings: DashboardMenuSearchKeywordSettings) {
   return Object.fromEntries(
@@ -89,7 +88,7 @@ export function MenuSearchKeywordsManager({
           <div className="flex flex-wrap items-center gap-3">
             <Button type="submit" disabled={saving}>{saving ? "저장 중…" : "메뉴 검색어 저장"}</Button>
             {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-            {notice ? <p role="status" className="text-sm text-emerald-700">{notice}</p> : null}
+            <ToastNotice message={notice} onDismiss={() => setNotice("")} />
           </div>
         </form>
       </CardContent>

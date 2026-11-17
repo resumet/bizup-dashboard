@@ -1,7 +1,5 @@
 "use client";
-
 import { useState, type FormEvent } from "react";
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -16,6 +14,7 @@ import {
   type YoutubeFilmingAlertSettings,
   type YoutubeFilmingAlertWeeks,
 } from "@/lib/youtube-management/settings";
+import { ToastNotice } from "@/components/ui/toast";
 
 export function YoutubeFilmingAlertSettingsManager({
   initialSettings,
@@ -84,7 +83,7 @@ export function YoutubeFilmingAlertSettingsManager({
           <div className="flex flex-wrap items-center gap-3">
             <Button type="submit" disabled={saving}>{saving ? "저장 중…" : "알림 기준 저장"}</Button>
             {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-            {notice ? <p role="status" className="text-sm text-emerald-700">{notice}</p> : null}
+            <ToastNotice message={notice} onDismiss={() => setNotice("")} />
           </div>
         </form>
       </CardContent>

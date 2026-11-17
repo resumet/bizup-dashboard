@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { AlertTriangle, BookOpenCheck, CalendarDays, CheckCircle2, ClipboardPaste, ExternalLink, FileImage, FileSpreadsheet, GripVertical, Loader2, Paperclip, PencilLine, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -25,6 +24,7 @@ import {
   type YoutubeAppearanceFeeCostDetails,
   type YoutubeRsCostDetails,
 } from "@/lib/course-costs/types";
+import { ToastNotice } from "@/components/ui/toast";
 
 type FixedBurden = Exclude<CourseCostBurden, "UNCLASSIFIED">;
 type CostResponse = { costs: CourseCost[]; locked: boolean };
@@ -444,7 +444,7 @@ export function CourseCostManager({ courseId, instructorName }: { courseId: stri
   return <div className="space-y-6">
     {locked ? <Alert><AlertTriangle/><AlertTitle>정산 확정됨</AlertTitle><AlertDescription>비용 변경사항을 저장하면 기존 정산 결과와 확정 내역이 삭제됩니다. 증빙은 추가할 수 있으며, 삭제는 정산 확정 취소 후 가능합니다.</AlertDescription></Alert> : null}
     {error ? <Alert variant="destructive"><AlertTitle>처리할 수 없습니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
-    {notice ? <Alert><AlertTitle>저장 완료</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert> : null}
+    <ToastNotice message={notice} onDismiss={() => setNotice("")} />
     <div className="flex flex-wrap items-center justify-end gap-3">
       {changeCount ? <span className="text-sm text-muted-foreground">저장하지 않은 변경 {changeCount}건</span> : null}
       <Button type="button" variant="outline" disabled={busy} onClick={() => setRedlockOpen(true)}><FileSpreadsheet/>레드락 엑셀 입력하기</Button>

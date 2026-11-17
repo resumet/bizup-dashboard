@@ -1,5 +1,4 @@
 "use client";
-
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AlertTriangle, Building2, CheckCircle2, Download, Landmark, Loader2, Plus, Printer, ReceiptText, Save, Trash2 } from "lucide-react";
@@ -19,11 +18,12 @@ import { printStatementWithStudents } from "@/lib/course-settlements/print-stude
 import { sharedCostEvidenceAppendixHtml } from "@/lib/course-settlements/shared-cost-evidence-appendix";
 import { createSettlementStatementDraft, distributeInstructorPayout, type SettlementStatementDraft } from "@/lib/course-settlements/statement";
 import { youtubeChannelCostAppendixHtml } from "@/lib/course-settlements/youtube-rs-appendix";
+import type { ManualCashSummary } from "@/lib/course-settlements/manual-cash";
+import { ToastNotice } from "@/components/ui/toast";
 
 const ISSUER = "주식회사 비즈업클래스";
-const currency = (value: number) => `${roundWon(value).toLocaleString("ko-KR")}원`;
 
-import type { ManualCashSummary } from "@/lib/course-settlements/manual-cash";
+const currency = (value: number) => `${roundWon(value).toLocaleString("ko-KR")}원`;
 
 type CalculationRow = { code: string; label: string; value: number; formula: string; emphasized?: boolean; detail?: boolean };
 
@@ -262,7 +262,7 @@ export function SettlementStatement({ instructor, manualCash, monthlyAnalyses, c
   return (
     <div className="space-y-5">
       {error ? <Alert variant="destructive"><AlertTitle>처리할 수 없습니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
-      {notice ? <Alert><CheckCircle2 /><AlertTitle>처리 완료</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert> : null}
+      <ToastNotice message={notice} onDismiss={() => setNotice("")} />
 
       <Card className="border-blue-200/70 bg-gradient-to-br from-blue-50/80 via-background to-indigo-50/60 dark:border-blue-900/50 dark:from-blue-950/30 dark:to-indigo-950/20">
         <CardHeader><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="mb-2 text-xs font-semibold tracking-[0.18em] text-blue-600">BIZUP CLASS · SETTLEMENT</p><CardTitle className="text-xl sm:text-2xl">{draft.lectureName} 최종 정산서</CardTitle><CardDescription className="mt-1">지급 완료된 비용과 정산 데이터를 한 문서로 정리합니다.</CardDescription></div><div className="flex flex-wrap gap-2"><Badge variant={confirmed ? "default" : "outline"}>{draft.status}</Badge>{costsAreSnapshot ? <Badge variant="secondary">확정 스냅샷</Badge> : null}</div></div></CardHeader>

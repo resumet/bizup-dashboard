@@ -1,9 +1,7 @@
 "use client";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2 } from "lucide-react";
-
 import {
   Select,
   SelectContent,
@@ -12,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { EditableAccountRole } from "@/lib/admin/access";
+import { toast } from "@/components/ui/toast";
 
 export function UserRoleSelect({
   userId,
@@ -57,7 +56,7 @@ export function UserRoleSelect({
         throw new Error(body.message ?? "권한을 변경하지 못했습니다.");
       }
 
-      setSaved(true);
+      setSaved(true); toast("\uC800\uC7A5\uD588\uC2B5\uB2C8\uB2E4.");
       router.refresh();
     } catch (caught) {
       setRole(previousRole);

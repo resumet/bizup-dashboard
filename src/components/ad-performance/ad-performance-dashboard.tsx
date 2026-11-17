@@ -1,17 +1,14 @@
 "use client";
-
 import { isSelectableCourse } from "@/lib/course-operations/course-status";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowLeft,
-  CheckCircle2,
   Loader2,
   Save,
-  Settings2,
+  Settings2
 } from "lucide-react";
-
 import { AdPerformanceSheetWorkspace } from "@/components/ad-performance/ad-performance-sheet-workspace";
 import { AdPerformanceSummaryCards } from "@/components/ad-performance/ad-performance-summary-cards";
 import { AdPerformanceOutcomeCard } from "@/components/ad-performance/ad-performance-outcome-card";
@@ -39,6 +36,7 @@ import {
 } from "@/components/ui/select";
 import type { AdPerformanceDashboardData } from "@/lib/ad-performance/types";
 import { applicantApplyUrl } from "@/lib/ad-performance/applicant-url";
+import { ToastNotice } from "@/components/ui/toast";
 
 const number = new Intl.NumberFormat("ko-KR");
 
@@ -169,13 +167,7 @@ export function AdPerformanceDashboard({
             <AlertDescription>{pageError}</AlertDescription>
           </Alert>
         ) : null}
-        {notice ? (
-          <Alert className="mt-6">
-            <CheckCircle2 />
-            <AlertTitle>저장 완료</AlertTitle>
-            <AlertDescription>{notice}</AlertDescription>
-          </Alert>
-        ) : null}
+        <ToastNotice message={notice} onDismiss={() => setNotice("")} />
 
         <AdPerformanceSummaryCards metrics={initialData.metrics} totalBudget={totalBudget} organicChannels={initialData.organicChannels} />
         <AdPerformanceOutcomeCard collapsible metrics={initialData.metrics} webinar={courseId === initialData.course?.id ? webinarOutcome : null} courseId={courseId} error={webinarError} />

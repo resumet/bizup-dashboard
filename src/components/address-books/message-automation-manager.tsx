@@ -1,5 +1,4 @@
 "use client";
-
 import { isSelectableCourse } from "@/lib/course-operations/course-status";
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
@@ -14,7 +13,6 @@ import {
   TestTube2,
   UserRound,
 } from "lucide-react";
-
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,6 +58,7 @@ import {
   parseRosterSelectionRecipients,
   rosterSelectionStorageKey,
 } from "@/lib/messages/roster-selection-transfer";
+import { ToastNotice } from "@/components/ui/toast";
 
 type Book = {
   id: string;
@@ -359,12 +358,7 @@ export function MessageAutomationManager({
           </AlertDescription>
         </Alert>
       ) : null}
-      {result ? (
-        <Alert variant={resultKind === "error" ? "destructive" : "default"}>
-          <AlertTitle>
-            {resultKind === "error" ? "처리 실패" : "처리 결과"}
-          </AlertTitle>
-          <AlertDescription>{result}</AlertDescription>
+      <ToastNotice message={result} tone={resultKind === "error" ? "error" : "success"} onDismiss={() => setResult("")} />
           {resultKind === "success" &&
           resultAction === "send" &&
           selectedBook ? (
@@ -374,8 +368,6 @@ export function MessageAutomationManager({
               </Link>
             </Button>
           ) : null}
-        </Alert>
-      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

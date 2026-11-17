@@ -1,12 +1,11 @@
 "use client";
-
 import { useState } from "react";
 import { ClipboardCopy, ExternalLink, Link2Off, Loader2, LockKeyhole, Share2 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ToastNotice } from "@/components/ui/toast";
 
 export function ExternalMarketingLinkDialog({ url, enabled, onClose, onEnabledChange }: {
   url: string;
@@ -58,7 +57,7 @@ export function ExternalMarketingLinkDialog({ url, enabled, onClose, onEnabledCh
       </div></div>
       {enabled ? <Button variant="outline" className="w-fit" asChild><a href={url} target="_blank" rel="noopener noreferrer"><ExternalLink />공개 페이지 열기</a></Button> : <Button variant="outline" className="w-fit" disabled><ExternalLink />공개 페이지 열기</Button>}
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-      {notice ? <p role="status" className="text-sm text-muted-foreground">{notice}</p> : null}
+      <ToastNotice message={notice} onDismiss={() => setNotice("")} />
       <DialogFooter><Button type="button" disabled={busy} onClick={() => void copyAddress()}><ClipboardCopy />링크 복사</Button></DialogFooter>
     </DialogContent>
   </Dialog>;

@@ -1,5 +1,4 @@
 "use client";
-
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -16,7 +15,6 @@ import {
   Save,
   Trash2,
 } from "lucide-react";
-
 import { CourseRosterSections } from "@/components/course-operations/course-roster-sections";
 import { CourseNotesCard } from "@/components/course-operations/course-notes-card";
 import { CourseLandingUtms } from "@/components/course-operations/course-landing-utms";
@@ -96,6 +94,7 @@ import {
   getDeadlineProgress,
   TASK_DEADLINE_WEEKS,
 } from "@/lib/course-operations/task-deadlines";
+import { toast, ToastNotice } from "@/components/ui/toast";
 
 function formatPrice(value: string) {
   const digits = value.replace(/\D/gu, "");
@@ -771,6 +770,7 @@ export function CourseOperationsEditor({
         throw new Error(body.message ?? "강의 정보를 저장하지 못했습니다.");
       }
       if (!courseId) {
+        toast("강의를 만들었습니다.");
         router.push(`/services/course-operations/${body.id}`);
         return;
       }
@@ -872,23 +872,13 @@ export function CourseOperationsEditor({
       </div>
 
       {loadError ? (
-        <Alert variant="destructive" className="fixed bottom-5 left-1/2 z-50 w-[min(92vw,32rem)] -translate-x-1/2 border-red-300 bg-red-50 text-red-950 shadow-lg">
+        <Alert variant="destructive">
           <AlertTitle>연결 항목을 모두 불러오지 못했습니다</AlertTitle>
           <AlertDescription>{loadError}</AlertDescription>
         </Alert>
       ) : null}
-      {error ? (
-        <Alert variant="destructive" className="fixed bottom-5 left-1/2 z-50 w-[min(92vw,32rem)] -translate-x-1/2 border-red-300 bg-red-50 text-red-950 shadow-lg">
-          <AlertTitle>저장할 수 없습니다</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
-      {notice ? (
-        <Alert className="fixed bottom-5 left-1/2 z-50 w-[min(92vw,32rem)] -translate-x-1/2 border-sky-300 bg-sky-50 text-sky-950 shadow-lg">
-          <AlertTitle>저장 완료</AlertTitle>
-          <AlertDescription>{notice}</AlertDescription>
-        </Alert>
-      ) : null}
+      <ToastNotice message={error} tone="error" onDismiss={() => setError("")} />
+      <ToastNotice message={notice} onDismiss={() => setNotice("")} />
 
       <Tabs
         value={activeTab}

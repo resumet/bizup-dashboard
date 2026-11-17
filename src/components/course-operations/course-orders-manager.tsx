@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, RefreshCw, Upload, Users } from "lucide-react";
@@ -23,6 +22,7 @@ import {
   type CourseOrderFilters, type CourseOrderPreview, type CourseOrdersResponse,
   type SavedCourseOrder,
 } from "@/lib/course-orders/types";
+import { ToastNotice } from "@/components/ui/toast";
 
 const money = (value: number) => `${value.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}원`;
 const PAGE_SIZE = 50;
@@ -236,7 +236,7 @@ export function CourseOrdersManager({ courseId, courseName, onCourseNameChange, 
         </CardContent>
       </Card>
       {error ? <Alert variant="destructive"><AlertTitle>처리 실패</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
-      {notice ? <Alert role="status"><AlertTitle>저장 완료</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert> : null}
+      <ToastNotice message={notice} onDismiss={() => setNotice("")} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">저장된 주문 내역</h2>
         <div className="flex flex-wrap gap-2">

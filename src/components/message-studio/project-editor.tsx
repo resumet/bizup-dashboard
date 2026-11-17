@@ -1,5 +1,4 @@
 "use client";
-
 import { isSelectableCourse } from "@/lib/course-operations/course-status";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -13,7 +12,6 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +40,7 @@ import {
   type MessageStudioProject,
   type MessageStudioResource,
 } from "@/lib/message-studio/types";
+import { ToastNotice } from "@/components/ui/toast";
 
 type ResourceDraft = {
   position: number;
@@ -478,13 +477,7 @@ export function MessageStudioProjectEditor({
           </AlertDescription>
         </Alert>
       )}
-      {notice && (
-        <Alert>
-          <Sparkles />
-          <AlertTitle>완료</AlertTitle>
-          <AlertDescription>{notice}</AlertDescription>
-        </Alert>
-      )}
+      <ToastNotice message={notice} onDismiss={() => setNotice("")} />
 
       <Card>
         <CardHeader>

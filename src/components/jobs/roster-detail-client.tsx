@@ -1,13 +1,18 @@
 "use client";
-
 import { PaymentMethodBadge } from "@/components/jobs/payment-method";
-
 import { refundDate } from "@/lib/jobs/refund";
-import { buildInviteClipboardText } from "@/lib/messages/invite";
+import {
+  buildInviteClipboardText,
+  buildCourseOptionInviteMap,
+  isOpenableInviteLink,
+  optionKey,
+  optionLabel,
+  validateInviteValues,
+  type InviteValues,
+} from "@/lib/messages/invite";
 import { RefundedRoster } from "@/components/jobs/refunded-roster";
 import { PartialRefundRoster } from "@/components/jobs/partial-refund-roster";
 import { isPartialRefundRosterRow } from "@/lib/jobs/partial-refund";
-
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -22,7 +27,6 @@ import {
   Send,
   TestTube2,
 } from "lucide-react";
-
 import { RosterUpdateDialog } from "@/components/jobs/roster-update-dialog";
 import { PaymentIdButton } from "@/components/jobs/payment-id-button";
 import { CourseRosterShareDialog } from "@/components/course-operations/course-roster-share-dialog";
@@ -90,14 +94,6 @@ import {
 } from "@/lib/jobs/types";
 import type { CourseJobNote } from "@/lib/jobs/notes";
 import {
-  buildCourseOptionInviteMap,
-  isOpenableInviteLink,
-  optionKey,
-  optionLabel,
-  validateInviteValues,
-  type InviteValues,
-} from "@/lib/messages/invite";
-import {
   MESSAGE_SCOPE_LABELS,
   MESSAGE_TEMPLATE_LABELS,
   type MessageHistoryItem,
@@ -108,6 +104,7 @@ import {
   rosterSelectionStorageKey,
   serializeRosterSelection,
 } from "@/lib/messages/roster-selection-transfer";
+import { toast,ToastNotice } from "@/components/ui/toast";
 
 type Props = {
   paidRoster?: boolean;
@@ -292,11 +289,9 @@ export function RosterDetailClient({
             : item,
         ),
       );
-      window.alert(
-        error instanceof Error
+      toast(error instanceof Error
           ? error.message
-          : "단톡방 참여 여부를 저장하지 못했습니다.",
-      );
+          : "단톡방 참여 여부를 저장하지 못했습니다.", { tone: "error" });
     } finally {
       setSavingParticipation((current) => {
         const next = new Set(current);
@@ -333,11 +328,9 @@ export function RosterDetailClient({
             : item,
         ),
       );
-      window.alert(
-        error instanceof Error
+      toast(error instanceof Error
           ? error.message
-          : "별도 추가 인원 여부를 저장하지 못했습니다.",
-      );
+          : "별도 추가 인원 여부를 저장하지 못했습니다.", { tone: "error" });
     } finally {
       setSavingExtraParticipant((current) => {
         const next = new Set(current);
@@ -366,9 +359,7 @@ export function RosterDetailClient({
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (error) {
-      window.alert(
-        error instanceof Error ? error.message : "엑셀 생성에 실패했습니다.",
-      );
+      toast(error instanceof Error ? error.message : "엑셀 생성에 실패했습니다.", { tone: "error" });
     } finally {
       setDownloading(false);
     }
@@ -377,7 +368,7 @@ export function RosterDetailClient({
   function openGeneralMessageAutomation() {
     if (selectedRows.length === 0) return;
     if (selectedRows.length > 1_000) {
-      window.alert("한 번에 최대 1,000명까지 선택 발송할 수 있습니다.");
+      toast("한 번에 최대 1,000명까지 선택 발송할 수 있습니다.", { tone: "error" });
       return;
     }
     const sourceId = rosterSourceId(jobId);
@@ -1369,15 +1360,7 @@ export function MessageDialog({
               대상, 템플릿과 변수를 확인했습니다. 최종 발송에 동의합니다.
             </span>
           </label>
-          {result && (
-            <Alert>
-              <Send />
-              <AlertTitle>발송 결과</AlertTitle>
-              <AlertDescription className="whitespace-pre-line">
-                {result}
-              </AlertDescription>
-            </Alert>
-          )}
+          <ToastNotice message={result} tone="info" onDismiss={() => setResult("")} />
         </div>
         <DialogFooter className="flex-col bg-background sm:flex-col">
           {(invites.error || invites.status || invites.saving) && <p role={invites.error ? "alert" : "status"} className={`text-xs ${invites.error ? "text-destructive" : "text-muted-foreground"}`}>{invites.error || (invites.saving ? "입장정보 저장 중…" : invites.status)}</p>}

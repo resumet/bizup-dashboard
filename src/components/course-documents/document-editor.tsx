@@ -1,5 +1,4 @@
 "use client";
-
 import { Extension, Node as TiptapNode, type Editor, type JSONContent } from "@tiptap/core";
 import ImageExtension from "@tiptap/extension-image";
 import Highlight from "@tiptap/extension-highlight";
@@ -50,7 +49,6 @@ import {
   Undo2,
   Unlink,
 } from "lucide-react";
-
 import { DocumentRenderer } from "@/components/course-documents/document-renderer";
 import { Callout } from "@/components/course-documents/callout-extension";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -91,6 +89,7 @@ import type {
 } from "@/lib/course-documents/types";
 import { cn } from "@/lib/utils";
 import { PdfImportDialog } from "./pdf-import-dialog";
+import { ToastNotice } from "@/components/ui/toast";
 
 type Props = {
   mode: "admin" | "external" | "contract";
@@ -642,12 +641,6 @@ export function CourseDocumentEditor({
     if (saveRequest > 0) void save();
   }, [saveRequest]);
 
-  useEffect(() => {
-    if (!notice) return;
-    const timer = window.setTimeout(() => setNotice(""), 3_000);
-    return () => window.clearTimeout(timer);
-  }, [notice]);
-
   const currentBlockStyle = editor?.isActive("heading", { level: 1 })
     ? "heading1"
     : editor?.isActive("heading", { level: 2 })
@@ -853,7 +846,7 @@ export function CourseDocumentEditor({
       </header>
 
       {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
-      {notice ? mode === "contract" ? <div role="status" className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-md bg-foreground px-4 py-2 text-sm text-background shadow-lg">{notice}</div> : <Alert><AlertDescription>{notice}</AlertDescription></Alert> : null}
+      <ToastNotice message={notice} onDismiss={() => setNotice("")} />
 
       <div className={cn("grid items-start gap-5", mode === "contract" ? "min-h-0 flex-1" : "xl:grid-cols-[minmax(0,1fr)_15rem]")}>
         <section className={cn("min-w-0 overflow-hidden rounded-xl border bg-background shadow-sm", mode === "contract" ? "flex h-full min-h-0 flex-col" : "min-h-[46rem]")}>

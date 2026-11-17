@@ -1,5 +1,4 @@
 "use client";
-
 import { useCallback, useEffect, useState } from "react";
 import {
   Calculator,
@@ -12,7 +11,6 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
-
 import { SettlementStatement } from "@/components/course-settlements/settlement-statement";
 import { RosterComparisonButton } from "@/components/course-settlements/roster-comparison-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -48,8 +46,8 @@ import {
   type SettlementStatementDraft,
 } from "@/lib/course-settlements/statement";
 import type { CourseCost } from "@/lib/course-costs/types";
-
 import type { ManualCashSummary } from "@/lib/course-settlements/manual-cash";
+import { ToastNotice } from "@/components/ui/toast";
 
 type SettlementUpload = {
   id: string;
@@ -472,13 +470,7 @@ export function CourseSettlementManager({
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
-      {notice ? (
-        <Alert>
-          <CheckCircle2 />
-          <AlertTitle>처리 완료</AlertTitle>
-          <AlertDescription>{notice}</AlertDescription>
-        </Alert>
-      ) : null}
+      <ToastNotice message={notice} onDismiss={() => setNotice("")} />
 
       <Card>
         <CardHeader>

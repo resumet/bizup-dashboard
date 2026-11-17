@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { Copy, ExternalLink, Hourglass, ImagePlus, Save, Trash2, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,16 +9,10 @@ import { validWebUrl, type LandingUtm } from "@/lib/course-landing-utms/model";
 import { channelLandingUtm, landingUtmUrl } from "@/lib/youtube-management/utm";
 import { Textarea } from "@/components/ui/textarea";
 import { BRIEF_FIELDS, REQUEST_STATUSES, emptyAppearance, type Appearance, type Brief } from "@/lib/youtube-management/model";
+import { ToastNotice } from "@/components/ui/toast";
 
 export function MediaNotice({message,onClose}:{message:string;onClose:()=>void}){
-  const close = useRef(onClose);
-  useEffect(() => { close.current = onClose; }, [onClose]);
-  useEffect(() => {
-    if (!message) return;
-    const timer = window.setTimeout(() => close.current(), 3000);
-    return () => window.clearTimeout(timer);
-  }, [message]);
-  return message ? createPortal(<div role="status" aria-live="polite" className="fixed bottom-5 left-1/2 z-[100] w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg bg-foreground px-4 py-2 text-sm text-background shadow-md">{message}</div>, document.body) : null;
+  return <ToastNotice message={message} tone="info" onDismiss={onClose} />;
 }
 export async function mediaRequest(url:string,payload:unknown){
   const response=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});

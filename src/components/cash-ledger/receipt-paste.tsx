@@ -1,11 +1,11 @@
 "use client";
-
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ClipboardPaste, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { receiptImageType, type ReceiptAnalysis } from "@/lib/cash-ledger/receipt";
+import { ToastNotice } from "@/components/ui/toast";
 
 type Props = {
   disabled: boolean;
@@ -71,7 +71,7 @@ export function ReceiptPaste({ disabled, onAnalysis, onBusyChange }: Props) {
       <Input type="file" aria-label="카드 승인 이미지 선택" accept=".png,.jpg,.jpeg,.webp,.gif" disabled={disabled || busy} onChange={event => { const files = Array.from(event.target.files ?? []); if (files.length) select(files); event.target.value = ""; }} />
       {busy ? <div className="flex items-center justify-between gap-2"><p role="status" className="flex items-center gap-2 text-sm"><Loader2 className="size-4 animate-spin" aria-hidden="true" />승인 내역 분석 중…</p><Button type="button" variant="ghost" size="sm" onClick={cancel}>분석 취소</Button></div> : image ? <div className="flex gap-2"><Button type="button" variant="outline" size="sm" disabled={disabled} onClick={() => void analyze(image.file)}>이미지 다시 분석</Button><Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => { setImage(null); setError(""); setNotice(""); }}>이미지 지우기</Button></div> : null}
     </div>
-    {notice ? <p role="status" className="text-xs text-muted-foreground">{notice}</p> : null}
+    <ToastNotice message={notice} onDismiss={() => setNotice("")} />
     {error ? <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
   </div>;
 }

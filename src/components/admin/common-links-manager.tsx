@@ -1,11 +1,11 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { commonLinksSchema, type CommonLink } from "@/lib/admin/common-links";
+import { ToastNotice } from "@/components/ui/toast";
 
 export function CommonLinksManager() {
   const [links, setLinks] = useState<CommonLink[]>([]);
@@ -57,7 +57,7 @@ export function CommonLinksManager() {
         <div className="flex gap-2"><Button variant="outline" disabled={saving || links.length >= 50} onClick={() => change([...links, { label: "", url: "" }])}><Plus />링크 추가</Button><Button disabled={saving} onClick={() => void save()}>{saving ? "저장 중…" : "공통 링크 저장"}</Button></div>
       </>}
       {error && <div role="alert" className="text-sm text-destructive">{error}{!loaded && <Button variant="outline" className="ml-2" onClick={() => { setError(""); setReload(value => value + 1); }}>다시 시도</Button>}</div>}
-      {notice && <p role="status" className="text-sm text-emerald-700">{notice}</p>}
+      <ToastNotice message={notice} onDismiss={() => setNotice("")} />
     </CardContent>
   </Card>;
 }

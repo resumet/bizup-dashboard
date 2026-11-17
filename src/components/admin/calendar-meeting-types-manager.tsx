@@ -1,10 +1,10 @@
 "use client";
-
 import { useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { MeetingType } from "@/lib/shared-calendar/types";
+import { ToastNotice } from "@/components/ui/toast";
 
 export function CalendarMeetingTypesManager({ initialTypes, loadError }: { initialTypes: MeetingType[]; loadError?: string }) {
   const [types, setTypes] = useState(initialTypes);
@@ -33,7 +33,7 @@ export function CalendarMeetingTypesManager({ initialTypes, loadError }: { initi
         <Button type="submit" disabled={busy || !name.trim()}>{busy ? "추가 중…" : "항목 추가"}</Button>
       </form>
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-      {notice ? <p role="status" className="text-sm text-emerald-700">{notice}</p> : null}
+      <ToastNotice message={notice} onDismiss={() => setNotice("")} />
     </CardContent>
   </Card>;
 }

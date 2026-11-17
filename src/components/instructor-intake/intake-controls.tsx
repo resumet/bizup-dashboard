@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ToastNotice } from "@/components/ui/toast";
 
 export function RefreshIntakes() {
   const router = useRouter();
@@ -225,11 +225,7 @@ export function ShareIntake({
         링크를 받은 강사는 로그인 없이 정보를 입력하고 수정할 수 있습니다. 해당
         강사에게만 전달해 주세요.
       </p>
-      {message ? (
-        <p role="status" className="text-sm">
-          {message}
-        </p>
-      ) : null}
+      <ToastNotice message={message} tone="success" onDismiss={() => setMessage("")} />
       {error ? (
         <p role="alert" className="text-sm text-destructive">
           {error}

@@ -1,5 +1,4 @@
 "use client";
-
 import {
   Download,
   ExternalLink,
@@ -16,8 +15,6 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { Toast } from "radix-ui";
-
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -69,6 +66,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { SheetUpdateDialog } from "@/components/ad-performance/sheet-update-dialog";
 import type { SheetUpdatePreview } from "@/lib/ad-performance/sheet-update";
+import { ToastNotice } from "@/components/ui/toast";
 
 const HEADER_ROW_COUNT = 2;
 const PAGE_SIZE = 100;
@@ -663,7 +661,7 @@ export function MeaningSheetWorkspace({
         </Alert>
       ) : null}
 
-      {notice ? <p className="text-sm text-emerald-700">{notice}</p> : null}
+      <ToastNotice message={notice} onDismiss={() => setNotice("")} />
 
       {fullscreenError ? (
         <Alert variant="destructive">
@@ -1248,7 +1246,7 @@ export function MeaningSheetWorkspace({
 
             <div className="grid gap-4">
               {freeChatRoomLinks !== undefined ? (
-                <Toast.Provider duration={5000} label="톡방 링크 알림">
+                <>
                   <div className="flex flex-wrap gap-2">
                     {(chatLinks.length ? chatLinks : [""]).map((link, index) => (
                       <Button key={link || "missing"} type="button" variant="outline" onClick={() => openChatRoom(link)}>
@@ -1256,13 +1254,8 @@ export function MeaningSheetWorkspace({
                       </Button>
                     ))}
                   </div>
-                  {chatLinkToast !== null ? <Toast.Root key={chatLinkToast} onOpenChange={(open) => {
-                    if (!open) setChatLinkToast((current) => current === chatLinkToast ? null : current);
-                  }} className="rounded-xl border bg-popover p-4 text-popover-foreground shadow-lg">
-                    <Toast.Description className="text-sm">강의 정보에서 무료특강 단톡방 링크를 저장해 주세요.</Toast.Description>
-                  </Toast.Root> : null}
-                  <Toast.Viewport className="fixed inset-x-4 bottom-4 z-[100] mx-auto flex max-w-sm list-none flex-col gap-2 outline-none" />
-                </Toast.Provider>
+                  {chatLinkToast !== null ? <ToastNotice message="강의 정보에서 무료특강 단톡방 링크를 저장해 주세요." tone="info" eventKey={chatLinkToast} onDismiss={() => setChatLinkToast(null)} /> : null}
+                </>
               ) : null}
               <div className="grid gap-2">
                 <Label htmlFor="meaning-chat-members-cumulative">
