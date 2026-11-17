@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { Textarea } from "@/components/ui/textarea";
 import type { CourseCost, CourseCostBurden } from "@/lib/course-costs/types";
 import { companyCostCalculationRows, sharedCostCalculationRows } from "@/lib/course-settlements/calculation-rows";
-import { calculateCostSettlement, roundWon, type AggregatedInstructorSettlement, type MonthlyAnalysis, type SettlementCost } from "@/lib/course-settlements/engine";
+import { calculateCostSettlement, roundWon, type InstructorSettlement, type MonthlyAnalysis, type SettlementCost } from "@/lib/course-settlements/engine";
 import { escapePrintHtml } from "@/lib/course-settlements/print";
 import { printStatementWithStudents } from "@/lib/course-settlements/print-students";
 import { sharedCostEvidenceAppendixHtml } from "@/lib/course-settlements/shared-cost-evidence-appendix";
@@ -117,7 +117,7 @@ function printCostSection(title: string, burden: CourseCostBurden, costs: Course
 }
 
 export function SettlementStatement({ instructor, manualCash, monthlyAnalyses, courseId, courseName, courseCosts, appliedCourseCosts, costsAreSnapshot, draft: savedDraft, onChange, onSave, onConfirm, onReopen, busy }: {
-  instructor: AggregatedInstructorSettlement;
+  instructor: InstructorSettlement;
   manualCash: ManualCashSummary;
   monthlyAnalyses: MonthlyAnalysis[];
   courseId: string;
