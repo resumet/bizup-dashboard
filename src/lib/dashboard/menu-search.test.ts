@@ -65,11 +65,13 @@ test("출장보고서를 업무 관리 하위 메뉴로 추천한다", () => {
 });
 
 test("새 광고 메뉴명과 기존 검색어를 지원하고 입출금 장부는 관리자로 분류한다", () => {
-  assert.equal(filterDashboardMenus("성과기록")[0]?.href, "/services/performance-records");
-  assert.equal(filterDashboardMenus("성과기록")[0]?.group, "퍼포먼스 광고");
-  assert.equal(filterDashboardMenus("외부광고 성과기록")[0]?.group, "성과기록");
+  assert.deepEqual(filterDashboardMenus("퍼포먼스 광고").map(({ label, href }) => [label, href]), [
+    ["내부광고", "/services/ad-performance"], ["외부광고", "/services/external-marketing"],
+  ]);
+  assert.deepEqual(filterDashboardMenus("성과기록").map(({ label }) => label), ["내부광고", "외부광고"]);
+  assert.equal(filterDashboardMenus("외부광고 성과기록")[0]?.href, "/services/external-marketing");
   assert.equal(filterDashboardMenus("외부 마케팅")[0]?.href, "/services/external-marketing");
-  assert.equal(filterDashboardMenus("내부광고 성과기록")[0]?.group, "성과기록");
+  assert.equal(filterDashboardMenus("내부광고 성과기록")[0]?.href, "/services/ad-performance");
   assert.ok(filterDashboardMenus("광고성과").some(({ href }) => href === "/services/ad-performance"));
   assert.equal(filterDashboardMenus("입출금 장부")[0]?.group, "관리자");
 });

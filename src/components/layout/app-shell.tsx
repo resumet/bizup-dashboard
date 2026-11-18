@@ -32,6 +32,7 @@ import { CommonLinksDrawer } from "@/components/layout/common-links-drawer";
 import { BrandHomeLink } from "@/components/layout/brand-home-link";
 import { GlobalDashboardSearch } from "@/components/layout/global-dashboard-search";
 import { Button } from "@/components/ui/button";
+import { PERFORMANCE_RECORD_HUB_ITEMS } from "@/lib/performance-records/hub";
 import {
   DEFAULT_SIDEBAR_WIDTH,
   MAX_SIDEBAR_WIDTH,
@@ -53,7 +54,7 @@ type NavigationItem = {
 type NavigationGroup = {
   label: string;
   icon: LucideIcon;
-  items: NavigationItem[];
+  items: readonly NavigationItem[];
 };
 
 const NAVIGATION_GROUPS: NavigationGroup[] = [
@@ -71,13 +72,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
   {
     label: "퍼포먼스 광고",
     icon: BarChart3,
-    items: [
-      {
-        label: "성과기록",
-        href: "/services/performance-records",
-        activeHrefs: ["/services/ad-performance", "/services/external-marketing"],
-      },
-    ],
+    items: PERFORMANCE_RECORD_HUB_ITEMS,
   },
   {
     label: "명단 · 메시지",
