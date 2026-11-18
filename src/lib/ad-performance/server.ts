@@ -2,7 +2,8 @@ import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity"
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { loadCreativeSourceSettings } from "@/lib/ad-creative/server";
+import { loadCreativeData } from "@/lib/ad-creative/server";
+import { summarizeCourseTrafficRates } from "@/lib/ad-creative/media-summary";
 import { loadAdPerformanceSheetState } from "./sheet-server";
 import { currentSeoulDate } from "./sheet-workspace";
 import type {
@@ -106,11 +107,12 @@ function isMissingMigration(error: { code?: string } | null | undefined) {
 
 export async function loadAdPerformanceIndex(workspaceId: string): Promise<AdPerformanceIndexData> {
   const admin = createAdminClient();
-  const [coursesResult, dashboardsResult, creativeSource] = await Promise.all([
-    admin.from("courses").select("id,name,status,instructor_name,starts_at,free_webinar_at,free_kakao_room_1_link,free_kakao_room_2_link").eq("workspace_id", workspaceId).order("starts_at", { ascending: false }),
+  const [coursesResult, dashboardsResult, creative] = await Promise.all([
+    admin.from("courses").select("id,name,status,instructor_name,instructor_nickname,starts_at,free_webinar_at,free_kakao_room_1_link,free_kakao_room_2_link").eq("workspace_id", workspaceId).order("starts_at", { ascending: false }),
     admin.from("ad_performance_dashboard_summaries").select("id,course_id,start_date,total_budget,updated_at,metric_count,spend,ad_leads,paid_landing_leads,organic_landing_leads,admin_cumulative_leads").eq("workspace_id", workspaceId).eq("service_scope", "bizup").order("updated_at", { ascending: false }),
-    loadCreativeSourceSettings(workspaceId),
+    loadCreativeData(workspaceId),
   ]);
+  const creativeSource = { url: creative.url, webinarName: creative.webinarName, updatedAt: creative.updatedAt };
   if (coursesResult.error) throw new Error(`강의 목록 조회 실패: ${coursesResult.error.code}`);
   if (isMissingMigration(dashboardsResult.error)) {
     return {
@@ -132,13 +134,15 @@ export async function loadAdPerformanceIndex(workspaceId: string): Promise<AdPer
   for (const metric of (chatRoomMetricsResult.data ?? []) as ChatRoomMetricRow[]) {
     if (metric.chat_room_members !== null) chatRoomMembersByDashboard.set(metric.dashboard_id, Number(metric.chat_room_members));
   }
-  const courses = sortByNearestWebinar((coursesResult.data ?? []) as CourseRow[]).map(toCourse);
-  const courseMap = new Map(courses.map((course) => [course.id, course]));
+  const courseRows = sortByNearestWebinar(coursesResult.data ?? []);
+  const courses = courseRows.map(toCourse);
+  const courseMap = new Map(courseRows.map((course) => [course.id, course]));
   const dashboards = rows.map<AdPerformanceDashboardSummary>((row) => {
     const course = row.course_id ? courseMap.get(row.course_id) ?? null : null;
     return {
       id: row.id,
-      course,
+      course: course ? toCourse(course) : null,
+      trafficRates: creative.url && course?.instructor_nickname ? summarizeCourseTrafficRates(creative.rows, course.instructor_nickname) : null,
       startDate: row.start_date,
       totalBudget: Number(row.total_budget),
       metricCount: Number(row.metric_count ?? 0),

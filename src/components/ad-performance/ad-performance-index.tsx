@@ -17,14 +17,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ToastNotice } from "@/components/ui/toast";
 import { formatWebinarDate, getWebinarDayDifference } from "@/lib/course-operations/webinar-proximity";
 import type { AdPerformanceDashboardSummary, AdPerformanceIndexData } from "@/lib/ad-performance/types";
+import { trafficRateColumns } from "./creative-columns";
+import { toKoreaDate } from "@/lib/course-operations/schedule";
 
 const number = new Intl.NumberFormat("ko-KR");
 const won = new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW", maximumFractionDigits: 0 });
-const todayKoreaDate = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 function formatDday(webinarDate: string | undefined) {
-  const days = getWebinarDayDifference(webinarDate ?? "", todayKoreaDate);
-  if (days === null) return "-";
+  const days = getWebinarDayDifference(webinarDate ?? "", toKoreaDate(new Date().toISOString()));
+  if (days === null) return "";
   if (days > 0) return `D-${days}`;
   if (days === 0) return "D-Day";
   return `D+${Math.abs(days)}`;
@@ -36,25 +37,30 @@ function DashboardRow({ dashboard, busy, onDelete }: {
   onDelete: () => void;
 }) {
   const courseName = dashboard.course?.name ?? "강의 미설정";
+  const webinarAt = dashboard.course?.freeWebinarAt;
   const landingLeadCost = dashboard.paidLandingLeads > 0 ? dashboard.spend / dashboard.paidLandingLeads : null;
   return <TableRow>
-    <TableCell className="max-w-56 font-medium whitespace-normal"><Link className="text-primary underline-offset-4 hover:underline focus-visible:underline" href={`/services/ad-performance/${dashboard.id}`}>{courseName}</Link></TableCell>
-    <TableCell>{dashboard.course?.instructorName || "-"}</TableCell>
-    <TableCell className="tabular-nums">{formatWebinarDate(dashboard.course?.freeWebinarAt)}</TableCell>
-    <TableCell className="tabular-nums">{formatDday(dashboard.course?.freeWebinarAt)}</TableCell>
+    <TableCell className="min-w-52 max-w-80 whitespace-normal">
+      <Link className="font-medium text-primary underline-offset-4 hover:underline focus-visible:underline" href={`/services/ad-performance/${dashboard.id}`}>{courseName}</Link>
+      <div className="mt-1 text-xs text-muted-foreground tabular-nums">
+        {[dashboard.course?.instructorName || "강사 미정", webinarAt ? formatWebinarDate(webinarAt) : "웨비나 미정", formatDday(webinarAt)].filter(Boolean).join(" · ")}
+      </div>
+    </TableCell>
     <TableCell className="tabular-nums">{dashboard.startDate}</TableCell>
     <TableCell className="tabular-nums">{won.format(dashboard.spend)}</TableCell>
     <TableCell className="tabular-nums">{number.format(dashboard.metricCount)}일</TableCell>
     <TableCell className="tabular-nums">{number.format(dashboard.paidLandingLeads + dashboard.organicLandingLeads)}건</TableCell>
     <TableCell className="tabular-nums">{dashboard.chatRoomMembers === null ? "-" : `${number.format(dashboard.chatRoomMembers)}명`}</TableCell>
     <TableCell className="tabular-nums">{landingLeadCost === null ? "-" : won.format(Math.round(landingLeadCost))}</TableCell>
+    {trafficRateColumns.map(([key, , format]) => <TableCell key={key} className="text-right tabular-nums">{dashboard.trafficRates ? format.format(dashboard.trafficRates[key]) : "—"}</TableCell>)}
     <TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon-sm" variant="ghost" disabled={busy} aria-label={`${courseName} 메뉴`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem variant="destructive" disabled={busy} onSelect={onDelete}><Trash2 />삭제</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
   </TableRow>;
 }
 
 export function AdPerformanceIndex({ initialData }: { initialData: AdPerformanceIndexData }) {
   const router = useRouter();
-  const [dashboards, setDashboards] = useState(initialData.dashboards);
+  const [deletedIds, setDeletedIds] = useState<string[]>([]);
+  const dashboards = initialData.dashboards.filter(item => !deletedIds.includes(item.id));
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState("");
   const [error, setError] = useState(initialData.loadError ?? "");
@@ -86,6 +92,7 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
       setCreativeSource({ url: result.url, updatedAt: result.updatedAt, webinarName: result.webinarName });
       setSourceSettingsOpen(false);
       setNotice(`${(result.rows?.length ?? 0).toLocaleString("ko-KR")}건의 소재성과 데이터를 불러왔습니다.`);
+      router.refresh();
     } catch (caught) {
       setSourceError(caught instanceof Error ? caught.message : "원본 데이터를 저장하지 못했습니다.");
     } finally {
@@ -139,7 +146,7 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
       const response = await fetch(`/api/ad-performance/${dashboard.id}`, { method: "DELETE" });
       const result = await response.json() as { message?: string };
       if (!response.ok) throw new Error(result.message || "광고성과 대시보드를 삭제하지 못했습니다.");
-      setDashboards((current) => current.filter((item) => item.id !== dashboard.id));
+      setDeletedIds((current) => [...current, dashboard.id]);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "광고성과 대시보드를 삭제하지 못했습니다.");
     } finally {
@@ -164,7 +171,9 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
 
       <section className="mt-8">
         {dashboards.length ? <div className="rounded-xl border"><Table><TableHeader><TableRow>
-          {['강의명', '강사명', '웨비나 날짜', 'D-며칠', '광고 시작 날짜', '누적 집행비', '기록 일수', 'DB 총합', '단톡방 총합', '랜딩접수DB 단가'].map((label) => <TableHead key={label}>{label}</TableHead>)}<TableHead><span className="sr-only">관리</span></TableHead>
+          {['강의명', '광고 시작 날짜', '누적 집행비', '기록 일수', 'DB 총합', '단톡방 총합', '랜딩접수DB 단가'].map((label) => <TableHead key={label}>{label}</TableHead>)}
+          {trafficRateColumns.map(([key, label]) => <TableHead key={key} className="text-right">{label}</TableHead>)}
+          <TableHead><span className="sr-only">관리</span></TableHead>
         </TableRow></TableHeader><TableBody>{dashboards.map((dashboard) => <DashboardRow key={dashboard.id} dashboard={dashboard} busy={deletingId === dashboard.id} onDelete={() => void deleteDashboard(dashboard)} />)}</TableBody></Table></div> : (
           <Card><CardContent className="flex min-h-64 flex-col items-center justify-center text-center"><span className="mb-4 grid size-12 place-items-center rounded-full bg-primary/10 text-primary"><BookOpenCheck className="size-5" /></span><h3 className="font-semibold">아직 광고성과 대시보드가 없습니다</h3><p className="mt-2 max-w-md text-sm text-muted-foreground">대시보드를 만든 뒤 사전설정에서 강의와 광고 조건을 선택하세요.</p></CardContent></Card>
         )}

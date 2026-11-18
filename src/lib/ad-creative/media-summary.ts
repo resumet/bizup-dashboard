@@ -1,4 +1,4 @@
-import { summarizeCreativeRows, type CreativeRow } from "./model";
+import { filterCreativeRowsByNickname, summarizeCreativeRows, type CreativeRow } from "./model";
 
 function mediaTotals(rows: CreativeRow[]) {
   const totals = summarizeCreativeRows(rows);
@@ -39,4 +39,11 @@ export function summarizeCreativeMedia(rows: CreativeRow[]) {
     clicks: meta.clicks + google.clicks,
     leads: meta.leads + google.leads,
   })];
+}
+
+export function summarizeCourseTrafficRates(rows: CreativeRow[], nickname: string) {
+  const matched = filterCreativeRowsByNickname(rows, nickname);
+  if (!matched.length) return null;
+  const [, , { cpm, ctr, cpc, conversionRate }] = summarizeCreativeMedia(matched);
+  return { cpm, ctr, cpc, conversionRate };
 }
