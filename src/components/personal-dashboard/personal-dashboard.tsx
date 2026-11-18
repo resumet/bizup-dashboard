@@ -527,29 +527,29 @@ export function PersonalDashboard({
       <Dialog open={dailyUpdateOpen} onOpenChange={(open) => {
         if (!open && !dailyUpdateRunning) setDailyUpdateOpen(false);
       }}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-xl overflow-hidden">
           <DialogHeader>
             <DialogTitle>아침 일괄 업데이트</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="min-h-0 space-y-4 overflow-hidden">
             <ol className="space-y-2 text-sm text-slate-700">
-              <li className="rounded-lg border bg-slate-50 px-3 py-2.5"><strong>1. 진행 중인 강의의 광고 성과 업데이트</strong><p className="mt-1 text-xs text-muted-foreground">연결된 원본 시트와 최신 무료 수강생 정보를 기준으로 반영합니다.</p></li>
-              <li className="rounded-lg border bg-slate-50 px-3 py-2.5"><strong>2. 진행 중인 강의의 무료 수강생 명단 업데이트</strong><p className="mt-1 text-xs text-muted-foreground">각 강의의 랜딩페이지에서 최신 명단을 저장합니다.</p></li>
+              <li className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5"><strong>1. 진행 중인 강의의 광고 성과 업데이트</strong><p className="mt-1 text-xs text-muted-foreground">연결된 원본 시트와 최신 무료 수강생 정보를 기준으로 반영합니다.</p></li>
+              <li className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5"><strong>2. 진행 중인 강의의 무료 수강생 명단 업데이트</strong><p className="mt-1 text-xs text-muted-foreground">각 강의의 랜딩페이지에서 최신 명단을 저장합니다.</p></li>
             </ol>
             {dailyUpdateLoading ? <div className="flex items-center gap-2 rounded-lg border px-3 py-3 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />진행 중인 강의를 확인하고 있습니다.</div> : null}
             {!dailyUpdateLoading && !dailyUpdateCourses.length && !dailyUpdateError ? <p className="rounded-lg border border-dashed px-3 py-5 text-center text-sm text-muted-foreground">업데이트할 진행 중인 강의가 없습니다.</p> : null}
-            {dailyUpdateCourses.length ? <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+            {dailyUpdateCourses.length ? <div className="max-h-[40dvh] space-y-1.5 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2">
               {dailyUpdateCourses.map((course) => {
                 const result = dailyUpdateResults[course.id];
-                return <div key={course.id} className="flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm">
+                return <div key={course.id} className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm">
                   {result?.status === "running" ? <Loader2 className="size-4 shrink-0 animate-spin text-blue-700" /> : result?.status === "done" ? <CheckCircle2 className="size-4 shrink-0 text-emerald-600" /> : <span className="grid size-4 shrink-0 place-items-center rounded-full border text-[10px] text-muted-foreground">·</span>}
-                  <div className="min-w-0"><strong className="block truncate">{course.instructor_name} · {course.name}</strong>{result ? <p className={cn("mt-0.5 text-xs", result.status === "failed" ? "text-red-700" : "text-muted-foreground")}>{result.message}</p> : null}</div>
+                  <div className="min-w-0"><strong className="block truncate leading-5">{course.instructor_name} · {course.name}</strong>{result ? <p className={cn("mt-0.5 break-words text-xs leading-4", result.status === "failed" ? "text-red-700" : "text-muted-foreground")}>{result.message}</p> : null}</div>
                 </div>;
               })}
             </div> : null}
             {dailyUpdateError ? <ErrorMessage>{dailyUpdateError}</ErrorMessage> : null}
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t pt-4">
             <DialogClose asChild><Button type="button" variant="outline" disabled={dailyUpdateRunning}>닫기</Button></DialogClose>
             <Button type="button" disabled={dailyUpdateLoading || dailyUpdateRunning || !dailyUpdateCourses.length} onClick={() => void runDailyUpdate()}>
               {dailyUpdateRunning ? <Loader2 className="animate-spin" /> : <CloudDownload />}
