@@ -1,9 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { aggregateCreativeRows, parseCreativeRows, assignCreativeInstructors, filterCreativeRowsByWebinarName, groupCreativeRows, summarizeCreativeRows, creativeStatusTone, creativeUnitCost, nextCreativeSort, sortCreativeRows } from "./model";
+import { aggregateCreativeRows, parseCreativeRows, assignCreativeInstructors, filterCreativeRowsByCourse, filterCreativeRowsByWebinarName, groupCreativeRows, summarizeCreativeRows, creativeStatusTone, creativeUnitCost, nextCreativeSort, sortCreativeRows } from "./model";
 
 const google = ["일", "캠페인", "광고그룹", "광고 이름", "광고 상태", "광고 유형", "비용", "노출수", "클릭수", "전환", "webinarName"];
 const meta = ["date", "campaignName", "adSetName", "adName", "status", "adCost", "impression", "linkClick", "leads", "webinarName"];
+
+test("강의별 화면은 일치하는 행이 없으면 0행이고 전체 화면에서만 모든 행을 반환한다", () => {
+  const base = parseCreativeRows("meta", [meta, ["2026-11-15", "c", "g", "a", "ACTIVE", "1", "2", "3", "0", "수익화"]])[0];
+  const rows = [
+    { ...base, instructor: "미닝" },
+    { ...base, platform: "google" as const, instructor: "미닝", webinar: "미닝 웨비나" },
+    { ...base, instructor: "미닝", webinar: "수익화 심화" },
+    { ...base, instructor: "다른 강사" },
+  ];
+  assert.deepEqual(filterCreativeRowsByCourse(rows, "미닝", "수익화"), rows.slice(0, 2));
+  assert.deepEqual(filterCreativeRowsByCourse(rows, "신규 강사", "신규 강의"), []);
+  assert.deepEqual(filterCreativeRowsByCourse(rows, "신규 강사", ""), []);
+  assert.deepEqual(filterCreativeRowsByCourse(rows, "", "수익화"), [rows[0], rows[3]]);
+  assert.deepEqual(filterCreativeRowsByCourse(rows, "", ""), rows);
+});
 
 test("소재 정렬은 내림차순, 오름차순, 해제로 순환하고 다른 열은 내림차순부터 시작한다", () => {
   const descending = nextCreativeSort(null, "cost");

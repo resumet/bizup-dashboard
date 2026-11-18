@@ -89,6 +89,20 @@ export function filterCreativeRowsByWebinarName(rows: readonly CreativeRow[], we
   return rows.filter((row) => normalizeCreativeWebinarName(row.webinar) === expected);
 }
 
+export function filterCreativeRowsByCourse(rows: CreativeRow[], instructor: string, courseName: string): CreativeRow[] {
+  const teacher = normalizeCreativeWebinarName(instructor);
+  const course = normalizeCreativeWebinarName(courseName);
+  if (!teacher && !course) return rows;
+  return rows.filter(row => {
+    const rowTeacher = normalizeCreativeWebinarName(row.instructor);
+    const webinar = normalizeCreativeWebinarName(row.webinar);
+    if (!course) return rowTeacher === teacher;
+    if (teacher && rowTeacher && rowTeacher !== "강사 미분류" && rowTeacher !== teacher) return false;
+    if (webinar === course) return true;
+    return Boolean(teacher && rowTeacher === teacher && (!webinar || webinar.replace(/\s*웨비나$/u, "") === teacher));
+  });
+}
+
 const normalize = (value: string) => value.normalize("NFKC").replace(/[\s_-]/gu, "").toLowerCase();
 const aliases = {
   date: ["날짜", "일", "date", "day", "segments.date", "dateStart", "date_start"],
