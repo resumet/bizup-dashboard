@@ -135,8 +135,6 @@ export function MeaningSheetWorkspace({
   trackingImportLabel = "유입엑셀추가",
   trackingImportNoun = "유입 엑셀",
   cumulativeDbLabel = "누적비즈업 DB",
-  applicantApplyHref,
-  settingsContainer,
   unifiedUpdate = false,
   freeChatRoomLinks,
 }: {
@@ -148,8 +146,6 @@ export function MeaningSheetWorkspace({
   trackingImportLabel?: string;
   trackingImportNoun?: string;
   cumulativeDbLabel?: string;
-  applicantApplyHref?: string | null;
-  settingsContainer?: HTMLElement | null;
   unifiedUpdate?: boolean;
   freeChatRoomLinks?: string[];
 }) {
@@ -620,9 +616,6 @@ export function MeaningSheetWorkspace({
       >
         {busyAction === "applicants" ? <Loader2 className="animate-spin" /> : <Upload />}{busyAction === "applicants" ? "업데이트 중" : trackingImportLabel}
       </Button> : null}
-      {unifiedUpdate && applicantApplyHref ? <Button type="button" variant="outline" asChild>
-        <a href={applicantApplyHref} target="_blank" rel="noopener noreferrer"><ExternalLink />신청자 화면 열기</a>
-      </Button> : null}
       {!unifiedUpdate ? <Button
         type="button"
         variant="outline"
@@ -643,7 +636,6 @@ export function MeaningSheetWorkspace({
   return (
     <div className="mt-8 flex min-h-0 flex-1 flex-col gap-3">
       {toolbarContainer ? createPortal(toolbar, toolbarContainer) : null}
-      {unifiedUpdate && settingsContainer ? createPortal(sourceConnectionButton, settingsContainer) : null}
       {pendingUpdate ? <SheetUpdateDialog
         key={pendingUpdate.preview.fingerprint}
         preview={pendingUpdate.preview}
@@ -1096,22 +1088,6 @@ export function MeaningSheetWorkspace({
                 신청일, 유입경로, 진행매체 열이 있는 엑셀 또는 CSV 파일을 추가합니다.
               </DialogDescription>
             </DialogHeader>
-            {applicantApplyHref !== undefined ? (
-              <div className="grid justify-items-start gap-2">
-                {applicantApplyHref ? (
-                  <Button type="button" variant="outline" asChild>
-                    <a href={applicantApplyHref} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink />신청자 화면 열기
-                    </a>
-                  </Button>
-                ) : (
-                  <>
-                    <Button type="button" variant="outline" disabled><ExternalLink />신청자 화면 열기</Button>
-                    <p className="text-xs text-muted-foreground">사전설정에서 비즈업 강의 신청자 목록 링크를 등록해 주세요.</p>
-                  </>
-                )}
-              </div>
-            ) : null}
             <div className="grid gap-2">
               <Label htmlFor="ad-tracking-file">엑셀 또는 CSV 파일</Label>
               <input

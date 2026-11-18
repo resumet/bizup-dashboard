@@ -2,6 +2,7 @@ import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity"
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { loadCreativeSourceSettings } from "@/lib/ad-creative/server";
 import { loadAdPerformanceSheetState } from "./sheet-server";
 import { currentSeoulDate } from "./sheet-workspace";
 import type {
@@ -105,15 +106,17 @@ function isMissingMigration(error: { code?: string } | null | undefined) {
 
 export async function loadAdPerformanceIndex(workspaceId: string): Promise<AdPerformanceIndexData> {
   const admin = createAdminClient();
-  const [coursesResult, dashboardsResult] = await Promise.all([
+  const [coursesResult, dashboardsResult, creativeSource] = await Promise.all([
     admin.from("courses").select("id,name,status,instructor_name,starts_at,free_webinar_at,free_kakao_room_1_link,free_kakao_room_2_link").eq("workspace_id", workspaceId).order("starts_at", { ascending: false }),
     admin.from("ad_performance_dashboard_summaries").select("id,course_id,start_date,total_budget,updated_at,metric_count,spend,ad_leads,paid_landing_leads,organic_landing_leads,admin_cumulative_leads").eq("workspace_id", workspaceId).eq("service_scope", "bizup").order("updated_at", { ascending: false }),
+    loadCreativeSourceSettings(workspaceId),
   ]);
   if (coursesResult.error) throw new Error(`강의 목록 조회 실패: ${coursesResult.error.code}`);
   if (isMissingMigration(dashboardsResult.error)) {
     return {
       courses: sortByNearestWebinar((coursesResult.data ?? []) as CourseRow[]).map(toCourse),
       dashboards: [],
+      creativeSource,
       loadError: "강의별 광고성과 DB 마이그레이션(202609230005)을 먼저 적용해 주세요.",
     };
   }
@@ -150,7 +153,7 @@ export async function loadAdPerformanceIndex(workspaceId: string): Promise<AdPer
   });
   const courseOrder = new Map(courses.map((course, index) => [course.id, index]));
   dashboards.sort((a, b) => (courseOrder.get(a.course?.id ?? "") ?? Infinity) - (courseOrder.get(b.course?.id ?? "") ?? Infinity));
-  return { courses, dashboards };
+  return { courses, dashboards, creativeSource };
 }
 
 export async function loadAdPerformanceDashboard(

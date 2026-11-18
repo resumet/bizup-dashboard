@@ -1,12 +1,11 @@
 "use client";
 import { useMemo, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, ArrowLeft, ChevronRight, Loader2, RefreshCw, Settings2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ArrowLeft, ChevronRight, Loader2, RefreshCw } from "lucide-react";
 import { BackLink } from "@/components/layout/back-link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { aggregateCreativeRows, creativeStatusTone, creativeUnitCost, summarizeCreativeRows, groupCreativeRows, nextCreativeSort, sortCreativeRows, type CreativeData, type CreativeRow, type CreativeMetric, type CreativeSort } from "@/lib/ad-creative/model";
 import { ToastNotice } from "@/components/ui/toast";
@@ -112,9 +111,6 @@ function Hierarchy({ rows, depth = 0 }: { rows: CreativeRow[]; depth?: number })
 
 export function CreativePerformance({ initialData, initialInstructor = "", initialWebinar = "" }: { initialData: CreativeData; initialInstructor?: string; initialWebinar?: string }) {
   const [data, setData] = useState(initialData);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [url, setUrl] = useState(initialData.url);
-  const [matchingKeywords, setMatchingKeywords] = useState(initialData.matchingKeywords);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(initialData.error ?? "");
   const [notice, setNotice] = useState("");
@@ -127,14 +123,14 @@ export function CreativePerformance({ initialData, initialInstructor = "", initi
     [row.instructor, row.webinar, row.campaign, row.group, row.ad].some(value => value.toLocaleLowerCase("ko-KR").includes(query.trim().toLocaleLowerCase("ko-KR")))), [data.rows, from, initialInstructor, initialWebinar, to, query]);
   const instructors = useMemo(() => groupCreativeRows(filtered, "instructor"), [filtered]);
 
-  async function sync(nextUrl: string) {
+  async function sync() {
     if (busy) return;
     setBusy(true); setError(""); setNotice("");
     try {
-      const response = await fetch("/api/ad-creative", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: nextUrl, matchingKeywords, expectedUpdatedAt: data.updatedAt }) });
+      const response = await fetch("/api/ad-creative", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: data.url, matchingKeywords: data.matchingKeywords, expectedUpdatedAt: data.updatedAt }) });
       const result = await response.json() as CreativeData & { message?: string };
       if (!response.ok) throw new Error(result.message || "데이터를 불러오지 못했습니다.");
-      setData(result); setUrl(result.url); setMatchingKeywords(result.matchingKeywords); setSettingsOpen(false);
+      setData(result);
       setNotice(`${result.rows.length.toLocaleString("ko-KR")}행을 불러왔습니다.`);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "데이터를 불러오지 못했습니다."); }
     finally { setBusy(false); }
@@ -145,11 +141,10 @@ export function CreativePerformance({ initialData, initialInstructor = "", initi
       <Button variant="ghost" size="icon-sm" asChild><BackLink href="/services/ad-performance"><ArrowLeft />뒤로가기</BackLink></Button>
       <h1 className="text-3xl font-semibold tracking-tight">소재성과 관리</h1>
       <div className="ml-auto flex gap-2">
-        <Button variant="outline" disabled={busy || !data.url} onClick={() => void sync(data.url)}>{busy ? <Loader2 className="animate-spin" /> : <RefreshCw />}데이터 갱신</Button>
-        <Button variant="outline" disabled={busy} onClick={() => { setUrl(data.url); setMatchingKeywords(data.matchingKeywords); setError(""); setSettingsOpen(true); }}><Settings2 />원본 데이터 설정</Button>
+        <Button variant="outline" disabled={busy || !data.url} onClick={() => void sync()}>{busy ? <Loader2 className="animate-spin" /> : <RefreshCw />}데이터 갱신</Button>
       </div>
     </div>
-    {error && !settingsOpen ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+    {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
     <ToastNotice message={notice} onDismiss={() => setNotice("")} />
     {data.url ? <>
       <div className="flex flex-wrap items-end gap-3">
@@ -178,22 +173,6 @@ export function CreativePerformance({ initialData, initialInstructor = "", initi
         </Branch>)}
         {!instructors.length ? <p className="rounded-xl border p-10 text-center text-muted-foreground">{data.rows.length ? "검색 조건에 맞는 데이터가 없습니다." : "시트에 성과 데이터가 없습니다."}</p> : null}
       </div>
-    </> : <div className="rounded-xl border p-10 text-center"><p className="mb-4 text-muted-foreground">google_raw와 meta_raw가 있는 Google 시트를 연결해 주세요.</p><Button onClick={() => { setMatchingKeywords(data.matchingKeywords); setSettingsOpen(true); }}>원본 데이터 설정</Button></div>}
-    <Dialog open={settingsOpen} onOpenChange={open => { if (!busy) setSettingsOpen(open); }}>
-      <DialogContent className="sm:max-w-xl" showCloseButton={!busy}>
-        <form className="space-y-5" onSubmit={event => { event.preventDefault(); void sync(url); }}>
-          <DialogHeader><DialogTitle>원본 데이터 설정</DialogTitle></DialogHeader>
-          <div className="space-y-2"><Label htmlFor="creative-source">Google Sheets 링크</Label><Input id="creative-source" type="url" required value={url} disabled={busy} onChange={event => setUrl(event.target.value)} placeholder="https://docs.google.com/spreadsheets/d/.../edit" aria-describedby="creative-source-help" />
-            <p id="creative-source-help" className="text-xs leading-5 text-muted-foreground">링크가 있는 모든 사용자에게 보기 권한을 허용해 주세요. google_raw와 meta_raw 시트의 첫 번째 데이터 행 위에 열 이름이 필요합니다. 강사명 열이 없으면 webinarName의 ‘강사명웨비나’ 형식 또는 등록된 강의명으로 강사를 분류합니다.</p>
-          </div>
-          <div className="space-y-2"><Label htmlFor="creative-matching-keywords">광고 매칭 키워드</Label><Input id="creative-matching-keywords" value={matchingKeywords} disabled={busy} maxLength={1000} onChange={event => setMatchingKeywords(event.target.value)} placeholder="lastone|라스트원" aria-describedby="creative-matching-keywords-help" />
-            <p id="creative-matching-keywords-help" className="text-xs leading-5 text-muted-foreground">`|`로 구분한 키워드 중 하나가 강사·캠페인·그룹·광고명·웨비나명에 포함된 행만 불러옵니다. 비워두면 모든 행을 불러옵니다.</p>
-          </div>
-          <details className="text-xs text-muted-foreground"><summary className="cursor-pointer">필수 열 확인</summary><p className="mt-2 leading-5">Google: 날짜, 캠페인, 광고그룹, 광고이름, 광고상태, 광고유형, 비용, 노출수, 클릭수, 전환, 웨비나네임<br />Meta: date, campaignName, adSetName, adName, status, adCost, impression, linkClick, leads, webinarName</p></details>
-          {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-          <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={() => setSettingsOpen(false)}>취소</Button><Button type="submit" disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : null}{busy ? "불러오는 중" : "저장하고 불러오기"}</Button></DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    </> : <div className="rounded-xl border p-10 text-center"><p className="text-muted-foreground">내부광고 성과기록 화면에서 Google Sheets 주소를 설정해 주세요.</p></div>}
   </main>;
 }

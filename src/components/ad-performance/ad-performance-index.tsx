@@ -3,14 +3,18 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { AlertTriangle, ArrowLeft, BarChart3, BookOpenCheck, ImageIcon, Loader2, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BarChart3, BookOpenCheck, ImageIcon, Loader2, MoreHorizontal, Plus, Save, Settings2, Trash2 } from "lucide-react";
 
 import { BackLink } from "@/components/layout/back-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ToastNotice } from "@/components/ui/toast";
 import { formatWebinarDate, getWebinarDayDifference } from "@/lib/course-operations/webinar-proximity";
 import type { AdPerformanceDashboardSummary, AdPerformanceIndexData } from "@/lib/ad-performance/types";
 
@@ -59,6 +63,42 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState("");
   const [error, setError] = useState(initialData.loadError ?? "");
+  const [creativeSource, setCreativeSource] = useState(initialData.creativeSource);
+  const [sourceSettingsOpen, setSourceSettingsOpen] = useState(false);
+  const [sourceUrl, setSourceUrl] = useState(initialData.creativeSource.url);
+  const [matchingKeywords, setMatchingKeywords] = useState(initialData.creativeSource.matchingKeywords);
+  const [sourceSaving, setSourceSaving] = useState(false);
+  const [sourceError, setSourceError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  function openSourceSettings() {
+    setSourceUrl(creativeSource.url);
+    setMatchingKeywords(creativeSource.matchingKeywords);
+    setSourceError("");
+    setSourceSettingsOpen(true);
+  }
+
+  async function saveCreativeSource() {
+    if (sourceSaving) return;
+    setSourceSaving(true);
+    setSourceError("");
+    try {
+      const response = await fetch("/api/ad-creative", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: sourceUrl, matchingKeywords, expectedUpdatedAt: creativeSource.updatedAt }),
+      });
+      const result = await response.json() as { url?: string; updatedAt?: string; matchingKeywords?: string; rows?: unknown[]; message?: string };
+      if (!response.ok || !result.url || !result.updatedAt || result.matchingKeywords === undefined) throw new Error(result.message || "원본 데이터를 저장하지 못했습니다.");
+      setCreativeSource({ url: result.url, updatedAt: result.updatedAt, matchingKeywords: result.matchingKeywords });
+      setSourceSettingsOpen(false);
+      setNotice(`${(result.rows?.length ?? 0).toLocaleString("ko-KR")}건의 소재성과 데이터를 불러왔습니다.`);
+    } catch (caught) {
+      setSourceError(caught instanceof Error ? caught.message : "원본 데이터를 저장하지 못했습니다.");
+    } finally {
+      setSourceSaving(false);
+    }
+  }
 
   async function createDashboard() {
     setCreating(true);
@@ -101,8 +141,10 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
         <h1 className="text-3xl font-semibold tracking-tight">내부광고 성과기록</h1>
       </div>
       {error ? <Alert variant="destructive" className="mt-6"><AlertTriangle /><AlertTitle>확인이 필요합니다</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
+      <ToastNotice message={notice} onDismiss={() => setNotice("")} />
 
       <div className="mt-6 flex flex-wrap justify-end gap-2">
+        <Button variant="outline" onClick={openSourceSettings}><Settings2 />원본 데이터 설정</Button>
         <Button variant="outline" asChild><Link href="/services/ad-performance/bulk">일괄 보기</Link></Button>
         <Button className="min-h-10" disabled={creating || Boolean(initialData.loadError)} onClick={() => void createDashboard()}>{creating ? <Loader2 className="animate-spin" /> : <Plus />}대시보드 만들기</Button>
       </div>
@@ -114,6 +156,25 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
           <Card><CardContent className="flex min-h-64 flex-col items-center justify-center text-center"><span className="mb-4 grid size-12 place-items-center rounded-full bg-primary/10 text-primary"><BookOpenCheck className="size-5" /></span><h3 className="font-semibold">아직 광고성과 대시보드가 없습니다</h3><p className="mt-2 max-w-md text-sm text-muted-foreground">대시보드를 만든 뒤 사전설정에서 강의와 광고 조건을 선택하세요.</p></CardContent></Card>
         )}
       </section>
+      <Dialog open={sourceSettingsOpen} onOpenChange={(open) => { if (!sourceSaving) setSourceSettingsOpen(open); }}>
+        <DialogContent className="sm:max-w-xl" showCloseButton={!sourceSaving}>
+          <form className="space-y-5" onSubmit={(event) => { event.preventDefault(); void saveCreativeSource(); }}>
+            <DialogHeader><DialogTitle>소재성과 원본 데이터 설정</DialogTitle></DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="creative-source">Google Sheets 주소</Label>
+              <Input id="creative-source" type="url" required value={sourceUrl} disabled={sourceSaving} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://docs.google.com/spreadsheets/d/.../edit" />
+              <p className="text-xs leading-5 text-muted-foreground">google_raw와 meta_raw 시트를 포함한 Google Sheets 주소를 입력하세요.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="creative-matching-keywords">광고 매칭 키워드</Label>
+              <Input id="creative-matching-keywords" value={matchingKeywords} disabled={sourceSaving} maxLength={1000} onChange={(event) => setMatchingKeywords(event.target.value)} placeholder="lastone|라스트원" />
+              <p className="text-xs leading-5 text-muted-foreground">`|`로 구분한 키워드 중 하나가 포함된 행만 불러옵니다. 비우면 모든 행을 불러옵니다.</p>
+            </div>
+            {sourceError ? <p role="alert" className="text-sm text-destructive">{sourceError}</p> : null}
+            <DialogFooter><Button type="button" variant="outline" disabled={sourceSaving} onClick={() => setSourceSettingsOpen(false)}>취소</Button><Button type="submit" disabled={sourceSaving}>{sourceSaving ? <Loader2 className="animate-spin" /> : <Save />}{sourceSaving ? "불러오는 중" : "저장하고 불러오기"}</Button></DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   </main>;
 }

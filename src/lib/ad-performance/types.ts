@@ -98,6 +98,11 @@ export type AdPerformanceDashboardSummary = {
 export type AdPerformanceIndexData = {
   dashboards: AdPerformanceDashboardSummary[];
   courses: AdPerformanceCourse[];
+  creativeSource: {
+    url: string;
+    updatedAt: string;
+    matchingKeywords: string;
+  };
   loadError?: string;
 };
 
