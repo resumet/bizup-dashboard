@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Copy,ExternalLink,Share2,Trash2,Upload } from "lucide-react";
+import { Copy, ExternalLink, RefreshCw, Share2, Trash2, Upload } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +24,7 @@ function UtmShareButton({ items, instructorName, disabled, notify }: { items: La
       <DialogHeader><DialogTitle>UTM 공유하기</DialogTitle></DialogHeader>
       {items.length ? <>
         <p aria-label="UTM 공유 내용" className="max-h-[50dvh] overflow-y-auto whitespace-pre-wrap rounded-md border bg-muted/40 p-3 break-all select-all">{content}</p>
-      </> : <p className="text-sm text-muted-foreground">공유할 UTM이 없습니다. 엑셀 업데이트로 항목을 추가해 주세요.</p>}
+      </> : <p className="text-sm text-muted-foreground">공유할 UTM이 없습니다.</p>}
       <DialogFooter><DialogClose asChild><Button type="button" variant="outline">닫기</Button></DialogClose><Button type="button" disabled={!items.length} onClick={() => void copy()}><Copy />복사하기</Button></DialogFooter>
     </DialogContent>
   </Dialog>;
@@ -48,7 +48,7 @@ function UtmUrlButton({ item, notify }: { item: LandingUtm; notify: Notify }) {
 export function CourseLandingUtms({ courseId, instructorName }: { courseId: string; instructorName: string }) {
   const [items, setItems] = useState<LandingUtm[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<"admin" | "excel" | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [toast, setToast] = useState<{ id: number; message: string; error: boolean } | null>(null);
   const toastId = useRef(0);
@@ -82,17 +82,20 @@ export function CourseLandingUtms({ courseId, instructorName }: { courseId: stri
     return () => controller.abort();
   }, [endpoint, retry, notify]);
 
-  async function upload(file: File) {
-    setSaving(true);
+  async function update(file?: File) {
+    setSaving(file ? "excel" : "admin");
     try {
-      const form = new FormData(); form.set("file", file);
-      const response = await fetch(endpoint, { method: "POST", body: form });
+      const form = file ? new FormData() : undefined;
+      if (file) form?.set("file", file);
+      const response = await fetch(endpoint, { method: file ? "POST" : "PUT", body: form });
       const result: UtmImportResult & { message?: string } = await response.json();
       if (!response.ok) throw new Error(result.message || "UTM을 저장하지 못했습니다.");
-      notify(`추가 ${result.added}건 · 업데이트 ${result.updated}건 · 변경 없음 ${result.unchanged}건을 반영했습니다.`);
+      notify(!file && !result.added && !result.updated && !result.unchanged
+        ? "비즈업 어드민에 등록된 트래킹 링크가 없습니다."
+        : `추가 ${result.added}건 · 업데이트 ${result.updated}건 · 변경 없음 ${result.unchanged}건을 반영했습니다.`);
       setRetry(value => value + 1);
     } catch (reason) { notify(reason instanceof Error ? reason.message : "UTM을 저장하지 못했습니다.", true); }
-    finally { setSaving(false); if (input.current) input.current.value = ""; }
+    finally { setSaving(null); if (input.current) input.current.value = ""; }
   }
 
   async function copy(item: LandingUtm) {
@@ -125,20 +128,21 @@ export function CourseLandingUtms({ courseId, instructorName }: { courseId: stri
     } finally { setDeleting(false); }
   }
 
-  const busy = loading || saving || deleting;
+  const busy = loading || saving !== null || deleting;
   return <><Card>
     <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
       <CardTitle>랜딩페이지 UTM</CardTitle>
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="outline" disabled={loading || saving || deleting} onClick={() => input.current?.click()}><Upload />{saving ? "업데이트 중…" : "엑셀 업데이트"}</Button>
-        <UtmShareButton notify={notify} items={items} instructorName={instructorName} disabled={loading || saving || deleting} />
+        <Button type="button" variant="outline" disabled={busy} onClick={() => void update()}><RefreshCw className={saving === "admin" ? "animate-spin" : undefined} />{saving === "admin" ? "가져오는 중…" : "업데이트"}</Button>
+        <Button type="button" variant="outline" disabled={busy} onClick={() => input.current?.click()}><Upload />{saving === "excel" ? "업데이트 중…" : "엑셀 업데이트"}</Button>
+        <UtmShareButton notify={notify} items={items} instructorName={instructorName} disabled={busy} />
         <Button type="button" variant="outline" disabled={busy || !selected.size} onClick={() => setDeleteItems(items.filter(item => selected.has(item.id)))}><Trash2 />일괄 삭제{selected.size ? ` (${selected.size})` : ""}</Button>
       </div>
     </CardHeader>
     <CardContent className="space-y-4">
-      <input ref={input} type="file" className="hidden" aria-label="UTM 엑셀 파일" accept=".xlsx" disabled={loading || saving || deleting} onChange={event => { const file = event.target.files?.[0]; if (file) void upload(file); }} />
+      <input ref={input} type="file" className="hidden" aria-label="UTM 엑셀 파일" accept=".xlsx" disabled={busy} onChange={event => { const file = event.target.files?.[0]; if (file) void update(file); }} />
       {loadFailed && <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => setRetry(value => value + 1)}>목록 다시 불러오기</Button>}
-      {loading ? <p role="status" className="py-4 text-sm text-muted-foreground">UTM을 불러오는 중…</p> : loadFailed ? null : !items.length ? <p className="py-4 text-sm text-muted-foreground">등록된 UTM이 없습니다. 엑셀 업데이트로 항목을 추가해 주세요.</p> : <Table>
+      {loading ? <p role="status" className="py-4 text-sm text-muted-foreground">UTM을 불러오는 중…</p> : loadFailed ? null : !items.length ? <p className="py-4 text-sm text-muted-foreground">등록된 UTM이 없습니다. 업데이트를 눌러 비즈업 어드민에서 가져오거나 엑셀 파일을 선택해 주세요.</p> : <Table>
         <TableHeader><TableRow><TableHead className="w-12"><Checkbox aria-label="UTM 전체 선택" disabled={busy} checked={selected.size === items.length ? true : selected.size ? "indeterminate" : false} onCheckedChange={checked => setSelected(checked ? new Set(items.map(item => item.id)) : new Set())} /></TableHead><TableHead>유입 채널</TableHead><TableHead>추천 코드</TableHead><TableHead>진행 매체</TableHead><TableHead>URL</TableHead><TableHead>단축 링크</TableHead><TableHead className="w-12"><span className="sr-only">삭제</span></TableHead></TableRow></TableHeader>
         <TableBody>{items.map(item => <TableRow key={item.id} data-state={selected.has(item.id) ? "selected" : undefined}>
           <TableCell><Checkbox aria-label={`${item.referral_code || item.channel} ${item.medium} UTM 선택`} disabled={busy} checked={selected.has(item.id)} onCheckedChange={checked => setSelected(current => { const next = new Set(current); if (checked) next.add(item.id); else next.delete(item.id); return next; })} /></TableCell>
@@ -150,7 +154,7 @@ export function CourseLandingUtms({ courseId, instructorName }: { courseId: stri
             <Button asChild size="icon-sm" variant="outline" className="shrink-0"><a href={item.short_url} target="_blank" rel="noopener noreferrer" title="단축링크 바로가기" aria-label={`${item.referral_code || item.channel} ${item.medium} 단축링크 바로가기`}><ExternalLink /></a></Button>
             <Button type="button" size="icon-sm" variant="outline" className="shrink-0" title="단축링크 복사하기" aria-label={`${item.referral_code || item.channel} ${item.medium} 단축링크 복사하기`} onClick={() => void copy(item)}><Copy /></Button>
           </div> : "—"}</TableCell>
-          <TableCell className="text-right"><Button type="button" size="icon-sm" variant="ghost" className="text-muted-foreground hover:text-destructive" disabled={saving || deleting} title="UTM 삭제" aria-label={`${item.referral_code || item.channel} ${item.medium} UTM 삭제`} onClick={() => setDeleteItems([item])}><Trash2 /></Button></TableCell>
+          <TableCell className="text-right"><Button type="button" size="icon-sm" variant="ghost" className="text-muted-foreground hover:text-destructive" disabled={busy} title="UTM 삭제" aria-label={`${item.referral_code || item.channel} ${item.medium} UTM 삭제`} onClick={() => setDeleteItems([item])}><Trash2 /></Button></TableCell>
         </TableRow>)}</TableBody>
       </Table>}
     </CardContent>

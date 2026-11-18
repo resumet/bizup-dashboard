@@ -2,7 +2,7 @@ import "server-only";
 import { readSheet } from "read-excel-file/node";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CourseOrderError } from "@/lib/course-orders/server";
-import { parseLandingUtms, type LandingUtm, type UtmImportResult } from "./model";
+import { parseLandingUtms, type LandingUtm, type LandingUtmInput, type UtmImportResult } from "./model";
 
 export async function readUtmUpload(form: FormData) {
   const file = form.get("file");
@@ -26,8 +26,14 @@ export async function loadLandingUtms(admin: ReturnType<typeof createAdminClient
   }
 }
 
-export async function importLandingUtms(admin: ReturnType<typeof createAdminClient>, courseId: string, actorId: string, form: FormData) {
-  const { rows, fileName } = await readUtmUpload(form);
+export async function loadLandingPageLink(admin: ReturnType<typeof createAdminClient>, courseId: string) {
+  const { data, error } = await admin.from("courses").select("landing_page_link").eq("id", courseId).single();
+  if (error) throw new CourseOrderError("무료 랜딩페이지 링크를 확인하지 못했습니다.", 500);
+  return data.landing_page_link?.trim() ?? "";
+}
+
+export async function importLandingUtms(admin: ReturnType<typeof createAdminClient>, courseId: string, actorId: string, rows: LandingUtmInput[], fileName: string) {
+  if (!rows.length) return { added: 0, updated: 0, unchanged: 0 };
   const { data, error } = await admin.rpc("import_course_landing_utms", { p_course_id: courseId, p_actor_id: actorId, p_rows: rows, p_file_name: fileName });
   if (error) throw new CourseOrderError("UTM을 저장하지 못했습니다. 새로고침 후 다시 시도해 주세요.", 500);
   return data as UtmImportResult;
