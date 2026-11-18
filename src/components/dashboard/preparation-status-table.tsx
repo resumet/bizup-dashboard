@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { CheckCircle2, Circle } from "lucide-react";
+import { CheckCircle2, ChevronDown, Circle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PREPARATION_STATUS_COLUMNS, type DashboardPreparationStatus } from "@/lib/dashboard/preparation-status";
 
@@ -12,7 +13,17 @@ export function PreparationStatusTable({ rows }: { rows: DashboardPreparationSta
       <TableHead>강사</TableHead><TableHead>강의</TableHead>{PREPARATION_STATUS_COLUMNS.map((column) => <TableHead key={column.key} className="text-center">{column.label}</TableHead>)}
     </TableRow></TableHeader><TableBody>{rows.map((row) => <TableRow key={row.courseId}>
       <TableCell className="font-medium">{row.instructorName}</TableCell>
-      <TableCell><Link href={`/services/course-wbs?courseId=${encodeURIComponent(row.courseId)}`} className="hover:underline">{row.courseName}</Link></TableCell>
+      <TableCell>
+        <DropdownMenu>
+          <DropdownMenuTrigger type="button" className="inline-flex cursor-pointer items-center gap-1 rounded-sm text-left hover:underline focus-visible:outline-2 focus-visible:outline-ring">
+            {row.courseName}<ChevronDown aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-36">
+            <DropdownMenuItem asChild><Link href={`/services/course-wbs?courseId=${encodeURIComponent(row.courseId)}`}>강의별 할일</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link href={`/services/course-operations/${encodeURIComponent(row.courseId)}`}>강의 상세</Link></DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
       {PREPARATION_STATUS_COLUMNS.map((column) => {
         const completed = row.completion[column.key];
         return <TableCell key={column.key} className="text-center"><Badge variant="outline" className={completed ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" : "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"}>{completed ? <CheckCircle2 aria-hidden="true" /> : <Circle aria-hidden="true" />}{completed ? "완료" : "미완료"}</Badge></TableCell>;
