@@ -9,15 +9,19 @@ const mediaLabels = new Map(Object.entries({
   UwXIWr: "카카오모먼트", QxUfOJ: "페이드",
 }));
 
-function referralLinks(text: string): unknown[] {
+function trackingPayload(text: string): string {
   // The admin serves Flight records either directly or in streamed HTML scripts.
   if (text.trimStart().startsWith("<")) {
     const chunks = text.matchAll(/self\.__next_f\.push\(\s*\[\s*1\s*,\s*("(?:[^"\\]|\\.)*")\s*\]\s*\)/g);
-    text = Array.from(chunks, chunk => JSON.parse(chunk[1]) as string).join("");
+    return Array.from(chunks, chunk => JSON.parse(chunk[1]) as string).join("");
   }
+  return text;
+}
+
+function trackingArray(text: string, name: "referralLinks" | "influencerUsers" | "paidPlatforms"): unknown[] {
   // Flight text records can share a line with the surrounding component record.
   // Parse just the array; quoted strings may contain brackets or escaped quotes.
-  const field = /"referralLinks"\s*:\s*(?=\[)/.exec(text);
+  const field = new RegExp('"' + name + '"\\s*:\\s*(?=\\[)').exec(text);
   if (field) {
     const start = field.index + field[0].length;
     let depth = 0, quoted = false;
@@ -36,10 +40,36 @@ function referralLinks(text: string): unknown[] {
   throw new Error("비즈업 어드민에서 트래킹 링크 목록을 읽지 못했습니다. 다시 시도해 주세요.");
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object";
+}
+
+function referralNames(payload: string, channel: "influencer" | "paid") {
+  const names = new Map<string, string>();
+  if (channel === "influencer") {
+    for (const user of trackingArray(payload, "influencerUsers")) {
+      if (!isRecord(user) || typeof user.username !== "string" || !Array.isArray(user.ErpUserReferralLink)) continue;
+      for (const referral of user.ErpUserReferralLink) {
+        if (isRecord(referral) && typeof referral.code === "string") names.set(referral.code, user.username);
+      }
+    }
+  } else {
+    for (const platform of trackingArray(payload, "paidPlatforms")) {
+      if (isRecord(platform) && typeof platform.code === "string" && typeof platform.name === "string") {
+        names.set(platform.code, platform.name);
+      }
+    }
+  }
+  return names;
+}
+
 export async function fetchTrackingUtms(landingPageLink: string, request: typeof fetch = fetch) {
   const { courseId, text } = await fetchAdminCoursePage(landingPageLink, "tracking", request);
-  const links = referralLinks(text);
+  const payload = trackingPayload(text);
+  const links = trackingArray(payload, "referralLinks");
   if (!links.length) return [];
+  let influencers: Map<string, string> | undefined;
+  let paidPlatforms: Map<string, string> | undefined;
   const rows = links.map(link => {
     if (!link || typeof link !== "object" || !("freeCourseId" in link)
       || typeof link.freeCourseId !== "string" || link.freeCourseId.toLowerCase() !== courseId.toLowerCase()) {
@@ -53,7 +83,15 @@ export async function fetchTrackingUtms(landingPageLink: string, request: typeof
     const channel = params.get("channel"), medium = params.get("media");
     if (!channel || !medium) throw new Error("비즈업 트래킹 URL에 유입 채널 또는 진행 매체가 없습니다.");
     const channelLabel = channel === "influencer" ? "제휴" : channel === "organic" ? "오가닉" : "페이드";
-    const referral = channel === "organic" ? "비즈업클래스" : channel === "influencer" ? params.get("code") || channel : channel;
+    let referral = "비즈업클래스";
+    if (channel === "influencer") {
+      influencers ??= referralNames(payload, "influencer");
+      const code = params.get("code") || channel;
+      referral = influencers.get(code) || code;
+    } else if (channel !== "organic") {
+      paidPlatforms ??= referralNames(payload, "paid");
+      referral = paidPlatforms.get(channel) || channel;
+    }
     return [channelLabel, referral, mediaLabels.get(medium) ?? medium, link.urlLink, link.shortUrl];
   });
   return parseLandingUtms([[...UTM_HEADERS], ...rows]);

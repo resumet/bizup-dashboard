@@ -1,19 +1,12 @@
-const { fetchAdminCoursePage } = require("../src/lib/bizup-admin/course-page.ts");
-const link = "https://www.bizupclass.com/free-courses/fa51c466-5177-430b-b1b8-9aa391341fa2";
-(async () => {
-  const { text } = await fetchAdminCoursePage(link, "tracking");
-  const flight = Array.from(text.matchAll(/self\.__next_f\.push\(\s*\[\s*1\s*,\s*("(?:[^"\\]|\\.)*")\s*\]\s*\)/g), m => JSON.parse(m[1])).join("");
-  console.log("Tracking array names:", [...new Set(Array.from(flight.matchAll(/"([a-zA-Z_]\w*)"\s*:\s*\[/g), m=>m[1]))].join(","));
-  for (const sample of ["늦지않았다","6n3y5y","grossimpact","그로스임팩트","강사인스타그램"]) {
-    const indexes = Array.from(flight.matchAll(new RegExp('"'+sample+'"',"g")), m=>m.index);
-    const fields = indexes.slice(0,5).map(i=>{
-      const before = flight.slice(Math.max(0,i-10000),i);
-      const parentArray = Array.from(before.matchAll(/"([a-zA-Z_]\w*)":\[/g)).at(-1)?.[1];
-      const field = before.match(/"([a-zA-Z_]\w*)":$/)?.[1];
-      const record=before.slice(before.lastIndexOf("{"))+flight.slice(i,i+300).split("}")[0];
-      const keys=Array.from(record.matchAll(/"([a-zA-Z_]\w*)":/g),m=>m[1]);
-      return [parentArray,field,keys.join(",")].join("/");
-    });
-    console.log("Tracking shape",sample,indexes.length,[...new Set(fields)].join(" | "));
-  }
-})().catch(e=>{console.error(e.message);process.exitCode=1});
+const { createHash } = require("node:crypto");
+const { fetchTrackingUtms } = require("../src/lib/course-landing-utms/tracking.ts");
+
+fetchTrackingUtms("https://www.bizupclass.com/free-courses/fa51c466-5177-430b-b1b8-9aa391341fa2")
+  .then(rows => {
+    const sorted = rows.sort((a, b) => a.url.localeCompare(b.url, "en"));
+    const hash = createHash("sha256").update(JSON.stringify(sorted)).digest("hex");
+    if (hash !== "fbec8027c60a798fa8f1a367ca54963ff0ce1820f8f89dcd8a600fdadbc7e54d") {
+      throw new Error("Imported rows differ from the supplied export");
+    }
+    console.log("Tracking export verification: all %d rows match the XLSX", rows.length);
+  }).catch(error => { console.error(error.message); process.exitCode = 1; });
