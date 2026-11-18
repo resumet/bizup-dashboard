@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { summarizeCourseTrafficRates, summarizeCreativeMedia } from "./media-summary";
+import { summarizeCourseMedia, summarizeCreativeMedia } from "./media-summary";
 import type { CreativeRow } from "./model";
 
 const row: CreativeRow = {
@@ -31,7 +31,10 @@ test("목록은 강사 닉네임에 맞는 두 매체의 합계 지표만 반환
     { ...row, platform: "google", webinar: "김선아 웨비나", cost: 900, impressions: 160, clicks: 8, conversions: 3.5 },
     { ...row, webinar: "다른강사웨비나", cost: 6000 },
   ];
-  assert.deepEqual(summarizeCourseTrafficRates(rows, "김선아"), { cpm: 5000, ctr: 0.05, cpc: 100, conversionRate: 0.4 });
-  assert.equal(summarizeCourseTrafficRates(rows, "미등록"), null);
-  assert.equal(summarizeCourseTrafficRates(rows, ""), null);
+  assert.deepEqual(summarizeCourseMedia(rows, "김선아"), {
+    label: "합계", creatives: 2, cost: 1000, impressions: 200, clicks: 10, leads: 4,
+    cpl: 250, cpm: 5000, ctr: 0.05, cpc: 100, conversionRate: 0.4,
+  });
+  assert.equal(summarizeCourseMedia(rows, "미등록"), null);
+  assert.equal(summarizeCourseMedia(rows, ""), null);
 });

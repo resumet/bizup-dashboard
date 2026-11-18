@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ToastNotice } from "@/components/ui/toast";
 import { formatWebinarDate, getWebinarDayDifference } from "@/lib/course-operations/webinar-proximity";
 import type { AdPerformanceDashboardSummary, AdPerformanceIndexData } from "@/lib/ad-performance/types";
-import { trafficRateColumns } from "./creative-columns";
+import { courseMediaColumns } from "./creative-columns";
 import { toKoreaDate } from "@/lib/course-operations/schedule";
 
 const number = new Intl.NumberFormat("ko-KR");
@@ -38,6 +38,7 @@ function DashboardRow({ dashboard, busy, onDelete }: {
 }) {
   const courseName = dashboard.course?.name ?? "강의 미설정";
   const webinarAt = dashboard.course?.freeWebinarAt;
+  const media = { ...dashboard.mediaTotals, landing: dashboard.mediaLandingLeads };
   const landingLeadCost = dashboard.paidLandingLeads > 0 ? dashboard.spend / dashboard.paidLandingLeads : null;
   return <TableRow>
     <TableCell className="min-w-52 max-w-80 whitespace-normal">
@@ -46,13 +47,18 @@ function DashboardRow({ dashboard, busy, onDelete }: {
         {[dashboard.course?.instructorName || "강사 미정", webinarAt ? formatWebinarDate(webinarAt) : "웨비나 미정", formatDday(webinarAt)].filter(Boolean).join(" · ")}
       </div>
     </TableCell>
-    <TableCell className="tabular-nums">{dashboard.startDate}</TableCell>
+    <TableCell className="tabular-nums">
+      {dashboard.startDate}
+      <div className="mt-1 text-xs text-muted-foreground">기록 {number.format(dashboard.metricCount)}일</div>
+    </TableCell>
     <TableCell className="tabular-nums">{won.format(dashboard.spend)}</TableCell>
-    <TableCell className="tabular-nums">{number.format(dashboard.metricCount)}일</TableCell>
     <TableCell className="tabular-nums">{number.format(dashboard.paidLandingLeads + dashboard.organicLandingLeads)}건</TableCell>
     <TableCell className="tabular-nums">{dashboard.chatRoomMembers === null ? "-" : `${number.format(dashboard.chatRoomMembers)}명`}</TableCell>
     <TableCell className="tabular-nums">{landingLeadCost === null ? "-" : won.format(Math.round(landingLeadCost))}</TableCell>
-    {trafficRateColumns.map(([key, , format]) => <TableCell key={key} className="text-right tabular-nums">{dashboard.trafficRates ? format.format(dashboard.trafficRates[key]) : "—"}</TableCell>)}
+    {courseMediaColumns.map(([key, , format]) => {
+      const value = media[key];
+      return <TableCell key={key} className="text-right tabular-nums">{value === undefined ? "—" : format.format(value)}</TableCell>;
+    })}
     <TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon-sm" variant="ghost" disabled={busy} aria-label={`${courseName} 메뉴`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem variant="destructive" disabled={busy} onSelect={onDelete}><Trash2 />삭제</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
   </TableRow>;
 }
@@ -171,8 +177,8 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
 
       <section className="mt-8">
         {dashboards.length ? <div className="rounded-xl border"><Table><TableHeader><TableRow>
-          {['강의명', '광고 시작 날짜', '누적 집행비', '기록 일수', 'DB 총합', '단톡방 총합', '랜딩접수DB 단가'].map((label) => <TableHead key={label}>{label}</TableHead>)}
-          {trafficRateColumns.map(([key, label]) => <TableHead key={key} className="text-right">{label}</TableHead>)}
+          {['강의명', '광고 시작 날짜', '누적 집행비', 'DB 총합', '단톡방 총합', '랜딩접수DB 단가'].map((label) => <TableHead key={label}>{label}</TableHead>)}
+          {courseMediaColumns.map(([key, label]) => <TableHead key={key} className="text-right">{label}</TableHead>)}
           <TableHead><span className="sr-only">관리</span></TableHead>
         </TableRow></TableHeader><TableBody>{dashboards.map((dashboard) => <DashboardRow key={dashboard.id} dashboard={dashboard} busy={deletingId === dashboard.id} onDelete={() => void deleteDashboard(dashboard)} />)}</TableBody></Table></div> : (
           <Card><CardContent className="flex min-h-64 flex-col items-center justify-center text-center"><span className="mb-4 grid size-12 place-items-center rounded-full bg-primary/10 text-primary"><BookOpenCheck className="size-5" /></span><h3 className="font-semibold">아직 광고성과 대시보드가 없습니다</h3><p className="mt-2 max-w-md text-sm text-muted-foreground">대시보드를 만든 뒤 사전설정에서 강의와 광고 조건을 선택하세요.</p></CardContent></Card>

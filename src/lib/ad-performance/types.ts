@@ -1,4 +1,4 @@
-import type { summarizeCourseTrafficRates } from "@/lib/ad-creative/media-summary";
+import type { summarizeCourseMedia } from "@/lib/ad-creative/media-summary";
 
 export type AdPerformanceDailyMetric = {
   metricDate: string;
@@ -83,7 +83,8 @@ export type AdPerformanceCourse = {
 };
 
 export type AdPerformanceDashboardSummary = {
-  trafficRates: ReturnType<typeof summarizeCourseTrafficRates>;
+  mediaTotals: ReturnType<typeof summarizeCourseMedia>;
+  mediaLandingLeads: number;
   id: string;
   course: AdPerformanceCourse | null;
   startDate: string;

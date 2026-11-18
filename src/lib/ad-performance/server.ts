@@ -3,7 +3,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadCreativeData } from "@/lib/ad-creative/server";
-import { summarizeCourseTrafficRates } from "@/lib/ad-creative/media-summary";
+import { summarizeCourseMedia } from "@/lib/ad-creative/media-summary";
 import { loadAdPerformanceSheetState } from "./sheet-server";
 import { currentSeoulDate } from "./sheet-workspace";
 import type {
@@ -59,12 +59,6 @@ type DashboardRow = {
   paid_landing_leads?: number | string;
   organic_landing_leads?: number | string;
   admin_cumulative_leads?: number | string;
-};
-
-type ChatRoomMetricRow = {
-  dashboard_id: string;
-  metric_date: string;
-  chat_room_members: number | string | null;
 };
 
 const metricColumns = "dashboard_id,metric_date,google_impressions,meta_impressions,google_clicks,meta_clicks,google_ad_leads,meta_ad_leads,google_spend,meta_spend,google_landing_leads,meta_landing_leads,admin_cumulative_leads,chat_room_members";
@@ -126,13 +120,24 @@ export async function loadAdPerformanceIndex(workspaceId: string): Promise<AdPer
 
   const rows = (dashboardsResult.data ?? []) as DashboardRow[];
   const dashboardIds = rows.map((row) => row.id);
-  const chatRoomMetricsResult = dashboardIds.length
-    ? await admin.from("ad_performance_dashboard_metrics").select("dashboard_id,metric_date,chat_room_members").in("dashboard_id", dashboardIds).order("metric_date", { ascending: true })
-    : { data: [], error: null };
-  if (chatRoomMetricsResult.error) throw new Error(`단톡방 인원 조회 실패: ${chatRoomMetricsResult.error.code}`);
   const chatRoomMembersByDashboard = new Map<string, number>();
-  for (const metric of (chatRoomMetricsResult.data ?? []) as ChatRoomMetricRow[]) {
-    if (metric.chat_room_members !== null) chatRoomMembersByDashboard.set(metric.dashboard_id, Number(metric.chat_room_members));
+  const landingByDashboard = new Map<string, number>();
+  const exclusiveEndDate = currentSeoulDate();
+  const pageSize = 500;
+  for (let offset = 0; dashboardIds.length > 0; offset += pageSize) {
+    const { data, error } = await admin.from("ad_performance_dashboard_metrics")
+      .select("dashboard_id,metric_date,chat_room_members,google_landing_leads,meta_landing_leads")
+      .in("dashboard_id", dashboardIds).order("metric_date").order("dashboard_id").range(offset, offset + pageSize - 1);
+    if (error) throw new Error(`광고성과 일별 기록 조회 실패: ${error.code}`);
+    for (const metric of data) {
+      const id = metric.dashboard_id;
+      if (metric.chat_room_members !== null) chatRoomMembersByDashboard.set(id, Number(metric.chat_room_members));
+      if (metric.metric_date < exclusiveEndDate) {
+        const leads = Number(metric.google_landing_leads) + Number(metric.meta_landing_leads);
+        landingByDashboard.set(id, (landingByDashboard.get(id) ?? 0) + leads);
+      }
+    }
+    if (data.length < pageSize) break;
   }
   const courseRows = sortByNearestWebinar(coursesResult.data ?? []);
   const courses = courseRows.map(toCourse);
@@ -142,7 +147,8 @@ export async function loadAdPerformanceIndex(workspaceId: string): Promise<AdPer
     return {
       id: row.id,
       course: course ? toCourse(course) : null,
-      trafficRates: creative.url && course?.instructor_nickname ? summarizeCourseTrafficRates(creative.rows, course.instructor_nickname) : null,
+      mediaTotals: creative.url && course?.instructor_nickname ? summarizeCourseMedia(creative.rows, course.instructor_nickname) : null,
+      mediaLandingLeads: landingByDashboard.get(row.id) ?? 0,
       startDate: row.start_date,
       totalBudget: Number(row.total_budget),
       metricCount: Number(row.metric_count ?? 0),

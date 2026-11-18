@@ -41,9 +41,8 @@ export function summarizeCreativeMedia(rows: CreativeRow[]) {
   })];
 }
 
-export function summarizeCourseTrafficRates(rows: CreativeRow[], nickname: string) {
+export function summarizeCourseMedia(rows: CreativeRow[], nickname: string) {
   const matched = filterCreativeRowsByNickname(rows, nickname);
   if (!matched.length) return null;
-  const [, , { cpm, ctr, cpc, conversionRate }] = summarizeCreativeMedia(matched);
-  return { cpm, ctr, cpc, conversionRate };
+  return summarizeCreativeMedia(matched)[2];
 }
