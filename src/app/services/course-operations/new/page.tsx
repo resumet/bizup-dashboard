@@ -89,7 +89,7 @@ export default async function NewCourseOperationsPage({ searchParams }: Props) {
       .order("updated_at", { ascending: false }),
     supabase
       .from("youtube_analyzed_channels")
-      .select("channel,position")
+      .select("channel,alias,position")
       .order("position", { ascending: false })
       .limit(500),
   ]);

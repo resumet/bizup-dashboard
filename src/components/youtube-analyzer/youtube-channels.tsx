@@ -360,7 +360,7 @@ export function YoutubeChannels({ maxUrls = 50 }: { maxUrls?: number }) {
     } finally { setDeleting(false); }
   }
 
-  function updateDetails(channelId: string, details: Pick<Analysis,"email"|"category"|"appearance_fee"|"rs_percent"|"memo"|"excluded_from_updates">) {
+  function updateDetails(channelId: string, details: Pick<Analysis,"alias"|"email"|"category"|"appearance_fee"|"rs_percent"|"memo"|"excluded_from_updates">) {
     setRuns(previous=>previous.map(run=>run.channel_id===channelId ? {...run,...details} : run));
     setDetail(previous=>previous?.channel_id===channelId ? {...previous,...details} : previous);
   }

@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CHANNEL_CATEGORIES, type Analysis } from "@/lib/youtube-analyzer/model";
 
-type ChannelDetails = Pick<Analysis, "email" | "category" | "appearance_fee" | "rs_percent" | "memo" | "excluded_from_updates">;
+type ChannelDetails = Pick<Analysis, "alias" | "email" | "category" | "appearance_fee" | "rs_percent" | "memo" | "excluded_from_updates">;
 
 function groupedDigits(value: string) {
   return value.replace(/\D/gu, "").replace(/\B(?=(\d{3})+(?!\d))/gu, ",");
@@ -24,6 +24,7 @@ export function ChannelDetailsEditor({ run, onSaved }: {
   const id = useId();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
+  const [alias, setAlias] = useState("");
   const [category, setCategory] = useState("");
   const [fee, setFee] = useState("");
   const [rsPercent, setRsPercent] = useState("");
@@ -37,6 +38,7 @@ export function ChannelDetailsEditor({ run, onSaved }: {
     setOpen(next);
     if (next) {
       setEmail(run.email ?? "");
+      setAlias(run.alias ?? "");
       setCategory(run.category ?? "");
       setFee(run.appearance_fee == null ? "" : groupedDigits(String(run.appearance_fee)));
       setRsPercent(run.rs_percent == null ? "" : String(run.rs_percent));
@@ -83,11 +85,12 @@ export function ChannelDetailsEditor({ run, onSaved }: {
       const response = await fetch("/api/youtube-channels", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelId: run.channel_id, category: category || null, appearanceFee, rsPercent: revenueShare, memo, excludedFromUpdates, ...(emailChanged ? { email: email.trim() } : {}) }),
+        body: JSON.stringify({ channelId: run.channel_id, alias, category: category || null, appearanceFee, rsPercent: revenueShare, memo, excludedFromUpdates, ...(emailChanged ? { email: email.trim() } : {}) }),
       });
       const result = await response.json() as ChannelDetails & { error?: string };
       if (!response.ok) throw new Error(result.error ?? "채널 정보를 저장하지 못했습니다.");
       onSaved(run.channel_id, {
+        alias: result.alias,
         email: emailChanged ? result.email : run.email,
         category: result.category,
         appearance_fee: result.appearance_fee,
@@ -111,6 +114,10 @@ export function ChannelDetailsEditor({ run, onSaved }: {
         <DialogDescription>채널 정보와 이후 업데이트 포함 여부를 저장합니다.</DialogDescription>
       </DialogHeader>
       <form onSubmit={(event) => void save(event)} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor={`${id}-alias`}>별명</Label>
+          <Input id={`${id}-alias`} maxLength={100} value={alias} onChange={(event) => setAlias(event.target.value)} placeholder="강의 출연 채널 검색·표시에 사용할 이름" disabled={saving} />
+        </div>
         <div className="space-y-2">
           <Label htmlFor={`${id}-email`}>이메일 주소</Label>
           <Input id={`${id}-email`} type="email" autoComplete="email" maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@example.com" disabled={saving} />

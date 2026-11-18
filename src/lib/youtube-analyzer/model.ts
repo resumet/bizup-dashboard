@@ -102,7 +102,7 @@ export const CHANNEL_CATEGORIES = [
   "하이클래스",
 ] as const;
 export type ChannelCategory = (typeof CHANNEL_CATEGORIES)[number];
-export type Analysis = { position: number; channel_id: string; channel: Channel; email: string | null; appearance_request_email_sent: boolean; category: ChannelCategory | null; appearance_fee: number | null; rs_percent: number | null; memo: string | null; excluded_from_updates: boolean; metrics: Metrics; recent_videos?: Video[]; warnings: string[]; first_analyzed_at: string; last_analyzed_at: string };
+export type Analysis = { position: number; channel_id: string; channel: Channel; alias?: string | null; email: string | null; appearance_request_email_sent: boolean; category: ChannelCategory | null; appearance_fee: number | null; rs_percent: number | null; memo: string | null; excluded_from_updates: boolean; metrics: Metrics; recent_videos?: Video[]; warnings: string[]; first_analyzed_at: string; last_analyzed_at: string };
 export function normalizeChannelCategory(value: unknown): ChannelCategory | null {
   if (value === null || value === "") return null;
   if (typeof value !== "string" || !CHANNEL_CATEGORIES.includes(value as ChannelCategory)) throw new Error("INVALID_CATEGORY");
@@ -136,6 +136,11 @@ export function normalizeChannelMemo(value: unknown): string | null {
   if (value === null) return null;
   if (typeof value !== "string" || value.length > 2000) throw new Error("INVALID_MEMO");
   return value.trim() ? value : null;
+}
+export function normalizeChannelAlias(value: unknown): string | null {
+  if (value === null || value === "") return null;
+  if (typeof value !== "string" || value.trim().length > 100) throw new Error("INVALID_ALIAS");
+  return value.trim() || null;
 }
 export function normalizeYoutubeEmailBody(value: unknown): string | null {
   if (value === null) return null;

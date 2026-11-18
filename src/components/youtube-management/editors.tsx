@@ -48,7 +48,7 @@ function UrlDialog({value,onChange,title,disabled,notify,icon=false}:{value:stri
   </Dialog>;
 }
 
-export function AppearanceEditor({initial,publicMode=false,suggestions=[],landingUtms=[],addRequest=0,onSave,onDelete,onSaved,onDeleted}:{initial:Appearance[];publicMode?:boolean;suggestions?:Array<{channelName:string;channelUrl:string}>;landingUtms?:LandingUtm[];addRequest?:number;onSave:(row:Appearance)=>Promise<Appearance>;onDelete?:(row:Appearance)=>Promise<void>;onSaved?:(row:Appearance)=>void;onDeleted?:(id:string)=>void}){
+export function AppearanceEditor({initial,publicMode=false,suggestions=[],landingUtms=[],addRequest=0,onSave,onDelete,onSaved,onDeleted}:{initial:Appearance[];publicMode?:boolean;suggestions?:Array<{channelName:string;channelUrl:string;alias?:string|null}>;landingUtms?:LandingUtm[];addRequest?:number;onSave:(row:Appearance)=>Promise<Appearance>;onDelete?:(row:Appearance)=>Promise<void>;onSaved?:(row:Appearance)=>void;onDeleted?:(id:string)=>void}){
   const [rows,setRows]=useState(initial);
   const [savedRows,setSavedRows]=useState(initial);
   const [busy,setBusy]=useState(false);
@@ -87,7 +87,10 @@ export function AppearanceEditor({initial,publicMode=false,suggestions=[],landin
   const hasChanges=rows.some((row,index)=>JSON.stringify(row)!==JSON.stringify(savedRows[index]));
   const selectClass="h-9 w-full rounded-md border bg-background px-2 text-sm disabled:cursor-not-allowed disabled:opacity-50";
   return <div className="min-w-0 space-y-3">
-    <datalist id="appearance-channel-suggestions">{suggestions.map((item,index)=><option key={index} value={item.channelName}>{item.channelUrl}</option>)}</datalist>
+    <datalist id="appearance-channel-suggestions">{suggestions.flatMap((item,index)=>[
+      <option key={`${index}-name`} value={item.channelName}>{item.channelUrl}</option>,
+      ...(item.alias ? [<option key={`${index}-alias`} value={item.alias}>{item.channelName}</option>] : []),
+    ])}</datalist>
     <div className="flex justify-end"><Button type="button" disabled={busy||!hasChanges} onClick={()=>void saveAll()}>{busy?<Hourglass className="animate-spin"/>:<Save />}{busy?"저장 중":"저장"}</Button></div>
     <div className="overflow-hidden rounded-lg border">
       <Table className={publicMode?"min-w-[1040px]":"min-w-[1300px]"}>
@@ -99,7 +102,7 @@ export function AppearanceEditor({initial,publicMode=false,suggestions=[],landin
             return <TableRow key={row.id||`new-${index}`} className={row.request_status === "declined" ? "bg-muted text-muted-foreground hover:bg-muted [&_input]:text-muted-foreground [&_select]:text-muted-foreground" : undefined}>
               <TableCell className="min-w-44 max-w-60">
                 {publicMode ? <span className="block max-w-52 truncate font-medium" title={row.channel_name}>{row.channel_name}</span> : <div className="flex items-center gap-1">
-                  <Input form={formId} className="h-9 min-w-0" aria-label={`${index+1}번 채널명`} list="appearance-channel-suggestions" value={row.channel_name} required maxLength={200} disabled={busy} onChange={event=>{const name=event.target.value;const match=suggestions.find(item=>item.channelName===name);update(index,{channel_name:name,landing_utm:channelLandingUtm(name,landingUtms),...(match?{channel_url:match.channelUrl}:{})});}} />
+                  <Input form={formId} className="h-9 min-w-0" aria-label={`${index+1}번 채널명`} list="appearance-channel-suggestions" value={row.channel_name} required maxLength={200} disabled={busy} onChange={event=>{const name=event.target.value;const match=suggestions.find(item=>item.channelName===name||item.alias===name);const channelName=match?.channelName??name;update(index,{channel_name:channelName,landing_utm:channelLandingUtm(channelName,landingUtms),...(match?{channel_url:match.channelUrl}:{})});}} />
                   <UrlDialog title="채널 주소" icon value={row.channel_url} disabled={busy} onChange={value=>update(index,{channel_url:value})} notify={setMessage} />
                 </div>}
               </TableCell>

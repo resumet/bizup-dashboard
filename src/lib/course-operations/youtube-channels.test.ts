@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildYoutubeChannelSuggestions,
   decodeReadableUrl,
+  displayYoutubeChannelName,
   findYoutubeChannelUrlByName,
 } from "./youtube-channels";
 
@@ -38,6 +39,7 @@ test("유튜브 채널관리 목록의 채널 후보 순서를 유지하면서 �
     {
       channelName: "두시간부업만",
       channelUrl: "https://www.youtube.com/@두시간부업만",
+      alias: null,
     },
   ]);
 
@@ -46,4 +48,10 @@ test("유튜브 채널관리 목록의 채널 후보 순서를 유지하면서 �
     "https://www.youtube.com/@두시간부업만",
   );
   assert.equal(findYoutubeChannelUrlByName(suggestions, "없는 채널"), "");
+});
+
+test("채널 별명으로 검색하고 표시할 수 있다", () => {
+  const suggestions = buildYoutubeChannelSuggestions([{ channel: { name: "두시간 부업만 일로와", url: "https://youtube.test/dubu" }, alias: "두부" }]);
+  assert.equal(findYoutubeChannelUrlByName(suggestions, "두부"), "https://youtube.test/dubu");
+  assert.equal(displayYoutubeChannelName(suggestions, "두시간 부업만 일로와"), "두부");
 });

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { YoutubeCourseList } from "@/components/youtube-management/course-list";
 import { requireCourseDocumentMember } from "@/lib/course-documents/server";
+import { buildYoutubeChannelSuggestions, displayYoutubeChannelName } from "@/lib/course-operations/youtube-channels";
 import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 import { countYoutubeAppearances } from "@/lib/youtube-management/course-list";
 import { getYoutubeFilmingAlert } from "@/lib/youtube-management/filming-alert";
@@ -12,15 +13,17 @@ export default async function YoutubeManagementPage() {
     if (error instanceof Error && error.message === "UNAUTHORIZED") redirect("/login");
     throw error;
   });
-  const [{ data, error }, filmingAlertSettings] = await Promise.all([
+  const [{ data, error }, filmingAlertSettings, channelsResult] = await Promise.all([
     admin
       .from("courses")
       .select("id,name,instructor_name,cohort,status,free_webinar_at,course_youtube_appearances(channel_name,request_status,filming_confirmed,filming_date,upload_date),course_youtube_settings(appearance_not_required)")
       .eq("workspace_id", membership.workspace_id)
       .order("created_at", { ascending: false }),
     loadYoutubeFilmingAlertSettings(membership.workspace_id, admin),
+    admin.from("youtube_analyzed_channels").select("channel,alias").eq("workspace_id", membership.workspace_id),
   ]);
-  if (error) throw new Error(`강의 목록을 불러오지 못했습니다: ${error.code}`);
+  if (error || channelsResult.error) throw new Error(`강의 목록을 불러오지 못했습니다: ${error?.code ?? channelsResult.error?.code}`);
+  const channelSuggestions = buildYoutubeChannelSuggestions(channelsResult.data ?? []);
 
   return (
     <YoutubeCourseList
@@ -34,7 +37,7 @@ export default async function YoutubeManagementPage() {
           ...course,
           appearanceNotRequired,
           appearanceChannels: appearances.map((appearance) => ({
-            name: appearance.channel_name,
+            name: displayYoutubeChannelName(channelSuggestions, appearance.channel_name),
             confirmed: appearance.request_status === "confirmed",
           })),
           ...countYoutubeAppearances(appearances),

@@ -227,7 +227,7 @@ export async function loadVideosSection(
     await Promise.all([
       supabase
         .from("youtube_analyzed_channels")
-        .select("channel,position")
+        .select("channel,alias,position")
         .order("position", { ascending: false })
         .limit(500),
       supabase

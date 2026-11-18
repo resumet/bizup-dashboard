@@ -29,6 +29,7 @@ export type CourseCustomLinkDraft = {
 export type YoutubeChannelSuggestion = {
   channelName: string;
   channelUrl: string;
+  alias?: string | null;
 };
 
 export type CourseRequiredTaskKey =

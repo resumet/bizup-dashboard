@@ -2,6 +2,7 @@ import type { YoutubeChannelSuggestion } from "./types";
 
 type YoutubeAnalyzedChannelRow = {
   channel: unknown;
+  alias?: unknown;
 };
 
 export function decodeReadableUrl(value: string) {
@@ -34,13 +35,14 @@ export function buildYoutubeChannelSuggestions(
       typeof channel.name === "string" ? channel.name.trim() : "";
     const channelUrl =
       typeof channel.url === "string" ? decodeReadableUrl(channel.url) : "";
+    const alias = typeof row.alias === "string" ? row.alias.trim() || null : null;
     if (!channelName || !channelUrl) return [];
 
     const key = `${channelName.toLocaleLowerCase("ko-KR")}\u0000${channelUrl.toLocaleLowerCase("ko-KR")}`;
     if (seen.has(key)) return [];
     seen.add(key);
 
-    return [{ channelName, channelUrl }];
+    return [{ channelName, channelUrl, alias }];
   });
 }
 
@@ -58,7 +60,20 @@ export function findYoutubeChannelUrlByName(
   return (
     suggestions.find(
       (suggestion) =>
-        normalizeChannelName(suggestion.channelName) === normalizedChannelName,
+        normalizeChannelName(suggestion.channelName) === normalizedChannelName
+        || normalizeChannelName(suggestion.alias ?? "") === normalizedChannelName,
     )?.channelUrl ?? ""
   );
+}
+
+export function displayYoutubeChannelName(
+  suggestions: YoutubeChannelSuggestion[],
+  channelName: string,
+) {
+  const normalizedChannelName = normalizeChannelName(channelName);
+  const matched = suggestions.find((suggestion) =>
+    normalizeChannelName(suggestion.channelName) === normalizedChannelName
+    || normalizeChannelName(suggestion.alias ?? "") === normalizedChannelName,
+  );
+  return matched?.alias || channelName;
 }

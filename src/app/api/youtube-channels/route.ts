@@ -6,7 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireCourseOperationsMembership, requireCourseOperationsUser } from "@/lib/course-operations/server";
-import { calculate, DEFAULT_YOUTUBE_EMAIL_SETTINGS, inputs, normalizeAppearanceFee, normalizeAppearanceRequestEmailSent, normalizeChannelCategory, normalizeChannelEmail, normalizeChannelMemo, normalizeExcludedFromUpdates, normalizeRsPercent, type Video } from "@/lib/youtube-analyzer/model";
+import { calculate, DEFAULT_YOUTUBE_EMAIL_SETTINGS, inputs, normalizeAppearanceFee, normalizeAppearanceRequestEmailSent, normalizeChannelAlias, normalizeChannelCategory, normalizeChannelEmail, normalizeChannelMemo, normalizeExcludedFromUpdates, normalizeRsPercent, type Video } from "@/lib/youtube-analyzer/model";
 import { setting } from "@/lib/youtube-analyzer/api";
 import { youtubeAnalysisWorkflow } from "@/workflows/youtube-analysis";
 
@@ -142,7 +142,7 @@ export async function GET(request: Request) {
     if (!Number.isSafeInteger(offset) || offset < 0) return NextResponse.json({error:"잘못된 페이지입니다."},{status:400});
 
     const channelsQuery = admin.from("youtube_analyzed_channels")
-      .select("position,channel_id,channel,email,appearance_request_email_sent,category,appearance_fee,rs_percent,memo,excluded_from_updates,metrics,warnings,first_analyzed_at,last_analyzed_at")
+      .select("position,channel_id,channel,alias,email,appearance_request_email_sent,category,appearance_fee,rs_percent,memo,excluded_from_updates,metrics,warnings,first_analyzed_at,last_analyzed_at")
       .eq("workspace_id",workspaceId)
       .order("position")
       .range(offset,offset+200);
@@ -167,7 +167,7 @@ export async function GET(request: Request) {
     if (emailSettingsResult.error && !/PGRST20[45]|42P01/u.test(emailSettingsResult.error.code ?? "")) {
       throw emailSettingsResult.error;
     }
-    let rows = result.data;
+    let rows: Record<string, unknown>[] = result.data ?? [];
     if (missingOptionalColumn(result.error)) {
       const withoutEmailStatus = await admin.from("youtube_analyzed_channels")
         .select("position,channel_id,channel,email,category,appearance_fee,rs_percent,memo,excluded_from_updates,metrics,warnings,first_analyzed_at,last_analyzed_at")
@@ -321,6 +321,7 @@ export async function PATCH(request: Request) {
     const updates: Record<string,string|number|boolean|null> = {};
     const includes = (key: string) => Object.prototype.hasOwnProperty.call(fields,key);
     try {
+      if (includes("alias")) updates.alias = normalizeChannelAlias(fields.alias);
       if (includes("email")) updates.email = normalizeChannelEmail(fields.email);
       if (includes("appearanceRequestEmailSent")) updates.appearance_request_email_sent = normalizeAppearanceRequestEmailSent(fields.appearanceRequestEmailSent);
       if (includes("category")) updates.category = normalizeChannelCategory(fields.category);
@@ -330,7 +331,8 @@ export async function PATCH(request: Request) {
       if (includes("excludedFromUpdates")) updates.excluded_from_updates = normalizeExcludedFromUpdates(fields.excludedFromUpdates);
     } catch(error) {
       const code = error instanceof Error ? error.message : "";
-      const message = code === "INVALID_EMAIL" ? "올바른 이메일 주소를 입력해 주세요."
+      const message = code === "INVALID_ALIAS" ? "별명은 100자 이하로 입력해 주세요."
+        : code === "INVALID_EMAIL" ? "올바른 이메일 주소를 입력해 주세요."
         : code === "INVALID_APPEARANCE_REQUEST_EMAIL_SENT" ? "출연신청 메일 발송 여부를 확인해 주세요."
         : code === "INVALID_CATEGORY" ? "분류 목록에서 선택해 주세요."
         : code === "INVALID_APPEARANCE_FEE" ? "출연료는 0원 이상의 정수로 입력해 주세요."
