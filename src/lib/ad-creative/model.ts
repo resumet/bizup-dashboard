@@ -15,7 +15,7 @@ export type CreativeRow = {
   webinar: string;
 };
 export type CreativeCourse = { name: string; instructor_name: string };
-export type CreativeData = { url: string; updatedAt: string; rows: CreativeRow[]; error?: string };
+export type CreativeData = { url: string; updatedAt: string; rows: CreativeRow[]; matchingKeywords: string; error?: string };
 export type CreativeAggregateRow = CreativeRow & { statuses: string[] };
 export type CreativeMetric = "cost" | "impressions" | "clicks" | "conversions";
 export type CreativeSort = { key: CreativeMetric; direction: "descending" | "ascending" } | null;
@@ -77,6 +77,19 @@ export function summarizeCreativeRows(rows: readonly CreativeRow[]) {
 export function creativeUnitCost(cost: number | null, quantity: number | null) {
   if (cost === null || quantity === null || quantity <= 0) return null;
   return cost / quantity;
+}
+
+export function normalizeCreativeMatchingKeywords(value: string) {
+  return [...new Set(value.split("|").map((keyword) => keyword.trim()).filter(Boolean))].join("|");
+}
+
+export function filterCreativeRowsByKeywords(rows: readonly CreativeRow[], keywords: string): CreativeRow[] {
+  const terms = normalizeCreativeMatchingKeywords(keywords).split("|").map((term) => term.toLocaleLowerCase("ko-KR"));
+  if (!terms.length || (terms.length === 1 && !terms[0])) return [...rows];
+  return rows.filter((row) => {
+    const source = [row.instructor, row.campaign, row.group, row.ad, row.webinar].join(" ").toLocaleLowerCase("ko-KR");
+    return terms.some((term) => source.includes(term));
+  });
 }
 
 const normalize = (value: string) => value.normalize("NFKC").replace(/[\s_-]/gu, "").toLowerCase();

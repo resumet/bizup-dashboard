@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { aggregateCreativeRows, parseCreativeRows, assignCreativeInstructors, groupCreativeRows, summarizeCreativeRows, creativeStatusTone, creativeUnitCost, nextCreativeSort, sortCreativeRows } from "./model";
+import { aggregateCreativeRows, parseCreativeRows, assignCreativeInstructors, filterCreativeRowsByKeywords, groupCreativeRows, normalizeCreativeMatchingKeywords, summarizeCreativeRows, creativeStatusTone, creativeUnitCost, nextCreativeSort, sortCreativeRows } from "./model";
 
 const google = ["일", "캠페인", "광고그룹", "광고 이름", "광고 상태", "광고 유형", "비용", "노출수", "클릭수", "전환", "webinarName"];
 const meta = ["date", "campaignName", "adSetName", "adName", "status", "adCost", "impression", "linkClick", "leads", "webinarName"];
@@ -115,4 +115,15 @@ test("비용과 성과 수치를 기준으로 회당 단가를 계산하고 0 �
   assert.equal(creativeUnitCost(100, 0), null);
   assert.equal(creativeUnitCost(null, 10), null);
   assert.equal(creativeUnitCost(100, null), null);
+});
+
+test("|로 나눈 광고 매칭 키워드 중 하나가 성과 행에 포함되면 불러온다", () => {
+  const rows = parseCreativeRows("meta", [meta,
+    ["2026-11-15", "lastone_launch", "g", "ad A", "ACTIVE", "1", "2", "3", "4", "웨비나"],
+    ["2026-11-15", "other", "g", "라스트원 영상", "ACTIVE", "1", "2", "3", "4", "웨비나"],
+    ["2026-11-15", "other", "g", "광고 B", "ACTIVE", "1", "2", "3", "4", "웨비나"],
+  ]);
+  assert.equal(normalizeCreativeMatchingKeywords(" lastone | 라스트원 | lastone "), "lastone|라스트원");
+  assert.deepEqual(filterCreativeRowsByKeywords(rows, "lastone|라스트원").map(row => row.ad), ["ad A", "라스트원 영상"]);
+  assert.equal(filterCreativeRowsByKeywords(rows, "").length, 3);
 });

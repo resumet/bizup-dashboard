@@ -13,10 +13,10 @@ export async function PUT(request: Request) {
   try {
     const user = await requireCourseOperationsUser(await createClient());
     const membership = await requireCourseOperationsMembership(user.id);
-    const input = z.object({ url: z.string().trim().min(1).max(2048), expectedUpdatedAt: z.string() }).parse(await request.json());
-    const source = await loadCreativeSource(input.url);
+    const input = z.object({ url: z.string().trim().min(1).max(2048), matchingKeywords: z.string().max(1000), expectedUpdatedAt: z.string() }).parse(await request.json());
+    const source = await loadCreativeSource(input.url, input.matchingKeywords);
     const admin = createAdminClient();
-    const record = { spreadsheet_url: source.url, rows: source.rows, updated_by: user.id, updated_at: new Date().toISOString() };
+    const record = { spreadsheet_url: source.url, rows: source.rows, matching_keywords: source.matchingKeywords, updated_by: user.id, updated_at: new Date().toISOString() };
     const result = input.expectedUpdatedAt
       ? await admin.from("ad_creative_sources").update(record).eq("workspace_id", membership.workspace_id).eq("updated_at", input.expectedUpdatedAt).select("workspace_id").maybeSingle()
       : await admin.from("ad_creative_sources").insert({ ...record, workspace_id: membership.workspace_id }).select("workspace_id").single();

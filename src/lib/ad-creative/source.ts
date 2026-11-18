@@ -3,7 +3,7 @@ import { parse } from "csv-parse/sync";
 import readXlsxFile from "read-excel-file/node";
 import { extractGoogleSpreadsheetId, canonicalGoogleSpreadsheetUrl } from "@/lib/ad-performance/sheet-workspace";
 import { parsePublicGoogleSheetNames } from "@/lib/ad-performance/sheet-server";
-import { parseCreativeRows } from "./model";
+import { filterCreativeRowsByKeywords, normalizeCreativeMatchingKeywords, parseCreativeRows } from "./model";
 
 const MAX_BYTES = 20 * 1024 * 1024;
 async function download(url: string) {
@@ -24,7 +24,7 @@ async function download(url: string) {
   return Buffer.concat(chunks);
 }
 
-export async function loadCreativeSource(input: string) {
+export async function loadCreativeSource(input: string, matchingKeywords = "") {
   const id = extractGoogleSpreadsheetId(input);
   const url = canonicalGoogleSpreadsheetUrl(id);
   let sheets: { name: string; rows: unknown[][] }[];
@@ -42,7 +42,8 @@ export async function loadCreativeSource(input: string) {
   const google = sheets.find(sheet => sheet.name === "google_raw");
   const meta = sheets.find(sheet => sheet.name === "meta_raw");
   if (!google || !meta) throw new Error("google_raw와 meta_raw 시트가 모두 필요합니다.");
-  const rows = [...parseCreativeRows("google", google.rows), ...parseCreativeRows("meta", meta.rows)];
+  const allRows = [...parseCreativeRows("google", google.rows), ...parseCreativeRows("meta", meta.rows)];
+  const rows = filterCreativeRowsByKeywords(allRows, matchingKeywords);
   if (rows.length > 100_000) throw new Error("한 번에 최대 100,000행까지 불러올 수 있습니다. 시트의 조회 기간을 줄여 주세요.");
-  return { url, rows };
+  return { url, rows, matchingKeywords: normalizeCreativeMatchingKeywords(matchingKeywords) };
 }

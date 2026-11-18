@@ -128,5 +128,19 @@ function ChannelChips({ names, disabled, emptyLabel = "-" }: { names: string[]; 
   if (disabled) return <span className="text-muted-foreground">진행하지 않음</span>;
   const uniqueNames = [...new Set(names.map((name) => name.trim()).filter(Boolean))];
   if (!uniqueNames.length) return <span className="text-muted-foreground">{emptyLabel}</span>;
-  return <div className="flex min-w-44 flex-wrap gap-1.5">{uniqueNames.map((name) => <Badge key={name} variant="secondary" className="max-w-44 truncate font-medium" title={name}>{name}</Badge>)}</div>;
+  return <div className="flex min-w-44 flex-wrap gap-1.5">{uniqueNames.map((name) => <Badge key={name} variant="outline" className={`max-w-44 truncate font-medium ${channelChipColor(name)}`} title={name}>{name}</Badge>)}</div>;
+}
+
+const CHANNEL_CHIP_COLORS = [
+  "border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200",
+  "border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200",
+  "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
+  "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200",
+  "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-200",
+  "border-cyan-200 bg-cyan-50 text-cyan-800 dark:border-cyan-800 dark:bg-cyan-950 dark:text-cyan-200",
+];
+
+function channelChipColor(name: string) {
+  const index = [...name].reduce((total, character) => total + character.codePointAt(0)!, 0) % CHANNEL_CHIP_COLORS.length;
+  return CHANNEL_CHIP_COLORS[index];
 }
