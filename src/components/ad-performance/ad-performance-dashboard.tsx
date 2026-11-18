@@ -48,11 +48,13 @@ export function AdPerformanceDashboard({
   initialData,
   webinarOutcome = null,
   webinarError,
+  mediaSummary,
   children,
 }: {
   initialData: AdPerformanceDashboardData;
   webinarOutcome?: AdPerformanceWebinarOutcome | null;
   webinarError?: string;
+  mediaSummary: ReactNode;
   children: ReactNode;
 }) {
   const router = useRouter();
@@ -161,6 +163,11 @@ export function AdPerformanceDashboard({
         <ToastNotice message={notice} onDismiss={() => setNotice("")} />
 
         <AdPerformanceSummaryCards metrics={initialData.metrics} totalBudget={totalBudget} organicChannels={initialData.organicChannels} showConversionRates />
+        <section aria-labelledby="creative-media-summary-title" className="mt-6 space-y-3">
+          <h2 id="creative-media-summary-title" className="text-xl font-semibold tracking-tight">매체별 요약</h2>
+          {courseId !== (initialData.course?.id ?? "") ? <p role="status">매체별 요약을 불러오는 중입니다.</p> :
+            mediaSummary ?? <p className="text-sm text-muted-foreground">사전설정에서 강의를 선택해 주세요.</p>}
+        </section>
         <AdPerformanceOutcomeCard collapsible metrics={initialData.metrics} webinar={courseId === initialData.course?.id ? webinarOutcome : null} courseId={courseId} error={webinarError} />
 
         <AdPerformanceSheetWorkspace
