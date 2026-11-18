@@ -162,7 +162,7 @@ export function AdPerformanceDashboard({
         ) : null}
         <ToastNotice message={notice} onDismiss={() => setNotice("")} />
 
-        <AdPerformanceSummaryCards metrics={initialData.metrics} totalBudget={totalBudget} organicChannels={initialData.organicChannels} showConversionRates />
+        <AdPerformanceSummaryCards metrics={initialData.metrics} totalBudget={totalBudget} organicChannels={initialData.organicChannels} showPaidMetrics={false} />
         <section aria-labelledby="creative-media-summary-title" className="mt-6 space-y-3">
           <h2 id="creative-media-summary-title" className="text-xl font-semibold tracking-tight">매체별 요약</h2>
           {courseId !== (initialData.course?.id ?? "") ? <p role="status">매체별 요약을 불러오는 중입니다.</p> :
