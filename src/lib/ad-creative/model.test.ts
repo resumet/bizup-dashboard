@@ -5,7 +5,7 @@ import { aggregateCreativeRows, parseCreativeRows, assignCreativeInstructors, fi
 const google = ["일", "캠페인", "광고그룹", "광고 이름", "광고 상태", "광고 유형", "비용", "노출수", "클릭수", "전환", "webinarName"];
 const meta = ["date", "campaignName", "adSetName", "adName", "status", "adCost", "impression", "linkClick", "leads", "webinarName"];
 
-test("강의별 화면은 일치하는 행이 없으면 0행이고 전체 화면에서만 모든 행을 반환한다", () => {
+test("강의 매칭 함수는 일치하는 행이 없으면 0행이고 조건이 비면 모든 행을 반환한다", () => {
   const base = parseCreativeRows("meta", [meta, ["2026-11-15", "c", "g", "a", "ACTIVE", "1", "2", "3", "0", "수익화"]])[0];
   const rows = [
     { ...base, instructor: "미닝" },
@@ -18,6 +18,15 @@ test("강의별 화면은 일치하는 행이 없으면 0행이고 전체 화면
   assert.deepEqual(filterCreativeRowsByCourse(rows, "신규 강사", ""), []);
   assert.deepEqual(filterCreativeRowsByCourse(rows, "", "수익화"), [rows[0], rows[3]]);
   assert.deepEqual(filterCreativeRowsByCourse(rows, "", ""), rows);
+});
+
+test("전체 조회는 강사명 또는 원본 웨비나 이름으로 묶고 둘 다 빈 행도 표시한다", () => {
+  const base = parseCreativeRows("meta", [meta, ["2026-11-15", "c", "g", "a", "ACTIVE", "1", "2", "3", "0", "라스트원웨비나"]])[0];
+  const rows = [base, { ...base, instructor: "김선아", webinar: "김선아웨비나" }, { ...base, webinar: "" }];
+  const grouped = new Map(groupCreativeRows(rows, "instructorOrWebinar"));
+  assert.deepEqual(grouped.get("라스트원웨비나"), [rows[0]]);
+  assert.deepEqual(grouped.get("김선아"), [rows[1]]);
+  assert.deepEqual(grouped.get("미분류"), [rows[2]]);
 });
 
 test("소재 정렬은 내림차순, 오름차순, 해제로 순환하고 다른 열은 내림차순부터 시작한다", () => {

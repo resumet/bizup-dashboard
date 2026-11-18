@@ -5,14 +5,13 @@ import { requireCourseOperationsMembership } from "@/lib/course-operations/serve
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function AdCreativePerformancePage({ searchParams }: { searchParams: Promise<{ instructor?: string; webinar?: string }> }) {
+export default async function AdCreativePerformancePage() {
   const supabase = await createClient();
   const user = await getAuthenticatedUser(supabase);
   if (!user) redirect("/login");
   const membership = await requireCourseOperationsMembership(user.id);
-  const { instructor, webinar } = await searchParams;
   const data = await loadCreativeData(membership.workspace_id).catch((error: unknown) => ({
     url: "", updatedAt: "", rows: [], webinarName: "", error: error instanceof Error ? error.message : "소재성과 데이터를 불러오지 못했습니다.",
   }));
-  return <CreativePerformance initialData={data} initialInstructor={instructor?.slice(0, 120) ?? ""} initialWebinar={webinar?.slice(0, 300) ?? ""} />;
+  return <CreativePerformance initialData={data} />;
 }

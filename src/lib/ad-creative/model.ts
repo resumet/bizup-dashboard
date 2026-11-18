@@ -181,8 +181,13 @@ export function assignCreativeInstructors(rows: CreativeRow[], courses: Creative
   });
 }
 
-export function groupCreativeRows(rows: CreativeRow[], key: "instructor" | "platform" | "date" | "campaign" | "group" | "ad") {
+export function groupCreativeRows(rows: CreativeRow[], key: "instructorOrWebinar" | "instructor" | "platform" | "date" | "campaign" | "group" | "ad") {
   const groups = new Map<string, CreativeRow[]>();
-  for (const row of rows) { const values = groups.get(row[key]) ?? []; values.push(row); groups.set(row[key], values); }
+  for (const row of rows) {
+    const name = key === "instructorOrWebinar" ? row.instructor || row.webinar || "미분류" : row[key];
+    const values = groups.get(name) ?? [];
+    values.push(row);
+    groups.set(name, values);
+  }
   return [...groups].sort(([a], [b]) => key === "date" ? b.localeCompare(a) : a.localeCompare(b, "ko"));
 }

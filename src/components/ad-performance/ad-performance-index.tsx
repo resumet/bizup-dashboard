@@ -36,9 +36,6 @@ function DashboardRow({ dashboard, busy, onDelete }: {
   onDelete: () => void;
 }) {
   const courseName = dashboard.course?.name ?? "강의 미설정";
-  const creativeHref = dashboard.course
-    ? `/services/ad-performance/creative?${new URLSearchParams({ instructor: dashboard.course.instructorName, webinar: courseName })}`
-    : "/services/ad-performance/creative";
   const landingLeadCost = dashboard.paidLandingLeads > 0 ? dashboard.spend / dashboard.paidLandingLeads : null;
   return <TableRow>
     <TableCell className="max-w-56 font-medium whitespace-normal">{courseName}</TableCell>
@@ -52,7 +49,7 @@ function DashboardRow({ dashboard, busy, onDelete }: {
     <TableCell className="tabular-nums">{dashboard.chatRoomMembers === null ? "-" : `${number.format(dashboard.chatRoomMembers)}명`}</TableCell>
     <TableCell className="tabular-nums">{landingLeadCost === null ? "-" : won.format(Math.round(landingLeadCost))}</TableCell>
     <TableCell><Button asChild size="icon-sm" aria-label={`${courseName} 광고성과`} title="광고성과"><Link href={`/services/ad-performance/${dashboard.id}`}><BarChart3 /></Link></Button></TableCell>
-    <TableCell><Button asChild size="icon-sm" variant="outline" aria-label={`${courseName} 소재성과`} title="소재성과"><Link href={creativeHref}><ImageIcon /></Link></Button></TableCell>
+    <TableCell><Button asChild size="icon-sm" variant="outline" aria-label="전체 소재성과" title="전체 소재성과"><Link href="/services/ad-performance/creative"><ImageIcon /></Link></Button></TableCell>
     <TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon-sm" variant="ghost" disabled={busy} aria-label={`${courseName} 메뉴`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem variant="destructive" disabled={busy} onSelect={onDelete}><Trash2 />삭제</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
   </TableRow>;
 }

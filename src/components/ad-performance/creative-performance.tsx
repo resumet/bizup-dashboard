@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { aggregateCreativeRows, creativeStatusTone, creativeUnitCost, filterCreativeRowsByCourse, summarizeCreativeRows, groupCreativeRows, nextCreativeSort, sortCreativeRows, type CreativeData, type CreativeRow, type CreativeMetric, type CreativeSort } from "@/lib/ad-creative/model";
+import { aggregateCreativeRows, creativeStatusTone, creativeUnitCost, summarizeCreativeRows, groupCreativeRows, nextCreativeSort, sortCreativeRows, type CreativeData, type CreativeRow, type CreativeMetric, type CreativeSort } from "@/lib/ad-creative/model";
 import { ToastNotice } from "@/components/ui/toast";
 
 const number = (value: number | null) => value === null ? "—" : value.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
@@ -110,7 +110,7 @@ function Hierarchy({ rows, depth = 0 }: { rows: CreativeRow[]; depth?: number })
   </Branch>);
 }
 
-export function CreativePerformance({ initialData, initialInstructor = "", initialWebinar = "" }: { initialData: CreativeData; initialInstructor?: string; initialWebinar?: string }) {
+export function CreativePerformance({ initialData }: { initialData: CreativeData }) {
   const [data, setData] = useState(initialData);
   const [filterSettingsOpen, setFilterSettingsOpen] = useState(false);
   const [webinarName, setWebinarName] = useState(initialData.webinarName);
@@ -121,11 +121,10 @@ export function CreativePerformance({ initialData, initialInstructor = "", initi
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [view, setView] = useState<"date" | "creative">("date");
-  const scopedRows = useMemo(() => filterCreativeRowsByCourse(data.rows, initialInstructor, initialWebinar), [data.rows, initialInstructor, initialWebinar]);
-  const filtered = useMemo(() => scopedRows.filter(row =>
+  const filtered = useMemo(() => data.rows.filter(row =>
     (!from || row.date >= from) && (!to || row.date <= to) &&
-    [row.instructor, row.webinar, row.campaign, row.group, row.ad].some(value => value.toLocaleLowerCase("ko-KR").includes(query.trim().toLocaleLowerCase("ko-KR")))), [scopedRows, from, to, query]);
-  const instructors = useMemo(() => groupCreativeRows(filtered, "instructor"), [filtered]);
+    [row.instructor, row.webinar, row.campaign, row.group, row.ad].some(value => value.toLocaleLowerCase("ko-KR").includes(query.trim().toLocaleLowerCase("ko-KR")))), [data.rows, from, to, query]);
+  const groups = useMemo(() => groupCreativeRows(filtered, "instructorOrWebinar"), [filtered]);
 
   async function sync(nextWebinarName = data.webinarName) {
     if (busy) return;
@@ -165,9 +164,8 @@ export function CreativePerformance({ initialData, initialInstructor = "", initi
           <Button variant={view === "creative" ? "default" : "outline"} aria-pressed={view === "creative"} onClick={() => setView("creative")}>소재별 보기</Button>
         </div>
       </div>
-      {filtered.some(row => row.instructor === "강사 미분류") ? <p className="text-sm text-muted-foreground">강사 미분류 데이터는 원본 시트에 강사명 열을 입력하거나, webinarName을 ‘강사명웨비나’ 형식 또는 등록된 강의명과 동일하게 맞춰 주세요.</p> : null}
       <div key={`${view}:${data.updatedAt}:${query}:${from}:${to}`} className="space-y-3">
-        {instructors.map(([instructor, rows]) => <Branch key={instructor} title={instructor} count={rows.length}>
+        {groups.map(([name, rows]) => <Branch key={name} title={name} count={rows.length}>
           {(["google", "meta"] as const).map(platform => {
             const values = rows.filter(row => row.platform === platform);
             return <Branch key={platform} title={platform === "google" ? "Google 데이터" : "Meta 데이터"} count={values.length}
@@ -176,7 +174,7 @@ export function CreativePerformance({ initialData, initialInstructor = "", initi
             </Branch>;
           })}
         </Branch>)}
-        {!instructors.length ? <p className="rounded-xl border p-10 text-center text-muted-foreground">{scopedRows.length ? "검색 조건에 맞는 데이터가 없습니다." : initialWebinar || initialInstructor ? `‘${initialWebinar || initialInstructor}’에 해당하는 소재성과가 없습니다.` : "시트에 성과 데이터가 없습니다."}</p> : null}
+        {!groups.length ? <p className="rounded-xl border p-10 text-center text-muted-foreground">{data.rows.length ? "검색 조건에 맞는 데이터가 없습니다." : "시트에 성과 데이터가 없습니다."}</p> : null}
       </div>
     </> : <div className="rounded-xl border p-10 text-center"><p className="text-muted-foreground">내부광고 성과기록 화면에서 Google Sheets 주소를 설정해 주세요.</p></div>}
     <Dialog open={filterSettingsOpen} onOpenChange={(open) => { if (!busy) setFilterSettingsOpen(open); }}>
