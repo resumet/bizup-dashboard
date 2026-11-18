@@ -17,11 +17,14 @@ export function FreeStudentsManager({ courseId, landingPageLink, initialSnapshot
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const rows = useMemo(() => filterApplicants(snapshot?.rows ?? [], query), [snapshot, query]);
+  const currentLandingPageLink = landingPageLink.trim();
+  const fallbackLandingPageLink = snapshot?.source_url.trim() ?? "";
+  const importSourceUrl = currentLandingPageLink || fallbackLandingPageLink;
   async function importStudents() {
     if (busy) return;
     setBusy(true); setError(""); setNotice("");
     try {
-      const response = await fetch(`/api/course-operations/${courseId}/free-students`, { method: "POST" });
+      const response = await fetch(`/api/course-operations/${courseId}/free-students`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sourceUrl: importSourceUrl }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "명단을 가져오지 못했습니다.");
       setSnapshot(data); setPage(0); setNotice(`${data.rows.length.toLocaleString("ko-KR")}명의 명단을 저장했습니다.`);
@@ -47,11 +50,12 @@ export function FreeStudentsManager({ courseId, landingPageLink, initialSnapshot
       <div className="w-full space-y-2 sm:max-w-sm"><Label htmlFor="free-student-search">명단 검색</Label><Input id="free-student-search" placeholder="이름, 연락처, 유입경로 등 모든 항목 검색" value={query} onChange={event => { setQuery(event.target.value); setPage(0); }} /></div>
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" disabled={busy || !snapshot?.rows.length} onClick={downloadPhoneSalesList}><FileSpreadsheet />전화세일즈 목록 만들기</Button>
-        <Button disabled={busy || !landingPageLink} onClick={() => void importStudents()}>{busy ? <Loader2 className="animate-spin" /> : <Download />}{busy ? "명단 가져오는 중" : "명단 가져오기"}</Button>
+        <Button disabled={busy || !importSourceUrl} onClick={() => void importStudents()}>{busy ? <Loader2 className="animate-spin" /> : <Download />}{busy ? "명단 가져오는 중" : "명단 가져오기"}</Button>
       </div>
     </div>
-    {!landingPageLink ? <p className="text-sm text-muted-foreground">강의 상세에서 무료 랜딩페이지 링크를 저장해 주세요.</p> : null}
-    {snapshot && snapshot.source_url !== landingPageLink ? <p role="status" className="text-sm text-amber-700">저장된 명단과 현재 강의 링크가 다릅니다. 명단 가져오기로 갱신해 주세요.</p> : null}
+    {!currentLandingPageLink && !fallbackLandingPageLink ? <p className="text-sm text-muted-foreground">강의 상세에서 무료 랜딩페이지 링크를 저장해 주세요.</p> : null}
+    {!currentLandingPageLink && fallbackLandingPageLink ? <p role="status" className="text-sm text-amber-700">현재 강의 링크가 비어 있어 마지막으로 가져온 랜딩 주소로 명단을 갱신합니다. 새 주소를 사용하려면 강의 상세에 저장해 주세요.</p> : null}
+    {currentLandingPageLink && snapshot && snapshot.source_url !== currentLandingPageLink ? <p role="status" className="text-sm text-amber-700">저장된 명단과 현재 강의 링크가 다릅니다. 명단 가져오기로 갱신해 주세요.</p> : null}
     {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
     <ToastNotice message={notice} onDismiss={() => setNotice("")} />
     <div className="flex flex-wrap justify-between gap-2 text-sm text-muted-foreground"><span>전체 {(snapshot?.rows.length ?? 0).toLocaleString("ko-KR")}명 · 검색 {rows.length.toLocaleString("ko-KR")}명</span>{snapshot ? <span>최근 가져오기 {applicantValue("appliedAt", snapshot.updated_at)}</span> : null}</div>
