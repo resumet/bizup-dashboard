@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
@@ -59,6 +59,17 @@ export function YoutubeCourseList({ courses, filmingAlertWeeks, embedded = false
     `${course.name} ${course.instructor_name} ${course.cohort}`.toLowerCase().includes(search.toLowerCase()),
   );
   const grouped = groupYoutubeCourses(visible);
+  const channelColors = useMemo(() => {
+    const names = [...new Set(courses.flatMap((course) => course.appearanceChannels.map((channel) => channel.name.trim()).filter(Boolean)))].sort((left, right) => left.localeCompare(right, "ko"));
+    return new Map(names.map((name, index) => {
+      const hue = (index * 360) / names.length;
+      return [name, {
+        borderColor: `hsl(${hue} 62% 70%)`,
+        backgroundColor: `hsl(${hue} 75% 95%)`,
+        color: `hsl(${hue} 52% 28%)`,
+      } satisfies CSSProperties];
+    }));
+  }, [courses]);
   const totalAlertCount = courses.reduce((total, course) => total + course.filmingAlert.alertCount, 0);
   const affectedCourseCount = courses.filter((course) => course.filmingAlert.alertCount > 0).length;
 
@@ -96,8 +107,8 @@ export function YoutubeCourseList({ courses, filmingAlertWeeks, embedded = false
             <TableCell><Link className="font-medium hover:underline" href={`/services/youtube-management/${course.id}`}>{course.name}</Link></TableCell>
             <TableCell>{course.instructor_name || "—"}</TableCell><TableCell>{course.cohort || "—"}</TableCell>
             <TableCell><time dateTime={course.free_webinar_at || undefined}>{formatWebinarDate(course.free_webinar_at)}</time></TableCell>
-            <TableCell><ChannelChips names={course.appearanceChannels.map((channel) => channel.name)} disabled={course.appearanceNotRequired} /></TableCell>
-            <TableCell><ChannelChips names={course.appearanceChannels.filter((channel) => channel.confirmed).map((channel) => channel.name)} disabled={course.appearanceNotRequired} emptyLabel="미확정" /></TableCell>
+            <TableCell><ChannelChips names={course.appearanceChannels.map((channel) => channel.name)} colors={channelColors} disabled={course.appearanceNotRequired} /></TableCell>
+            <TableCell><ChannelChips names={course.appearanceChannels.filter((channel) => channel.confirmed).map((channel) => channel.name)} colors={channelColors} disabled={course.appearanceNotRequired} emptyLabel="미확정" /></TableCell>
             <TableCell className="text-right">{course.appearanceNotRequired ? "-" : `${course.uploadCompletedCount}개`}</TableCell>
             <TableCell className="text-right">{course.filmingAlert.deadlineReached
               ? course.filmingAlert.alertCount > 0
@@ -124,23 +135,9 @@ export function YoutubeCourseList({ courses, filmingAlertWeeks, embedded = false
   </div>;
 }
 
-function ChannelChips({ names, disabled, emptyLabel = "-" }: { names: string[]; disabled: boolean; emptyLabel?: string }) {
+function ChannelChips({ names, colors, disabled, emptyLabel = "-" }: { names: string[]; colors: Map<string, CSSProperties>; disabled: boolean; emptyLabel?: string }) {
   if (disabled) return <span className="text-muted-foreground">진행하지 않음</span>;
   const uniqueNames = [...new Set(names.map((name) => name.trim()).filter(Boolean))];
   if (!uniqueNames.length) return <span className="text-muted-foreground">{emptyLabel}</span>;
-  return <div className="flex min-w-44 flex-wrap gap-1.5">{uniqueNames.map((name) => <Badge key={name} variant="outline" className={`max-w-44 truncate font-medium ${channelChipColor(name)}`} title={name}>{name}</Badge>)}</div>;
-}
-
-const CHANNEL_CHIP_COLORS = [
-  "border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200",
-  "border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200",
-  "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
-  "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200",
-  "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-200",
-  "border-cyan-200 bg-cyan-50 text-cyan-800 dark:border-cyan-800 dark:bg-cyan-950 dark:text-cyan-200",
-];
-
-function channelChipColor(name: string) {
-  const index = [...name].reduce((total, character) => total + character.codePointAt(0)!, 0) % CHANNEL_CHIP_COLORS.length;
-  return CHANNEL_CHIP_COLORS[index];
+  return <div className="flex min-w-44 flex-wrap gap-1.5">{uniqueNames.map((name) => <Badge key={name} variant="outline" className="max-w-44 truncate font-medium" style={colors.get(name)} title={name}>{name}</Badge>)}</div>;
 }
