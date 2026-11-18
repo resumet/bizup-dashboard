@@ -1,6 +1,7 @@
 import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 import "server-only";
 
+import { getAccountRole } from "@/lib/admin/access";
 import { invalidateCourseOperationsList } from "@/lib/course-operations/list-cache";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { isCourseStatus } from "@/lib/course-operations/course-status";
@@ -178,12 +179,22 @@ class WbsConflictError extends Error {
   }
 }
 
-export async function requireWbsContext() {
+export async function getWbsContext() {
   const client = await createClient();
   const user = await getAuthenticatedUser(client);
-  if (!user) throw new WbsUnauthorizedError("로그인이 필요합니다.");
+  if (!user) return null;
   const membership = await requireCourseOperationsMembership(user.id);
-  return { workspaceId: membership.workspace_id, actorId: user.id };
+  return {
+    workspaceId: membership.workspace_id,
+    actorId: user.id,
+    canManageTemplates: getAccountRole(user.email, [membership.role]) === "super_admin",
+  };
+}
+
+export async function requireWbsContext() {
+  const context = await getWbsContext();
+  if (!context) throw new WbsUnauthorizedError("로그인이 필요합니다.");
+  return context;
 }
 
 export function wbsApiError(error: unknown): Response {
