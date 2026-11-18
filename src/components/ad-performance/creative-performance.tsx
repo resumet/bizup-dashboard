@@ -121,9 +121,15 @@ export function CreativePerformance({ initialData, initialInstructor = "", initi
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [view, setView] = useState<"date" | "creative">("date");
-  const filtered = useMemo(() => data.rows.filter(row => (!from || row.date >= from) && (!to || row.date <= to) &&
-    (!initialInstructor && !initialWebinar || row.instructor === initialInstructor || row.webinar.includes(initialWebinar)) &&
-    [row.instructor, row.webinar, row.campaign, row.group, row.ad].some(value => value.toLocaleLowerCase("ko-KR").includes(query.trim().toLocaleLowerCase("ko-KR")))), [data.rows, from, initialInstructor, initialWebinar, to, query]);
+  const dateFilteredRows = useMemo(() => data.rows.filter(row => (!from || row.date >= from) && (!to || row.date <= to)), [data.rows, from, to]);
+  const scopedRows = useMemo(() => {
+    if (!initialInstructor && !initialWebinar) return dateFilteredRows;
+    const matched = dateFilteredRows.filter(row => row.instructor === initialInstructor || row.webinar.includes(initialWebinar));
+    return matched.length ? matched : dateFilteredRows;
+  }, [dateFilteredRows, initialInstructor, initialWebinar]);
+  const hasScopeFallback = Boolean((initialInstructor || initialWebinar) && dateFilteredRows.length && scopedRows.length === dateFilteredRows.length && !dateFilteredRows.some(row => row.instructor === initialInstructor || row.webinar.includes(initialWebinar)));
+  const filtered = useMemo(() => scopedRows.filter(row =>
+    [row.instructor, row.webinar, row.campaign, row.group, row.ad].some(value => value.toLocaleLowerCase("ko-KR").includes(query.trim().toLocaleLowerCase("ko-KR")))), [scopedRows, query]);
   const instructors = useMemo(() => groupCreativeRows(filtered, "instructor"), [filtered]);
 
   async function sync() {
@@ -164,6 +170,7 @@ export function CreativePerformance({ initialData, initialInstructor = "", initi
           <Button variant={view === "creative" ? "default" : "outline"} aria-pressed={view === "creative"} onClick={() => setView("creative")}>소재별 보기</Button>
         </div>
       </div>
+      {hasScopeFallback ? <p className="text-sm text-muted-foreground">선택한 강의와 일치하는 소재 데이터가 없어, 저장된 전체 소재성과를 표시합니다.</p> : null}
       {filtered.some(row => row.instructor === "강사 미분류") ? <p className="text-sm text-muted-foreground">강사 미분류 데이터는 원본 시트에 강사명 열을 입력하거나, webinarName을 ‘강사명웨비나’ 형식 또는 등록된 강의명과 동일하게 맞춰 주세요.</p> : null}
       <div key={`${view}:${data.updatedAt}:${query}:${from}:${to}`} className="space-y-3">
         {instructors.map(([instructor, rows]) => <Branch key={instructor} title={instructor} count={rows.length}>
