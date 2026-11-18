@@ -11,16 +11,22 @@ function mediaTotals(rows: CreativeRow[]) {
   };
 }
 
-function withRates(label: string, totals: ReturnType<typeof mediaTotals>) {
-  const { cost, impressions, clicks, leads } = totals;
+export function calculateCreativeRates(totals: Pick<CreativeRow, "cost" | "impressions" | "clicks" | "conversions">) {
+  const cost = totals.cost ?? 0;
+  const impressions = totals.impressions ?? 0;
+  const clicks = totals.clicks ?? 0;
+  const leads = totals.conversions ?? 0;
   return {
-    label, ...totals,
     cpl: leads ? cost / leads : 0,
     cpm: impressions ? cost / impressions * 1000 : 0,
     ctr: impressions ? clicks / impressions : 0,
     cpc: clicks ? cost / clicks : 0,
     conversionRate: clicks ? leads / clicks : 0,
   };
+}
+
+function withRates(label: string, totals: ReturnType<typeof mediaTotals>) {
+  return { label, ...totals, ...calculateCreativeRates({ ...totals, conversions: totals.leads }) };
 }
 
 export function summarizeCreativeMedia(rows: CreativeRow[]) {
