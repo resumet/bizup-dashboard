@@ -20,7 +20,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ co
 export async function DELETE(request: Request, { params }: { params: Promise<{ courseId: string }> }) {
   try {
     const { courseId } = await params;
-    const input = z.object({ expectedUpdatedAt: z.string().datetime() }).parse(await request.json());
+    const input = z.object({ expectedUpdatedAt: z.string().min(1).max(100) }).parse(await request.json());
     const context = await authorizeFreeStudents(courseId);
     return Response.json(await clearFreeStudents(context, input.expectedUpdatedAt), { headers });
   } catch (error) {
