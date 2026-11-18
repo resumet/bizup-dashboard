@@ -25,6 +25,7 @@ type Connection = {
 
 type YoutubeCourse = CourseMedia & {
   appearanceNotRequired: boolean;
+  appearanceChannels: Array<{ name: string; confirmed: boolean }>;
   appearanceCount: number;
   confirmedAppearanceCount: number;
   uploadCompletedCount: number;
@@ -61,7 +62,7 @@ export function YoutubeCourseList({ courses, filmingAlertWeeks, embedded = false
   const totalAlertCount = courses.reduce((total, course) => total + course.filmingAlert.alertCount, 0);
   const affectedCourseCount = courses.filter((course) => course.filmingAlert.alertCount > 0).length;
 
-  return <div className={embedded ? "space-y-6" : "mx-auto max-w-6xl space-y-6 px-5 py-8"}>
+  return <div className={embedded ? "space-y-6" : "w-full space-y-6 px-5 py-8 lg:px-8"}>
     {!embedded ? <Link href="/work" className="text-sm hover:underline">← 운영 워크스페이스</Link> : null}
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h1 className="text-2xl font-semibold">강사 출연 유튜브 관리</h1>
@@ -86,23 +87,25 @@ export function YoutubeCourseList({ courses, filmingAlertWeeks, embedded = false
       const items = grouped[group.key];
       return <details key={group.key} open={group.defaultOpen} className="group rounded-lg border">
         <summary className="cursor-pointer px-4 py-3 font-medium">{group.label}<span className="ml-2 text-sm text-muted-foreground">{items.length}</span></summary>
-        {items.length ? <Table className="min-w-[940px]">
+        {items.length ? <div className="w-full overflow-x-auto"><Table className="min-w-[1280px] w-full">
           <TableHeader><TableRow>
             <TableHead>강의</TableHead><TableHead>강사</TableHead><TableHead>기수</TableHead><TableHead>웨비나 날짜</TableHead>
-            <TableHead className="text-right">출연 채널</TableHead><TableHead className="text-right">출연 확정</TableHead><TableHead className="text-right">업로드 완료</TableHead><TableHead className="text-right">촬영 일정 미확정</TableHead>
+            <TableHead>출연 채널</TableHead><TableHead>확정 채널</TableHead><TableHead className="text-right">업로드 완료</TableHead><TableHead className="text-right">촬영 일정 미확정</TableHead>
           </TableRow></TableHeader>
           <TableBody>{items.map((course) => <TableRow key={course.id}>
             <TableCell><Link className="font-medium hover:underline" href={`/services/youtube-management/${course.id}`}>{course.name}</Link></TableCell>
             <TableCell>{course.instructor_name || "—"}</TableCell><TableCell>{course.cohort || "—"}</TableCell>
             <TableCell><time dateTime={course.free_webinar_at || undefined}>{formatWebinarDate(course.free_webinar_at)}</time></TableCell>
-            <TableCell className="text-right">{course.appearanceNotRequired ? "진행하지 않음" : `${course.appearanceCount}개`}</TableCell><TableCell className="text-right">{course.appearanceNotRequired ? "-" : `${course.confirmedAppearanceCount}개`}</TableCell><TableCell className="text-right">{course.appearanceNotRequired ? "-" : `${course.uploadCompletedCount}개`}</TableCell>
+            <TableCell><ChannelChips names={course.appearanceChannels.map((channel) => channel.name)} disabled={course.appearanceNotRequired} /></TableCell>
+            <TableCell><ChannelChips names={course.appearanceChannels.filter((channel) => channel.confirmed).map((channel) => channel.name)} disabled={course.appearanceNotRequired} emptyLabel="미확정" /></TableCell>
+            <TableCell className="text-right">{course.appearanceNotRequired ? "-" : `${course.uploadCompletedCount}개`}</TableCell>
             <TableCell className="text-right">{course.filmingAlert.deadlineReached
               ? course.filmingAlert.alertCount > 0
                 ? <Badge variant="destructive">{course.filmingAlert.alertCount}건</Badge>
                 : "0건"
               : "—"}</TableCell>
           </TableRow>)}</TableBody>
-        </Table> : <p className="p-5 text-sm text-muted-foreground">해당 상태의 강의가 없습니다.</p>}
+        </Table></div> : <p className="p-5 text-sm text-muted-foreground">해당 상태의 강의가 없습니다.</p>}
       </details>;
     })}</div>
     <Dialog open={open} onOpenChange={(value) => { if (!busy) { setOpen(value); if (!value) setToken(""); } }}><DialogContent aria-describedby={undefined}><DialogHeader><DialogTitle>노션 연결</DialogTitle></DialogHeader>
@@ -119,4 +122,11 @@ export function YoutubeCourseList({ courses, filmingAlertWeeks, embedded = false
     </DialogContent></Dialog>
     <MediaNotice message={message} onClose={() => setMessage("")} />
   </div>;
+}
+
+function ChannelChips({ names, disabled, emptyLabel = "-" }: { names: string[]; disabled: boolean; emptyLabel?: string }) {
+  if (disabled) return <span className="text-muted-foreground">진행하지 않음</span>;
+  const uniqueNames = [...new Set(names.map((name) => name.trim()).filter(Boolean))];
+  if (!uniqueNames.length) return <span className="text-muted-foreground">{emptyLabel}</span>;
+  return <div className="flex min-w-44 flex-wrap gap-1.5">{uniqueNames.map((name) => <Badge key={name} variant="secondary" className="max-w-44 truncate font-medium" title={name}>{name}</Badge>)}</div>;
 }

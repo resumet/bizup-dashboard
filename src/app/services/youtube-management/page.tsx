@@ -15,7 +15,7 @@ export default async function YoutubeManagementPage() {
   const [{ data, error }, filmingAlertSettings] = await Promise.all([
     admin
       .from("courses")
-      .select("id,name,instructor_name,cohort,status,free_webinar_at,course_youtube_appearances(request_status,filming_confirmed,filming_date,upload_date),course_youtube_settings(appearance_not_required)")
+      .select("id,name,instructor_name,cohort,status,free_webinar_at,course_youtube_appearances(channel_name,request_status,filming_confirmed,filming_date,upload_date),course_youtube_settings(appearance_not_required)")
       .eq("workspace_id", membership.workspace_id)
       .order("created_at", { ascending: false }),
     loadYoutubeFilmingAlertSettings(membership.workspace_id, admin),
@@ -33,6 +33,10 @@ export default async function YoutubeManagementPage() {
         return {
           ...course,
           appearanceNotRequired,
+          appearanceChannels: appearances.map((appearance) => ({
+            name: appearance.channel_name,
+            confirmed: appearance.request_status === "confirmed",
+          })),
           ...countYoutubeAppearances(appearances),
           filmingAlert: appearanceNotRequired ? { ...filmingAlert, alertCount: 0 } : filmingAlert,
         };
