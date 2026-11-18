@@ -1,5 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "node --conditions=react-server --require tsx/cjs scripts/check-tracking-labels.cjs && npm run build",
   "regions": ["hnd1"]
 }
