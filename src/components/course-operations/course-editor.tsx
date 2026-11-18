@@ -1017,9 +1017,8 @@ export function CourseOperationsEditor({
               <div className="grid gap-2">
                 <Label htmlFor="instructor-nickname">강사 닉네임</Label>
                 <Input id="instructor-nickname" className="h-10" maxLength={120}
-                  aria-describedby="instructor-nickname-help" value={draft.instructorNickname}
+                  value={draft.instructorNickname}
                   onChange={(event) => updateField("instructorNickname", event.target.value)} />
-                <p id="instructor-nickname-help" className="text-xs text-muted-foreground">소재성과 시트의 webinarName이 ‘라스트원웨비나’라면 ‘라스트원’을 입력해 주세요.</p>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="course-cohort">기수</Label>
