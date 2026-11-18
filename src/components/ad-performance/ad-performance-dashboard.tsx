@@ -172,7 +172,7 @@ export function AdPerformanceDashboard({
           trackingImportLabel="업데이트"
           freeChatRoomLinks={[course?.freeKakaoRoom1Link ?? "", course?.freeKakaoRoom2Link ?? ""]}
         />
-        <section aria-labelledby="course-creative-heading" className="mt-10 space-y-4 border-t pt-6">
+        <section aria-labelledby="course-creative-heading" className="mt-10 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-4 border-t pt-6 [&>p]:col-span-full">
           <h2 id="course-creative-heading" className="text-2xl font-semibold tracking-tight">소재성과</h2>
           {courseId === (initialData.course?.id ?? "") ? children : <p role="status">소재성과를 불러오는 중입니다.</p>}
         </section>

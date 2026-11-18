@@ -112,7 +112,8 @@ function Hierarchy({ rows, depth = 0 }: { rows: CreativeRow[]; depth?: number })
 }
 
 export function CreativePerformance({ initialData, embedded = false }: { initialData: CreativeData; embedded?: boolean }) {
-  const [data, setData] = useState(initialData);
+  const [managedData, setData] = useState(initialData);
+  const data = embedded ? initialData : managedData;
   const [filterSettingsOpen, setFilterSettingsOpen] = useState(false);
   const [webinarName, setWebinarName] = useState(initialData.webinarName);
   const [busy, setBusy] = useState(false);
@@ -140,13 +141,37 @@ export function CreativePerformance({ initialData, embedded = false }: { initial
     finally { setBusy(false); }
   }
 
-  const Container = embedded ? "div" : "main";
-  return <Container className={embedded ? "space-y-6" : "mx-auto min-h-screen max-w-[1900px] space-y-6 px-5 py-8 lg:px-8"}>
+  const viewButtons = (
+    <div role="group" aria-label="성과 보기 방식" className="ml-auto flex gap-2">
+      <Button variant={view === "date" ? "default" : "outline"} aria-pressed={view === "date"} onClick={() => setView("date")}>날짜별 보기</Button>
+      <Button variant={view === "creative" ? "default" : "outline"} aria-pressed={view === "creative"} onClick={() => setView("creative")}>소재별 보기</Button>
+    </div>
+  );
+  const results = (
+    <div key={`${view}:${data.updatedAt}:${query}:${from}:${to}`} className="space-y-3">
+      {groups.map(([name, rows]) => <Branch key={name} title={name} count={rows.length} defaultOpen>
+        {(["google", "meta"] as const).map(platform => {
+          const values = rows.filter(row => row.platform === platform);
+          return <Branch key={platform} title={platform === "google" ? "Google 데이터" : "Meta 데이터"} count={values.length}
+            totals={summarizeCreativeRows(values)}>
+            {values.length ? (view === "date" ? <Hierarchy rows={values} /> : <CreativeTable rows={values} />) : <p className="text-sm text-muted-foreground">해당 매체 데이터가 없습니다.</p>}
+          </Branch>;
+        })}
+      </Branch>)}
+      {!groups.length ? <p className="rounded-xl border p-10 text-center text-muted-foreground">{data.rows.length ? "검색 조건에 맞는 데이터가 없습니다." : !data.course ? "시트에 성과 데이터가 없습니다." : data.course.instructor_nickname ? `‘${data.course.instructor_nickname}’ 닉네임과 일치하는 소재성과가 없습니다.` : "강의 기본 정보에 강사 닉네임을 입력해 주세요."}</p> : null}
+    </div>
+  );
+  const missingSource = <div className="rounded-xl border p-10 text-center"><p className="text-muted-foreground">내부광고 성과기록 화면에서 Google Sheets 주소를 설정해 주세요.</p></div>;
+
+  if (embedded) return <>
+    {data.url && viewButtons}
+    <div className="col-span-full min-w-0">{data.url ? results : missingSource}</div>
+  </>;
+
+  return <main className="mx-auto min-h-screen max-w-[1900px] space-y-6 px-5 py-8 lg:px-8">
     <div className="flex flex-wrap items-center gap-3">
-      {!embedded && <>
-        <Button variant="ghost" size="icon-sm" asChild><BackLink href="/services/ad-performance"><ArrowLeft />뒤로가기</BackLink></Button>
-        <h1 className="text-3xl font-semibold tracking-tight">{data.course ? `${data.course.name} 소재성과` : "소재성과 관리"}</h1>
-      </>}
+      <Button variant="ghost" size="icon-sm" asChild><BackLink href="/services/ad-performance"><ArrowLeft />뒤로가기</BackLink></Button>
+      <h1 className="text-3xl font-semibold tracking-tight">{data.course ? `${data.course.name} 소재성과` : "소재성과 관리"}</h1>
       <div className="ml-auto flex gap-2">
         <Button variant="outline" disabled={busy || !data.url} onClick={() => void sync()}>{busy ? <Loader2 className="animate-spin" /> : <RefreshCw />}데이터 갱신</Button>
         {data.course ? <Button asChild variant="outline"><Link href={`/services/course-operations/${data.course.id}#instructor-nickname`}><Settings2 />강사 닉네임 설정</Link></Button> :
@@ -164,24 +189,10 @@ export function CreativePerformance({ initialData, embedded = false }: { initial
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">{filtered.length.toLocaleString("ko-KR")}행 · 마지막 갱신 {new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "short" }).format(new Date(data.updatedAt))}</p>
-        <div role="group" aria-label="성과 보기 방식" className="ml-auto flex gap-2">
-          <Button variant={view === "date" ? "default" : "outline"} aria-pressed={view === "date"} onClick={() => setView("date")}>날짜별 보기</Button>
-          <Button variant={view === "creative" ? "default" : "outline"} aria-pressed={view === "creative"} onClick={() => setView("creative")}>소재별 보기</Button>
-        </div>
+        {viewButtons}
       </div>
-      <div key={`${view}:${data.updatedAt}:${query}:${from}:${to}`} className="space-y-3">
-        {groups.map(([name, rows]) => <Branch key={name} title={name} count={rows.length} defaultOpen>
-          {(["google", "meta"] as const).map(platform => {
-            const values = rows.filter(row => row.platform === platform);
-            return <Branch key={platform} title={platform === "google" ? "Google 데이터" : "Meta 데이터"} count={values.length}
-              totals={summarizeCreativeRows(values)}>
-              {values.length ? (view === "date" ? <Hierarchy rows={values} /> : <CreativeTable rows={values} />) : <p className="text-sm text-muted-foreground">해당 매체 데이터가 없습니다.</p>}
-            </Branch>;
-          })}
-        </Branch>)}
-        {!groups.length ? <p className="rounded-xl border p-10 text-center text-muted-foreground">{data.rows.length ? "검색 조건에 맞는 데이터가 없습니다." : !data.course ? "시트에 성과 데이터가 없습니다." : data.course.instructor_nickname ? `‘${data.course.instructor_nickname}’ 닉네임과 일치하는 소재성과가 없습니다.` : "강의 기본 정보에 강사 닉네임을 입력해 주세요."}</p> : null}
-      </div>
-    </> : <div className="rounded-xl border p-10 text-center"><p className="text-muted-foreground">내부광고 성과기록 화면에서 Google Sheets 주소를 설정해 주세요.</p></div>}
+      {results}
+    </> : missingSource}
     <Dialog open={filterSettingsOpen} onOpenChange={(open) => { if (!busy) setFilterSettingsOpen(open); }}>
       <DialogContent className="sm:max-w-md" showCloseButton={!busy}>
         <form className="space-y-5" onSubmit={(event) => { event.preventDefault(); void sync(webinarName); }}>
@@ -194,5 +205,5 @@ export function CreativePerformance({ initialData, embedded = false }: { initial
         </form>
       </DialogContent>
     </Dialog>
-  </Container>;
+  </main>;
 }
