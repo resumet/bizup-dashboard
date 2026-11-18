@@ -102,6 +102,7 @@ export type AdPerformanceIndexData = {
     url: string;
     updatedAt: string;
     matchingKeywords: string;
+    webinarName: string;
   };
   loadError?: string;
 };

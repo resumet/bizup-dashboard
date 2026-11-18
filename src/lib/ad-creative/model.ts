@@ -15,7 +15,7 @@ export type CreativeRow = {
   webinar: string;
 };
 export type CreativeCourse = { name: string; instructor_name: string };
-export type CreativeData = { url: string; updatedAt: string; rows: CreativeRow[]; matchingKeywords: string; error?: string };
+export type CreativeData = { url: string; updatedAt: string; rows: CreativeRow[]; matchingKeywords: string; webinarName: string; error?: string };
 export type CreativeAggregateRow = CreativeRow & { statuses: string[] };
 export type CreativeMetric = "cost" | "impressions" | "clicks" | "conversions";
 export type CreativeSort = { key: CreativeMetric; direction: "descending" | "ascending" } | null;
@@ -90,6 +90,16 @@ export function filterCreativeRowsByKeywords(rows: readonly CreativeRow[], keywo
     const source = [row.instructor, row.campaign, row.group, row.ad, row.webinar].join(" ").toLocaleLowerCase("ko-KR");
     return terms.some((term) => source.includes(term));
   });
+}
+
+export function normalizeCreativeWebinarName(value: string) {
+  return value.normalize("NFKC").trim();
+}
+
+export function filterCreativeRowsByWebinarName(rows: readonly CreativeRow[], webinarName: string): CreativeRow[] {
+  const expected = normalizeCreativeWebinarName(webinarName);
+  if (!expected) return [...rows];
+  return rows.filter((row) => normalizeCreativeWebinarName(row.webinar) === expected);
 }
 
 const normalize = (value: string) => value.normalize("NFKC").replace(/[\s_-]/gu, "").toLowerCase();
