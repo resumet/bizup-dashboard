@@ -12,6 +12,7 @@ import {
 import { UserRoleSelect } from "@/components/admin/user-role-select";
 import { UserNameEditor } from "@/components/admin/user-name-editor";
 import { UserStatusToggle } from "@/components/admin/user-status-toggle";
+import { UserPasswordEditor } from "@/components/admin/user-password-editor";
 import { CommonLinksManager } from "@/components/admin/common-links-manager";
 import { CalendarMeetingTypesManager } from "@/components/admin/calendar-meeting-types-manager";
 import { MenuSearchKeywordsManager } from "@/components/admin/menu-search-keywords-manager";
@@ -266,6 +267,7 @@ export default async function AdminUsersPage({
                       <TableHead>계정</TableHead>
                       <TableHead>권한</TableHead>
                       <TableHead>계정 상태</TableHead>
+                      <TableHead>비밀번호</TableHead>
                       <TableHead>인증</TableHead>
                       <TableHead>워크스페이스</TableHead>
                       <TableHead>가입일</TableHead>
@@ -314,6 +316,9 @@ export default async function AdminUsersPage({
                             </TableCell>
                             <TableCell>
                               <UserStatusToggle userId={user.id} email={user.email} initialActive={user.active} disabled={isSuperAdmin || user.id === currentUser.id} />
+                            </TableCell>
+                            <TableCell>
+                              <UserPasswordEditor userId={user.id} email={user.email} disabled={isBootstrapSuperAdmin} />
                             </TableCell>
                             <TableCell>
                               <Badge variant={user.emailConfirmedAt ? "outline" : "destructive"}>
