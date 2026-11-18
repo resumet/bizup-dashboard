@@ -101,7 +101,6 @@ export type AdPerformanceIndexData = {
   creativeSource: {
     url: string;
     updatedAt: string;
-    matchingKeywords: string;
     webinarName: string;
   };
   loadError?: string;

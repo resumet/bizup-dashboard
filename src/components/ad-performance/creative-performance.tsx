@@ -132,11 +132,11 @@ export function CreativePerformance({ initialData, initialInstructor = "", initi
     [row.instructor, row.webinar, row.campaign, row.group, row.ad].some(value => value.toLocaleLowerCase("ko-KR").includes(query.trim().toLocaleLowerCase("ko-KR")))), [scopedRows, query]);
   const instructors = useMemo(() => groupCreativeRows(filtered, "instructor"), [filtered]);
 
-  async function sync() {
+  async function sync(nextWebinarName = data.webinarName) {
     if (busy) return;
     setBusy(true); setError(""); setNotice("");
     try {
-      const response = await fetch("/api/ad-creative", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: data.url, matchingKeywords: data.matchingKeywords, webinarName, expectedUpdatedAt: data.updatedAt }) });
+      const response = await fetch("/api/ad-creative", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: data.url, webinarName: nextWebinarName, expectedUpdatedAt: data.updatedAt }) });
       const result = await response.json() as CreativeData & { message?: string };
       if (!response.ok) throw new Error(result.message || "데이터를 불러오지 못했습니다.");
       setData(result); setWebinarName(result.webinarName); setFilterSettingsOpen(false);
@@ -187,7 +187,7 @@ export function CreativePerformance({ initialData, initialInstructor = "", initi
     </> : <div className="rounded-xl border p-10 text-center"><p className="text-muted-foreground">내부광고 성과기록 화면에서 Google Sheets 주소를 설정해 주세요.</p></div>}
     <Dialog open={filterSettingsOpen} onOpenChange={(open) => { if (!busy) setFilterSettingsOpen(open); }}>
       <DialogContent className="sm:max-w-md" showCloseButton={!busy}>
-        <form className="space-y-5" onSubmit={(event) => { event.preventDefault(); void sync(); }}>
+        <form className="space-y-5" onSubmit={(event) => { event.preventDefault(); void sync(webinarName); }}>
           <DialogHeader><DialogTitle>필터값 설정</DialogTitle></DialogHeader>
           <div className="space-y-2"><Label htmlFor="creative-webinar-name">웨비나 이름</Label><Input id="creative-webinar-name" value={webinarName} disabled={busy} maxLength={300} onChange={(event) => setWebinarName(event.target.value)} placeholder="시트의 webinarName 값" />
             <p className="text-xs leading-5 text-muted-foreground">Google·Meta 시트의 webinarName 열과 완전히 같은 값의 행만 불러옵니다. 비우면 모든 웨비나 데이터를 사용합니다.</p>

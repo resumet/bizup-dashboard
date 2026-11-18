@@ -84,11 +84,11 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
       const response = await fetch("/api/ad-creative", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: sourceUrl, matchingKeywords: creativeSource.matchingKeywords, webinarName: creativeSource.webinarName, expectedUpdatedAt: creativeSource.updatedAt }),
+        body: JSON.stringify({ url: sourceUrl, webinarName: creativeSource.webinarName, expectedUpdatedAt: creativeSource.updatedAt }),
       });
-      const result = await response.json() as { url?: string; updatedAt?: string; matchingKeywords?: string; webinarName?: string; rows?: unknown[]; message?: string };
-      if (!response.ok || !result.url || !result.updatedAt || result.matchingKeywords === undefined || result.webinarName === undefined) throw new Error(result.message || "원본 데이터를 저장하지 못했습니다.");
-      setCreativeSource({ url: result.url, updatedAt: result.updatedAt, matchingKeywords: result.matchingKeywords, webinarName: result.webinarName });
+      const result = await response.json() as { url?: string; updatedAt?: string; webinarName?: string; rows?: unknown[]; message?: string };
+      if (!response.ok || !result.url || !result.updatedAt || result.webinarName === undefined) throw new Error(result.message || "원본 데이터를 저장하지 못했습니다.");
+      setCreativeSource({ url: result.url, updatedAt: result.updatedAt, webinarName: result.webinarName });
       setSourceSettingsOpen(false);
       setNotice(`${(result.rows?.length ?? 0).toLocaleString("ko-KR")}건의 소재성과 데이터를 불러왔습니다.`);
     } catch (caught) {
