@@ -36,12 +36,23 @@ const hierarchyBackgrounds = {
 
 type CreativeTotals = ReturnType<typeof summarizeCreativeRows>;
 
-function CreativeRateTotals({ totals }: { totals: CreativeTotals }) {
+const totalLabels = ["비용 합계", "노출수 합계", "클릭수 합계", "전환 합계"];
+const metaTotalLabels = ["adCost 합계", "impression 합계", "linkClick 합계", "leads 합계"];
+
+function CreativeTotalsRow({ totals, labels = totalLabels, showUnitCosts = false }: { totals: CreativeTotals; labels?: string[]; showUnitCosts?: boolean }) {
   const rates = calculateCreativeRates(totals);
-  return <span className="col-span-full grid grid-cols-2 gap-3 border-t pt-3 sm:grid-cols-3 lg:grid-cols-5">
-    {creativeRateColumns.map(([key, label, format]) => <span key={key} className="min-w-0 space-y-1">
+  return <span className="grid w-full min-w-0 grid-flow-col auto-cols-[minmax(max-content,1fr)] gap-3 overflow-x-auto whitespace-nowrap">
+    {(["cost", "impressions", "clicks", "conversions"] as const).map((key, index) => {
+      const unit = showUnitCosts && key !== "cost" ? unitCost(totals.cost, totals[key]) : null;
+      return <span key={key} className="space-y-1">
+        <span className="block text-xs font-normal text-muted-foreground">{labels[index]}</span>
+        <span className="block font-semibold tabular-nums">{number(totals[key])}</span>
+        {unit && <span className="block text-xs font-normal text-muted-foreground">({unit})</span>}
+      </span>;
+    })}
+    {creativeRateColumns.map(([key, label, format]) => <span key={key} className="space-y-1">
       <span className="block text-xs font-normal text-muted-foreground">{label}</span>
-      <span className="block break-words font-semibold tabular-nums">{format.format(rates[key])}</span>
+      <span className="block font-semibold tabular-nums">{format.format(rates[key])}</span>
     </span>)}
   </span>;
 }
@@ -52,16 +63,8 @@ function Branch({ title, count, children, totals, level, defaultOpen = false }: 
     <summary className={`flex cursor-pointer list-none flex-wrap items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden ${level ? hierarchyBackgrounds[level] : "hover:bg-muted/50"}`}>
       <ChevronRight className={`size-4 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} aria-hidden="true" />
       <span className="min-w-0 flex-1 break-words">{title}</span><span className="shrink-0 text-xs text-muted-foreground">{count.toLocaleString("ko-KR")}행</span>
-      {totals ? <span aria-label={`${title} 하위 데이터 전체 합계`} className="grid w-full grid-cols-2 gap-3 border-t pt-3 sm:grid-cols-4">
-        {([
-          ["cost", "비용 합계"], ["impressions", "노출수 합계"],
-          ["clicks", "클릭수 합계"], ["conversions", "전환 합계"],
-        ] as const).map(([key, label]) => <span key={key} className="min-w-0 space-y-1">
-          <span className="block text-xs font-normal text-muted-foreground">{label}</span>
-          <span className="block break-words font-semibold tabular-nums">{number(totals[key])}</span>
-          {key !== "cost" && unitCost(totals.cost, totals[key]) ? <span className="block text-xs font-normal text-muted-foreground">({unitCost(totals.cost, totals[key])})</span> : null}
-        </span>)}
-        <CreativeRateTotals totals={totals} />
+      {totals ? <span aria-label={`${title} 하위 데이터 전체 합계`} className="w-full min-w-0 border-t pt-3">
+        <CreativeTotalsRow totals={totals} showUnitCosts />
       </span> : null}
     </summary>
     {open ? <div className="space-y-2 border-t p-3 sm:p-4">{children}</div> : null}
@@ -86,16 +89,9 @@ function AdTable({ rows, aggregated = false }: { rows: (CreativeRow & { statuses
   headers.push(google ? "웨비나네임" : "webinarName");
   const pageCount = Math.ceil(rows.length / 100);
   const totals = useMemo(() => summarizeCreativeRows(rows), [rows]);
-  const totalLabels = google ? ["비용 합계", "노출수 합계", "클릭수 합계", "전환 합계"] : ["adCost 합계", "impression 합계", "linkClick 합계", "leads 합계"];
   return <>
-    {!(google && aggregated) ? <div role="group" aria-label="상세 성과 전체 행 합계" className="space-y-3 rounded-lg border bg-muted/30 p-4">
-      <dl className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        {(["cost", "impressions", "clicks", "conversions"] as const).map((key, index) => <div key={key} className="min-w-0 space-y-1">
-          <dt className="text-xs text-muted-foreground">{totalLabels[index]}</dt>
-          <dd className="break-words text-lg font-semibold tabular-nums">{number(totals[key])}</dd>
-        </div>)}
-      </dl>
-      <CreativeRateTotals totals={totals} />
+    {!(google && aggregated) ? <div role="group" aria-label="상세 성과 전체 행 합계" className="min-w-0 rounded-lg border bg-muted/30 p-4">
+      <CreativeTotalsRow totals={totals} labels={google ? totalLabels : metaTotalLabels} />
     </div> : null}
     <Table><TableHeader><TableRow>{headers.map(header => {
       const metric = aggregated ? metricHeaders[header] : undefined;
