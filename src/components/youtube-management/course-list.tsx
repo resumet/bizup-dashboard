@@ -136,9 +136,9 @@ function ChannelChips({ names, disabled, emptyLabel = "-" }: { names: string[]; 
 
 function channelChip(name: string) {
   const labels: Record<string, { label: string; className: string }> = {
-    "초월스토리-돈버는 사장님들": { label: "초월스토리", className: "border border-violet-200 bg-violet-50 text-violet-800" },
+    "초월스토리 - 돈버는 사장님들": { label: "초월스토리", className: "border border-violet-200 bg-violet-50 text-violet-800" },
     "두시간 부업만 일로와": { label: "두부", className: "border border-amber-200 bg-amber-50 text-amber-800" },
-    "꿈꾸는 사람들": { label: "꿈꾸사", className: "border border-sky-200 bg-sky-50 text-sky-800" },
+    "꿈꾸는사람들": { label: "꿈꾸사", className: "border border-sky-200 bg-sky-50 text-sky-800" },
   };
   return labels[name] ?? { label: name, className: "" };
 }
