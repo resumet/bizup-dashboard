@@ -162,8 +162,10 @@ test("Google과 Meta 광고 원시값을 합산해 핵심 성과를 계산한다
   assert.equal(result.remainingBudget, 500_000);
   assert.equal(result.googleClickConversionRate, 2.5);
   assert.equal(result.metaClickConversionRate, 5);
+  assert.equal(result.clickConversionRate, 3);
   assert.equal(result.googleLandingConversionRate, 10);
   assert.equal(result.metaLandingConversionRate, 10);
+  assert.equal(result.landingConversionRate, 10);
   assert.equal(result.adLeadCost, 500_000 / 30);
   assert.equal(result.paidLandingLeadCost, 20_000);
   assert.equal(result.paidLandingLeads, 25);
@@ -194,8 +196,10 @@ test("분모가 없는 전환율과 단가는 null로 반환한다", () => {
   const result = summarizeAdPerformance([empty], 0);
   assert.equal(result.googleClickConversionRate, null);
   assert.equal(result.metaClickConversionRate, null);
+  assert.equal(result.clickConversionRate, null);
   assert.equal(result.googleLandingConversionRate, null);
   assert.equal(result.metaLandingConversionRate, null);
+  assert.equal(result.landingConversionRate, null);
   assert.equal(result.adLeadCost, null);
   assert.equal(result.paidLandingLeadCost, null);
 });

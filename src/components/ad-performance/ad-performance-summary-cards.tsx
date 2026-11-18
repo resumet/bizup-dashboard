@@ -41,11 +41,19 @@ function MetricCard({ title, columns, footer }: {
   </Card>;
 }
 
-export function AdPerformanceSummaryCards({ metrics, totalBudget, organicChannels = [], className = "mt-6" }: {
+function conversionColumns(title: string, google: number | null, meta: number | null, total: number | null): MetricColumn[] {
+  return ([["구글", google], ["메타", meta], ["전체", total]] as const).map(([label, rate]) => ({
+    key: label, label, valueLabel: `${label} ${title}`,
+    value: rate === null ? "—" : `${rate.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`,
+  }));
+}
+
+export function AdPerformanceSummaryCards({ metrics, totalBudget, organicChannels = [], className = "mt-6", showConversionRates = false }: {
   metrics: AdPerformanceDailyMetric[];
   totalBudget: number;
   organicChannels?: AdPerformanceOrganicChannel[];
   className?: string;
+  showConversionRates?: boolean;
 }) {
   const summary = summarizeAdPerformance(metrics, totalBudget);
   const spendColumns = [
@@ -72,12 +80,16 @@ export function AdPerformanceSummaryCards({ metrics, totalBudget, organicChannel
   ].map((item) => ({ key: item.id, label: item.name, value: `${number.format(item.count)}건`,
     valueLabel: `${item.name} 오가닉DB` }));
 
-  return <section aria-label="성과 요약" className={`${className} grid items-stretch gap-3 md:grid-cols-2 xl:grid-cols-[3fr_3fr_3fr_4fr_1.4fr]`}>
+  return <section aria-label="성과 요약" className={`${className} grid items-stretch gap-3 md:grid-cols-2 ${showConversionRates ? "xl:grid-cols-4" : "xl:grid-cols-[3fr_3fr_3fr_4fr_1.4fr]"}`}>
     <MetricCard title="집행비용" columns={spendColumns} />
     <MetricCard title="광고접수DB" columns={adColumns} />
     <MetricCard title="랜딩페이지접수DB" columns={landingColumns} />
     <MetricCard title="오가닉DB" columns={organicColumns} />
     <MetricCard title="단톡방 유입" columns={[{ key: "chat", label: "누적 단톡방 인원", value: `${number.format(summary.latestChatRoomMembers)}명`,
       detail: formatWon(summary.chatRoomEntrantCost), valueLabel: "누적 단톡방 인원", detailLabel: "단톡방 유입단가" }]} />
+    {showConversionRates && <>
+      <MetricCard title="광고클릭전환율" columns={conversionColumns("광고클릭전환율", summary.googleClickConversionRate, summary.metaClickConversionRate, summary.clickConversionRate)} />
+      <MetricCard title="랜딩전환율" columns={conversionColumns("랜딩전환율", summary.googleLandingConversionRate, summary.metaLandingConversionRate, summary.landingConversionRate)} />
+    </>}
   </section>;
 }

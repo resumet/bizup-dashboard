@@ -1,4 +1,7 @@
 import { notFound, redirect } from "next/navigation";
+import { Suspense } from "react";
+import { CreativePerformance } from "@/components/ad-performance/creative-performance";
+import { loadCreativeCourse, loadCreativeData } from "@/lib/ad-creative/server";
 
 import { AdPerformanceDashboard } from "@/components/ad-performance/ad-performance-dashboard";
 import { loadAdPerformanceDashboard } from "@/lib/ad-performance/server";
@@ -9,6 +12,17 @@ import type { AdPerformanceWebinarOutcome } from "@/lib/ad-performance/outcome-s
 import { loadWebinarRecord } from "@/lib/course-webinars/server";
 
 export const dynamic = "force-dynamic";
+
+async function CourseCreativePerformance({ workspaceId, courseId }: { workspaceId: string; courseId: string }) {
+  let data;
+  try {
+    const course = await loadCreativeCourse(workspaceId, courseId);
+    data = await loadCreativeData(workspaceId, course);
+  } catch {
+    return <p role="alert" className="text-sm text-destructive">소재성과를 불러오지 못했습니다. 페이지를 새로고침해 주세요.</p>;
+  }
+  return <CreativePerformance key={courseId} initialData={data} embedded />;
+}
 
 export default async function AdPerformanceDetailPage({ params }: { params: Promise<{ dashboardId: string }> }) {
   const supabase = await createClient();
@@ -33,6 +47,10 @@ export default async function AdPerformanceDetailPage({ params }: { params: Prom
       initialData={data}
       webinarOutcome={webinar}
       webinarError={webinarError}
-    />
+    >
+      {data.course ? <Suspense fallback={<p role="status">소재성과를 불러오는 중입니다.</p>}>
+        <CourseCreativePerformance workspaceId={membership.workspace_id} courseId={data.course.id} />
+      </Suspense> : <p className="text-sm text-muted-foreground">사전설정에서 강의를 선택해 주세요.</p>}
+    </AdPerformanceDashboard>
   );
 }

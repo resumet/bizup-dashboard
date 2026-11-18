@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { AlertTriangle, ArrowLeft, BarChart3, BookOpenCheck, Copy, ExternalLink, ImageIcon, Loader2, MoreHorizontal, Plus, Save, Settings2, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BookOpenCheck, Copy, ExternalLink, Loader2, MoreHorizontal, Plus, Save, Settings2, Trash2 } from "lucide-react";
 
 import { BackLink } from "@/components/layout/back-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -38,7 +38,7 @@ function DashboardRow({ dashboard, busy, onDelete }: {
   const courseName = dashboard.course?.name ?? "강의 미설정";
   const landingLeadCost = dashboard.paidLandingLeads > 0 ? dashboard.spend / dashboard.paidLandingLeads : null;
   return <TableRow>
-    <TableCell className="max-w-56 font-medium whitespace-normal">{courseName}</TableCell>
+    <TableCell className="max-w-56 font-medium whitespace-normal"><Link className="text-primary underline-offset-4 hover:underline focus-visible:underline" href={`/services/ad-performance/${dashboard.id}`}>{courseName}</Link></TableCell>
     <TableCell>{dashboard.course?.instructorName || "-"}</TableCell>
     <TableCell className="tabular-nums">{formatWebinarDate(dashboard.course?.freeWebinarAt)}</TableCell>
     <TableCell className="tabular-nums">{formatDday(dashboard.course?.freeWebinarAt)}</TableCell>
@@ -48,8 +48,6 @@ function DashboardRow({ dashboard, busy, onDelete }: {
     <TableCell className="tabular-nums">{number.format(dashboard.paidLandingLeads + dashboard.organicLandingLeads)}건</TableCell>
     <TableCell className="tabular-nums">{dashboard.chatRoomMembers === null ? "-" : `${number.format(dashboard.chatRoomMembers)}명`}</TableCell>
     <TableCell className="tabular-nums">{landingLeadCost === null ? "-" : won.format(Math.round(landingLeadCost))}</TableCell>
-    <TableCell><Button asChild size="icon-sm" aria-label={`${courseName} 광고성과`} title="광고성과"><Link href={`/services/ad-performance/${dashboard.id}`}><BarChart3 /></Link></Button></TableCell>
-    <TableCell>{dashboard.course ? <Button asChild size="icon-sm" variant="outline" aria-label={`${courseName} 소재성과`} title="소재성과"><Link href={`/services/ad-performance/creative?courseId=${dashboard.course.id}`}><ImageIcon /></Link></Button> : "—"}</TableCell>
     <TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon-sm" variant="ghost" disabled={busy} aria-label={`${courseName} 메뉴`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem variant="destructive" disabled={busy} onSelect={onDelete}><Trash2 />삭제</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
   </TableRow>;
 }
@@ -160,14 +158,13 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
 
       <div className="mt-6 flex flex-wrap justify-end gap-2">
         <Button variant="outline" onClick={openSourceSettings}><Settings2 />원본 데이터 설정</Button>
-        <Button variant="outline" asChild><Link href="/services/ad-performance/creative">전체 소재성과</Link></Button>
         <Button variant="outline" asChild><Link href="/services/ad-performance/bulk">일괄 보기</Link></Button>
         <Button className="min-h-10" disabled={creating || Boolean(initialData.loadError)} onClick={() => void createDashboard()}>{creating ? <Loader2 className="animate-spin" /> : <Plus />}대시보드 만들기</Button>
       </div>
 
       <section className="mt-8">
         {dashboards.length ? <div className="rounded-xl border"><Table><TableHeader><TableRow>
-          {['강의명', '강사명', '웨비나 날짜', 'D-며칠', '광고 시작 날짜', '누적 집행비', '기록 일수', 'DB 총합', '단톡방 총합', '랜딩접수DB 단가', '광고성과', '소재성과'].map((label) => <TableHead key={label}>{label}</TableHead>)}<TableHead><span className="sr-only">관리</span></TableHead>
+          {['강의명', '강사명', '웨비나 날짜', 'D-며칠', '광고 시작 날짜', '누적 집행비', '기록 일수', 'DB 총합', '단톡방 총합', '랜딩접수DB 단가'].map((label) => <TableHead key={label}>{label}</TableHead>)}<TableHead><span className="sr-only">관리</span></TableHead>
         </TableRow></TableHeader><TableBody>{dashboards.map((dashboard) => <DashboardRow key={dashboard.id} dashboard={dashboard} busy={deletingId === dashboard.id} onDelete={() => void deleteDashboard(dashboard)} />)}</TableBody></Table></div> : (
           <Card><CardContent className="flex min-h-64 flex-col items-center justify-center text-center"><span className="mb-4 grid size-12 place-items-center rounded-full bg-primary/10 text-primary"><BookOpenCheck className="size-5" /></span><h3 className="font-semibold">아직 광고성과 대시보드가 없습니다</h3><p className="mt-2 max-w-md text-sm text-muted-foreground">대시보드를 만든 뒤 사전설정에서 강의와 광고 조건을 선택하세요.</p></CardContent></Card>
         )}

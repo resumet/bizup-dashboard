@@ -111,7 +111,7 @@ function Hierarchy({ rows, depth = 0 }: { rows: CreativeRow[]; depth?: number })
   </Branch>);
 }
 
-export function CreativePerformance({ initialData }: { initialData: CreativeData }) {
+export function CreativePerformance({ initialData, embedded = false }: { initialData: CreativeData; embedded?: boolean }) {
   const [data, setData] = useState(initialData);
   const [filterSettingsOpen, setFilterSettingsOpen] = useState(false);
   const [webinarName, setWebinarName] = useState(initialData.webinarName);
@@ -140,10 +140,13 @@ export function CreativePerformance({ initialData }: { initialData: CreativeData
     finally { setBusy(false); }
   }
 
-  return <main className="mx-auto min-h-screen max-w-[1900px] space-y-6 px-5 py-8 lg:px-8">
+  const Container = embedded ? "div" : "main";
+  return <Container className={embedded ? "space-y-6" : "mx-auto min-h-screen max-w-[1900px] space-y-6 px-5 py-8 lg:px-8"}>
     <div className="flex flex-wrap items-center gap-3">
-      <Button variant="ghost" size="icon-sm" asChild><BackLink href="/services/ad-performance"><ArrowLeft />뒤로가기</BackLink></Button>
-      <h1 className="text-3xl font-semibold tracking-tight">{data.course ? `${data.course.name} 소재성과` : "소재성과 관리"}</h1>
+      {!embedded && <>
+        <Button variant="ghost" size="icon-sm" asChild><BackLink href="/services/ad-performance"><ArrowLeft />뒤로가기</BackLink></Button>
+        <h1 className="text-3xl font-semibold tracking-tight">{data.course ? `${data.course.name} 소재성과` : "소재성과 관리"}</h1>
+      </>}
       <div className="ml-auto flex gap-2">
         <Button variant="outline" disabled={busy || !data.url} onClick={() => void sync()}>{busy ? <Loader2 className="animate-spin" /> : <RefreshCw />}데이터 갱신</Button>
         {data.course ? <Button asChild variant="outline"><Link href={`/services/course-operations/${data.course.id}#instructor-nickname`}><Settings2 />강사 닉네임 설정</Link></Button> :
@@ -191,5 +194,5 @@ export function CreativePerformance({ initialData }: { initialData: CreativeData
         </form>
       </DialogContent>
     </Dialog>
-  </main>;
+  </Container>;
 }

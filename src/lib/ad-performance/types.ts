@@ -129,8 +129,10 @@ export type AdPerformanceSummary = {
   chatRoomEntrantCost: number | null;
   remainingBudget: number;
   googleClickConversionRate: number | null;
+  clickConversionRate: number | null;
   metaClickConversionRate: number | null;
   googleLandingConversionRate: number | null;
+  landingConversionRate: number | null;
   metaLandingConversionRate: number | null;
   adLeadCost: number | null;
   paidLandingLeadCost: number | null;

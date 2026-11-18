@@ -1,6 +1,6 @@
 "use client";
 import { isSelectableCourse } from "@/lib/course-operations/course-status";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -48,10 +48,12 @@ export function AdPerformanceDashboard({
   initialData,
   webinarOutcome = null,
   webinarError,
+  children,
 }: {
   initialData: AdPerformanceDashboardData;
   webinarOutcome?: AdPerformanceWebinarOutcome | null;
   webinarError?: string;
+  children: ReactNode;
 }) {
   const router = useRouter();
   const [courseId, setCourseId] = useState(initialData.course?.id ?? "");
@@ -158,7 +160,7 @@ export function AdPerformanceDashboard({
         ) : null}
         <ToastNotice message={notice} onDismiss={() => setNotice("")} />
 
-        <AdPerformanceSummaryCards metrics={initialData.metrics} totalBudget={totalBudget} organicChannels={initialData.organicChannels} />
+        <AdPerformanceSummaryCards metrics={initialData.metrics} totalBudget={totalBudget} organicChannels={initialData.organicChannels} showConversionRates />
         <AdPerformanceOutcomeCard collapsible metrics={initialData.metrics} webinar={courseId === initialData.course?.id ? webinarOutcome : null} courseId={courseId} error={webinarError} />
 
         <AdPerformanceSheetWorkspace
@@ -170,6 +172,10 @@ export function AdPerformanceDashboard({
           trackingImportLabel="업데이트"
           freeChatRoomLinks={[course?.freeKakaoRoom1Link ?? "", course?.freeKakaoRoom2Link ?? ""]}
         />
+        <section aria-labelledby="course-creative-heading" className="mt-10 space-y-4 border-t pt-6">
+          <h2 id="course-creative-heading" className="text-2xl font-semibold tracking-tight">소재성과</h2>
+          {courseId === (initialData.course?.id ?? "") ? children : <p role="status">소재성과를 불러오는 중입니다.</p>}
+        </section>
       </div>
 
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
