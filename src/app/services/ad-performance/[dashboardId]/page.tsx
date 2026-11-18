@@ -1,12 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { CreativePerformance } from "@/components/ad-performance/creative-performance";
-import { CreativeMediaSummary } from "@/components/ad-performance/creative-media-summary";
+import { CreativeMediaSummary, type MediaLandingCounts } from "@/components/ad-performance/creative-media-summary";
 import type { CreativeData } from "@/lib/ad-creative/model";
 import { loadCreativeCourse, loadCreativeData } from "@/lib/ad-creative/server";
 
 import { AdPerformanceDashboard } from "@/components/ad-performance/ad-performance-dashboard";
 import { loadAdPerformanceDashboard } from "@/lib/ad-performance/server";
+import { summarizeAdPerformance } from "@/lib/ad-performance/calculation";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -15,14 +16,14 @@ import { loadWebinarRecord } from "@/lib/course-webinars/server";
 
 export const dynamic = "force-dynamic";
 
-async function CourseCreativePerformance({ source, summary = false }: { source: Promise<CreativeData | null>; summary?: boolean }) {
+async function CourseCreativePerformance({ source, landingCounts }: { source: Promise<CreativeData | null>; landingCounts?: MediaLandingCounts }) {
   const data = await source;
   if (!data) return <p role="alert" className="text-sm text-destructive">소재성과를 불러오지 못했습니다. 페이지를 새로고침해 주세요.</p>;
-  if (!summary) return <CreativePerformance key={data.course?.id} initialData={data} embedded />;
+  if (!landingCounts) return <CreativePerformance key={data.course?.id} initialData={data} embedded />;
   if (!data.url) return <p className="text-sm text-muted-foreground">원본 데이터 설정에서 Google Sheets 주소를 입력해 주세요.</p>;
   if (!data.course?.instructor_nickname) return <p className="text-sm text-muted-foreground">강의 기본 정보에 강사 닉네임을 입력해 주세요.</p>;
   if (!data.rows.length) return <p className="text-sm text-muted-foreground">이 강의에 해당하는 소재성과가 없습니다.</p>;
-  return <CreativeMediaSummary rows={data.rows} />;
+  return <CreativeMediaSummary rows={data.rows} landingCounts={landingCounts} />;
 }
 
 export default async function AdPerformanceDetailPage({ params }: { params: Promise<{ dashboardId: string }> }) {
@@ -52,7 +53,7 @@ export default async function AdPerformanceDetailPage({ params }: { params: Prom
       key={`${data.course?.id ?? "no-course"}:${data.sheetState?.updatedAt ?? "no-sheet-state"}`}
       initialData={data}
       mediaSummary={creativeSource && <Suspense fallback={<p role="status">매체별 요약을 불러오는 중입니다.</p>}>
-        <CourseCreativePerformance source={creativeSource} summary />
+        <CourseCreativePerformance source={creativeSource} landingCounts={summarizeAdPerformance(data.metrics, data.totalBudget)} />
       </Suspense>}
       webinarOutcome={webinar}
       webinarError={webinarError}
