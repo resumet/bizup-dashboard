@@ -32,8 +32,8 @@ const hierarchyBackgrounds = {
   ad: "hover:bg-muted/50",
 };
 
-function Branch({ title, count, children, totals, level }: { title: string; count: number; children: ReactNode; totals?: ReturnType<typeof summarizeCreativeRows>; level?: keyof typeof hierarchyBackgrounds }) {
-  const [open, setOpen] = useState(false);
+function Branch({ title, count, children, totals, level, defaultOpen = false }: { title: string; count: number; children: ReactNode; totals?: ReturnType<typeof summarizeCreativeRows>; level?: keyof typeof hierarchyBackgrounds; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   return <details open={open} onToggle={event => setOpen(event.currentTarget.open)} className="rounded-lg border bg-background">
     <summary className={`flex cursor-pointer list-none flex-wrap items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden ${level ? hierarchyBackgrounds[level] : "hover:bg-muted/50"}`}>
       <ChevronRight className={`size-4 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} aria-hidden="true" />
@@ -167,7 +167,7 @@ export function CreativePerformance({ initialData }: { initialData: CreativeData
         </div>
       </div>
       <div key={`${view}:${data.updatedAt}:${query}:${from}:${to}`} className="space-y-3">
-        {groups.map(([name, rows]) => <Branch key={name} title={name} count={rows.length}>
+        {groups.map(([name, rows]) => <Branch key={name} title={name} count={rows.length} defaultOpen>
           {(["google", "meta"] as const).map(platform => {
             const values = rows.filter(row => row.platform === platform);
             return <Branch key={platform} title={platform === "google" ? "Google 데이터" : "Meta 데이터"} count={values.length}
