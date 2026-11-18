@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { AlertTriangle, ArrowLeft, BarChart3, BookOpenCheck, ImageIcon, Loader2, MoreHorizontal, Plus, Save, Settings2, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BarChart3, BookOpenCheck, Copy, ExternalLink, ImageIcon, Loader2, MoreHorizontal, Plus, Save, Settings2, Trash2 } from "lucide-react";
 
 import { BackLink } from "@/components/layout/back-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -66,14 +66,12 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
   const [creativeSource, setCreativeSource] = useState(initialData.creativeSource);
   const [sourceSettingsOpen, setSourceSettingsOpen] = useState(false);
   const [sourceUrl, setSourceUrl] = useState(initialData.creativeSource.url);
-  const [matchingKeywords, setMatchingKeywords] = useState(initialData.creativeSource.matchingKeywords);
   const [sourceSaving, setSourceSaving] = useState(false);
   const [sourceError, setSourceError] = useState("");
   const [notice, setNotice] = useState("");
 
   function openSourceSettings() {
     setSourceUrl(creativeSource.url);
-    setMatchingKeywords(creativeSource.matchingKeywords);
     setSourceError("");
     setSourceSettingsOpen(true);
   }
@@ -86,7 +84,7 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
       const response = await fetch("/api/ad-creative", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: sourceUrl, matchingKeywords, expectedUpdatedAt: creativeSource.updatedAt }),
+        body: JSON.stringify({ url: sourceUrl, matchingKeywords: creativeSource.matchingKeywords, expectedUpdatedAt: creativeSource.updatedAt }),
       });
       const result = await response.json() as { url?: string; updatedAt?: string; matchingKeywords?: string; rows?: unknown[]; message?: string };
       if (!response.ok || !result.url || !result.updatedAt || result.matchingKeywords === undefined) throw new Error(result.message || "원본 데이터를 저장하지 못했습니다.");
@@ -97,6 +95,26 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
       setSourceError(caught instanceof Error ? caught.message : "원본 데이터를 저장하지 못했습니다.");
     } finally {
       setSourceSaving(false);
+    }
+  }
+
+  function openSourceInNewWindow() {
+    try {
+      const url = new URL(sourceUrl.trim());
+      if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error("INVALID_URL");
+      window.open(url.href, "_blank", "noopener,noreferrer");
+    } catch {
+      setSourceError("유효한 Google Sheets 주소를 입력해 주세요.");
+    }
+  }
+
+  async function copySourceUrl() {
+    if (!sourceUrl.trim()) return;
+    try {
+      await navigator.clipboard.writeText(sourceUrl.trim());
+      setNotice("Google Sheets 주소를 복사했습니다.");
+    } catch {
+      setSourceError("주소를 복사하지 못했습니다. 직접 선택해 복사해 주세요.");
     }
   }
 
@@ -159,16 +177,15 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
       <Dialog open={sourceSettingsOpen} onOpenChange={(open) => { if (!sourceSaving) setSourceSettingsOpen(open); }}>
         <DialogContent className="sm:max-w-xl" showCloseButton={!sourceSaving}>
           <form className="space-y-5" onSubmit={(event) => { event.preventDefault(); void saveCreativeSource(); }}>
-            <DialogHeader><DialogTitle>소재성과 원본 데이터 설정</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>원본 데이터 설정</DialogTitle></DialogHeader>
             <div className="space-y-2">
               <Label htmlFor="creative-source">Google Sheets 주소</Label>
               <Input id="creative-source" type="url" required value={sourceUrl} disabled={sourceSaving} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://docs.google.com/spreadsheets/d/.../edit" />
               <p className="text-xs leading-5 text-muted-foreground">google_raw와 meta_raw 시트를 포함한 Google Sheets 주소를 입력하세요.</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="creative-matching-keywords">광고 매칭 키워드</Label>
-              <Input id="creative-matching-keywords" value={matchingKeywords} disabled={sourceSaving} maxLength={1000} onChange={(event) => setMatchingKeywords(event.target.value)} placeholder="lastone|라스트원" />
-              <p className="text-xs leading-5 text-muted-foreground">`|`로 구분한 키워드 중 하나가 포함된 행만 불러옵니다. 비우면 모든 행을 불러옵니다.</p>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" disabled={sourceSaving || !sourceUrl.trim()} onClick={openSourceInNewWindow}><ExternalLink />새 창으로 열기</Button>
+                <Button type="button" variant="outline" disabled={sourceSaving || !sourceUrl.trim()} onClick={() => void copySourceUrl()}><Copy />주소 복사</Button>
+              </div>
             </div>
             {sourceError ? <p role="alert" className="text-sm text-destructive">{sourceError}</p> : null}
             <DialogFooter><Button type="button" variant="outline" disabled={sourceSaving} onClick={() => setSourceSettingsOpen(false)}>취소</Button><Button type="submit" disabled={sourceSaving}>{sourceSaving ? <Loader2 className="animate-spin" /> : <Save />}{sourceSaving ? "불러오는 중" : "저장하고 불러오기"}</Button></DialogFooter>
