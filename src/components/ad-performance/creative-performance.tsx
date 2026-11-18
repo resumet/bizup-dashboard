@@ -34,7 +34,19 @@ const hierarchyBackgrounds = {
   ad: "hover:bg-muted/50",
 };
 
-function Branch({ title, count, children, totals, level, defaultOpen = false }: { title: string; count: number; children: ReactNode; totals?: ReturnType<typeof summarizeCreativeRows>; level?: keyof typeof hierarchyBackgrounds; defaultOpen?: boolean }) {
+type CreativeTotals = ReturnType<typeof summarizeCreativeRows>;
+
+function CreativeRateTotals({ totals }: { totals: CreativeTotals }) {
+  const rates = calculateCreativeRates(totals);
+  return <span className="col-span-full grid grid-cols-2 gap-3 border-t pt-3 sm:grid-cols-3 lg:grid-cols-5">
+    {creativeRateColumns.map(([key, label, format]) => <span key={key} className="min-w-0 space-y-1">
+      <span className="block text-xs font-normal text-muted-foreground">{label}</span>
+      <span className="block break-words font-semibold tabular-nums">{format.format(rates[key])}</span>
+    </span>)}
+  </span>;
+}
+
+function Branch({ title, count, children, totals, level, defaultOpen = false }: { title: string; count: number; children: ReactNode; totals?: CreativeTotals; level?: keyof typeof hierarchyBackgrounds; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return <details open={open} onToggle={event => setOpen(event.currentTarget.open)} className="rounded-lg border bg-background">
     <summary className={`flex cursor-pointer list-none flex-wrap items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden ${level ? hierarchyBackgrounds[level] : "hover:bg-muted/50"}`}>
@@ -49,6 +61,7 @@ function Branch({ title, count, children, totals, level, defaultOpen = false }: 
           <span className="block break-words font-semibold tabular-nums">{number(totals[key])}</span>
           {key !== "cost" && unitCost(totals.cost, totals[key]) ? <span className="block text-xs font-normal text-muted-foreground">({unitCost(totals.cost, totals[key])})</span> : null}
         </span>)}
+        <CreativeRateTotals totals={totals} />
       </span> : null}
     </summary>
     {open ? <div className="space-y-2 border-t p-3 sm:p-4">{children}</div> : null}
@@ -69,18 +82,21 @@ function AdTable({ rows, aggregated = false }: { rows: (CreativeRow & { statuses
   const google = rows[0]?.platform === "google";
   const metricHeaders: Record<string, CreativeMetric> = { 비용: "cost", 노출수: "impressions", 클릭수: "clicks", 전환: "conversions", adCost: "cost", impression: "impressions", linkClick: "clicks", leads: "conversions" };
   const headers = google ? ["광고 이름", aggregated ? "최근 광고상태" : "광고상태", "광고유형", "비용", "노출수", "클릭수", "전환"] : [...(aggregated ? ["adName"] : []), aggregated ? "최근 status" : "status", "adCost", "impression", "linkClick", "leads"];
-  if (aggregated) headers.push(...creativeRateColumns.map(([, label]) => label));
+  headers.push(...creativeRateColumns.map(([, label]) => label));
   headers.push(google ? "웨비나네임" : "webinarName");
   const pageCount = Math.ceil(rows.length / 100);
   const totals = useMemo(() => summarizeCreativeRows(rows), [rows]);
   const totalLabels = google ? ["비용 합계", "노출수 합계", "클릭수 합계", "전환 합계"] : ["adCost 합계", "impression 합계", "linkClick 합계", "leads 합계"];
   return <>
-    {!(google && aggregated) ? <dl aria-label="상세 성과 전체 행 합계" className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-4 xl:grid-cols-4">
-      {(["cost", "impressions", "clicks", "conversions"] as const).map((key, index) => <div key={key} className="min-w-0 space-y-1">
-        <dt className="text-xs text-muted-foreground">{totalLabels[index]}</dt>
-        <dd className="break-words text-lg font-semibold tabular-nums">{number(totals[key])}</dd>
-      </div>)}
-    </dl> : null}
+    {!(google && aggregated) ? <div role="group" aria-label="상세 성과 전체 행 합계" className="space-y-3 rounded-lg border bg-muted/30 p-4">
+      <dl className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {(["cost", "impressions", "clicks", "conversions"] as const).map((key, index) => <div key={key} className="min-w-0 space-y-1">
+          <dt className="text-xs text-muted-foreground">{totalLabels[index]}</dt>
+          <dd className="break-words text-lg font-semibold tabular-nums">{number(totals[key])}</dd>
+        </div>)}
+      </dl>
+      <CreativeRateTotals totals={totals} />
+    </div> : null}
     <Table><TableHeader><TableRow>{headers.map(header => {
       const metric = aggregated ? metricHeaders[header] : undefined;
       const direction = metric && sort?.key === metric ? sort.direction : undefined;
@@ -97,7 +113,7 @@ function AdTable({ rows, aggregated = false }: { rows: (CreativeRow & { statuses
         {google || aggregated ? <TableCell className="min-w-48 whitespace-normal break-words">{row.ad}</TableCell> : null}
         <TableCell><span className="flex flex-wrap gap-1">{(row.statuses ?? [row.status]).map(status => <Badge key={status} variant="outline" className={statusColors[creativeStatusTone(status)]}>{status || "미입력"}</Badge>)}</span></TableCell>{google ? <TableCell>{row.adType || "—"}</TableCell> : null}
         {[row.cost, row.impressions, row.clicks, row.conversions].map((value, column) => <TableCell key={column} className="text-right tabular-nums">{number(value)}{column > 0 && unitCost(row.cost, value) ? <span className="ml-1 text-xs text-muted-foreground">({unitCost(row.cost, value)})</span> : null}</TableCell>)}
-        {aggregated && <CreativeRateCells row={row} />}
+        <CreativeRateCells row={row} />
         <TableCell className="min-w-48 whitespace-normal">{row.webinar || "—"}</TableCell>
       </TableRow>)}</TableBody>
     </Table>
