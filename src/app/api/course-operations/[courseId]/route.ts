@@ -193,6 +193,8 @@ export async function PATCH(
       .update({
         name: input.name,
         instructor_name: input.instructorName,
+        ...(typeof body === "object" && body !== null && "instructorNickname" in body
+          ? { instructor_nickname: input.instructorNickname } : {}),
         cohort: input.cohort,
         free_webinar_at: input.freeWebinarAt,
         starts_at: input.startsAt,

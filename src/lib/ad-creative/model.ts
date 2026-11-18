@@ -14,8 +14,8 @@ export type CreativeRow = {
   conversions: number | null;
   webinar: string;
 };
-export type CreativeCourse = { name: string; instructor_name: string };
-export type CreativeData = { url: string; updatedAt: string; rows: CreativeRow[]; webinarName: string; error?: string };
+export type CreativeCourse = { id: string; name: string; instructor_nickname: string };
+export type CreativeData = { url: string; updatedAt: string; rows: CreativeRow[]; webinarName: string; course?: CreativeCourse; error?: string };
 export type CreativeAggregateRow = CreativeRow & { statuses: string[] };
 export type CreativeMetric = "cost" | "impressions" | "clicks" | "conversions";
 export type CreativeSort = { key: CreativeMetric; direction: "descending" | "ascending" } | null;
@@ -89,18 +89,10 @@ export function filterCreativeRowsByWebinarName(rows: readonly CreativeRow[], we
   return rows.filter((row) => normalizeCreativeWebinarName(row.webinar) === expected);
 }
 
-export function filterCreativeRowsByCourse(rows: CreativeRow[], instructor: string, courseName: string): CreativeRow[] {
-  const teacher = normalizeCreativeWebinarName(instructor);
-  const course = normalizeCreativeWebinarName(courseName);
-  if (!teacher && !course) return rows;
-  return rows.filter(row => {
-    const rowTeacher = normalizeCreativeWebinarName(row.instructor);
-    const webinar = normalizeCreativeWebinarName(row.webinar);
-    if (!course) return rowTeacher === teacher;
-    if (teacher && rowTeacher && rowTeacher !== "강사 미분류" && rowTeacher !== teacher) return false;
-    if (webinar === course) return true;
-    return Boolean(teacher && rowTeacher === teacher && (!webinar || webinar.replace(/\s*웨비나$/u, "") === teacher));
-  });
+export function filterCreativeRowsByNickname(rows: CreativeRow[], nickname: string): CreativeRow[] {
+  const expected = normalizeCreativeWebinarName(nickname);
+  if (!expected) return [];
+  return rows.filter(row => normalizeCreativeWebinarName(row.webinar).replace(/\s*웨비나$/u, "") === expected);
 }
 
 const normalize = (value: string) => value.normalize("NFKC").replace(/[\s_-]/gu, "").toLowerCase();
@@ -162,23 +154,6 @@ export function parseCreativeRows(platform: CreativePlatform, raw: readonly (rea
     } catch (error) { throw new Error(`${platform}_raw ${index + 1}행: ${error instanceof Error ? error.message : "값을 확인해 주세요."}`); }
   }
   return result;
-}
-
-export function assignCreativeInstructors(rows: CreativeRow[], courses: CreativeCourse[]): CreativeRow[] {
-  const byName = new Map<string, Set<string>>();
-  for (const course of courses) {
-    if (!course.instructor_name.trim()) continue;
-    const key = normalize(course.name);
-    const names = byName.get(key) ?? new Set<string>();
-    names.add(course.instructor_name.trim());
-    byName.set(key, names);
-  }
-  return rows.map(row => {
-    if (row.instructor.trim()) return row;
-    const names = byName.get(normalize(row.webinar));
-    const webinarInstructor = /^(.*?)\s*웨비나$/u.exec(row.webinar.trim())?.[1]?.trim();
-    return { ...row, instructor: names?.size === 1 ? [...names][0] : webinarInstructor || "강사 미분류" };
-  });
 }
 
 export function groupCreativeRows(rows: CreativeRow[], key: "instructorOrWebinar" | "instructor" | "platform" | "date" | "campaign" | "group" | "ad") {

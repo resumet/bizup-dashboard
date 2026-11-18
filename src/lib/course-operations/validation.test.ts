@@ -53,6 +53,12 @@ const validInput = {
   freeAddressBookId: "",
 };
 
+test("강사 닉네임은 선택 입력이며 양끝 공백을 정리하고 최대 120자까지 저장한다", () => {
+  assert.equal(parseCourseOperationsInput(validInput).instructorNickname, "");
+  assert.equal(parseCourseOperationsInput({ ...validInput, instructorNickname: " 라스트원 " }).instructorNickname, "라스트원");
+  assert.throws(() => parseCourseOperationsInput({ ...validInput, instructorNickname: "가".repeat(121) }), /강사 닉네임/u);
+});
+
 test("강의 운영 입력값을 DB 저장 형식으로 변환한다", () => {
   const parsed = parseCourseOperationsInput(validInput);
   assert.equal(parsed.options[0].listPrice, 500000);

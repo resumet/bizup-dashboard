@@ -63,6 +63,7 @@ export async function POST(request: Request) {
         workspace_id: membership.workspace_id,
         name: input.name,
         instructor_name: input.instructorName,
+        instructor_nickname: input.instructorNickname,
         cohort: input.cohort,
         free_webinar_at: input.freeWebinarAt,
         starts_at: input.startsAt,

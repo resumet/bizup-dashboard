@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, ArrowLeft, ChevronRight, Loader2, RefreshCw, Settings2 } from "lucide-react";
 import { BackLink } from "@/components/layout/back-link";
@@ -130,7 +131,7 @@ export function CreativePerformance({ initialData }: { initialData: CreativeData
     if (busy) return;
     setBusy(true); setError(""); setNotice("");
     try {
-      const response = await fetch("/api/ad-creative", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: data.url, webinarName: nextWebinarName, expectedUpdatedAt: data.updatedAt }) });
+      const response = await fetch("/api/ad-creative", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: data.url, webinarName: nextWebinarName, expectedUpdatedAt: data.updatedAt, courseId: data.course?.id }) });
       const result = await response.json() as CreativeData & { message?: string };
       if (!response.ok) throw new Error(result.message || "데이터를 불러오지 못했습니다.");
       setData(result); setWebinarName(result.webinarName); setFilterSettingsOpen(false);
@@ -142,10 +143,11 @@ export function CreativePerformance({ initialData }: { initialData: CreativeData
   return <main className="mx-auto min-h-screen max-w-[1900px] space-y-6 px-5 py-8 lg:px-8">
     <div className="flex flex-wrap items-center gap-3">
       <Button variant="ghost" size="icon-sm" asChild><BackLink href="/services/ad-performance"><ArrowLeft />뒤로가기</BackLink></Button>
-      <h1 className="text-3xl font-semibold tracking-tight">소재성과 관리</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">{data.course ? `${data.course.name} 소재성과` : "소재성과 관리"}</h1>
       <div className="ml-auto flex gap-2">
         <Button variant="outline" disabled={busy || !data.url} onClick={() => void sync()}>{busy ? <Loader2 className="animate-spin" /> : <RefreshCw />}데이터 갱신</Button>
-        <Button variant="outline" disabled={busy || !data.url} onClick={() => { setWebinarName(data.webinarName); setError(""); setFilterSettingsOpen(true); }}><Settings2 />필터값 설정</Button>
+        {data.course ? <Button asChild variant="outline"><Link href={`/services/course-operations/${data.course.id}#instructor-nickname`}><Settings2 />강사 닉네임 설정</Link></Button> :
+          <Button variant="outline" disabled={busy || !data.url} onClick={() => { setWebinarName(data.webinarName); setError(""); setFilterSettingsOpen(true); }}><Settings2 />필터값 설정</Button>}
       </div>
     </div>
     {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
@@ -174,7 +176,7 @@ export function CreativePerformance({ initialData }: { initialData: CreativeData
             </Branch>;
           })}
         </Branch>)}
-        {!groups.length ? <p className="rounded-xl border p-10 text-center text-muted-foreground">{data.rows.length ? "검색 조건에 맞는 데이터가 없습니다." : "시트에 성과 데이터가 없습니다."}</p> : null}
+        {!groups.length ? <p className="rounded-xl border p-10 text-center text-muted-foreground">{data.rows.length ? "검색 조건에 맞는 데이터가 없습니다." : !data.course ? "시트에 성과 데이터가 없습니다." : data.course.instructor_nickname ? `‘${data.course.instructor_nickname}’ 닉네임과 일치하는 소재성과가 없습니다.` : "강의 기본 정보에 강사 닉네임을 입력해 주세요."}</p> : null}
       </div>
     </> : <div className="rounded-xl border p-10 text-center"><p className="text-muted-foreground">내부광고 성과기록 화면에서 Google Sheets 주소를 설정해 주세요.</p></div>}
     <Dialog open={filterSettingsOpen} onOpenChange={(open) => { if (!busy) setFilterSettingsOpen(open); }}>

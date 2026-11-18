@@ -49,7 +49,7 @@ function DashboardRow({ dashboard, busy, onDelete }: {
     <TableCell className="tabular-nums">{dashboard.chatRoomMembers === null ? "-" : `${number.format(dashboard.chatRoomMembers)}명`}</TableCell>
     <TableCell className="tabular-nums">{landingLeadCost === null ? "-" : won.format(Math.round(landingLeadCost))}</TableCell>
     <TableCell><Button asChild size="icon-sm" aria-label={`${courseName} 광고성과`} title="광고성과"><Link href={`/services/ad-performance/${dashboard.id}`}><BarChart3 /></Link></Button></TableCell>
-    <TableCell><Button asChild size="icon-sm" variant="outline" aria-label="전체 소재성과" title="전체 소재성과"><Link href="/services/ad-performance/creative"><ImageIcon /></Link></Button></TableCell>
+    <TableCell>{dashboard.course ? <Button asChild size="icon-sm" variant="outline" aria-label={`${courseName} 소재성과`} title="소재성과"><Link href={`/services/ad-performance/creative?courseId=${dashboard.course.id}`}><ImageIcon /></Link></Button> : "—"}</TableCell>
     <TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon-sm" variant="ghost" disabled={busy} aria-label={`${courseName} 메뉴`}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem variant="destructive" disabled={busy} onSelect={onDelete}><Trash2 />삭제</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
   </TableRow>;
 }
@@ -160,6 +160,7 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
 
       <div className="mt-6 flex flex-wrap justify-end gap-2">
         <Button variant="outline" onClick={openSourceSettings}><Settings2 />원본 데이터 설정</Button>
+        <Button variant="outline" asChild><Link href="/services/ad-performance/creative">전체 소재성과</Link></Button>
         <Button variant="outline" asChild><Link href="/services/ad-performance/bulk">일괄 보기</Link></Button>
         <Button className="min-h-10" disabled={creating || Boolean(initialData.loadError)} onClick={() => void createDashboard()}>{creating ? <Loader2 className="animate-spin" /> : <Plus />}대시보드 만들기</Button>
       </div>

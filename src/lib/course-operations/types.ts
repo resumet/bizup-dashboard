@@ -47,6 +47,7 @@ export type CourseRequiredTask = {
 export type CourseOperationsDraft = {
   name: string;
   instructorName: string;
+  instructorNickname: string;
   cohort: string;
   freeWebinarAt: string;
   startsAt: string;

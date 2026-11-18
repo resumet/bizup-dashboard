@@ -1,23 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { aggregateCreativeRows, parseCreativeRows, assignCreativeInstructors, filterCreativeRowsByCourse, filterCreativeRowsByWebinarName, groupCreativeRows, summarizeCreativeRows, creativeStatusTone, creativeUnitCost, nextCreativeSort, sortCreativeRows } from "./model";
+import { aggregateCreativeRows, parseCreativeRows, filterCreativeRowsByNickname, filterCreativeRowsByWebinarName, groupCreativeRows, summarizeCreativeRows, creativeStatusTone, creativeUnitCost, nextCreativeSort, sortCreativeRows } from "./model";
 
 const google = ["일", "캠페인", "광고그룹", "광고 이름", "광고 상태", "광고 유형", "비용", "노출수", "클릭수", "전환", "webinarName"];
 const meta = ["date", "campaignName", "adSetName", "adName", "status", "adCost", "impression", "linkClick", "leads", "webinarName"];
 
-test("강의 매칭 함수는 일치하는 행이 없으면 0행이고 조건이 비면 모든 행을 반환한다", () => {
+test("구글과 메타 모두 webinarName 끝의 웨비나를 제거한 뒤 닉네임이 정확히 일치해야 한다", () => {
   const base = parseCreativeRows("meta", [meta, ["2026-11-15", "c", "g", "a", "ACTIVE", "1", "2", "3", "0", "수익화"]])[0];
   const rows = [
-    { ...base, instructor: "미닝" },
-    { ...base, platform: "google" as const, instructor: "미닝", webinar: "미닝 웨비나" },
-    { ...base, instructor: "미닝", webinar: "수익화 심화" },
-    { ...base, instructor: "다른 강사" },
+    { ...base, instructor: "신민철", webinar: "라스트원웨비나" },
+    { ...base, platform: "google" as const, instructor: "", webinar: " 라스트원 웨비나 " },
+    { ...base, webinar: "라스트원" },
+    { ...base, instructor: "라스트원", webinar: "라스트원웨비나 심화" },
+    { ...base, instructor: "라스트원", webinar: "" },
   ];
-  assert.deepEqual(filterCreativeRowsByCourse(rows, "미닝", "수익화"), rows.slice(0, 2));
-  assert.deepEqual(filterCreativeRowsByCourse(rows, "신규 강사", "신규 강의"), []);
-  assert.deepEqual(filterCreativeRowsByCourse(rows, "신규 강사", ""), []);
-  assert.deepEqual(filterCreativeRowsByCourse(rows, "", "수익화"), [rows[0], rows[3]]);
-  assert.deepEqual(filterCreativeRowsByCourse(rows, "", ""), rows);
+  assert.deepEqual(filterCreativeRowsByNickname(rows, " 라스트원 "), rows.slice(0, 3));
+  assert.deepEqual(filterCreativeRowsByNickname(rows, "신민철"), []);
+  assert.deepEqual(filterCreativeRowsByNickname(rows, " "), []);
 });
 
 test("전체 조회는 강사명 또는 원본 웨비나 이름으로 묶고 둘 다 빈 행도 표시한다", () => {
@@ -107,7 +106,7 @@ test("실제 Google 한국어 헤더와 날짜·소수 전환·빈 숫자를 읽
   assert.equal(rows[0].clicks, 0);
   assert.equal(rows[0].conversions, 1.5);
   assert.equal(rows[0].date, "2026-11-15");
-  assert.equal(assignCreativeInstructors(rows, [])[0].instructor, "미닝");
+  assert.equal(rows[0].webinar, "미닝웨비나");
 });
 test("Meta 원본 빈 값과 0을 구분하고 동일 광고 행을 지우지 않는다", () => {
   const row = ["2026-11-15", "campaign", "set", "ad", "not_delivering", "1,000", "100", "", "0", "김선아웨비나"];
@@ -122,16 +121,14 @@ test("필수 열·날짜·숫자가 잘못되면 부분 저장용 데이터를 �
   assert.throws(() => parseCreativeRows("meta", [meta, ["2026-02-30"]]), /날짜/u);
   assert.throws(() => parseCreativeRows("meta", [meta, ["2026-11-15", "c", "g", "a", "s", "invalid"]]), /숫자/u);
 });
-test("강사 열, 등록 강의명, 웨비나 이름으로 분류하고 미분류 데이터를 보존한다", () => {
+test("날짜 그룹은 원본 순서와 관계없이 최근 날짜부터 정렬한다", () => {
   const rows = parseCreativeRows("meta", [[...meta, "강사명"],
     ["2026-11-15", "c", "g", "a", "s", "", "", "", "", "미닝웨비나", "명시 강사"],
     ["2026-11-14", "c", "g", "a", "s", "", "", "", "", "강의 A"],
     ["2026-11-13", "c", "g", "a", "s", "", "", "", "", "라스트원웨비나"],
     ["2026-11-12", "c", "g", "a", "s", "", "", "", "", "모름"],
   ]);
-  const assigned = assignCreativeInstructors(rows, [{ name: "강의 A", instructor_name: "강사 A" }]);
-  assert.deepEqual(assigned.map(row => row.instructor), ["명시 강사", "강사 A", "라스트원", "강사 미분류"]);
-  assert.deepEqual(groupCreativeRows(assigned.reverse(), "date").map(([date]) => date), ["2026-11-15", "2026-11-14", "2026-11-13", "2026-11-12"]);
+  assert.deepEqual(groupCreativeRows(rows.reverse(), "date").map(([date]) => date), ["2026-11-15", "2026-11-14", "2026-11-13", "2026-11-12"]);
 });
 
 test("비용과 성과 수치를 기준으로 회당 단가를 계산하고 0 또는 누락 수치는 제외한다", () => {
