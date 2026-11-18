@@ -33,7 +33,10 @@ export async function fetchAdminCoursePage(link: string, page: "apply" | "tracki
   await login.body?.cancel();
   if (!login.ok || !cookie) throw new Error("비즈업 관리자 로그인에 실패했습니다. 로그인 설정을 확인해 주세요.");
   const response = await request(`${origin}/free-courses/${courseId}/${page}`, {
-    headers: { cookie, rsc: "1", accept: "text/x-component" }, redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(60000),
+    headers: page === "tracking"
+      ? { cookie, accept: "text/html" }
+      : { cookie, rsc: "1", accept: "text/x-component" },
+    redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(60000),
   });
   if (!response.ok) { await response.body?.cancel(); throw new Error("비즈업 관리자 페이지에 접속하지 못했습니다. 강의 링크와 계정 권한을 확인해 주세요."); }
   const text = await response.text();

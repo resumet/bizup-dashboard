@@ -12,19 +12,26 @@ const mediaLabels = new Map(Object.entries({
 function referralLinks(text: string): unknown[] {
   // The admin serves Flight records either directly or in streamed HTML scripts.
   if (text.trimStart().startsWith("<")) {
-    const chunks = text.matchAll(/self\.__next_f\.push\(\[1,\s*("(?:[^"\\]|\\.)*")\]\)/g);
+    const chunks = text.matchAll(/self\.__next_f\.push\(\s*\[\s*1\s*,\s*("(?:[^"\\]|\\.)*")\s*\]\s*\)/g);
     text = Array.from(chunks, chunk => JSON.parse(chunk[1]) as string).join("");
   }
-  for (const line of text.split("\n")) {
-    if (!line.includes('"referralLinks"')) continue;
-    let links: unknown;
-    try {
-      JSON.parse(line.replace(/^[\da-f]+:/i, ""), (key, value: unknown) => {
-        if (key === "referralLinks") links = value;
-        return value;
-      });
-    } catch { continue; }
-    if (Array.isArray(links)) return links;
+  // Flight text records can share a line with the surrounding component record.
+  // Parse just the array; quoted strings may contain brackets or escaped quotes.
+  const field = /"referralLinks"\s*:\s*(?=\[)/.exec(text);
+  if (field) {
+    const start = field.index + field[0].length;
+    let depth = 0, quoted = false;
+    for (let end = start; end < text.length; end++) {
+      const char = text[end];
+      if (quoted && char === "\\") { end++; continue; }
+      if (char === '"') quoted = !quoted;
+      if (quoted) continue;
+      if (char === "[") depth++;
+      if (char === "]" && --depth === 0) {
+        try { return JSON.parse(text.slice(start, end + 1)) as unknown[]; }
+        catch { break; }
+      }
+    }
   }
   throw new Error("비즈업 어드민에서 트래킹 링크 목록을 읽지 못했습니다. 다시 시도해 주세요.");
 }

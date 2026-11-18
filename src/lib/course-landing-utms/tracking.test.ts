@@ -22,6 +22,8 @@ test("저장 계정으로 로그인한 뒤 해당 강의의 매체별 UTM과 단
     }
     assert.equal(String(url), `https://admin.systemnova.co.kr/free-courses/${courseId}/tracking`);
     assert.equal(new Headers(init?.headers).get("cookie"), "AdminSession=fixture");
+    assert.equal(new Headers(init?.headers).get("accept"), "text/html");
+    assert.equal(new Headers(init?.headers).has("rsc"), false);
     return new Response(payload);
   });
   const payload = flight([affiliate, { ...affiliate, urlLink: landing + "?channel=organic&media=tH68Mi", shortUrl: null },
@@ -33,9 +35,10 @@ test("저장 계정으로 로그인한 뒤 해당 강의의 매체별 UTM과 단
   assert.equal(rows[0].url, affiliate.urlLink);
   assert.equal(rows[0].short_url, affiliate.shortUrl);
   assert.equal(rows[1].short_url, "");
-  const chunks = [payload.slice(0, 40), payload.slice(40)];
+  const chunks = ["7:T5,hellob:".concat(payload.slice(2, 40)), payload.slice(40)];
   assert.deepEqual(await read(chunks.map(chunk => `<script>self.__next_f.push([1,${JSON.stringify(chunk)}])</script>`).join("")), rows);
   assert.deepEqual(await read(flight([])), []);
+  assert.equal((await read(flight([{ ...affiliate, label: '강사 "]" [테스트]' }])))[0].referral_code, "강사");
   for (const malformed of ["<html>login</html>", payload.slice(0, -10), flight([affiliate, { ...affiliate, freeCourseId: "other" }]),
     flight([{ ...affiliate, shortUrl: "javascript:invalid" }]), flight([affiliate, affiliate])]) {
     await assert.rejects(read(malformed));
