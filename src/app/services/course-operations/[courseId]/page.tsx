@@ -50,7 +50,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
   const { data: course, error: courseError } = await supabase
     .from("courses")
     .select(
-      "id,name,instructor_name,instructor_nickname,cohort,banner_image_path,free_webinar_at,starts_at,landing_page_link,free_kakao_room_1_link,free_kakao_room_2_link,paid_kakao_room_link,communication_room_link,payment_link,inquiry_link,curriculum_link,pre_blog_link_1,pre_blog_link_2,free_gift_link,course_viewing_link,course_materials_link,course_canva_link,custom_links,free_address_book_id,required_tasks,updated_at",
+      "id,name,instructor_name,instructor_nickname,cohort,banner_image_path,free_webinar_at,starts_at,landing_page_link,free_kakao_room_1_link,free_kakao_room_2_link,paid_kakao_room_link,communication_room_link,payment_link,inquiry_link,curriculum_link,pre_blog_link_1,pre_blog_link_2,free_gift_link,course_viewing_link,course_materials_link,course_canva_link,pre_question_form_link,pre_question_responses_link,custom_links,free_address_book_id,required_tasks,updated_at",
     )
     .eq("id", courseId)
     .maybeSingle();
@@ -119,6 +119,8 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
     courseViewingLink: course.course_viewing_link,
     courseMaterialsLink: course.course_materials_link,
     courseCanvaLink: course.course_canva_link,
+    preQuestionFormLink: course.pre_question_form_link,
+    preQuestionResponsesLink: course.pre_question_responses_link,
     customLinks: Array.isArray(course.custom_links)
       ? course.custom_links.flatMap((item) => {
           if (typeof item !== "object" || item === null) return [];

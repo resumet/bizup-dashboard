@@ -84,6 +84,8 @@ export async function POST(request: Request) {
         course_viewing_link: input.courseViewingLink,
         course_materials_link: input.courseMaterialsLink,
         course_canva_link: input.courseCanvaLink,
+        pre_question_form_link: input.preQuestionFormLink,
+        pre_question_responses_link: input.preQuestionResponsesLink,
         custom_links: input.customLinks,
         free_address_book_id: input.freeAddressBookId || null,
         required_tasks: input.requiredTasks,

@@ -124,7 +124,9 @@ type CourseLinkFieldKey =
   | "freeGiftLink"
   | "courseViewingLink"
   | "courseMaterialsLink"
-  | "courseCanvaLink";
+  | "courseCanvaLink"
+  | "preQuestionFormLink"
+  | "preQuestionResponsesLink";
 
 const COURSE_LINKS: Array<{ field: CourseLinkFieldKey; label: string }> = [
   { field: "landingPageLink", label: "기본 랜딩페이지" },
@@ -138,6 +140,8 @@ const COURSE_LINKS: Array<{ field: CourseLinkFieldKey; label: string }> = [
   { field: "courseViewingLink", label: "강의 시청하기 링크" },
   { field: "courseMaterialsLink", label: "강사자료 폴더" },
   { field: "courseCanvaLink", label: "교안(캔바)" },
+  { field: "preQuestionFormLink", label: "사전질문지 폼주소" },
+  { field: "preQuestionResponsesLink", label: "사전질문 응답지 주소" },
 ];
 
 const PROMOTION_CONTENT_LINKS: Array<{ field: CourseLinkFieldKey; label: string }> = [

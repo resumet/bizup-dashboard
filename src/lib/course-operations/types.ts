@@ -68,6 +68,8 @@ export type CourseOperationsDraft = {
   courseViewingLink: string;
   courseMaterialsLink: string;
   courseCanvaLink: string;
+  preQuestionFormLink: string;
+  preQuestionResponsesLink: string;
   customLinks: CourseCustomLinkDraft[];
   options: CourseOptionDraft[];
   youtubeAppearances: YoutubeAppearanceDraft[];

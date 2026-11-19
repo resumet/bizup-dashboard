@@ -195,6 +195,16 @@ test("교안(캔바) 링크는 비어 있거나 HTTP·HTTPS 주소여야 한다"
   );
 });
 
+test("사전질문 폼과 응답지 주소는 서로 독립적으로 입력하거나 비울 수 있다", () => {
+  for (const field of ["preQuestionFormLink", "preQuestionResponsesLink"] as const) {
+    const link = "https://example.com/" + field;
+    assert.equal(parseCourseOperationsInput({ ...validInput, [field]: link })[field], link);
+    assert.equal(parseCourseOperationsInput({ ...validInput, [field]: "" })[field], "");
+    assert.equal(parseCourseOperationsInput(validInput)[field], "");
+    assert.throws(() => parseCourseOperationsInput({ ...validInput, [field]: "javascript:void(0)" }), /http 또는 https/);
+  }
+});
+
 test("강의 링크는 비어 있거나 HTTP·HTTPS 주소여야 한다", () => {
   assert.equal(
     parseCourseOperationsInput({ ...validInput, paymentLink: "" }).paymentLink,

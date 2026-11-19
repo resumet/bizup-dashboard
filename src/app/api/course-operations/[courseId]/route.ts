@@ -221,6 +221,10 @@ export async function PATCH(
         course_viewing_link: input.courseViewingLink,
         course_materials_link: input.courseMaterialsLink,
         course_canva_link: input.courseCanvaLink,
+        ...(typeof body === "object" && body !== null && "preQuestionFormLink" in body
+          ? { pre_question_form_link: input.preQuestionFormLink } : {}),
+        ...(typeof body === "object" && body !== null && "preQuestionResponsesLink" in body
+          ? { pre_question_responses_link: input.preQuestionResponsesLink } : {}),
         custom_links: input.customLinks,
         free_address_book_id: input.freeAddressBookId || null,
         required_tasks: input.requiredTasks,

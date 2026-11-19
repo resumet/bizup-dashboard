@@ -41,6 +41,8 @@ const EMPTY_DRAFT: CourseOperationsDraft = {
   courseViewingLink: "",
   courseMaterialsLink: "",
   courseCanvaLink: "",
+  preQuestionFormLink: "",
+  preQuestionResponsesLink: "",
   customLinks: [],
   options: [],
   youtubeAppearances: [],
