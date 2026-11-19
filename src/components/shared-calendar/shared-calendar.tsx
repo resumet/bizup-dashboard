@@ -10,22 +10,9 @@ import { CalendarBulkForm } from "./bulk-form";
 import { filterCalendarEvents, formatCalendarTime, formatLocation, formatTime, monthDays, shiftMonth } from "@/lib/shared-calendar/calendar";
 import { koreanHolidaysForDates, type KoreanHolidayMap } from "@/lib/shared-calendar/holidays";
 import type { CalendarCourse, CalendarEvent, CalendarSearchResult, CalendarSourceEvent, MeetingType } from "@/lib/shared-calendar/types";
+import { calendarChipStyle, defaultCalendarColors, meetingTypeColor } from "@/lib/shared-calendar/colors";
 import { cn } from "@/lib/utils";
 import { ToastNotice } from "@/components/ui/toast";
-
-const COLORS: Record<string, string> = {
-  instructor_zoom: "bg-blue-100 text-blue-900", rehearsal: "bg-amber-100 text-amber-950",
-  webinar: "bg-blue-100 text-blue-900", weekly_meeting: "bg-emerald-100 text-emerald-900",
-  youtube_filming: "bg-rose-100 text-rose-950",
-  external_marketing_creative: "bg-orange-100 text-orange-950",
-};
-
-function eventColor(event: CalendarEvent) {
-  const text = `${event.title} ${event.meeting_type.name}`.replaceAll(" ", "");
-  if ((text.includes("릴스") || text.includes("인스타")) && text.includes("촬영")) return "bg-amber-100 text-amber-950";
-  if (text.includes("광고") && text.includes("촬영")) return "bg-violet-100 text-violet-950";
-  return COLORS[event.meeting_type.code ?? ""] ?? "bg-slate-100 text-slate-900";
-}
 
 export function SharedCalendar({ today, initialDate = today, currentUserId, initialEvents, initialSources = [], initialSourcesWarning = "", initialTypes, courses, initialError, initialCourseId, isAdmin = false }: {
   today: string; initialDate?: string; currentUserId: string; initialEvents: CalendarEvent[]; initialSources?: CalendarSourceEvent[]; initialSourcesWarning?: string; initialTypes: MeetingType[]; courses: CalendarCourse[]; initialError?: string; initialCourseId?: string; isAdmin?: boolean;
@@ -40,6 +27,8 @@ export function SharedCalendar({ today, initialDate = today, currentUserId, init
   const [showLeaves, setShowLeaves] = useState(false);
   const [onlyMine, setOnlyMine] = useState(false);
   const [types, setTypes] = useState(initialTypes);
+  const webinarType = types.find((type) => type.code === "webinar");
+  const webinarColor = webinarType ? meetingTypeColor(webinarType) : defaultCalendarColors.webinar;
   const [filter, setFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<CalendarSearchResult[] | null>(null);
@@ -202,7 +191,7 @@ export function SharedCalendar({ today, initialDate = today, currentUserId, init
       <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6">{days.map((date) => { const dayEvents = byDay.get(date) ?? []; const holidayNames = holidays[date] ?? []; const eventLineClamp = dayEvents.length >= 3 ? "line-clamp-1" : "line-clamp-3"; return <div key={date} data-calendar-date={date} onDoubleClick={() => addOnDate(date)} onDragOver={(e) => { if (dragging.current && !movePending.current) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropDate(date); } }} onDragLeave={(e) => { if (!(e.relatedTarget instanceof Node) || !e.currentTarget.contains(e.relatedTarget)) setDropDate((current) => current === date ? null : current); }} onDrop={(e) => { e.preventDefault(); void dropOnDate(date); }} className={cn("flex min-h-0 min-w-0 flex-col border-b border-r p-1 last:border-r-0", date.slice(0, 7) !== month && "bg-muted/30", selectedDate === date && "bg-blue-50/60", dropDate === date && "bg-blue-100 ring-2 ring-inset ring-blue-500")}>
         <button type="button" aria-label={`${date} 일정 보기${holidayNames.length ? `, 공휴일 ${holidayNames.join(", ")}` : ""}`} aria-pressed={selectedDate === date} onClick={(e) => { setSelectedDate(date); if (e.detail === 0) addOnDate(date); }} className={cn("grid size-[24px] shrink-0 place-items-center rounded-full text-sm focus-visible:outline-2 focus-visible:outline-ring", date === today && "bg-primary text-primary-foreground", date !== today && holidayNames.length > 0 && "text-red-600", date.slice(0, 7) !== month && "opacity-50")}>{Number(date.slice(8))}</button>
           {holidayNames.length ? <p data-calendar-holiday title={holidayNames.join(", ")} className="truncate px-1 text-[10px] font-medium text-red-600 sm:px-2 sm:text-xs">{holidayNames.join(", ")}</p> : null}
-          <div data-calendar-events className="mt-0.5 min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain">{dayEvents.map((event) => "source" in event ? <CalendarSourceLink key={event.id} event={event} compact lineClamp={eventLineClamp} /> : <button key={event.id} type="button" disabled={moving} draggable={!moving} aria-label={`${event.title} 수정`} title={`${event.meeting_type.name} · ${event.title} · ${formatCalendarTime(event)} · ${formatLocation(event.location_kind, event.location_text)} · 더블클릭으로 수정`} onClick={(e) => { e.stopPropagation(); setSelectedDate(date); if (e.detail === 0) setEditor({ event, date }); }} onDoubleClick={(e) => { e.stopPropagation(); setSelectedDate(date); setEditor({ event, date }); }} onDragStart={(e) => { dragging.current = event; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", event.id); }} onDragEnd={() => { dragging.current = null; setDropDate(null); }} className={cn("block w-full cursor-grab rounded px-1 py-0.5 text-left text-[10px] font-medium whitespace-normal break-words focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing disabled:opacity-50 sm:px-2 sm:text-xs", eventLineClamp, eventColor(event))}><span className="hidden sm:inline">{event.time_tbd ? "시간 미정" : formatTime(event.start_minutes)} </span>{event.title}</button>)}</div>
+          <div data-calendar-events className="mt-0.5 min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain">{dayEvents.map((event) => "source" in event ? <CalendarSourceLink key={event.id} event={event} backgroundColor={event.source === "webinar" ? webinarColor : defaultCalendarColors[event.source]} lineClamp={eventLineClamp} /> : <button key={event.id} type="button" disabled={moving} draggable={!moving} aria-label={`${event.title} 수정`} title={`${event.meeting_type.name} · ${event.title} · ${formatCalendarTime(event)} · ${formatLocation(event.location_kind, event.location_text)} · 더블클릭으로 수정`} onClick={(e) => { e.stopPropagation(); setSelectedDate(date); if (e.detail === 0) setEditor({ event, date }); }} onDoubleClick={(e) => { e.stopPropagation(); setSelectedDate(date); setEditor({ event, date }); }} onDragStart={(e) => { dragging.current = event; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", event.id); }} onDragEnd={() => { dragging.current = null; setDropDate(null); }} className={cn("block w-full cursor-grab rounded px-1 py-0.5 text-left text-[10px] font-medium whitespace-normal break-words focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing disabled:opacity-50 sm:px-2 sm:text-xs", eventLineClamp)} style={calendarChipStyle(meetingTypeColor(event.meeting_type))}><span className="hidden sm:inline">{event.time_tbd ? "시간 미정" : formatTime(event.start_minutes)} </span>{event.title}</button>)}</div>
       </div>; })}</div>
     </div>
     </>}
@@ -250,10 +239,11 @@ function CalendarSearchDetails({ result, onClose }: { result: CalendarSearchResu
   </Dialog>;
 }
 
-function CalendarSourceLink({ event, compact = false, lineClamp = "line-clamp-1" }: { event: CalendarSourceEvent; compact?: boolean; lineClamp?: "line-clamp-1" | "line-clamp-3" }) {
+function CalendarSourceLink({ event, backgroundColor, lineClamp }: { event: CalendarSourceEvent; backgroundColor: string; lineClamp: "line-clamp-1" | "line-clamp-3" }) {
   return <Link href={event.href} draggable={false} onDragStart={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}
     title={`${event.title} · ${event.time_label} · 원래 관리 화면에서 수정`}
-    className={compact ? cn("block w-full rounded px-1 py-0.5 text-left text-[10px] font-medium whitespace-normal break-words focus-visible:outline-2 focus-visible:outline-ring sm:px-2 sm:text-xs", lineClamp, event.source === "leave" ? "bg-rose-100 text-rose-900" : COLORS[event.source]) : "font-semibold underline-offset-4 hover:underline"}>
-    {compact ? <span className="hidden sm:inline">{event.time_label} </span> : null}{event.title}
+    style={calendarChipStyle(backgroundColor)}
+    className={cn("block w-full rounded px-1 py-0.5 text-left text-[10px] font-medium whitespace-normal break-words focus-visible:outline-2 focus-visible:outline-ring sm:px-2 sm:text-xs", lineClamp)}>
+    <span className="hidden sm:inline">{event.time_label} </span>{event.title}
   </Link>;
 }

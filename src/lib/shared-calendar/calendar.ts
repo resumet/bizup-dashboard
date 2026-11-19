@@ -34,7 +34,9 @@ export const eventSchema = z.object({
 
 export const versionSchema = z.object({ version: z.number().int().positive() });
 export const moveEventSchema = versionSchema.extend({ eventDate: eventSchema.shape.eventDate });
-export const meetingTypeSchema = z.object({ name: z.string().trim().min(1, "회의 항목 이름을 입력해 주세요.").max(40, "회의 항목 이름은 40자까지 입력할 수 있습니다.") });
+const meetingColorSchema = z.string().regex(/^#[0-9a-f]{6}$/i, "올바른 배경색을 선택해 주세요.").toLowerCase();
+export const meetingTypeSchema = z.object({ name: z.string().trim().min(1, "회의 항목 이름을 입력해 주세요.").max(40, "회의 항목 이름은 40자까지 입력할 수 있습니다."), color: meetingColorSchema.optional() });
+export const meetingTypeColorUpdateSchema = z.object({ id: z.uuid(), color: meetingColorSchema });
 export const uuidSchema = z.uuid();
 
 export function formatTime(minutes: number) {

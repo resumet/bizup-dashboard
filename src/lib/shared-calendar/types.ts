@@ -2,6 +2,7 @@ export type MeetingType = {
   id: string;
   name: string;
   code: string | null;
+  color?: string | null;
 };
 
 export type CalendarCourse = { free_webinar_at?: string | null; status?: string | null; id: string; name: string; instructor_name: string; cohort: string | null };

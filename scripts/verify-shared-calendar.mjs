@@ -49,6 +49,7 @@ for (const user of users) {
 await db.exec(await readFile("supabase/migrations/20261008090358_shared_calendar.sql", "utf8"));
 await db.exec(await readFile("supabase/migrations/20261008100344_shared_calendar_participants.sql", "utf8"));
 await db.exec(await readFile("supabase/migrations/20261008102522_shared_calendar_location_bulk_import.sql", "utf8"));
+await db.exec(await readFile("supabase/migrations/20261119025534_shared_calendar_meeting_type_colors.sql", "utf8"));
 await db.exec(await readFile("supabase/migrations_archive/20260929/202609210002_hr_leave_management.sql", "utf8"));
 for (const [userId, date, unit, status] of [
   [users[1].id, "2026-10-12", "full", "approved"],
@@ -165,7 +166,7 @@ const fixture = createServer(async (request, response) => {
         if (table === "hr_leave_requests" && row.leave_date instanceof Date) row.leave_date = row.leave_date.toISOString().slice(0, 10);
         if (table === "shared_calendar_events") {
           if (row.event_date instanceof Date) row.event_date = row.event_date.toISOString().slice(0, 10);
-          row.meeting_type = (await db.query("select id,name,code from shared_calendar_meeting_types where id=$1", [row.meeting_type_id])).rows[0];
+          row.meeting_type = (await db.query("select id,name,code,color from shared_calendar_meeting_types where id=$1", [row.meeting_type_id])).rows[0];
           row.course = row.course_id ? course : null;
         }
       }
@@ -380,8 +381,18 @@ try {
   const admin = await login(users[2]); await admin.page.goto(`${appOrigin}/admin`);
   await admin.page.getByRole("heading", { name: "회의 항목 추가", exact: true }).waitFor();
   await admin.page.getByLabel("회의 항목 이름", { exact: true }).fill("월간 기획회의");
+  await admin.page.getByLabel("칩 배경색").fill("#141414");
   await admin.page.getByRole("button", { name: "항목 추가", exact: true }).click();
   await admin.page.getByRole("status").filter({ hasText: "회의 항목을 추가" }).waitFor();
+  const meetingChip = admin.page.getByRole("button", { name: "월간 기획회의 색상 변경" });
+  const chipStyle = () => meetingChip.evaluate((chip) => [getComputedStyle(chip).backgroundColor, getComputedStyle(chip).color]);
+  assert.deepEqual(await chipStyle(), ["rgb(20, 20, 20)", "rgb(255, 255, 255)"]);
+  await meetingChip.click();
+  await admin.page.getByLabel("칩 배경색").fill("#eeeeee");
+  await admin.page.getByRole("button", { name: "색상 저장" }).click();
+  await admin.page.getByRole("status").filter({ hasText: "회의 항목 색상을 변경" }).waitFor();
+  await admin.page.reload();
+  assert.deepEqual(await chipStyle(), ["rgb(238, 238, 238)", "rgb(0, 0, 0)"]);
   assert.equal((await admin.context.request.post(`${appOrigin}/api/admin/calendar-meeting-types`, { data: { name: "월간 기획회의" } })).status(), 409);
   passed("admin section adds a custom meeting type and rejects duplicates");
   await page.reload();

@@ -8,12 +8,12 @@ import { requireCourseOperationsMembership } from "@/lib/course-operations/serve
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { eventSchema, formatCalendarTime, formatLocation, isDateKey, meetingTypeSchema, moveEventSchema, uuidSchema, versionSchema } from "./calendar";
+import { eventSchema, formatCalendarTime, formatLocation, isDateKey, meetingTypeColorUpdateSchema, meetingTypeSchema, moveEventSchema, uuidSchema, versionSchema } from "./calendar";
 import { webinarCalendarSource, type CalendarWebinar } from "./sources";
 import type { CalendarCourse, CalendarEvent, CalendarPerson, CalendarSearchResult, MeetingType } from "./types";
 import { bulkImportSchema } from "./bulk";
 
-const EVENT_SELECT = "id,title,event_date,start_minutes,duration_minutes,meeting_type_id,course_id,notes,participant_ids,location_kind,location_text,time_tbd,version,meeting_type:shared_calendar_meeting_types!shared_calendar_events_meeting_type_id_workspace_id_fkey(id,name,code),course:courses(id,name,instructor_name,cohort)";
+const EVENT_SELECT = "id,title,event_date,start_minutes,duration_minutes,meeting_type_id,course_id,notes,participant_ids,location_kind,location_text,time_tbd,version,meeting_type:shared_calendar_meeting_types!shared_calendar_events_meeting_type_id_workspace_id_fkey(id,name,code,color),course:courses(id,name,instructor_name,cohort)";
 const headers = { "Cache-Control": "private, no-store" };
 
 export class CalendarError extends Error {
@@ -45,7 +45,7 @@ export async function calendarContext(adminOnly = false) {
   if (!user) throw new CalendarError("로그인이 필요합니다.", 401);
   const membership = await requireCourseOperationsMembership(user.id);
   const isAdmin = hasAdminAccess(user.email, membership.role);
-  if (adminOnly && !isAdmin) throw new CalendarError("관리자만 회의 항목을 추가할 수 있습니다.", 403);
+  if (adminOnly && !isAdmin) throw new CalendarError("관리자만 회의 항목을 관리할 수 있습니다.", 403);
   return { supabase, user, workspaceId: membership.workspace_id as string, isAdmin };
 }
 
@@ -63,7 +63,7 @@ export function validateCalendarSearchQuery(value: string | null) {
 }
 
 export async function loadMeetingTypes(supabase: SupabaseClient, workspaceId: string): Promise<MeetingType[]> {
-  const { data, error } = await supabase.from("shared_calendar_meeting_types").select("id,name,code").eq("workspace_id", workspaceId).order("created_at").order("name");
+  const { data, error } = await supabase.from("shared_calendar_meeting_types").select("id,name,code,color").eq("workspace_id", workspaceId).order("created_at").order("name");
   checkDatabase(error);
   return data ?? [];
 }
@@ -222,8 +222,20 @@ export async function addMeetingType(context: Awaited<ReturnType<typeof calendar
   if (!context.isAdmin) throw new CalendarError("관리자만 회의 항목을 추가할 수 있습니다.", 403);
   const parsed = meetingTypeSchema.safeParse(body);
   if (!parsed.success) throw new CalendarError(parsed.error.issues[0].message);
-  const { data, error } = await context.supabase.from("shared_calendar_meeting_types").insert({ workspace_id: context.workspaceId, name: parsed.data.name }).select("id,name,code").single();
+  const { data, error } = await context.supabase.from("shared_calendar_meeting_types").insert({ workspace_id: context.workspaceId, ...parsed.data }).select("id,name,code,color").single();
   checkDatabase(error);
+  return data as MeetingType;
+}
+
+export async function updateMeetingTypeColor(context: Awaited<ReturnType<typeof calendarContext>>, body: unknown) {
+  if (!context.isAdmin) throw new CalendarError("관리자만 회의 항목 색상을 변경할 수 있습니다.", 403);
+  const parsed = meetingTypeColorUpdateSchema.safeParse(body);
+  if (!parsed.success) throw new CalendarError(parsed.error.issues[0].message);
+  const { data, error } = await context.supabase.from("shared_calendar_meeting_types")
+    .update({ color: parsed.data.color }).eq("workspace_id", context.workspaceId)
+    .eq("id", parsed.data.id).select("id,name,code,color").maybeSingle();
+  checkDatabase(error);
+  if (!data) throw new CalendarError("회의 항목을 찾을 수 없습니다.", 404);
   return data as MeetingType;
 }
 

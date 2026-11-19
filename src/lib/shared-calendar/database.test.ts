@@ -32,6 +32,7 @@ test("공용캘린더 마이그레이션: CRUD, 시간/강의 제약, 워크스�
     await db.exec(await readFile("supabase/migrations/20261008090358_shared_calendar.sql", "utf8"));
     await db.exec(await readFile("supabase/migrations/20261008100344_shared_calendar_participants.sql", "utf8"));
     await db.exec(await readFile("supabase/migrations/20261008102522_shared_calendar_location_bulk_import.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations/20261119025534_shared_calendar_meeting_type_colors.sql", "utf8"));
     const types = (await db.query<{ id: string; code: string; workspace_id: string }>("select id, code, workspace_id from shared_calendar_meeting_types")).rows;
     const zoom = types.find((type) => type.workspace_id === W1 && type.code === "instructor_zoom")!.id;
     const weekly = types.find((type) => type.workspace_id === W1 && type.code === "weekly_meeting")!.id;
@@ -104,6 +105,17 @@ test("공용캘린더 마이그레이션: CRUD, 시간/강의 제약, 워크스�
       await db.exec(`insert into shared_calendar_meeting_types(workspace_id,name) values ('${W1}', '워크숍')`);
       await assert.rejects(() => db.exec(`insert into shared_calendar_meeting_types(workspace_id,name) values ('${W1}', '워크숍')`), /unique constraint/u);
       await assert.rejects(() => db.exec(`insert into shared_calendar_meeting_types(workspace_id,name,code) values ('${W1}', '가짜 줌', 'instructor_zoom')`), /row-level security/u);
+    });
+    await t.test("관리자만 같은 워크스페이스의 회의 색상을 변경한다", async () => {
+      const setColor = (id: string, color: string) => db.query("update shared_calendar_meeting_types set color=$2 where id=$1 returning color", [id, color]);
+      await assume(ADMIN);
+      assert.deepEqual((await setColor(zoom, "#112233")).rows, [{ color: "#112233" }]);
+      assert.deepEqual((await setColor(otherZoom, "#123456")).rows, []);
+      await assert.rejects(() => setColor(zoom, "red"), { code: "23514" });
+      await assert.rejects(() => db.query("update shared_calendar_meeting_types set name='변경'"), { code: "42501" });
+      await assume(U1);
+      assert.deepEqual((await setColor(zoom, "#ffffff")).rows, []);
+      assert.deepEqual((await db.query("select color from shared_calendar_meeting_types where id=$1", [zoom])).rows, [{ color: "#112233" }]);
     });
     await t.test("비활성 계정은 기존 JWT가 있어도 DB 접근과 변경이 차단된다", async () => {
       await db.exec(`reset role; update auth.users set raw_app_meta_data='{"account_disabled":true}' where id='${U2}'`);
