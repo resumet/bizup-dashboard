@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  listGoogleSheetNames,
   loadGoogleWorkbook,
   parseAdPerformanceTrackingFile,
   parsePublicGoogleSheetNames,
@@ -52,6 +53,14 @@ test("XLSX 내보내기가 401이면 공개 HTML과 GViz CSV로 모든 탭을 �
   assert.equal(workbook.sheets[0]?.rows[2]?.[1], "1,000");
   assert.equal(workbook.sheets[1]?.rows[1]?.[1], "500");
   assert.equal(requestedUrls.length, 4);
+  requestedUrls.length = 0;
+  const listed = await listGoogleSheetNames(workbook.canonicalUrl, "2026-10-01");
+  assert.deepEqual(listed.names, ["2611_사공", "meta_raw"]);
+  assert.equal(requestedUrls.length, 1);
+  const selected = await loadGoogleWorkbook(workbook.canonicalUrl, "2026-10-01", "2611_사공");
+  assert.deepEqual(selected.sheets, [workbook.sheets[0]]);
+  assert.equal(requestedUrls.some(url => url.includes("sheet=meta_raw")), false);
+  await assert.rejects(loadGoogleWorkbook(workbook.canonicalUrl, "2026-10-01", "없는 시트"), /찾을 수 없습니다/);
 });
 
 test("외부마케팅 업로드는 자체광고의 메타광고와 구글을 분리 집계한다", async () => {

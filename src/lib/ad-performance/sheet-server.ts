@@ -276,21 +276,43 @@ export function parsePublicGoogleSheetNames(html: string) {
   return [...new Set(names)];
 }
 
+export async function loadSharedAdSpreadsheetUrl(context: AdPerformanceDashboardContext) {
+  if (context.serviceScope !== "bizup") throw new Error("내부광고 대시보드에서 사용할 수 있습니다.");
+  const { data, error } = await createAdminClient().from("ad_creative_sources")
+    .select("spreadsheet_url").eq("workspace_id", context.workspaceId).maybeSingle();
+  if (error) throw new Error("공통 Google 시트 설정을 불러오지 못했습니다.");
+  if (!data?.spreadsheet_url) throw new Error("내부광고 목록의 ‘원본 데이터 설정’에서 공통 Google 시트 주소를 먼저 저장해 주세요.");
+  return data.spreadsheet_url as string;
+}
+
+async function loadPublicGoogleSheetNames(spreadsheetId: string) {
+  const response = await googleSheetRequest(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit?usp=sharing`);
+  if (!response.ok) throw new Error(GOOGLE_WORKBOOK_UNAVAILABLE_MESSAGE);
+  const html = await responseBuffer(response, AD_PERFORMANCE_MAX_WORKBOOK_BYTES);
+  const names = parsePublicGoogleSheetNames(html.toString("utf8"));
+  if (!names.length) throw new Error(GOOGLE_WORKBOOK_UNAVAILABLE_MESSAGE);
+  return { names, byteLength: html.byteLength };
+}
+
+export async function listGoogleSheetNames(url: string, startDate: string) {
+  const spreadsheetId = extractGoogleSpreadsheetId(url);
+  try {
+    const { names } = await loadPublicGoogleSheetNames(spreadsheetId);
+    return { spreadsheetId, names };
+  } catch {
+    const workbook = await loadGoogleWorkbook(url, startDate);
+    return { spreadsheetId, names: workbook.sheets.map(sheet => sheet.name) };
+  }
+}
+
 async function loadPublicGoogleWorkbookFallback(
   spreadsheetId: string,
   dashboardStartDate: string,
+  selectedName?: string,
 ) {
-  const editUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit?usp=sharing`;
-  const editResponse = await googleSheetRequest(editUrl);
-  if (!editResponse.ok) throw new Error(GOOGLE_WORKBOOK_UNAVAILABLE_MESSAGE);
-  const html = (await responseBuffer(
-    editResponse,
-    AD_PERFORMANCE_MAX_WORKBOOK_BYTES,
-  )).toString("utf8");
-  const sheetNames = parsePublicGoogleSheetNames(html);
-  if (!sheetNames.length) throw new Error(GOOGLE_WORKBOOK_UNAVAILABLE_MESSAGE);
-
-  let totalBytes = Buffer.byteLength(html);
+  const { names, byteLength } = await loadPublicGoogleSheetNames(spreadsheetId);
+  const sheetNames = selectedName ? names.filter(name => name === selectedName) : names;
+  let totalBytes = byteLength;
   const sheets: GoogleWorkbookSheet[] = [];
   for (const sheetName of sheetNames) {
     const query = new URLSearchParams({ tqx: "out:csv", sheet: sheetName });
@@ -318,6 +340,7 @@ async function loadPublicGoogleWorkbookFallback(
 export async function loadGoogleWorkbook(
   spreadsheetUrl: string,
   dashboardStartDate: string,
+  selectedName?: string,
 ): Promise<{ spreadsheetId: string; canonicalUrl: string; sheets: GoogleWorkbookSheet[] }> {
   const spreadsheetId = extractGoogleSpreadsheetId(spreadsheetUrl);
   const exportUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=xlsx`;
@@ -333,7 +356,7 @@ export async function loadGoogleWorkbook(
       const workbook = await readXlsxFile(
         await responseBuffer(response, AD_PERFORMANCE_MAX_WORKBOOK_BYTES),
       );
-      sheets = workbook.map((sheet) => ({
+      sheets = workbook.filter(sheet => !selectedName || sheet.sheet.trim() === selectedName).map((sheet) => ({
         name: sheet.sheet.trim(),
         rows: filterAdPerformanceSourceRowsBeforeDate(
           sheet.data,
@@ -351,6 +374,7 @@ export async function loadGoogleWorkbook(
       sheets = await loadPublicGoogleWorkbookFallback(
         spreadsheetId,
         dashboardStartDate,
+        selectedName,
       );
     } catch (error) {
       if (
@@ -363,6 +387,7 @@ export async function loadGoogleWorkbook(
     }
   }
   if (!sheets.length || !sheets[0]?.name) {
+    if (selectedName) throw new Error("선택한 시트를 원본 문서에서 찾을 수 없습니다.");
     throw new Error("선택할 수 있는 시트가 없습니다.");
   }
   return {

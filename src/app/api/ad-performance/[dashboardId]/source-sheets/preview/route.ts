@@ -3,9 +3,11 @@ import { z } from "zod";
 import { requireCourseOperationsMembership, requireCourseOperationsUser } from "@/lib/course-operations/server";
 import {
   authorizeAdPerformanceDashboard,
+  listGoogleSheetNames,
+  loadSharedAdSpreadsheetUrl,
   loadGoogleWorkbook,
 } from "@/lib/ad-performance/sheet-server";
-import { sourcePreviewSchema } from "@/lib/ad-performance/sheet-validation";
+import { sharedSourcePreviewSchema, sourcePreviewSchema } from "@/lib/ad-performance/sheet-validation";
 import { adPerformanceErrorResponse } from "@/lib/ad-performance/validation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -20,13 +22,18 @@ export async function POST(request: Request, { params }: Context) {
     const [{ dashboardId }, membership, input] = await Promise.all([
       params,
       requireCourseOperationsMembership(user.id),
-      request.json().then((body) => sourcePreviewSchema.parse(body)),
+      request.json().then((body) => z.union([sharedSourcePreviewSchema, sourcePreviewSchema]).parse(body)),
     ]);
     const validDashboardId = z.uuid().parse(dashboardId);
     const context = await authorizeAdPerformanceDashboard(
       validDashboardId,
       membership.workspace_id,
     );
+    if ("source" in input) {
+      const url = await loadSharedAdSpreadsheetUrl(context);
+      const { spreadsheetId, names } = await listGoogleSheetNames(url, context.startDate);
+      return Response.json({ spreadsheetId, sheets: names.map(name => ({ name })) });
+    }
     const workbook = await loadGoogleWorkbook(input.url, context.startDate);
     return Response.json({
       spreadsheetId: workbook.spreadsheetId,

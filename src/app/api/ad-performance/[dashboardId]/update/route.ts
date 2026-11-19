@@ -29,7 +29,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ das
     if (courseContext.course.workspace_id !== membership.workspace_id) throw new Error("연결된 강의에 접근할 수 없습니다.");
     const current = await loadAdPerformanceSheetState(dashboardId, context.startDate);
     if (!current) throw new Error("원본 시트를 먼저 연결해 주세요.");
-    const workbook = await loadGoogleWorkbook(current.spreadsheetUrl, context.startDate);
+    const workbook = await loadGoogleWorkbook(current.spreadsheetUrl, context.startDate, current.sheetName);
     const sheet = workbook.sheets.find(item => item.name === current.sheetName);
     if (!sheet) throw new Error("연결된 시트를 원본 문서에서 찾을 수 없습니다.");
     const applicants = await syncFreeStudents(courseContext);

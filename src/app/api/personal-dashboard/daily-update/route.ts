@@ -34,7 +34,7 @@ async function syncAdPerformance(input: { dashboardId: string; workspaceId: stri
   const context = await authorizeAdPerformanceDashboard(input.dashboardId, input.workspaceId);
   const current = await loadAdPerformanceSheetState(input.dashboardId, context.startDate);
   if (!current) throw new Error("광고 성과 원본 시트를 먼저 연결해 주세요.");
-  const workbook = await loadGoogleWorkbook(current.spreadsheetUrl, context.startDate);
+  const workbook = await loadGoogleWorkbook(current.spreadsheetUrl, context.startDate, current.sheetName);
   const sheet = workbook.sheets.find((item) => item.name === current.sheetName);
   if (!sheet) throw new Error("연결한 광고 성과 시트를 원본 문서에서 찾을 수 없습니다.");
   const next = applyTrackingToSheet(

@@ -66,7 +66,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { SheetUpdateDialog } from "@/components/ad-performance/sheet-update-dialog";
 import type { SheetUpdatePreview } from "@/lib/ad-performance/sheet-update";
-import { ToastNotice } from "@/components/ui/toast";
+import { toast, ToastNotice } from "@/components/ui/toast";
 
 const HEADER_ROW_COUNT = 2;
 const PAGE_SIZE = 100;
@@ -124,7 +124,7 @@ function parseNonnegativeInteger(value: string, label: string) {
   return parsed;
 }
 
-type SheetOption = { name: string; rowCount: number };
+type SheetOption = { name: string; rowCount?: number };
 
 export function MeaningSheetWorkspace({
   dashboardId,
@@ -168,6 +168,7 @@ export function MeaningSheetWorkspace({
   const [trackingDialogOpen, setTrackingDialogOpen] = useState(false);
   const [sourceUrl, setSourceUrl] = useState(sheetState?.spreadsheetUrl ?? "");
   const [sheetOptions, setSheetOptions] = useState<SheetOption[]>([]);
+  const [previewSpreadsheetId, setPreviewSpreadsheetId] = useState("");
   const [selectedSheetName, setSelectedSheetName] = useState(
     sheetState?.sheetName ?? "",
   );
@@ -291,13 +292,15 @@ export function MeaningSheetWorkspace({
     setBusyAction("preview");
     setError("");
     setSheetOptions([]);
+    setSelectedSheetName("");
+    setPreviewSpreadsheetId("");
     try {
       const response = await fetch(
         `/api/ad-performance/${dashboardId}/source-sheets/preview`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: sourceUrl }),
+          body: JSON.stringify(unifiedUpdate ? { source: "workspace" } : { url: sourceUrl }),
         },
       );
       if (!response.ok) {
@@ -307,10 +310,13 @@ export function MeaningSheetWorkspace({
       }
       const result = (await response.json()) as {
         sheets: SheetOption[];
-        defaultSheetName: string;
+        defaultSheetName?: string;
+        spreadsheetId: string;
       };
       setSheetOptions(result.sheets);
-      setSelectedSheetName(result.defaultSheetName);
+      setPreviewSpreadsheetId(result.spreadsheetId);
+      const savedName = sheetState?.spreadsheetId === result.spreadsheetId ? sheetState.sheetName : "";
+      setSelectedSheetName(result.sheets.some(sheet => sheet.name === savedName) ? savedName : result.defaultSheetName ?? "");
     } catch (caught) {
       setError(
         caught instanceof Error ? caught.message : "시트 목록을 불러오지 못했습니다.",
@@ -331,7 +337,9 @@ export function MeaningSheetWorkspace({
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: sourceUrl, sheetName: selectedSheetName }),
+          body: JSON.stringify(unifiedUpdate
+            ? { source: "workspace", spreadsheetId: previewSpreadsheetId, sheetName: selectedSheetName, expectedVersion: sheetState?.version ?? 0 }
+            : { url: sourceUrl, sheetName: selectedSheetName }),
         },
       );
       if (!response.ok) {
@@ -339,12 +347,12 @@ export function MeaningSheetWorkspace({
           await errorFromResponse(response, "원본 시트를 연결하지 못했습니다."),
         );
       }
+      toast(`‘${selectedSheetName}’ 시트를 연결했습니다.`);
       setSourceDialogOpen(false);
-      refreshAfterSave("원본 시트를 연결했습니다.");
+      setPage(1);
+      router.refresh();
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "원본 시트를 연결하지 못했습니다.",
-      );
+      toast(caught instanceof Error ? caught.message : "원본 시트를 연결하지 못했습니다.", { tone: "error" });
     } finally {
       setBusyAction(null);
     }
@@ -584,9 +592,10 @@ export function MeaningSheetWorkspace({
           setSheetOptions([]);
           setError("");
           setSourceDialogOpen(true);
+          if (unifiedUpdate) void previewSource();
         }}
       >
-        <Link2 />원본시트연결
+        <Link2 />{unifiedUpdate ? "광고성과 시트 선택" : "원본시트연결"}
       </Button>
   );
 
@@ -600,7 +609,7 @@ export function MeaningSheetWorkspace({
 
   const toolbar = (
     <>
-      {!unifiedUpdate ? sourceConnectionButton : null}
+      {sourceConnectionButton}
       {allowTrackingImport ? <Button
         type="button"
         variant="outline"
@@ -984,13 +993,13 @@ export function MeaningSheetWorkspace({
         <DialogContent className="sm:max-w-lg">
           <form className="grid gap-5" onSubmit={connectSource}>
             <DialogHeader>
-              <DialogTitle>원본시트연결</DialogTitle>
+              <DialogTitle>{unifiedUpdate ? "광고성과 시트 선택" : "원본시트연결"}</DialogTitle>
               <DialogDescription className="sr-only">
-                Google Sheets URL과 가져올 시트를 선택합니다.
+                {unifiedUpdate ? "공통 Google 시트에서 이 강의에 연결할 탭을 선택합니다." : "Google Sheets URL과 가져올 시트를 선택합니다."}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4">
-              <div className="grid gap-2">
+              {!unifiedUpdate && <div className="grid gap-2">
                 <Label htmlFor="ad-source-url">Google Sheets URL</Label>
                 <div className="flex gap-2">
                   <Input
@@ -1016,11 +1025,14 @@ export function MeaningSheetWorkspace({
                     시트 불러오기
                   </Button>
                 </div>
-              </div>
+              </div>}
+              {unifiedUpdate && busyAction === "preview" ? <p role="status" className="flex items-center gap-2 text-sm"><Loader2 className="size-4 animate-spin" />시트 목록을 불러오는 중입니다.</p> : null}
+              {unifiedUpdate && error && !sheetOptions.length ? <Button type="button" variant="outline" onClick={() => void previewSource()}>다시 불러오기</Button> : null}
               {sheetOptions.length ? (
                 <div className="grid gap-2">
                   <Label htmlFor="ad-source-sheet">시트</Label>
                   <Select
+                    disabled={busyAction !== null}
                     value={selectedSheetName}
                     onValueChange={setSelectedSheetName}
                   >
@@ -1030,7 +1042,7 @@ export function MeaningSheetWorkspace({
                     <SelectContent>
                       {sheetOptions.map((sheet) => (
                         <SelectItem key={sheet.name} value={sheet.name}>
-                          {sheet.name} ({sheet.rowCount.toLocaleString("ko-KR")}행)
+                          {sheet.name}{sheet.rowCount !== undefined ? ` (${sheet.rowCount.toLocaleString("ko-KR")}행)` : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1040,7 +1052,7 @@ export function MeaningSheetWorkspace({
             </div>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             <DialogFooter className="sm:justify-between">
-              <Button
+              {!unifiedUpdate && <Button
                 type="button"
                 variant="outline"
                 disabled={!sourceUrl.trim() || busyAction !== null}
@@ -1048,7 +1060,7 @@ export function MeaningSheetWorkspace({
               >
                 <ExternalLink />
                 시트열기
-              </Button>
+              </Button>}
               <div className="flex gap-2">
                 <DialogClose asChild>
                   <Button type="button" variant="outline" disabled={busyAction !== null}>
@@ -1064,7 +1076,7 @@ export function MeaningSheetWorkspace({
                   ) : (
                     <Link2 />
                   )}
-                  연결
+                  {unifiedUpdate ? "저장" : "연결"}
                 </Button>
               </div>
             </DialogFooter>

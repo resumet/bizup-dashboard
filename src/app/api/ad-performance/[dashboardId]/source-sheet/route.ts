@@ -7,10 +7,12 @@ import {
   authorizeAdPerformanceDashboard,
   loadAdPerformanceSheetState,
   loadGoogleWorkbook,
+  loadSharedAdSpreadsheetUrl,
   persistAdPerformanceSheetState,
   refreshAdPerformanceTrackingImport,
 } from "@/lib/ad-performance/sheet-server";
-import { sourceConnectionSchema } from "@/lib/ad-performance/sheet-validation";
+import { sharedSourceConnectionSchema, sourceConnectionSchema } from "@/lib/ad-performance/sheet-validation";
+import { extractGoogleSpreadsheetId } from "@/lib/ad-performance/sheet-workspace";
 import { adPerformanceErrorResponse } from "@/lib/ad-performance/validation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -25,14 +27,18 @@ export async function PUT(request: Request, { params }: Context) {
     const [{ dashboardId }, membership, input] = await Promise.all([
       params,
       requireCourseOperationsMembership(user.id),
-      request.json().then((body) => sourceConnectionSchema.parse(body)),
+      request.json().then((body) => z.union([sharedSourceConnectionSchema, sourceConnectionSchema]).parse(body)),
     ]);
     const validDashboardId = z.uuid().parse(dashboardId);
     const context = await authorizeAdPerformanceDashboard(
       validDashboardId,
       membership.workspace_id,
     );
-    const workbook = await loadGoogleWorkbook(input.url, context.startDate);
+    const url = "source" in input ? await loadSharedAdSpreadsheetUrl(context) : input.url;
+    if ("source" in input && extractGoogleSpreadsheetId(url) !== input.spreadsheetId) {
+      return Response.json({ message: "공통 Google 시트가 변경되었습니다. 시트 목록을 다시 불러와 주세요." }, { status: 409 });
+    }
+    const workbook = await loadGoogleWorkbook(url, context.startDate, input.sheetName);
     const selectedSheet = workbook.sheets.find(
       (sheet) => sheet.name === input.sheetName,
     );
@@ -46,9 +52,9 @@ export async function PUT(request: Request, { params }: Context) {
     const saved = await persistAdPerformanceSheetState({
       context,
       actorId: user.id,
-      expectedVersion: current?.version ?? 0,
+      expectedVersion: "source" in input ? input.expectedVersion : current?.version ?? 0,
       state: {
-        spreadsheetUrl: input.url.trim(),
+        spreadsheetUrl: url.trim(),
         spreadsheetId: workbook.spreadsheetId,
         sheetName: selectedSheet.name,
         sourceRows: selectedSheet.rows,
