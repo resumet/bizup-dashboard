@@ -11,7 +11,7 @@ type Props = { params: Promise<{ token: string }> };
 const publicPage = cache(async (token: string): Promise<SalesPage> => {
   if (!z.uuid().safeParse(token).success) notFound();
   const { data, error } = await createAdminClient().from("course_post_sales_pages")
-    .select("published").eq("token", token).not("published", "is", null).maybeSingle();
+    .select("published").eq("token", token).eq("public_enabled", true).not("published", "is", null).maybeSingle();
   if (error) throw new Error("공개 페이지를 불러오지 못했습니다.");
   if (!data?.published) notFound();
   return cleanSalesCopy(data.published as SalesPage);

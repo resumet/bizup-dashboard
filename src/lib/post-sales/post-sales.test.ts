@@ -11,9 +11,12 @@ test("강의 소속 영상, 결제 주소, 카드사별 기본값을 공개 데�
   assert.equal(draft.cards.find(r => r.issuer === "현대")?.installment, 24);
   assert.equal(draft.cards.find(r => r.issuer === "전북")?.interestFree, 3);
   assert.equal(draftSchema.safeParse(draft).success, true);
+  assert.equal(draftSchema.parse({ ...draft, background: undefined }).background, "white");
+  assert.equal(draftSchema.safeParse({ ...draft, background: "unknown" }).success, false);
   assert.equal(draftSchema.safeParse({ ...draft, chatUrl: "javascript:alert(1)" }).success, false);
   const video = { id: "b4197cc3-3636-4a01-aad0-d270d5bf8aba", label: "채널", url: draft.replayUrl };
-  const snapshot = salesSnapshot({ ...draft, videoId: video.id }, { name: "강의", instructor_name: "강사", payment_link: "https://example.org/pay" }, [video]);
+  const snapshot = salesSnapshot({ ...draft, background: "mint", videoId: video.id }, { name: "강의", instructor_name: "강사", payment_link: "https://example.org/pay" }, [video]);
+  assert.equal(snapshot.background, "mint");
   assert.equal(snapshot.videoUrl, video.url);
   assert.equal(snapshot.paymentUrl, "https://example.org/pay");
   assert.ok(!("videoId" in snapshot));
@@ -57,8 +60,23 @@ test("초안과 공개본 분리, 최초 공개·재공개 링크 저장, 동시
     await assert.rejects(save(3, "타 워크스페이스", true, course), /NOT_FOUND/);
     const next = await save(3, "수정 공개", true);
     assert.equal(next.publicUrl, published.publicUrl);
+    await db.exec(await readFile("supabase/migrations/20261120083952_post_sales_public_access.sql", "utf8"));
+    const visible = async () => (await db.query<{ title: string }>(
+      "select published->>'title' title from course_post_sales_pages where public_url=$1 and public_enabled and published is not null", [next.publicUrl]
+    )).rows.map(row => row.title);
+    const toggle = (revision: number, enabled: boolean, ws = workspace) => db.query(
+      "select set_post_sales_public_access($1,$2,$3,$4)", [course, ws, revision, enabled]);
+    assert.deepEqual(await visible(), ["수정 공개"]);
+    await assert.rejects(toggle(4, false, course), /NOT_FOUND/);
+    await toggle(4, false);
+    await assert.rejects(toggle(4, true), /STALE_REVISION/);
+    await save(5, "공개되지 않은 초안", false);
+    assert.deepEqual(await visible(), []);
+    await toggle(6, true);
+    assert.deepEqual(await visible(), ["수정 공개"]);
     await db.exec("set role anon");
     await assert.rejects(db.query("select draft from course_post_sales_pages"), /permission denied/);
     await assert.rejects(save(4, "권한 없음", true), /permission denied/);
+    await assert.rejects(toggle(7, false), /permission denied/);
   } finally { await db.close(); }
 });

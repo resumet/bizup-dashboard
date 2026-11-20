@@ -30,9 +30,10 @@ export async function salesVideos(ctx: Awaited<ReturnType<typeof salesContext>>)
 export async function loadSalesEditor(courseId: string) {
   const ctx = await salesContext(courseId);
   const [videos, result] = await Promise.all([salesVideos(ctx),
-    ctx.admin.from("course_post_sales_pages").select("revision,draft,public_url").eq("course_id", courseId).maybeSingle()]);
+    ctx.admin.from("course_post_sales_pages").select("revision,draft,public_url,public_enabled").eq("course_id", courseId).maybeSingle()]);
   if (result.error) throw new Error("사후 세일즈 페이지를 불러오지 못했습니다.");
   const { course } = ctx;
   return { course, videos, revision: Number(result.data?.revision ?? 0), publicUrl: String(result.data?.public_url ?? ""),
+    enabled: Boolean(result.data?.public_url && result.data.public_enabled),
     draft: result.data ? draftSchema.parse(result.data.draft) : newDraft(course.name, course.free_kakao_room_1_link || course.free_kakao_room_2_link || "", course.webinar_youtube_live_url || "") };
 }

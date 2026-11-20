@@ -3,17 +3,18 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type ClipboardEvent, type ReactNode } from "react";
-import { ArrowLeft, Globe, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Copy, ExternalLink, Globe, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
-import { removeBoldMarkers, salesSnapshot, type SalesDraft, type VideoOption } from "@/lib/post-sales/model";
+import { pageBackgrounds, removeBoldMarkers, salesSnapshot, type SalesDraft, type VideoOption } from "@/lib/post-sales/model";
 import { giftHeading, invitationHeading, SalesPageView } from "./sales-page";
 
 type Props = {
   course: { id: string; name: string; instructor_name: string; payment_link: string };
-  videos: VideoOption[]; draft: SalesDraft; revision: number; publicUrl: string;
+  videos: VideoOption[]; draft: SalesDraft; revision: number; publicUrl: string; enabled: boolean;
 };
 function EditorSection({ title, children }: { title: string; children: ReactNode }) {
   return <section className="space-y-4 rounded-xl border bg-card p-5">
@@ -41,6 +42,8 @@ export function SalesEditor({ course, videos, ...initial }: Props) {
   const [draft, setDraft] = useState(initial.draft);
   const [revision, setRevision] = useState(initial.revision);
   const [publicUrl, setPublicUrl] = useState(initial.publicUrl);
+  const [enabled, setEnabled] = useState(initial.enabled);
+  const [shareOpen, setShareOpen] = useState(false);
   const [busy, setBusy] = useState("");
   const pending = useRef(false);
   const [driveMessage, setDriveMessage] = useState("");
@@ -48,21 +51,28 @@ export function SalesEditor({ course, videos, ...initial }: Props) {
   function edit<K extends keyof SalesDraft>(field: K, value: SalesDraft[K]) {
     setDraft(prev => ({ ...prev, [field]: value }));
   }
-  async function submit(action: "save" | "publish" | "check-drive") {
+  async function submit(action: "save" | "publish" | "check-drive" | "set-access") {
     if (pending.current) return;
     pending.current = true;
     setBusy(action);
     try {
-      const response = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(action === "check-drive" ? { action, url: draft.giftUrl } : { action, draft, revision }) });
+      const payload = action === "check-drive" ? { action, url: draft.giftUrl }
+        : action === "set-access" ? { action, enabled: !enabled, revision } : { action, draft, revision };
+      const response = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || "요청을 처리하지 못했습니다.");
       if (action === "check-drive") setDriveMessage(result.message);
       else {
         setRevision(result.revision);
         setPublicUrl(result.publicUrl || "");
-        toast(action === "publish" ? "외부에 공개하고 강의에 링크를 저장했습니다." : "초안을 저장했습니다.");
-        if (action === "publish") router.refresh();
+        if (action === "set-access") {
+          setEnabled(result.enabled);
+          toast(result.enabled ? "공개 주소를 활성화했습니다." : "공개 주소를 비활성화했습니다.");
+        } else if (action === "publish") {
+          setEnabled(true);
+          toast("외부에 공개하고 강의에 링크를 저장했습니다.");
+          router.refresh();
+        } else toast("초안을 저장했습니다.");
       }
     } catch (error) { toast(error instanceof Error ? error.message : "요청을 처리하지 못했습니다.", { tone: "error" }); }
     finally { pending.current = false; setBusy(""); }
@@ -73,15 +83,45 @@ export function SalesEditor({ course, videos, ...initial }: Props) {
     <header className="flex flex-wrap items-center justify-between gap-3">
       <h1 className="text-2xl font-semibold">사후 세일즈 페이지 만들기</h1>
       <div className="flex flex-wrap gap-2"><Button disabled={!!busy} variant="outline" onClick={() => submit("save")}>{busy === "save" ? <Loader2 className="animate-spin" /> : <Save />}초안 저장</Button>
-        <Button disabled={!!busy} onClick={() => submit("publish")}>{busy === "publish" ? <Loader2 className="animate-spin" /> : <Globe />}{publicUrl ? "수정본 외부공개" : "외부공개"}</Button></div>
+        <Dialog open={shareOpen} onOpenChange={open => { if (!pending.current) setShareOpen(open); }}>
+          <DialogTrigger asChild><Button disabled={!!busy}><Globe />외부공개</Button></DialogTrigger>
+          <DialogContent aria-describedby={undefined} aria-busy={!!busy} className="sm:max-w-md">
+            <DialogHeader><DialogTitle>사후 세일즈 페이지 외부공개</DialogTitle></DialogHeader>
+            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+              <span role="status" className="font-medium">{enabled ? "공개 중" : "비공개"}</span>
+              <Button variant="outline" disabled={!!busy} onClick={() => submit(publicUrl ? "set-access" : "publish")}>
+                {(busy === "set-access" || (!publicUrl && busy === "publish")) && <Loader2 className="animate-spin" />}
+                {enabled ? "공개 비활성화" : "공개 활성화"}
+              </Button>
+            </div>
+            {publicUrl && <>
+              <label className="grid gap-2 font-medium">공개 주소<Input readOnly value={publicUrl} onFocus={e => e.target.select()} /></label>
+              <div className="flex flex-wrap gap-2">
+                {enabled ? <Button variant="outline" asChild><a href={publicUrl} target="_blank" rel="noopener noreferrer"><ExternalLink />새 창에서 열기</a></Button>
+                  : <Button variant="outline" disabled><ExternalLink />새 창에서 열기</Button>}
+                <Button variant="outline" onClick={async () => {
+                  try { await navigator.clipboard.writeText(publicUrl); toast("공개 주소를 복사했습니다."); }
+                  catch { toast("주소를 선택해 복사해 주세요.", { tone: "error" }); }
+                }}><Copy />주소 복사</Button>
+              </div>
+              {enabled && <DialogFooter><Button disabled={!!busy} onClick={() => submit("publish")}>
+                {busy === "publish" && <Loader2 className="animate-spin" />}수정본 외부공개
+              </Button></DialogFooter>}
+            </>}
+          </DialogContent>
+        </Dialog></div>
     </header>
-    {publicUrl && <div className="flex flex-wrap items-center gap-3 rounded-lg border p-3 text-sm"><span className="font-medium">공개 링크</span>
-      <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="break-all text-teal-800 underline">{publicUrl}</a>
-      <Button size="sm" variant="outline" onClick={async () => { try { await navigator.clipboard.writeText(publicUrl); toast("공개 링크를 복사했습니다."); } catch { toast("주소를 선택해 복사해 주세요.", { tone: "info" }); } }}>복사</Button></div>}
     <div className="grid items-start gap-6 xl:grid-cols-[minmax(22rem,0.85fr)_minmax(0,1.15fr)]">
       <fieldset disabled={!!busy} onPaste={pasteSalesText} className="min-w-0 space-y-6">
         <div className="space-y-4 rounded-xl border bg-card p-5">
           <label className={field}>페이지 제목<Input maxLength={180} value={draft.title} onChange={e => edit("title", e.target.value)} /></label>
+          <fieldset className="min-w-0"><legend className="mb-2 text-sm font-medium">페이지 배경색</legend>
+            <div className="flex flex-wrap gap-2">{(Object.keys(pageBackgrounds) as SalesDraft["background"][]).map(key =>
+              <label key={key} className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1 text-sm has-checked:border-teal-700">
+                <input type="radio" name="sales-background" value={key} checked={draft.background === key} onChange={() => edit("background", key)} className="accent-teal-800" />
+                <span aria-hidden className="size-4 rounded-full border" style={{ backgroundColor: pageBackgrounds[key].color }} />{pageBackgrounds[key].label}
+              </label>)}</div>
+          </fieldset>
           <label className={field}>무료 단톡방 참가 링크<Input type="url" value={draft.chatUrl} onChange={e => edit("chatUrl", e.target.value)} /></label>
         </div>
         <EditorSection title="1. 인사">

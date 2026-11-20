@@ -67,7 +67,17 @@ export function cleanSalesCopy<T extends SalesCopy>(copy: T) {
     concernQuestions: (copy.concernQuestions ?? []).map(removeBoldMarkers), concernExplanation: removeBoldMarkers(copy.concernExplanation ?? "") };
 }
 
+export const pageBackgrounds = {
+  white: { label: "흰색", color: "#ffffff" },
+  cream: { label: "크림", color: "#fff8e8" },
+  mint: { label: "민트", color: "#edf9f3" },
+  blue: { label: "하늘", color: "#eff6ff" },
+  lavender: { label: "라벤더", color: "#f5f1ff" },
+  pink: { label: "연분홍", color: "#fff1f4" },
+} as const;
+
 export const draftSchema = z.object({
+  background: z.enum(Object.keys(pageBackgrounds) as (keyof typeof pageBackgrounds)[]).default("white"),
   title: z.string().trim().max(180), intro: z.string().max(5000), recap: z.string().max(15000),
   concernQuestions: z.array(z.string().max(500)).length(4).default(() => [...defaultConcernQuestions]),
   concernExplanation: z.string().max(8000).default(""),
@@ -84,7 +94,7 @@ export type VideoOption = { id: string; label: string; url: string };
 export type SalesPage = Omit<SalesDraft, "videoId"> & { instructor: string; courseName: string; paymentUrl: string; videoUrl: string };
 
 export function newDraft(courseName: string, chatUrl: string, replayUrl: string): SalesDraft {
-  return { title: courseName, intro: "", recap: "", gifts: "", invitation: "", chatUrl, giftUrl: "", replayUrl: youtubeId(replayUrl) ? replayUrl : "", videoId: "",
+  return { title: courseName, background: "white", intro: "", recap: "", gifts: "", invitation: "", chatUrl, giftUrl: "", replayUrl: youtubeId(replayUrl) ? replayUrl : "", videoId: "",
     concernQuestions: [...defaultConcernQuestions], concernExplanation: "",
     cards: cardIssuers.map(issuer => ({ issuer, interestFree: issuer === "전북" ? 3 : shortTerm.has(issuer) ? 5 : 12, installment: issuer === "현대" ? 24 : 12 })) };
 }

@@ -8,6 +8,7 @@ import { checkDriveAccess } from "@/lib/post-sales/drive";
 
 const requestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("check-drive"), url: z.string().max(2048) }),
+  z.object({ action: z.literal("set-access"), revision: z.number().int().nonnegative(), enabled: z.boolean() }),
   z.object({ action: z.enum(["save", "publish"]), revision: z.number().int().nonnegative(), draft: draftSchema }),
 ]);
 
@@ -21,6 +22,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ cou
     if (body.action === "check-drive") {
       const result = await checkDriveAccess(body.url).catch(() => { throw new Error("드라이브 권한을 확인하지 못했습니다. 주소를 확인하고 다시 시도해 주세요."); });
       return Response.json(result);
+    }
+    if (body.action === "set-access") {
+      const { data, error } = await ctx.admin.rpc("set_post_sales_public_access", {
+        p_course: courseId, p_workspace: ctx.workspaceId, p_revision: body.revision, p_enabled: body.enabled,
+      });
+      if (error?.message === "STALE_REVISION") return Response.json({ message: "다른 화면에서 정보가 변경되었습니다. 새로고침 후 다시 시도해 주세요." }, { status: 409 });
+      if (error) throw new Error("공개 설정을 저장하지 못했습니다.");
+      return Response.json(data);
     }
     const { draft, revision } = body;
     const publish = body.action === "publish";

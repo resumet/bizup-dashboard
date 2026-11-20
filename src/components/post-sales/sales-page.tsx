@@ -1,5 +1,5 @@
-import { ArrowUpRight, Lightbulb, Play } from "lucide-react";
-import { webLink, youtubeId, type SalesPage } from "@/lib/post-sales/model";
+import { ArrowUpRight, Lightbulb } from "lucide-react";
+import { pageBackgrounds, webLink, youtubeId, type SalesPage } from "@/lib/post-sales/model";
 
 export const invitationHeading = "단, 이것만은 기억해 주세요!";
 export const giftHeading = "혼자서도 첫걸음을 시작할 수 있도록 선물을 준비했습니다!";
@@ -18,11 +18,11 @@ export function SalesPageView({ page }: { page: SalesPage }) {
   const questions = (page.concernQuestions ?? []).map(question => question.trim()).filter(Boolean);
   const paragraph = "whitespace-pre-line break-words text-[1rem] leading-8 text-slate-700";
   const heading = "text-xl font-bold tracking-tight text-slate-900";
-  return <article className="mx-auto max-w-3xl overflow-hidden rounded-2xl border border-stone-200 bg-white text-slate-900 shadow-sm">
+  return <article style={{ backgroundColor: pageBackgrounds[page.background ?? "white"].color }} className="mx-auto max-w-3xl overflow-hidden rounded-2xl border border-stone-200 text-slate-900 shadow-sm">
     <header className="border-b border-teal-100 bg-teal-50 px-6 py-9 sm:px-10">
       <h1 className="break-words text-3xl leading-tight font-bold tracking-tight sm:text-4xl">{page.title || page.courseName}</h1>
       {page.instructor && <p className="mt-4 font-medium text-teal-900">{page.instructor} 강사</p>}
-      {page.chatUrl && <div className="mt-4"><Action href={page.chatUrl}>무료 단톡방 참가하기</Action></div>}
+      {page.chatUrl && <div className="mt-4"><Action primary href={page.chatUrl}><span aria-hidden>💬</span>무료 단톡방 참가하기</Action></div>}
     </header>
     <div className="space-y-9 px-6 py-8 sm:px-10">
       {page.intro && <section aria-label="인사"><p className={paragraph}>{page.intro}</p></section>}
@@ -42,15 +42,15 @@ export function SalesPageView({ page }: { page: SalesPage }) {
       </section>}
       {(page.gifts || page.giftUrl) && <section className="space-y-4 rounded-xl border border-teal-100 bg-teal-50/60 p-5">
         <h2 className={heading}>{giftHeading}</h2>
-        {page.gifts && <p className={paragraph}>{page.gifts}</p>}<Action href={page.giftUrl}><span aria-hidden>🎁</span>무료특강 선물 받기</Action></section>}
+        {page.gifts && <p className={paragraph}>{page.gifts}</p>}<Action primary href={page.giftUrl}><span aria-hidden>🎁</span>무료특강 선물 받기</Action></section>}
       {page.invitation.trim() && <section className="space-y-3">
         <h2 className={heading}>{invitationHeading}</h2>
         <p className={paragraph}>{page.invitation}</p>
       </section>}
       <section className="space-y-3 border-t pt-6"><h2 className={heading}>무료강의 다시보기</h2>
-        <Action primary href={page.replayUrl}><Play aria-hidden className="size-4" />무료강의 다시보기</Action></section>
+        <Action primary href={page.replayUrl}><span aria-hidden>▶️</span>무료강의 다시보기</Action></section>
       <section className="space-y-4 border-t pt-6"><h2 className={heading}>정규강의 일정 및 커리큘럼 안내</h2>
-        <p className={paragraph}>{page.courseName}</p><Action primary href={page.paymentUrl}>커리큘럼 확인하고 수강 신청하기</Action></section>
+        <Action primary href={page.paymentUrl}><span aria-hidden>📅</span>커리큘럼 확인하고 수강 신청하기</Action></section>
       <section className="space-y-4 border-t pt-6"><h2 className={heading}>신용카드 무이자 할부 안내</h2>
         <table className="w-full border-collapse text-sm tabular-nums"><thead className="bg-stone-100 text-left"><tr>
           {["카드사", "최대 무이자 할부", "최대 할부"].map(label => <th key={label} scope="col" className="px-3 py-3">{label}</th>)}</tr></thead>
