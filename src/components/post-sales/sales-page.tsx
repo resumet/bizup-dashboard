@@ -1,6 +1,8 @@
 import { ArrowUpRight, Gift, Play } from "lucide-react";
 import { webLink, youtubeId, type SalesPage } from "@/lib/post-sales/model";
 
+export const invitationHeading = "단, 이것만은 기억해 주세요!";
+
 function Action({ href, children, primary = false }: { href: string; children: React.ReactNode; primary?: boolean }) {
   const url = webLink(href);
   if (!url) return null;
@@ -30,7 +32,10 @@ export function SalesPageView({ page }: { page: SalesPage }) {
         <h2 className={heading}><Gift aria-hidden className="mr-2 inline size-5 text-teal-700" />무료강의 참여 선물</h2>
         {page.gifts && <p className={paragraph}>{page.gifts}</p>}<Action href={page.giftUrl}>무료 선물 받기</Action></section>}
       {page.chatUrl && <Action href={page.chatUrl}>무료 단톡방 참가하기</Action>}
-      {page.invitation && <p className={paragraph}>{page.invitation}</p>}
+      {page.invitation.trim() && <section className="space-y-3">
+        <h2 className={heading}>{invitationHeading}</h2>
+        <p className={paragraph}>{page.invitation}</p>
+      </section>}
       <section className="space-y-3 border-t pt-6"><h2 className={heading}>무료강의 다시보기</h2>
         <Action href={page.replayUrl}><Play className="size-4" />다시보기 영상 열기</Action></section>
       <section className="space-y-4 border-t pt-6"><h2 className={heading}>정규과정 일정 및 커리큘럼 안내</h2>

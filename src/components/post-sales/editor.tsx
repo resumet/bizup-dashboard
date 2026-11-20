@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { salesSnapshot, type SalesDraft, type VideoOption } from "@/lib/post-sales/model";
-import { SalesPageView } from "./sales-page";
+import { invitationHeading, SalesPageView } from "./sales-page";
 
 type Props = {
   course: { id: string; name: string; instructor_name: string; payment_link: string };
@@ -19,7 +19,7 @@ const textFields = [
   ["intro", "강사 인사말", "무료강의에 참여한 분들에게 전할 인사말"],
   ["recap", "강의 핵심 내용", "다시 기억하고 실천했으면 하는 내용"],
   ["gifts", "무료 선물 목록과 사용법", "자료 이름과 활용 방법"],
-  ["invitation", "정규과정 소개", "무료강의에서 배운 내용을 정규과정에서 어떻게 이어갈지 소개해 주세요."],
+  ["invitation", invitationHeading, "무료강의에서 배운 내용을 정규과정에서 어떻게 이어갈지 소개해 주세요."],
 ] as const;
 
 export function SalesEditor({ course, videos, ...initial }: Props) {
