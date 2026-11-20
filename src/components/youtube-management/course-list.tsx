@@ -141,7 +141,7 @@ function ChannelChips({ channels, colors, disabled, emptyLabel = "-" }: { channe
   if (!chips.length) return <span className="text-muted-foreground">{emptyLabel}</span>;
   return <div className="flex min-w-44 flex-wrap gap-1.5">{chips.map(({ name, declined }) =>
     <Badge key={name} variant="outline" className="max-w-44 truncate font-medium"
-      style={declined ? { backgroundColor: "#f3f4f6", borderColor: "#d1d5db", color: "#4b5563" } : colors.get(name)}
+      style={declined ? { backgroundColor: "#f3f4f6", borderColor: "#d1d5db", color: "#4b5563", textDecoration: "line-through" } : colors.get(name)}
       title={declined ? `${name} · 출연 불가` : name}>{name}{declined && <span className="sr-only"> (출연 불가)</span>}</Badge>
   )}</div>;
 }
