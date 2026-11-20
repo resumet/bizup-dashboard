@@ -53,6 +53,20 @@ export function driveResource(value: string) {
 
 const urlField = z.string().trim().max(2048);
 const months = z.number().int().min(0).max(120);
+export function removeBoldMarkers(text: string) {
+  return text.replaceAll("**", "");
+}
+
+type SalesCopy = Record<"title" | "intro" | "recap" | "gifts" | "invitation", string> & {
+  concernQuestions?: string[]; concernExplanation?: string;
+};
+
+export function cleanSalesCopy<T extends SalesCopy>(copy: T) {
+  return { ...copy, title: removeBoldMarkers(copy.title), intro: removeBoldMarkers(copy.intro),
+    recap: removeBoldMarkers(copy.recap), gifts: removeBoldMarkers(copy.gifts), invitation: removeBoldMarkers(copy.invitation),
+    concernQuestions: (copy.concernQuestions ?? []).map(removeBoldMarkers), concernExplanation: removeBoldMarkers(copy.concernExplanation ?? "") };
+}
+
 export const draftSchema = z.object({
   title: z.string().trim().max(180), intro: z.string().max(5000), recap: z.string().max(15000),
   concernQuestions: z.array(z.string().max(500)).length(4).default(() => [...defaultConcernQuestions]),
@@ -64,7 +78,7 @@ export const draftSchema = z.object({
   replayUrl: urlField.refine(v => !v || !!youtubeId(v), "다시보기는 유튜브 영상 또는 라이브 주소를 입력해 주세요."),
   cards: z.array(z.object({ issuer: z.enum(cardIssuers), interestFree: months, installment: months }))
     .length(cardIssuers.length).refine(rows => rows.every((row, i) => row.issuer === cardIssuers[i] && row.interestFree <= row.installment), "카드별 무이자 개월 수와 최대 할부 개월 수를 확인해 주세요."),
-});
+}).transform(cleanSalesCopy);
 export type SalesDraft = z.infer<typeof draftSchema>;
 export type VideoOption = { id: string; label: string; url: string };
 export type SalesPage = Omit<SalesDraft, "videoId"> & { instructor: string; courseName: string; paymentUrl: string; videoUrl: string };

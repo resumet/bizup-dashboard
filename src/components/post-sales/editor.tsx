@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ClipboardEvent, type ReactNode } from "react";
 import { ArrowLeft, Globe, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
-import { salesSnapshot, type SalesDraft, type VideoOption } from "@/lib/post-sales/model";
+import { removeBoldMarkers, salesSnapshot, type SalesDraft, type VideoOption } from "@/lib/post-sales/model";
 import { giftHeading, invitationHeading, SalesPageView } from "./sales-page";
 
 type Props = {
@@ -19,6 +19,21 @@ function EditorSection({ title, children }: { title: string; children: ReactNode
   return <section className="space-y-4 rounded-xl border bg-card p-5">
     <h2 className="text-lg font-semibold">{title}</h2>{children}
   </section>;
+}
+
+function pasteSalesText(event: ClipboardEvent<HTMLFieldSetElement>) {
+  const field = event.target;
+  if (!(field instanceof HTMLTextAreaElement || (field instanceof HTMLInputElement && field.type === "text")) || field.readOnly) return;
+  const pasted = event.clipboardData.getData("text/plain");
+  if (!pasted.includes("**")) return;
+  event.preventDefault();
+  const start = field.selectionStart ?? field.value.length;
+  const end = field.selectionEnd ?? start;
+  const newlines = field instanceof HTMLTextAreaElement ? "\n" : "";
+  const text = removeBoldMarkers(pasted).replace(/\r\n|[\r\n]/g, newlines);
+  const available = field.maxLength - (field.value.length - (end - start));
+  field.setRangeText(field.maxLength < 0 ? text : text.slice(0, Math.max(0, available)), start, end, "end");
+  field.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
 export function SalesEditor({ course, videos, ...initial }: Props) {
@@ -64,7 +79,7 @@ export function SalesEditor({ course, videos, ...initial }: Props) {
       <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="break-all text-teal-800 underline">{publicUrl}</a>
       <Button size="sm" variant="outline" onClick={async () => { try { await navigator.clipboard.writeText(publicUrl); toast("공개 링크를 복사했습니다."); } catch { toast("주소를 선택해 복사해 주세요.", { tone: "info" }); } }}>복사</Button></div>}
     <div className="grid items-start gap-6 xl:grid-cols-[minmax(22rem,0.85fr)_minmax(0,1.15fr)]">
-      <fieldset disabled={!!busy} className="min-w-0 space-y-6">
+      <fieldset disabled={!!busy} onPaste={pasteSalesText} className="min-w-0 space-y-6">
         <div className="space-y-4 rounded-xl border bg-card p-5">
           <label className={field}>페이지 제목<Input maxLength={180} value={draft.title} onChange={e => edit("title", e.target.value)} /></label>
           <label className={field}>무료 단톡방 참가 링크<Input type="url" value={draft.chatUrl} onChange={e => edit("chatUrl", e.target.value)} /></label>

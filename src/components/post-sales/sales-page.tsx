@@ -48,7 +48,7 @@ export function SalesPageView({ page }: { page: SalesPage }) {
         <p className={paragraph}>{page.invitation}</p>
       </section>}
       <section className="space-y-3 border-t pt-6"><h2 className={heading}>무료강의 다시보기</h2>
-        <Action href={page.replayUrl}><Play className="size-4" />다시보기 영상 열기</Action></section>
+        <Action primary href={page.replayUrl}><Play aria-hidden className="size-4" />무료강의 다시보기</Action></section>
       <section className="space-y-4 border-t pt-6"><h2 className={heading}>정규강의 일정 및 커리큘럼 안내</h2>
         <p className={paragraph}>{page.courseName}</p><Action primary href={page.paymentUrl}>커리큘럼 확인하고 수강 신청하기</Action></section>
       <section className="space-y-4 border-t pt-6"><h2 className={heading}>신용카드 무이자 할부 안내</h2>

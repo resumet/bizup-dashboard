@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { SalesPageView } from "@/components/post-sales/sales-page";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { SalesPage } from "@/lib/post-sales/model";
+import { cleanSalesCopy, type SalesPage } from "@/lib/post-sales/model";
 
 export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ token: string }> };
@@ -14,7 +14,7 @@ const publicPage = cache(async (token: string): Promise<SalesPage> => {
     .select("published").eq("token", token).not("published", "is", null).maybeSingle();
   if (error) throw new Error("공개 페이지를 불러오지 못했습니다.");
   if (!data?.published) notFound();
-  return data.published as SalesPage;
+  return cleanSalesCopy(data.published as SalesPage);
 });
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const page = await publicPage((await params).token);
