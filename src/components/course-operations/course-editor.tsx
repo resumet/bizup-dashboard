@@ -166,11 +166,13 @@ function CourseLinkInput({
   label,
   value,
   onChange,
+  action,
 }: {
   field: CourseLinkFieldKey;
   label: string;
   value: string;
   onChange: (field: CourseLinkFieldKey, value: string) => void;
+  action?: React.ReactNode;
 }) {
   const openableLink = getOpenableLink(value);
   const inputId = `course-link-${field}`;
@@ -205,6 +207,7 @@ function CourseLinkInput({
             <span><ExternalLink /></span>
           )}
         </Button>
+        {action}
       </div>
     </div>
   );
@@ -1223,6 +1226,9 @@ export function CourseOperationsEditor({
                   label={item.label}
                   value={draft[item.field]}
                   onChange={updateField}
+                  action={item.field === "freeGiftLink" && courseId ? <Button asChild variant="outline">
+                    <Link href={`/services/course-operations/${courseId}/post-sales`}>세일즈 페이지 만들기</Link>
+                  </Button> : undefined}
                 />
               ))}
             </div>
