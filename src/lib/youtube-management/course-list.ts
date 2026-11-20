@@ -7,6 +7,20 @@ export const YOUTUBE_COURSE_GROUPS = [
 
 type YoutubeCourseGroupKey = (typeof YOUTUBE_COURSE_GROUPS)[number]["key"];
 
+export type AppearanceChannel = { name: string; confirmed: boolean; declined: boolean };
+
+export function orderedChannelChips(channels: readonly AppearanceChannel[]) {
+  const seen = new Set<string>();
+  const chips = [];
+  for (const channel of [...channels].sort((a, b) => Number(a.declined) - Number(b.declined))) {
+    const name = channel.name.trim();
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    chips.push({ name, declined: channel.declined });
+  }
+  return chips;
+}
+
 export function countYoutubeAppearances(appearances: readonly { request_status: string; upload_date?: string | null }[]) {
   return {
     appearanceCount: appearances.length,

@@ -39,6 +39,7 @@ export default async function YoutubeManagementPage() {
           appearanceChannels: appearances.map((appearance) => ({
             name: displayYoutubeChannelName(channelSuggestions, appearance.channel_name),
             confirmed: appearance.request_status === "confirmed",
+            declined: appearance.request_status === "declined",
           })),
           ...countYoutubeAppearances(appearances),
           filmingAlert: appearanceNotRequired ? { ...filmingAlert, alertCount: 0 } : filmingAlert,

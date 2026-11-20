@@ -9,7 +9,7 @@ import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogT
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatWebinarDate } from "@/lib/course-operations/webinar-proximity";
-import { groupYoutubeCourses, YOUTUBE_COURSE_GROUPS } from "@/lib/youtube-management/course-list";
+import { groupYoutubeCourses, orderedChannelChips, YOUTUBE_COURSE_GROUPS, type AppearanceChannel } from "@/lib/youtube-management/course-list";
 import type { YoutubeFilmingAlert } from "@/lib/youtube-management/filming-alert";
 import type { CourseMedia } from "@/lib/youtube-management/model";
 import type { YoutubeFilmingAlertWeeks } from "@/lib/youtube-management/settings";
@@ -25,7 +25,7 @@ type Connection = {
 
 type YoutubeCourse = CourseMedia & {
   appearanceNotRequired: boolean;
-  appearanceChannels: Array<{ name: string; confirmed: boolean }>;
+  appearanceChannels: AppearanceChannel[];
   appearanceCount: number;
   confirmedAppearanceCount: number;
   uploadCompletedCount: number;
@@ -107,8 +107,8 @@ export function YoutubeCourseList({ courses, filmingAlertWeeks, embedded = false
             <TableCell><Link className="font-medium hover:underline" href={`/services/youtube-management/${course.id}`}>{course.name}</Link></TableCell>
             <TableCell>{course.instructor_name || "—"}</TableCell><TableCell>{course.cohort || "—"}</TableCell>
             <TableCell><time dateTime={course.free_webinar_at || undefined}>{formatWebinarDate(course.free_webinar_at)}</time></TableCell>
-            <TableCell><ChannelChips names={course.appearanceChannels.map((channel) => channel.name)} colors={channelColors} disabled={course.appearanceNotRequired} /></TableCell>
-            <TableCell><ChannelChips names={course.appearanceChannels.filter((channel) => channel.confirmed).map((channel) => channel.name)} colors={channelColors} disabled={course.appearanceNotRequired} emptyLabel="미확정" /></TableCell>
+            <TableCell><ChannelChips channels={course.appearanceChannels} colors={channelColors} disabled={course.appearanceNotRequired} /></TableCell>
+            <TableCell><ChannelChips channels={course.appearanceChannels.filter((channel) => channel.confirmed)} colors={channelColors} disabled={course.appearanceNotRequired} emptyLabel="미확정" /></TableCell>
             <TableCell className="text-right">{course.appearanceNotRequired ? "-" : `${course.uploadCompletedCount}개`}</TableCell>
             <TableCell className="text-right">{course.filmingAlert.deadlineReached
               ? course.filmingAlert.alertCount > 0
@@ -135,9 +135,13 @@ export function YoutubeCourseList({ courses, filmingAlertWeeks, embedded = false
   </div>;
 }
 
-function ChannelChips({ names, colors, disabled, emptyLabel = "-" }: { names: string[]; colors: Map<string, CSSProperties>; disabled: boolean; emptyLabel?: string }) {
+function ChannelChips({ channels, colors, disabled, emptyLabel = "-" }: { channels: AppearanceChannel[]; colors: Map<string, CSSProperties>; disabled: boolean; emptyLabel?: string }) {
   if (disabled) return <span className="text-muted-foreground">진행하지 않음</span>;
-  const uniqueNames = [...new Set(names.map((name) => name.trim()).filter(Boolean))];
-  if (!uniqueNames.length) return <span className="text-muted-foreground">{emptyLabel}</span>;
-  return <div className="flex min-w-44 flex-wrap gap-1.5">{uniqueNames.map((name) => <Badge key={name} variant="outline" className="max-w-44 truncate font-medium" style={colors.get(name)} title={name}>{name}</Badge>)}</div>;
+  const chips = orderedChannelChips(channels);
+  if (!chips.length) return <span className="text-muted-foreground">{emptyLabel}</span>;
+  return <div className="flex min-w-44 flex-wrap gap-1.5">{chips.map(({ name, declined }) =>
+    <Badge key={name} variant="outline" className="max-w-44 truncate font-medium"
+      style={declined ? { backgroundColor: "#f3f4f6", borderColor: "#d1d5db", color: "#4b5563" } : colors.get(name)}
+      title={declined ? `${name} · 출연 불가` : name}>{name}{declined && <span className="sr-only"> (출연 불가)</span>}</Badge>
+  )}</div>;
 }
