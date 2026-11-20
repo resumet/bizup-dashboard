@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { ArrowLeft, Globe, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,8 +69,19 @@ export function SalesEditor({ course, videos, ...initial }: Props) {
         <section className="space-y-4 rounded-xl border bg-card p-5">
           <h2 className="text-lg font-semibold">페이지 내용</h2>
           <label className={field}>페이지 제목<Input maxLength={180} value={draft.title} onChange={e => edit("title", e.target.value)} /></label>
-          {textFields.map(([key, label, placeholder]) => <label className={field} key={key}>{label}<Textarea rows={key === "recap" ? 5 : 3} maxLength={{intro:5000, recap:15000, gifts:6000, invitation:8000}[key]}
-            placeholder={placeholder} value={draft[key]} onChange={e => edit(key, e.target.value)} /></label>)}
+          {textFields.map(([key, label, placeholder]) => <Fragment key={key}>
+            <label className={field}>{label}<Textarea rows={key === "recap" ? 5 : 3} maxLength={{intro:5000, recap:15000, gifts:6000, invitation:8000}[key]}
+              placeholder={placeholder} value={draft[key]} onChange={e => edit(key, e.target.value)} /></label>
+            {key === "recap" && <fieldset className="min-w-0 space-y-3 rounded-lg border p-4">
+              <legend className="px-1 font-semibold">고객 고민</legend>
+              {draft.concernQuestions.map((question, index) => <label key={index} className={field}>질문 {index + 1}
+                <Input maxLength={500} value={question} onChange={e => edit("concernQuestions",
+                  draft.concernQuestions.map((value, i) => i === index ? e.target.value : value))} />
+              </label>)}
+              <label className={field}>질문 다음 설명<Textarea rows={4} maxLength={8000} value={draft.concernExplanation}
+                onChange={e => edit("concernExplanation", e.target.value)} /></label>
+            </fieldset>}
+          </Fragment>)}
         </section>
         <section className="space-y-4 rounded-xl border bg-card p-5"><h2 className="text-lg font-semibold">공유할 링크</h2>
           <label className={field}>무료 단톡방 참가 링크<Input type="url" value={draft.chatUrl} onChange={e => edit("chatUrl", e.target.value)} /></label>

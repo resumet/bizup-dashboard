@@ -1,4 +1,4 @@
-import { ArrowUpRight, Gift, Play } from "lucide-react";
+import { ArrowUpRight, Gift, Lightbulb, Play } from "lucide-react";
 import { webLink, youtubeId, type SalesPage } from "@/lib/post-sales/model";
 
 export const invitationHeading = "단, 이것만은 기억해 주세요!";
@@ -14,6 +14,7 @@ function Action({ href, children, primary = false }: { href: string; children: R
 
 export function SalesPageView({ page }: { page: SalesPage }) {
   const video = youtubeId(page.videoUrl);
+  const questions = (page.concernQuestions ?? []).map(question => question.trim()).filter(Boolean);
   const paragraph = "whitespace-pre-line break-words text-[1rem] leading-8 text-slate-700";
   const heading = "text-xl font-bold tracking-tight text-slate-900";
   return <article className="mx-auto max-w-3xl overflow-hidden rounded-2xl border border-stone-200 bg-white text-slate-900 shadow-sm">
@@ -28,6 +29,15 @@ export function SalesPageView({ page }: { page: SalesPage }) {
           allow="encrypted-media; picture-in-picture; fullscreen" allowFullScreen src={`https://www.youtube-nocookie.com/embed/${video}`} />
         <Action href={page.videoUrl}>유튜브에서 보기</Action></section>}
       {page.recap && <section className="space-y-3"><h2 className={heading}>무료강의 핵심 정리</h2><p className={paragraph}>{page.recap}</p></section>}
+      {(questions.length > 0 || page.concernExplanation?.trim()) && <section className="space-y-4">
+        <h2 className={heading}>가능한 건 알겠는데, 막상 시작하려니 막막하죠?</h2>
+        {questions.length > 0 && <div className="space-y-3 rounded-xl bg-stone-100 px-5 py-4">
+          <h3 className="flex items-start gap-2 text-base font-medium"><Lightbulb aria-hidden className="mt-0.5 size-5 shrink-0 text-amber-600" />이런 고민이 남아 있을 수 있습니다.</h3>
+          <ol className="ml-7 list-decimal space-y-2 pl-5 leading-relaxed">{questions.map((question, i) =>
+            <li key={i} className="break-words pl-1"><strong>{question}</strong></li>)}</ol>
+        </div>}
+        {page.concernExplanation?.trim() && <p className={paragraph}>{page.concernExplanation}</p>}
+      </section>}
       {(page.gifts || page.giftUrl) && <section className="space-y-4 rounded-xl border border-teal-100 bg-teal-50/60 p-5">
         <h2 className={heading}><Gift aria-hidden className="mr-2 inline size-5 text-teal-700" />무료강의 참여 선물</h2>
         {page.gifts && <p className={paragraph}>{page.gifts}</p>}<Action href={page.giftUrl}>무료 선물 받기</Action></section>}

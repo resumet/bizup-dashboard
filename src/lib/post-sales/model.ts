@@ -2,6 +2,12 @@ import { z } from "zod";
 
 export const cardIssuers = ["신한", "현대", "삼성", "롯데", "하나", "국민", "비씨", "농협", "우리", "수협", "광주", "전북"] as const;
 const shortTerm = new Set<string>(["비씨", "우리", "수협", "광주"]);
+const defaultConcernQuestions = [
+  "팔로워 0명인 내가 고객의 계정을 운영할 수 있을까요?",
+  "촬영도 편집도 자신 없는데 서비스를 팔아도 될까요?",
+  "첫 고객은 어디서, 어떻게 찾아야 할까요?",
+  "고객에게 무엇을 제안하고 얼마를 받아야 할까요?",
+];
 
 export function webLink(value: string) {
   try {
@@ -49,6 +55,8 @@ const urlField = z.string().trim().max(2048);
 const months = z.number().int().min(0).max(120);
 export const draftSchema = z.object({
   title: z.string().trim().max(180), intro: z.string().max(5000), recap: z.string().max(15000),
+  concernQuestions: z.array(z.string().max(500)).length(4).default(() => [...defaultConcernQuestions]),
+  concernExplanation: z.string().max(8000).default(""),
   gifts: z.string().max(6000), invitation: z.string().max(8000),
   chatUrl: urlField.refine(v => !v || !!webLink(v), "무료 단톡방 주소를 확인해 주세요."),
   videoId: z.union([z.uuid(), z.literal("")]),
@@ -63,6 +71,7 @@ export type SalesPage = Omit<SalesDraft, "videoId"> & { instructor: string; cour
 
 export function newDraft(courseName: string, chatUrl: string, replayUrl: string): SalesDraft {
   return { title: courseName, intro: "", recap: "", gifts: "", invitation: "", chatUrl, giftUrl: "", replayUrl: youtubeId(replayUrl) ? replayUrl : "", videoId: "",
+    concernQuestions: [...defaultConcernQuestions], concernExplanation: "",
     cards: cardIssuers.map(issuer => ({ issuer, interestFree: issuer === "전북" ? 3 : shortTerm.has(issuer) ? 5 : 12, installment: issuer === "현대" ? 24 : 12 })) };
 }
 
