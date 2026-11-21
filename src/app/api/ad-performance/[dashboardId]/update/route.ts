@@ -10,6 +10,7 @@ import { authorizeAdPerformanceDashboard, loadAdPerformanceSheetState, loadGoogl
 import { applyTrackingToSheet } from "@/lib/ad-performance/sheet-update";
 import { createSheetUpdatePreview, sheetUpdateReviewResponse } from "@/lib/ad-performance/sheet-update-review";
 import { adPerformanceErrorResponse } from "@/lib/ad-performance/validation";
+import { refreshCreativeData } from "@/lib/ad-creative/refresh";
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -32,6 +33,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ das
     const workbook = await loadGoogleWorkbook(current.spreadsheetUrl, context.startDate, current.sheetName);
     const sheet = workbook.sheets.find(item => item.name === current.sheetName);
     if (!sheet) throw new Error("연결된 시트를 원본 문서에서 찾을 수 없습니다.");
+    await refreshCreativeData(membership.workspace_id, user.id);
     const applicants = await syncFreeStudents(courseContext);
     const tracking = trackingFromApplicants(applicants.rows);
     const next = applyTrackingToSheet({ ...current, spreadsheetId: workbook.spreadsheetId, sourceRows: sheet.rows, trackingFileName: null }, tracking, context.startDate);

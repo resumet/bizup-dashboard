@@ -438,7 +438,10 @@ export function MeaningSheetWorkspace({
       if (result.preview && (response.ok || response.status === 409)) {
         setPendingUpdate({ action, file, preview: result.preview });
         setTrackingDialogOpen(false);
-        if (action === "applicants") setNotice("무료 신청자 명단을 갱신했습니다. 광고성과는 변경 내역 확인 후 적용됩니다.");
+        if (action === "applicants") {
+          setNotice("매체별 요약·소재성과와 무료 신청자 명단을 갱신했습니다. 광고성과는 변경 내역 확인 후 적용됩니다.");
+          router.refresh();
+        }
         if (response.status === 409) setError(result.message ?? "변경 내역을 다시 확인해 주세요.");
         return;
       }
