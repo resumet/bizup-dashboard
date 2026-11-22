@@ -18,6 +18,7 @@ import { ToastNotice } from "@/components/ui/toast";
 import { formatWebinarDate, getWebinarDayDifference } from "@/lib/course-operations/webinar-proximity";
 import type { AdPerformanceDashboardSummary, AdPerformanceIndexData } from "@/lib/ad-performance/types";
 import { courseMediaColumns } from "./creative-columns";
+import { OngoingUpdateButton } from "./ongoing-update-button";
 import { toKoreaDate } from "@/lib/course-operations/schedule";
 
 const number = new Intl.NumberFormat("ko-KR");
@@ -74,7 +75,7 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState("");
   const [error, setError] = useState(initialData.loadError ?? "");
-  const [creativeSource, setCreativeSource] = useState(initialData.creativeSource);
+  const creativeSource = initialData.creativeSource;
   const [sourceSettingsOpen, setSourceSettingsOpen] = useState(false);
   const [sourceUrl, setSourceUrl] = useState(initialData.creativeSource.url);
   const [sourceSaving, setSourceSaving] = useState(false);
@@ -99,7 +100,6 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
       });
       const result = await response.json() as { url?: string; updatedAt?: string; webinarName?: string; rows?: unknown[]; message?: string };
       if (!response.ok || !result.url || !result.updatedAt || result.webinarName === undefined) throw new Error(result.message || "원본 데이터를 저장하지 못했습니다.");
-      setCreativeSource({ url: result.url, updatedAt: result.updatedAt, webinarName: result.webinarName });
       setSourceSettingsOpen(false);
       setNotice(`${(result.rows?.length ?? 0).toLocaleString("ko-KR")}건의 소재성과 데이터를 불러왔습니다.`);
       router.refresh();
@@ -174,6 +174,7 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
       <ToastNotice message={notice} onDismiss={() => setNotice("")} />
 
       <div className="mt-6 flex flex-wrap justify-end gap-2">
+        <OngoingUpdateButton disabled={Boolean(initialData.loadError)} />
         <Button variant="outline" onClick={openSourceSettings}><Settings2 />원본 데이터 설정</Button>
         <Button variant="outline" asChild><Link href="/services/ad-performance/bulk">일괄 보기</Link></Button>
         <Button className="min-h-10" disabled={creating || Boolean(initialData.loadError)} onClick={() => void createDashboard()}>{creating ? <Loader2 className="animate-spin" /> : <Plus />}대시보드 만들기</Button>
