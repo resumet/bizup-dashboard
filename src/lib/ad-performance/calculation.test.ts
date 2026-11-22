@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { calculateDailyAdSpend, summarizeAdPerformance, summarizeOrganicChannels } from "./calculation";
+import { calculateDailyAdSpend, chatRoomTarget, summarizeAdPerformance, summarizeOrganicChannels } from "./calculation";
 import type { AdPerformanceDailyMetric } from "./types";
 
 const metric: AdPerformanceDailyMetric = {
@@ -20,6 +20,18 @@ const metric: AdPerformanceDailyMetric = {
   chatRoomMembers: null,
   organicLeads: { blog: 5, youtube: 3 },
 };
+
+test("목표 톡방 인원은 가장 최신 날짜의 합산 CPL로 예산을 나누어 올림한다", () => {
+  const latest = { ...metric, metricDate: "2026-09-25", googleSpend: 100, metaSpend: 200, googleAdLeads: 1, metaAdLeads: 2 };
+  const input = [latest, metric];
+  const original = structuredClone(input);
+  assert.equal(chatRoomTarget(input, 1001), 11);
+  assert.deepEqual(input, original);
+  assert.equal(chatRoomTarget(input, 0), null);
+  assert.equal(chatRoomTarget([], 1000), null);
+  assert.equal(chatRoomTarget([metric, { ...latest, googleAdLeads: 0, metaAdLeads: 0 }], 1000), null);
+  assert.equal(chatRoomTarget([{ ...latest, googleSpend: 0, metaSpend: 0 }], 1000), null);
+});
 
 test("오가닉 카드는 인스타·유튜브·경로불명으로 고정하고 유튜브에 나머지 모든 경로를 합산한다", () => {
   const channels = [

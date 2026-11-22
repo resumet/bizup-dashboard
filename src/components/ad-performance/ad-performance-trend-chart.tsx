@@ -5,7 +5,7 @@ import { adPerformanceTrend } from "@/lib/ad-performance/trend";
 import type { AdPerformanceDailyMetric } from "@/lib/ad-performance/types";
 
 const series = [
-  { key: "adLeads", label: "광고 DB 총합", color: "#2563eb", unit: "건", axis: "count" },
+  { key: "adLeads", label: "누적 광고 DB", color: "#2563eb", unit: "건", axis: "count" },
   { key: "adLeadCost", label: "광고접수 DB단가", color: "#d97706", unit: "원", axis: "cost" },
   { key: "landingLeadCost", label: "랜딩접수 DB단가", color: "#9333ea", unit: "원", axis: "cost" },
   { key: "chatMembers", label: "누적 톡방인원", color: "#059669", unit: "명", axis: "count" },
@@ -14,7 +14,7 @@ const format = (value: number | null) => value === null ? "—" : Math.round(val
 
 export function AdPerformanceTrendChart({ metrics, group }: { metrics: AdPerformanceDailyMetric[]; group: "count" | "cost" }) {
   const visibleSeries = series.filter(item => item.axis === group);
-  const title = group === "count" ? "광고 DB 총합 / 누적 톡방인원" : "광고접수 DB단가 / 랜딩접수 DB단가";
+  const title = group === "count" ? "누적 광고 DB / 누적 톡방인원" : "광고접수 DB단가 / 랜딩접수 DB단가";
   const rows = adPerformanceTrend(metrics);
   const [selected, setSelected] = useState<number | null>(null);
   const titleId = useId();

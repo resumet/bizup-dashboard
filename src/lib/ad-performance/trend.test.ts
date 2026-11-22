@@ -20,3 +20,11 @@ test("날짜순으로 정렬하고 분모 0과 미입력 톡방 인원을 0원·
   assert.deepEqual(input, snapshot);
   assert.deepEqual(adPerformanceTrend([]), []);
 });
+
+test("광고 DB는 날짜순으로 누적하고 단가는 해당 날짜의 DB로 계산한다", () => {
+  const earlier = { ...metric, metricDate: "2026-11-20", googleAdLeads: 4, metaAdLeads: 6 };
+  const zero = { ...metric, metricDate: "2026-11-21", googleAdLeads: 0, metaAdLeads: 0 };
+  const rows = adPerformanceTrend([metric, earlier, zero]);
+  assert.deepEqual(rows.map(row => row.adLeads), [10, 10, 40]);
+  assert.deepEqual(rows.map(row => row.adLeadCost), [30000, null, 10000]);
+});

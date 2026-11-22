@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { summarizeAdPerformance, summarizeOrganicChannels } from "@/lib/ad-performance/calculation";
+import { chatRoomTarget, summarizeAdPerformance, summarizeOrganicChannels } from "@/lib/ad-performance/calculation";
 import type { AdPerformanceDailyMetric, AdPerformanceOrganicChannel } from "@/lib/ad-performance/types";
 
 const number = new Intl.NumberFormat("ko-KR");
@@ -49,6 +49,7 @@ export function AdPerformanceSummaryCards({ metrics, totalBudget, organicChannel
   showPaidMetrics?: boolean;
 }) {
   const summary = summarizeAdPerformance(metrics, totalBudget);
+  const target = chatRoomTarget(metrics, totalBudget);
   const spendColumns = [
     { key: "google", label: "구글", value: summary.googleSpend },
     { key: "meta", label: "메타", value: summary.metaSpend },
@@ -73,7 +74,7 @@ export function AdPerformanceSummaryCards({ metrics, totalBudget, organicChannel
   ].map((item) => ({ key: item.id, label: item.name, value: `${number.format(item.count)}건`,
     valueLabel: `${item.name} 오가닉DB` }));
 
-  return <section aria-label="성과 요약" className={`${className} grid items-stretch gap-3 md:grid-cols-2 ${showPaidMetrics ? "xl:grid-cols-[3fr_3fr_3fr_4fr_1.4fr]" : "xl:grid-cols-[3fr_4fr_1.4fr]"}`}>
+  return <section aria-label="성과 요약" className={`${className} grid items-stretch gap-3 md:grid-cols-2 ${showPaidMetrics ? "xl:grid-cols-3" : "xl:grid-cols-[3fr_4fr_3fr]"}`}>
     {!showPaidMetrics && <MetricCard title="광고비 집행" columns={[
       { key: "budget", label: "설정 광고비", value: formatWon(totalBudget), valueLabel: "전체 설정 광고비" },
       { key: "spent", label: "사용 광고비", value: formatWon(summary.spend), valueLabel: "현재 사용 광고비" },
@@ -86,6 +87,9 @@ export function AdPerformanceSummaryCards({ metrics, totalBudget, organicChannel
     </>}
     <MetricCard title="오가닉DB" columns={organicColumns} />
     <MetricCard title="단톡방 유입" columns={[{ key: "chat", label: "누적 단톡방 인원", value: `${number.format(summary.latestChatRoomMembers)}명`,
-      detail: formatWon(summary.chatRoomEntrantCost), valueLabel: "누적 단톡방 인원", detailLabel: "단톡방 유입단가" }]} />
+      detail: formatWon(summary.chatRoomEntrantCost), valueLabel: "누적 단톡방 인원", detailLabel: "단톡방 유입단가" },
+      { key: "target", label: "목표 단톡방 인원", value: target === null ? "—" : `${number.format(target)}명`, valueLabel: "목표 단톡방 인원" },
+      { key: "achievement", label: "달성률", value: target === null ? "—" : percentage(summary.latestChatRoomMembers, target), valueLabel: "단톡방 인원 달성률" },
+    ]} />
   </section>;
 }

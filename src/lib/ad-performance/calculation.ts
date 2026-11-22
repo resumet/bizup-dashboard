@@ -75,6 +75,12 @@ function unitCost(amount: number, count: number) {
   return count > 0 ? amount / count : null;
 }
 
+export function chatRoomTarget(metrics: AdPerformanceDailyMetric[], totalBudget: number) {
+  const latest = calculateDailyAdSpend(metrics).at(-1);
+  const cpl = latest ? unitCost(latest.totalSpend, latest.googleAdLeads + latest.metaAdLeads) : null;
+  return totalBudget > 0 && cpl !== null && cpl > 0 ? Math.ceil(totalBudget / cpl) : null;
+}
+
 export function summarizeAdPerformance(
   metrics: AdPerformanceDailyMetric[],
   totalBudget: number,
