@@ -12,6 +12,7 @@ import {
 import { AdPerformanceSheetWorkspace } from "@/components/ad-performance/ad-performance-sheet-workspace";
 import { AdPerformanceSummaryCards } from "@/components/ad-performance/ad-performance-summary-cards";
 import { AdPerformanceOutcomeCard } from "@/components/ad-performance/ad-performance-outcome-card";
+import { AdPerformanceVisualization } from "@/components/ad-performance/ad-performance-visualization";
 import type { AdPerformanceWebinarOutcome } from "@/lib/ad-performance/outcome-summary";
 import { BackLink } from "@/components/layout/back-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -174,7 +175,8 @@ export function AdPerformanceDashboard({
           {courseId !== (initialData.course?.id ?? "") ? <p role="status">매체별 요약을 불러오는 중입니다.</p> :
             mediaSummary ?? <p className="text-sm text-muted-foreground">사전설정에서 강의를 선택해 주세요.</p>}
         </section>
-        <AdPerformanceOutcomeCard collapsible showTrend metrics={initialData.metrics} webinar={courseId === initialData.course?.id ? webinarOutcome : null} courseId={courseId} error={webinarError} />
+        <AdPerformanceOutcomeCard collapsible metrics={initialData.metrics} webinar={courseId === initialData.course?.id ? webinarOutcome : null} courseId={courseId} error={webinarError} />
+        <AdPerformanceVisualization metrics={initialData.metrics} />
 
         <AdPerformanceSheetWorkspace
           dashboardId={initialData.id}

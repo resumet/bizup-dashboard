@@ -7,15 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { adPerformanceOutcomeSummary, getAdPerformanceOutcome, type AdPerformanceWebinarOutcome } from "@/lib/ad-performance/outcome-summary";
 import type { AdPerformanceDailyMetric } from "@/lib/ad-performance/types";
-import { AdPerformanceTrendChart } from "./ad-performance-trend-chart";
 
-export function AdPerformanceOutcomeCard({ metrics, webinar = null, courseId, error, collapsible = false, showTrend = false }: {
+export function AdPerformanceOutcomeCard({ metrics, webinar = null, courseId, error, collapsible = false }: {
   metrics: AdPerformanceDailyMetric[];
   webinar?: AdPerformanceWebinarOutcome | null;
   courseId?: string;
   error?: string;
   collapsible?: boolean;
-  showTrend?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const contentId = useId();
@@ -43,7 +41,6 @@ export function AdPerformanceOutcomeCard({ metrics, webinar = null, courseId, er
       </Button> : null}
     </CardHeader>
     <CardContent id={contentId} hidden={!isOpen} className="space-y-3">
-      {isOpen && showTrend ? <AdPerformanceTrendChart metrics={metrics} /> : null}
       <p className="text-sm leading-7">{summary.split(/\(([^)]*)\)/gu).map((part, index) => index % 2 === 1
         ? <span key={index}>(<mark className="box-decoration-clone rounded-sm bg-yellow-200 px-1 font-bold text-neutral-950 underline underline-offset-2">{part}</mark>)</span>
         : part)}</p>
