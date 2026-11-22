@@ -21,15 +21,17 @@ const metric: AdPerformanceDailyMetric = {
   organicLeads: { blog: 5, youtube: 3 },
 };
 
-test("목표 톡방 인원은 가장 최신 날짜의 합산 CPL로 예산을 나누어 올림한다", () => {
+test("목표 톡방 인원은 누적 광고비를 누적 광고 DB로 나눈 CPL로 계산한다", () => {
   const latest = { ...metric, metricDate: "2026-09-25", googleSpend: 100, metaSpend: 200, googleAdLeads: 1, metaAdLeads: 2 };
   const input = [latest, metric];
   const original = structuredClone(input);
-  assert.equal(chatRoomTarget(input, 1001), 11);
+  // 누적 광고비 500,300원 / 누적 광고 DB 33건. 날짜별 CPL의 평균이 아니다.
+  assert.equal(chatRoomTarget(input, 1_000_000), 66);
   assert.deepEqual(input, original);
   assert.equal(chatRoomTarget(input, 0), null);
   assert.equal(chatRoomTarget([], 1000), null);
-  assert.equal(chatRoomTarget([metric, { ...latest, googleAdLeads: 0, metaAdLeads: 0 }], 1000), null);
+  assert.equal(chatRoomTarget([metric, { ...latest, googleAdLeads: 0, metaAdLeads: 0 }], 1_000_000), 60);
+  assert.equal(chatRoomTarget([{ ...latest, googleAdLeads: 0, metaAdLeads: 0 }], 1000), null);
   assert.equal(chatRoomTarget([{ ...latest, googleSpend: 0, metaSpend: 0 }], 1000), null);
 });
 
