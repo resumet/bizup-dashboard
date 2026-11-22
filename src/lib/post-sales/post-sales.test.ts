@@ -12,11 +12,17 @@ test("강의 소속 영상, 결제 주소, 카드사별 기본값을 공개 데�
   assert.equal(draft.cards.find(r => r.issuer === "전북")?.interestFree, 3);
   assert.equal(draftSchema.safeParse(draft).success, true);
   assert.equal(draftSchema.parse({ ...draft, background: undefined }).background, "white");
+  const legacy = draftSchema.parse({ ...draft, titleBackgroundColor: undefined, buttonColor: undefined });
+  assert.equal(legacy.titleBackgroundColor, draft.titleBackgroundColor);
+  assert.equal(legacy.buttonColor, draft.buttonColor);
+  assert.equal(draftSchema.safeParse({ ...draft, buttonColor: "transparent" }).success, false);
   assert.equal(draftSchema.safeParse({ ...draft, background: "unknown" }).success, false);
   assert.equal(draftSchema.safeParse({ ...draft, chatUrl: "javascript:alert(1)" }).success, false);
   const video = { id: "b4197cc3-3636-4a01-aad0-d270d5bf8aba", label: "채널", url: draft.replayUrl };
-  const snapshot = salesSnapshot({ ...draft, background: "mint", videoId: video.id }, { name: "강의", instructor_name: "강사", payment_link: "https://example.org/pay" }, [video]);
+  const snapshot = salesSnapshot({ ...draft, background: "mint", titleBackgroundColor: "#223344", buttonColor: "#ffeebb", videoId: video.id }, { name: "강의", instructor_name: "강사", payment_link: "https://example.org/pay" }, [video]);
   assert.equal(snapshot.background, "mint");
+  assert.equal(snapshot.titleBackgroundColor, "#223344");
+  assert.equal(snapshot.buttonColor, "#ffeebb");
   assert.equal(snapshot.videoUrl, video.url);
   assert.equal(snapshot.paymentUrl, "https://example.org/pay");
   assert.ok(!("videoId" in snapshot));

@@ -122,6 +122,12 @@ export function SalesEditor({ course, videos, ...initial }: Props) {
                 <span aria-hidden className="size-4 rounded-full border" style={{ backgroundColor: pageBackgrounds[key].color }} />{pageBackgrounds[key].label}
               </label>)}</div>
           </fieldset>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {([["titleBackgroundColor", "제목 배경색"], ["buttonColor", "버튼색"]] as const).map(([key, label]) =>
+              <label key={key} className={field}>{label}
+                <Input type="color" value={draft[key]} onChange={e => edit(key, e.target.value)} className="cursor-pointer p-1" />
+              </label>)}
+          </div>
           <label className={field}>무료 단톡방 참가 링크<Input type="url" value={draft.chatUrl} onChange={e => edit("chatUrl", e.target.value)} /></label>
         </div>
         <EditorSection title="1. 인사">
