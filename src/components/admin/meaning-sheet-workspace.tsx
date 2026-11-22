@@ -131,6 +131,8 @@ export function MeaningSheetWorkspace({
   dashboardStartDate,
   sheetState,
   toolbarContainer,
+  sourceConnectionContainer,
+  onSourceConnectionOpen,
   allowTrackingImport = true,
   trackingImportLabel = "유입엑셀추가",
   trackingImportNoun = "유입 엑셀",
@@ -142,6 +144,8 @@ export function MeaningSheetWorkspace({
   dashboardStartDate: string;
   sheetState: AdPerformanceSheetState | null;
   toolbarContainer: HTMLElement | null;
+  sourceConnectionContainer?: HTMLElement | null;
+  onSourceConnectionOpen?: () => void;
   allowTrackingImport?: boolean;
   trackingImportLabel?: string;
   trackingImportNoun?: string;
@@ -595,6 +599,7 @@ export function MeaningSheetWorkspace({
           setSheetOptions([]);
           setError("");
           setSourceDialogOpen(true);
+          onSourceConnectionOpen?.();
           if (unifiedUpdate) void previewSource();
         }}
       >
@@ -612,7 +617,7 @@ export function MeaningSheetWorkspace({
 
   const toolbar = (
     <>
-      {sourceConnectionButton}
+      {sourceConnectionContainer === undefined ? sourceConnectionButton : null}
       {allowTrackingImport ? <Button
         type="button"
         variant="outline"
@@ -648,6 +653,7 @@ export function MeaningSheetWorkspace({
   return (
     <div className="mt-8 flex min-h-0 flex-1 flex-col gap-3">
       {toolbarContainer ? createPortal(toolbar, toolbarContainer) : null}
+      {sourceConnectionContainer ? createPortal(sourceConnectionButton, sourceConnectionContainer) : null}
       {pendingUpdate ? <SheetUpdateDialog
         key={pendingUpdate.preview.fingerprint}
         preview={pendingUpdate.preview}

@@ -73,7 +73,12 @@ export function AdPerformanceSummaryCards({ metrics, totalBudget, organicChannel
   ].map((item) => ({ key: item.id, label: item.name, value: `${number.format(item.count)}건`,
     valueLabel: `${item.name} 오가닉DB` }));
 
-  return <section aria-label="성과 요약" className={`${className} grid items-stretch gap-3 md:grid-cols-2 ${showPaidMetrics ? "xl:grid-cols-[3fr_3fr_3fr_4fr_1.4fr]" : "xl:grid-cols-[4fr_1.4fr]"}`}>
+  return <section aria-label="성과 요약" className={`${className} grid items-stretch gap-3 md:grid-cols-2 ${showPaidMetrics ? "xl:grid-cols-[3fr_3fr_3fr_4fr_1.4fr]" : "xl:grid-cols-[3fr_4fr_1.4fr]"}`}>
+    {!showPaidMetrics && <MetricCard title="광고비 집행" columns={[
+      { key: "budget", label: "설정 광고비", value: formatWon(totalBudget), valueLabel: "전체 설정 광고비" },
+      { key: "spent", label: "사용 광고비", value: formatWon(summary.spend), valueLabel: "현재 사용 광고비" },
+      { key: "rate", label: "소진율", value: percentage(summary.spend, totalBudget), valueLabel: "광고비 소진율" },
+    ]} />}
     {showPaidMetrics && <>
       <MetricCard title="집행비용" columns={spendColumns} />
       <MetricCard title="광고접수DB" columns={adColumns} />

@@ -36,6 +36,8 @@ import {
 } from "@/components/ui/select";
 import type { AdPerformanceDashboardData } from "@/lib/ad-performance/types";
 import { ToastNotice } from "@/components/ui/toast";
+import { toKoreaDate } from "@/lib/course-operations/schedule";
+import { formatWebinarDate, getWebinarDayDifference } from "@/lib/course-operations/webinar-proximity";
 
 const number = new Intl.NumberFormat("ko-KR");
 
@@ -74,8 +76,11 @@ export function AdPerformanceDashboard({
   const [notice, setNotice] = useState("");
   const [sheetToolbarContainer, setSheetToolbarContainer] =
     useState<HTMLDivElement | null>(null);
+  const [sourceConnectionContainer, setSourceConnectionContainer] = useState<HTMLDivElement | null>(null);
   const pageError = initialData.loadError ?? "";
   const course = initialData.courses.find((item) => item.id === courseId) ?? null;
+  const days = getWebinarDayDifference(course?.freeWebinarAt ?? "", toKoreaDate(new Date().toISOString()));
+  const dDay = days === null ? "D-Day 미정" : days === 0 ? "D-Day" : days > 0 ? `D-${days}` : `D+${Math.abs(days)}`;
   const draftCourse = initialData.courses.find((item) => item.id === draftCourseId);
 
   async function saveSettings() {
@@ -137,9 +142,10 @@ export function AdPerformanceDashboard({
                 <ArrowLeft />돌아가기
               </BackLink>
             </Button>
-            <h1 className="text-3xl font-semibold tracking-tight">
+            <div><h1 className="text-3xl font-semibold tracking-tight">
               {course?.name ?? "강의 미설정"}
             </h1>
+            <p className="mt-2 text-sm text-muted-foreground">{course?.instructorName || "강사 미정"} | {course?.freeWebinarAt ? formatWebinarDate(course.freeWebinarAt) : "웨비나 미정"} | {dDay}</p></div>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <div
@@ -168,13 +174,15 @@ export function AdPerformanceDashboard({
           {courseId !== (initialData.course?.id ?? "") ? <p role="status">매체별 요약을 불러오는 중입니다.</p> :
             mediaSummary ?? <p className="text-sm text-muted-foreground">사전설정에서 강의를 선택해 주세요.</p>}
         </section>
-        <AdPerformanceOutcomeCard collapsible metrics={initialData.metrics} webinar={courseId === initialData.course?.id ? webinarOutcome : null} courseId={courseId} error={webinarError} />
+        <AdPerformanceOutcomeCard collapsible showTrend metrics={initialData.metrics} webinar={courseId === initialData.course?.id ? webinarOutcome : null} courseId={courseId} error={webinarError} />
 
         <AdPerformanceSheetWorkspace
           dashboardId={initialData.id}
           dashboardStartDate={startDate}
           sheetState={initialData.sheetState}
           toolbarContainer={sheetToolbarContainer}
+          sourceConnectionContainer={sourceConnectionContainer}
+          onSourceConnectionOpen={() => setSettingsOpen(false)}
           unifiedUpdate
           trackingImportLabel="업데이트"
           freeChatRoomLinks={[course?.freeKakaoRoom1Link ?? "", course?.freeKakaoRoom2Link ?? ""]}
@@ -248,6 +256,7 @@ export function AdPerformanceDashboard({
             </div>
           </div>
 
+          <div ref={setSourceConnectionContainer} className="flex flex-wrap gap-2" />
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline" disabled={saving}>
