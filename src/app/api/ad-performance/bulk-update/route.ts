@@ -12,10 +12,10 @@ export async function POST() {
     const user = await requireCourseOperationsUser(await createClient());
     const membership = await requireCourseOperationsMembership(user.id);
     const admin = createAdminClient();
-    const rows: { id: string; name: string; free_webinar_at: string | null; dashboards: { id: string }[] }[] = [];
+    const rows: { id: string; name: string; free_webinar_at: string | null; free_kakao_room_1_link: string | null; free_kakao_room_2_link: string | null; dashboards: { id: string }[] }[] = [];
     const pageSize = 500;
     for (let offset = 0; ; offset += pageSize) {
-      const { data, error } = await admin.from("courses").select("id,name,free_webinar_at,dashboards:ad_performance_dashboards(id)")
+      const { data, error } = await admin.from("courses").select("id,name,free_webinar_at,free_kakao_room_1_link,free_kakao_room_2_link,dashboards:ad_performance_dashboards(id)")
         .eq("workspace_id", membership.workspace_id).eq("status", "ongoing")
         .eq("dashboards.workspace_id", membership.workspace_id).eq("dashboards.service_scope", "bizup")
         .order("id").range(offset, offset + pageSize - 1);
@@ -23,7 +23,7 @@ export async function POST() {
       rows.push(...data);
       if (data.length < pageSize) break;
     }
-    const courses = sortByNearestWebinar(rows).map(row => ({ courseId: row.id, name: row.name, dashboardId: row.dashboards[0]?.id ?? null }));
+    const courses = sortByNearestWebinar(rows).map(row => ({ courseId: row.id, name: row.name, dashboardId: row.dashboards[0]?.id ?? null, kakaoUrl: row.free_kakao_room_1_link || row.free_kakao_room_2_link || "" }));
     let creativeError = "";
     if (courses.some(course => course.dashboardId)) {
       try {

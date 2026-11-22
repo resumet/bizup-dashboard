@@ -29,7 +29,6 @@ export async function PUT(request: Request, { params }: Context) {
       requireCourseOperationsMembership(user.id),
       request.json(),
     ]);
-    const input = sheetManualInputSchema.parse({ ...body, metricDate });
     const validDashboardId = z.uuid().parse(dashboardId);
     const context = await authorizeAdPerformanceDashboard(
       validDashboardId,
@@ -46,6 +45,7 @@ export async function PUT(request: Request, { params }: Context) {
         .map((row) => resolveAdPerformanceSourceDate(row[0], context.startDate))
         .filter((date): date is string => Boolean(date)),
     );
+    const input = sheetManualInputSchema.parse({ ...body, metricDate: metricDate === "latest" ? [...sourceDates].sort().at(-1) : metricDate });
     if (!sourceDates.has(input.metricDate)) {
       throw new Error("원본 시트에 없는 날짜입니다.");
     }
@@ -60,7 +60,7 @@ export async function PUT(request: Request, { params }: Context) {
       expectedVersion: current.version,
       state: { ...current, manualInputs },
     });
-    return Response.json({ saved: true, ...saved });
+    return Response.json({ saved: true, metricDate: input.metricDate, ...saved });
   } catch (error) {
     return adPerformanceErrorResponse(error);
   }
