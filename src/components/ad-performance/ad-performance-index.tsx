@@ -67,6 +67,10 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
   const router = useRouter();
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const dashboards = initialData.dashboards.filter(item => !deletedIds.includes(item.id));
+  const groups = [
+    { title: "강의 목록", items: dashboards.filter(item => item.course?.status !== "completed") },
+    { title: "종료된 강의", items: dashboards.filter(item => item.course?.status === "completed") },
+  ];
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState("");
   const [error, setError] = useState(initialData.loadError ?? "");
@@ -175,15 +179,26 @@ export function AdPerformanceIndex({ initialData }: { initialData: AdPerformance
         <Button className="min-h-10" disabled={creating || Boolean(initialData.loadError)} onClick={() => void createDashboard()}>{creating ? <Loader2 className="animate-spin" /> : <Plus />}대시보드 만들기</Button>
       </div>
 
-      <section className="mt-8">
-        {dashboards.length ? <div className="rounded-xl border"><Table><TableHeader><TableRow>
-          {['강의명', '광고 시작 날짜', '누적 집행비', 'DB 총합', '단톡방 총합', '랜딩접수DB 단가'].map((label) => <TableHead key={label}>{label}</TableHead>)}
-          {courseMediaColumns.map(([key, label]) => <TableHead key={key} className="text-right">{label}</TableHead>)}
-          <TableHead><span className="sr-only">관리</span></TableHead>
-        </TableRow></TableHeader><TableBody>{dashboards.map((dashboard) => <DashboardRow key={dashboard.id} dashboard={dashboard} busy={deletingId === dashboard.id} onDelete={() => void deleteDashboard(dashboard)} />)}</TableBody></Table></div> : (
+      <div className="mt-8 space-y-8">
+        {dashboards.length ? groups.filter(group => group.items.length > 0).map(({ title, items }) => (
+          <section key={title} aria-label={title} className="space-y-3">
+            <h2 className="text-xl font-semibold">{title} <span className="text-sm font-normal text-muted-foreground">({items.length})</span></h2>
+            <div className="rounded-xl border">
+              <Table aria-label={title}>
+                <TableHeader><TableRow>
+                  {['강의명', '광고 시작 날짜', '누적 집행비', 'DB 총합', '단톡방 총합', '랜딩접수DB 단가'].map(label => <TableHead key={label}>{label}</TableHead>)}
+                  {courseMediaColumns.map(([key, label]) => <TableHead key={key} className="text-right">{label}</TableHead>)}
+                  <TableHead><span className="sr-only">관리</span></TableHead>
+                </TableRow></TableHeader>
+                <TableBody>{items.map(dashboard => <DashboardRow key={dashboard.id} dashboard={dashboard}
+                  busy={deletingId === dashboard.id} onDelete={() => void deleteDashboard(dashboard)} />)}</TableBody>
+              </Table>
+            </div>
+          </section>
+        )) : (
           <Card><CardContent className="flex min-h-64 flex-col items-center justify-center text-center"><span className="mb-4 grid size-12 place-items-center rounded-full bg-primary/10 text-primary"><BookOpenCheck className="size-5" /></span><h3 className="font-semibold">아직 광고성과 대시보드가 없습니다</h3><p className="mt-2 max-w-md text-sm text-muted-foreground">대시보드를 만든 뒤 사전설정에서 강의와 광고 조건을 선택하세요.</p></CardContent></Card>
         )}
-      </section>
+      </div>
       <Dialog open={sourceSettingsOpen} onOpenChange={(open) => { if (!sourceSaving) setSourceSettingsOpen(open); }}>
         <DialogContent className="sm:max-w-xl" showCloseButton={!sourceSaving}>
           <form className="space-y-5" onSubmit={(event) => { event.preventDefault(); void saveCreativeSource(); }}>
