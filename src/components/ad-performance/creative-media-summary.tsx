@@ -12,7 +12,7 @@ export function CreativeMediaSummary({ rows, landingCounts }: { rows: CreativeRo
     const values = { ...row, landing };
     return <TableRow key={row.label}>
       <TableHead scope="row">{row.label}</TableHead>
-      {creativeSummaryColumns.map(([key, , format]) => <TableCell key={key} className="text-right tabular-nums">{format.format(values[key])}</TableCell>)}
+      {creativeSummaryColumns.map(([key, , format]) => <TableCell key={key} className={`text-right tabular-nums${key === "cpl" ? " bg-yellow-100 font-semibold text-yellow-950 dark:bg-yellow-900/60 dark:text-yellow-100" : ""}`}>{format.format(values[key])}</TableCell>)}
     </TableRow>;
   }
   return <div className="rounded-lg border bg-background">

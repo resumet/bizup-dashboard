@@ -77,6 +77,7 @@ export function adPerformanceExportRows(
   for (const label of [cumulativeDbLabel, "톡방누적 인원", "톡방입장 인원"]) {
     addHeader(label, "#FFEDD5");
   }
+  addHeader("광고접수 DB단가", "#E0E7FF");
   addHeader("랜딩접수 DB단가", "#E0E7FF");
   addHeader("톡방접수 DB단가", "#E0E7FF");
 

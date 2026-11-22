@@ -28,7 +28,7 @@ test("합계는 날짜순 최신 누적값을 사용하고 단가·전환율은 
   const state = fixture();
   const snapshot = structuredClone(state);
   const cells = adPerformanceTableTotals(state.sourceRows.slice(2), "2026-10-01", state);
-  assert.equal(cells.length, 31);
+  assert.equal(cells.length, 32);
   assert.equal(cells[1].value, 1000);
   assert.equal(cells[6].value, 100 / 1000);
   assert.equal(cells[8].value, 40 / 100);
@@ -44,8 +44,9 @@ test("합계는 날짜순 최신 누적값을 사용하고 단가·전환율은 
   assert.equal(cells[26].value, 120);
   assert.equal(cells[27].value, 115);
   assert.equal(cells[28].value, 15);
-  assert.equal(cells[29].value, 1000 / 15);
+  assert.equal(cells[29].value, 1000 / 50);
   assert.equal(cells[30].value, 1000 / 15);
+  assert.equal(cells[31].value, 1000 / 15);
   assert.deepEqual(state, snapshot);
 });
 
@@ -77,4 +78,17 @@ test("광고집행비용과 광고접수 DB 사이에 매체별 단가를 표시
   assert.equal(headers.bottom.length, 15);
   const { cells } = adPerformanceTableRow(state.sourceRows[2], "2026-10-01", null);
   assert.deepEqual(cells.slice(10, 16).map((item) => item.value), [600, 300, 20, 30, 30, 10]);
+  assert.equal(cells[28].value, 900 / 40);
+});
+
+test("광고접수 DB단가는 매체별 광고비와 접수 DB의 합계로 계산하고 0·미입력을 구분한다", () => {
+  const row = fixture().sourceRows[2];
+  row[1] = "99999";
+  assert.equal(adPerformanceTableRow(row, "2026-10-01", null).cells[28].value, 22.5);
+  row[10] = "0"; row[11] = "0";
+  assert.equal(adPerformanceTableRow(row, "2026-10-01", null).cells[28].value, 0);
+  row[12] = "0"; row[13] = "0";
+  assert.equal(adPerformanceTableRow(row, "2026-10-01", null).cells[28].value, null);
+  row[10] = ""; row[11] = "";
+  assert.equal(adPerformanceTableRow(row, "2026-10-01", null).cells[28].value, null);
 });

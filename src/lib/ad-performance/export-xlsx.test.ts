@@ -59,7 +59,9 @@ test("표의 머리글·유입채널·수동 입력·계산값을 숫자 형식�
   assert.equal(rows[2][0], "합계");
   assert.deepEqual(rows[2].slice(1), rows[3].slice(1));
   assert.deepEqual(rows[3].slice(0, 16), ["10월 14일", 300000, 1000, 2000, 50, 100, 0.05, 0.05, 0.2, 0.2, 100000, 200000, 10000, 10000, 10, 20]);
-  assert.deepEqual(rows[3].slice(16), [5, 10, 15, 3, 7, 10, 25, 20000, 20000, -10000, -10000, 125, 100, 10, 20000, 30000]);
+  assert.deepEqual(rows[3].slice(16), [5, 10, 15, 3, 7, 10, 25, 20000, 20000, -10000, -10000, 125, 100, 10, 10000, 20000, 30000]);
+  assert.equal(rows[0][30], "광고접수 DB단가");
+  assert.equal(rows[0][31], "랜딩접수 DB단가");
   assert.deepEqual(state, snapshot);
 });
 
@@ -85,14 +87,15 @@ test("유입 파일이 없으면 원본 랜딩값을 사용하고 미입력값�
   state.sourceRows[2][15] = "7";
   state.manualInputs = {};
   const rows = await readExport(state);
-  assert.equal(rows[3].length, 30);
+  assert.equal(rows[3].length, 31);
   assert.deepEqual(rows[3].slice(12, 16), [10000, 10000, 10, 20]);
   assert.deepEqual(rows[3].slice(16, 21), [0, 7, 7, 0, 7]);
-  assert.ok(rows[3].slice(21).every((value) => value === null));
+  assert.equal(rows[3][28], 10000);
+  assert.ok(rows[3].slice(21).filter((_, index) => index !== 7).every((value) => value === null));
   state.sourceRows[2][14] = "";
   state.sourceRows[2][15] = "";
   const blankRows = await readExport(state);
-  assert.ok(blankRows[3].slice(16).every((value) => value === null));
+  assert.ok(blankRows[3].slice(16).filter((_, index) => index !== 12).every((value) => value === null));
 });
 
 test("연도가 다른 유입 데이터는 섞지 않고 이전 날짜의 수동 입력으로 톡방 증감을 계산한다", async () => {

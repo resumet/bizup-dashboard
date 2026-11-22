@@ -849,6 +849,15 @@ export function MeaningSheetWorkspace({
                 <TableHead
                   rowSpan={HEADER_ROW_COUNT}
                   className="sticky top-0 z-20 min-w-20 whitespace-normal border-r border-b bg-indigo-100 text-center leading-tight font-semibold text-indigo-900 dark:bg-indigo-950 dark:text-indigo-200"
+                  title="(구글 광고비 + 메타 광고비) ÷ (구글 광고접수 DB + 메타 광고접수 DB)"
+                >
+                  광고접수
+                  <br />
+                  DB단가
+                </TableHead>
+                <TableHead
+                  rowSpan={HEADER_ROW_COUNT}
+                  className="sticky top-0 z-20 min-w-20 whitespace-normal border-r border-b bg-indigo-100 text-center leading-tight font-semibold text-indigo-900 dark:bg-indigo-950 dark:text-indigo-200"
                   title="총광고비 ÷ 랜딩접수총DB(광고)"
                 >
                   랜딩접수

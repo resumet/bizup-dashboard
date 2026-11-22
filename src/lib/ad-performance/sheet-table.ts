@@ -11,6 +11,7 @@ export type AdPerformanceTableCell = {
 
 const cell = (value: number | null | undefined, format: AdPerformanceTableCell["format"] = "number"): AdPerformanceTableCell => ({ value: value ?? null, format });
 const divide = (amount: number | null, count: number | null) => amount === null || count === null || count <= 0 ? null : amount / count;
+const sumPresent = (a: number | null, b: number | null) => a === null && b === null ? null : (a ?? 0) + (b ?? 0);
 
 export function buildAdPerformanceTableHeaders(rows: string[][]) {
   const headers = buildMeaningSheetHeaders(rows);
@@ -52,6 +53,10 @@ export function adPerformanceTableRow(row: string[], startDate: string, state: A
       cell(manualInput?.bizupDbCumulative),
       cell(manualInput?.chatMembersCumulative),
       cell(chatEntries),
+      cell(divide(
+        sumPresent(parseMeaningSheetMetricNumber(row[10]), parseMeaningSheetMetricNumber(row[11])),
+        sumPresent(parseMeaningSheetMetricNumber(row[12]), parseMeaningSheetMetricNumber(row[13])),
+      ), "won"),
       cell(unitCosts.landingReceptionDbUnitCost, "won"),
       cell(unitCosts.chatReceptionDbUnitCost, "won"),
     ],
@@ -88,8 +93,9 @@ export function adPerformanceTableTotals(rows: string[][], startDate: string, st
   for (const index of [25 + offset, 26 + offset]) {
     totals[index].value = datedRows.findLast((row) => row.cells[index].value !== null)?.cells[index].value ?? null;
   }
-  setRatio(28 + offset, 1, 18);
-  setRatio(29 + offset, 1, 27 + offset);
+  totals[28 + offset].value = divide(sumPresent(numeric(10), numeric(11)), sumPresent(numeric(14), numeric(15)));
+  setRatio(29 + offset, 1, 18);
+  setRatio(30 + offset, 1, 27 + offset);
   return totals;
 }
 
