@@ -190,6 +190,7 @@ export function SalesEditor({ course, videos, ...initial }: Props) {
         </EditorSection>
         <EditorSection title="8. 정규강의 일정 및 커리큘럼">
           <label className={field}>정규과정 결제링크<Input readOnly value={course.payment_link || ""} placeholder="강의 상세에서 결제링크를 저장해 주세요." /></label>
+          <a href="https://darkened-stock-6c1.notion.site/39295b2493eb80c08acfdfc44c052c72?pvs=74" target="_blank" rel="noopener noreferrer" className="block text-sm text-primary underline underline-offset-4">분할 결제 방법 (여러개의 카드 혹은 카드와 현금으로 나누어 결제하기)</a>
         </EditorSection>
         <EditorSection title="9. 신용카드 무이자 할부 안내">
           <table className="w-full table-fixed text-left text-sm"><thead><tr><th>카드사</th><th>무이자 (개월)</th><th>할부 (개월)</th></tr></thead>

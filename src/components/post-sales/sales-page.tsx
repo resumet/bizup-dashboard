@@ -59,7 +59,9 @@ export function SalesPageView({ page }: { page: SalesPage }) {
       <section className="space-y-3 border-t pt-6"><h2 className={heading}>무료강의 다시보기</h2>
         <Action buttonColor={buttonColor} href={page.replayUrl}><span aria-hidden>▶️</span>무료강의 다시보기</Action></section>
       <section className="space-y-4 border-t pt-6"><h2 className={heading}>정규강의 일정 및 커리큘럼 안내</h2>
-        <Action buttonColor={buttonColor} href={page.paymentUrl}><span aria-hidden>📅</span>커리큘럼 확인하고 수강 신청하기</Action></section>
+        <Action buttonColor={buttonColor} href={page.paymentUrl}><span aria-hidden>📅</span>커리큘럼 확인하고 수강 신청하기</Action>
+        <div><Action href="https://darkened-stock-6c1.notion.site/39295b2493eb80c08acfdfc44c052c72?pvs=74">분할 결제 방법 (여러개의 카드 혹은 카드와 현금으로 나누어 결제하기)</Action></div>
+      </section>
       <section className="space-y-4 border-t pt-6"><h2 className={heading}>신용카드 무이자 할부 안내</h2>
         <table className="w-full border-collapse text-sm tabular-nums"><thead className="bg-stone-100 text-left"><tr>
           {["카드사", "최대 무이자 할부", "최대 할부"].map(label => <th key={label} scope="col" className="px-3 py-3">{label}</th>)}</tr></thead>
