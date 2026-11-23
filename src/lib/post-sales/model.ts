@@ -95,8 +95,9 @@ export const draftSchema = z.object({
   videoId: z.union([z.uuid(), z.literal("")]),
   giftUrl: urlField.refine(v => !v || !!driveResource(v), "Google 드라이브 파일 또는 폴더의 공유 링크를 입력해 주세요."),
   replayUrl: urlField.refine(v => !v || !!youtubeId(v), "다시보기는 유튜브 영상 또는 라이브 주소를 입력해 주세요."),
-  cards: z.array(z.object({ issuer: z.enum(cardIssuers), interestFree: months, installment: months }))
-    .length(cardIssuers.length).refine(rows => rows.every((row, i) => row.issuer === cardIssuers[i] && row.interestFree <= row.installment), "카드별 무이자 개월 수와 최대 할부 개월 수를 확인해 주세요."),
+  cardText: z.string().max(20000).default(""),
+  cardNotice: z.string().max(20000).default(""),
+  cards: z.array(z.object({ issuer: z.string().trim().min(1).max(100), interestFree: months })).max(60),
 }).transform(cleanSalesCopy);
 export type SalesDraft = z.infer<typeof draftSchema>;
 export type VideoOption = { id: string; label: string; url: string };
@@ -105,7 +106,8 @@ export type SalesPage = Omit<SalesDraft, "videoId"> & { instructor: string; cour
 export function newDraft(courseName: string, chatUrl: string, replayUrl: string): SalesDraft {
   return { title: courseName, background: "white", ...defaultSalesColors, videoImageUrl: "", recapImageUrl: "", concernImageUrl: "", intro: "", recap: "", gifts: "", invitation: "", chatUrl, giftUrl: "", replayUrl: youtubeId(replayUrl) ? replayUrl : "", videoId: "",
     concernQuestions: [...defaultConcernQuestions], concernExplanation: "",
-    cards: cardIssuers.map(issuer => ({ issuer, interestFree: issuer === "전북" ? 3 : shortTerm.has(issuer) ? 5 : 12, installment: issuer === "현대" ? 24 : 12 })) };
+    cardText: "", cardNotice: "",
+    cards: cardIssuers.map(issuer => ({ issuer, interestFree: issuer === "전북" ? 3 : shortTerm.has(issuer) ? 5 : 12 })) };
 }
 
 export function salesSnapshot(draft: SalesDraft, course: { name: string; instructor_name: string; payment_link: string }, videos: VideoOption[]): SalesPage {

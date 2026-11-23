@@ -49,7 +49,7 @@ export function SalesEditor({ course, videos, ...initial }: Props) {
   const [busy, setBusy] = useState("");
   const pending = useRef(false);
   const [driveMessage, setDriveMessage] = useState("");
-  const [cardText, setCardText] = useState("");
+  const defaultCards = useRef(initial.draft.cards);
   const [cardTextResult, setCardTextResult] = useState("");
   const api = `/api/course-operations/${course.id}/post-sales`;
   function edit<K extends keyof SalesDraft>(field: K, value: SalesDraft[K]) {
@@ -197,25 +197,24 @@ export function SalesEditor({ course, videos, ...initial }: Props) {
         </EditorSection>
         <EditorSection title="9. 신용카드 무이자 할부 안내">
           <label className={field}>카드사 할부 안내문 붙여넣기
-            <Textarea rows={7} maxLength={20000} value={cardText} placeholder={"신한\n2,3,4,5,6,7,8,9,10,11,12개월\n\n우리\n2,3,4,5개월"} onChange={event => {
+            <Textarea rows={7} maxLength={20000} value={draft.cardText} placeholder={"신한\n2,3,4,5,6,7,8,9,10,11,12개월\n\n우리\n2,3,4,5개월"} onChange={event => {
               const text = event.target.value;
-              setCardText(text);
-              const result = applyCardText(text, draft.cards);
-              edit("cards", result.cards);
+              const result = applyCardText(text, defaultCards.current);
+              setDraft(current => ({ ...current, cardText: text, cardNotice: result.notice, cards: result.cards }));
               setCardTextResult(text.trim() ? [result.applied.length ? `${result.applied.length}개 카드사 반영: ${result.applied.join(", ")}` : "인식한 할부 기간이 없습니다.",
-                result.rejected.length ? `${result.rejected.join(", ")}: 무이자 기간이 최대 할부 기간보다 커서 기존 값을 유지했습니다.` : "",
                 result.issues.length ? "인식하지 못한 기간이 있습니다. 표의 값을 확인해 주세요." : ""].filter(Boolean).join(" ") : "");
             }} />
           </label>
-          <p className="text-xs text-muted-foreground">카드사 다음 줄의 개월 목록은 가장 긴 무이자 기간으로 반영합니다. 최대 할부 기간은 별도로 명시된 경우에만 변경하며, 유의사항은 제외합니다. 확인 후 초안을 저장해 주세요.</p>
+          <p className="text-xs text-muted-foreground">입력한 카드사 이름을 그대로 사용하고, 개월 목록 중 가장 긴 무이자 기간을 반영합니다. 유의사항은 표 아래에 표시됩니다. 확인 후 초안을 저장해 주세요.</p>
           {cardTextResult && <p role="status" className="text-sm">{cardTextResult}</p>}
-          <table className="w-full table-fixed text-left text-sm"><thead><tr><th>카드사</th><th>무이자 (개월)</th><th>할부 (개월)</th></tr></thead>
+          <table className="w-full table-fixed text-left text-sm"><thead><tr><th>카드사</th><th>무이자 (개월)</th></tr></thead>
             <tbody>{draft.cards.map((row, i) => <tr key={row.issuer} className="border-b"><th scope="row">{row.issuer}</th>
-              {(["interestFree","installment"] as const).map(key => <td className="py-1 pr-2" key={key}><Input type="number" min={0} max={120} step={1}
-                aria-label={`${row.issuer} ${key === "interestFree" ? "무이자" : "할부"} 개월`} value={row[key]} onChange={e => {
+              {(["interestFree"] as const).map(key => <td className="py-1 pr-2" key={key}><Input type="number" min={0} max={120} step={1}
+                aria-label={`${row.issuer} 무이자 개월`} value={row[key]} onChange={e => {
                   const months = Number(e.target.value);
                   edit("cards", draft.cards.map((v, index) => index === i ? { ...v, [key]: months } : v));
                 }} /></td>)}</tr>)}</tbody></table>
+          {draft.cardNotice && <p className="whitespace-pre-line break-words text-xs leading-relaxed text-muted-foreground">{draft.cardNotice}</p>}
         </EditorSection>
       </fieldset>
       <aside className="min-w-0 space-y-3 xl:sticky xl:top-20 xl:max-h-[calc(100dvh-6rem)] xl:overflow-y-auto">

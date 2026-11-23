@@ -19,7 +19,7 @@ test("섹션 이미지는 기존 초안과 호환되고 공개 스냅샷에 보�
 test("강의 소속 영상, 결제 주소, 카드사별 기본값을 공개 데이터에 반영한다", () => {
   const draft = newDraft("무료 강의", "https://example.org/chat", "https://youtu.be/abcdefghijk");
   assert.equal(draft.cards.length, 12);
-  assert.equal(draft.cards.find(r => r.issuer === "현대")?.installment, 24);
+  assert.equal("installment" in draft.cards[0], false);
   assert.equal(draft.cards.find(r => r.issuer === "전북")?.interestFree, 3);
   assert.equal(draftSchema.safeParse(draft).success, true);
   assert.equal(draftSchema.parse({ ...draft, background: undefined }).background, "white");

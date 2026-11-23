@@ -64,9 +64,11 @@ export function SalesPageView({ page }: { page: SalesPage }) {
       </section>
       <section className="space-y-4 border-t pt-6"><h2 className={heading}>신용카드 무이자 할부 안내</h2>
         <table className="w-full border-collapse text-sm tabular-nums"><thead className="bg-stone-100 text-left"><tr>
-          {["카드사", "최대 무이자 할부", "최대 할부"].map(label => <th key={label} scope="col" className="px-3 py-3">{label}</th>)}</tr></thead>
+          {["카드사", "최대 무이자 할부"].map(label => <th key={label} scope="col" className="px-3 py-3">{label}</th>)}</tr></thead>
           <tbody>{page.cards.map(row => <tr key={row.issuer} className="border-b border-stone-100"><th scope="row" className="px-3 py-2 text-left font-medium">{row.issuer}</th>
-            <td className="px-3">{row.interestFree ? `${row.interestFree}개월` : "미제공"}</td><td className="px-3">{row.installment ? `${row.installment}개월` : "미제공"}</td></tr>)}</tbody></table></section>
+            <td className="px-3">{row.interestFree ? `${row.interestFree}개월` : "미제공"}</td></tr>)}</tbody></table>
+        {page.cardNotice && <p className="whitespace-pre-line break-words text-xs leading-relaxed text-slate-500">{page.cardNotice}</p>}
+      </section>
     </div>
   </article>;
 }
