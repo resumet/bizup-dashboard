@@ -72,6 +72,7 @@ export async function POST(request: Request) {
         course_differentiation: input.courseDifferentiation,
         landing_page_link: input.landingPageLink,
         landing_page_qr_link: input.landingPageQrLink,
+        basic_payment_page_link: input.basicPaymentPageLink,
         free_kakao_room_1_link: input.freeKakaoRoom1Link,
         free_kakao_room_2_link: input.freeKakaoRoom2Link,
         paid_kakao_room_link: input.paidKakaoRoomLink,

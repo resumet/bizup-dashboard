@@ -29,6 +29,7 @@ const EMPTY_DRAFT: CourseOperationsDraft = {
   courseDifferentiation: "",
   landingPageLink: "",
   landingPageQrLink: "",
+  basicPaymentPageLink: "",
   freeKakaoRoom1Link: "",
   freeKakaoRoom2Link: "",
   paidKakaoRoomLink: "",

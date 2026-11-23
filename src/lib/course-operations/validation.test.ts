@@ -99,6 +99,14 @@ test("기본 랜딩 QR은 기본 랜딩페이지와 별도로 검증하고 저�
   assert.throws(() => parseCourseOperationsInput({ ...validInput, landingPageQrLink: "javascript:alert(1)" }), /기본 랜딩 QR/);
 });
 
+test("기본 결제페이지와 결제페이지 QR은 별도 주소로 저장한다", () => {
+  const parsed = parseCourseOperationsInput({ ...validInput, basicPaymentPageLink: " https://example.com/basic-payment " });
+  assert.equal(parsed.basicPaymentPageLink, "https://example.com/basic-payment");
+  assert.equal(parsed.paymentLink, validInput.paymentLink);
+  assert.equal(parseCourseOperationsInput(validInput).basicPaymentPageLink, "");
+  assert.throws(() => parseCourseOperationsInput({ ...validInput, basicPaymentPageLink: "javascript:alert(1)" }), /기본 결제페이지/);
+});
+
 test("강의 옵션이 없어도 입력값을 저장 형식으로 변환한다", () => {
   const parsed = parseCourseOperationsInput({ ...validInput, options: [] });
   assert.deepEqual(parsed.options, []);

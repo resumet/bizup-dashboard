@@ -61,6 +61,7 @@ export type CourseOperationsDraft = {
   paidKakaoRoomLink: string;
   communicationRoomLink: string;
   paymentLink: string;
+  basicPaymentPageLink: string;
   inquiryLink: string;
   curriculumLink: string;
   preBlogLink1: string;

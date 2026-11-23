@@ -168,6 +168,7 @@ export function parseCourseOperationsInput(
     paidKakaoRoomLink: url(input.paidKakaoRoomLink, "유료수강생단톡방 링크", false),
     communicationRoomLink: url(input.communicationRoomLink, "소통방 링크", false),
     paymentLink: url(input.paymentLink, "결제링크", false),
+    basicPaymentPageLink: url(input.basicPaymentPageLink, "기본 결제페이지", false),
     inquiryLink: url(input.inquiryLink, "문의하기 링크", false),
     curriculumLink: url(input.curriculumLink, "커리큘럼 보기 링크", false),
     preBlogLink1: url(input.preBlogLink1, "사전 블로그 링크 1", false),

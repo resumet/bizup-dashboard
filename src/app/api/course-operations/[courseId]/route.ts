@@ -206,6 +206,8 @@ export async function PATCH(
             }
           : {}),
         landing_page_link: input.landingPageLink,
+        ...(typeof body === "object" && body !== null && "basicPaymentPageLink" in body
+          ? { basic_payment_page_link: input.basicPaymentPageLink } : {}),
         ...(typeof body === "object" && body !== null && "landingPageQrLink" in body
           ? { landing_page_qr_link: input.landingPageQrLink } : {}),
         free_kakao_room_1_link: input.freeKakaoRoom1Link,

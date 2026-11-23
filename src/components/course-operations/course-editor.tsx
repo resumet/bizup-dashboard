@@ -19,6 +19,7 @@ import { CourseRosterSections } from "@/components/course-operations/course-rost
 import { CourseNotesCard } from "@/components/course-operations/course-notes-card";
 import { CourseLandingUtms } from "@/components/course-operations/course-landing-utms";
 import { CourseShareDialog } from "@/components/course-operations/course-share-dialog";
+import { LinkCopyDialog } from "@/components/course-operations/link-copy-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -118,6 +119,7 @@ type CourseLinkFieldKey =
   | "paidKakaoRoomLink"
   | "communicationRoomLink"
   | "paymentLink"
+  | "basicPaymentPageLink"
   | "inquiryLink"
   | "curriculumLink"
   | "preBlogLink1"
@@ -133,8 +135,8 @@ const COURSE_LINK_GROUPS: Array<{ title: string; items: Array<{ field: CourseLin
   { title: "강의 페이지", items: [
     { field: "landingPageLink", label: "기본 랜딩페이지" },
     { field: "landingPageQrLink", label: "기본 랜딩 QR" },
+    { field: "basicPaymentPageLink", label: "기본 결제페이지" },
     { field: "paymentLink", label: "결제페이지 QR" },
-    { field: "curriculumLink", label: "커리큘럼페이지 QR" },
     { field: "inquiryLink", label: "문의하기 QR" },
   ] },
   { title: "소통링크", items: [
@@ -1244,7 +1246,7 @@ export function CourseOperationsEditor({
 
         <Card>
           <CardHeader className="border-b">
-            <CardTitle>링크 관리</CardTitle>
+            <div className="flex items-center justify-between gap-3"><CardTitle>링크 관리</CardTitle><LinkCopyDialog paymentQr={draft.paymentLink} inquiryQr={draft.inquiryLink} /></div>
           </CardHeader>
           <CardContent className="space-y-8">
             {COURSE_LINK_GROUPS.map((group, index) => <section key={group.title} aria-labelledby={`course-links-heading-${index}`} className={index ? "border-t pt-6" : undefined}>
