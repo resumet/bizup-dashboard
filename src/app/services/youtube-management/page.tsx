@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { YoutubeCourseList } from "@/components/youtube-management/course-list";
 import { requireCourseDocumentMember } from "@/lib/course-documents/server";
-import { buildYoutubeChannelSuggestions, displayYoutubeChannelName } from "@/lib/course-operations/youtube-channels";
+import { buildYoutubeChannelSuggestions, resolveYoutubeAppearanceChannel } from "@/lib/course-operations/youtube-channels";
 import { sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
 import { countYoutubeAppearances } from "@/lib/youtube-management/course-list";
 import { getYoutubeFilmingAlert } from "@/lib/youtube-management/filming-alert";
@@ -16,7 +16,7 @@ export default async function YoutubeManagementPage() {
   const [{ data, error }, filmingAlertSettings, channelsResult] = await Promise.all([
     admin
       .from("courses")
-      .select("id,name,instructor_name,cohort,status,free_webinar_at,course_youtube_appearances(channel_name,request_status,filming_confirmed,filming_date,upload_date),course_youtube_settings(appearance_not_required)")
+      .select("id,name,instructor_name,cohort,status,free_webinar_at,course_youtube_appearances(channel_name,channel_url,request_status,filming_confirmed,filming_date,upload_date),course_youtube_settings(appearance_not_required)")
       .eq("workspace_id", membership.workspace_id)
       .order("created_at", { ascending: false }),
     loadYoutubeFilmingAlertSettings(membership.workspace_id, admin),
@@ -37,7 +37,7 @@ export default async function YoutubeManagementPage() {
           ...course,
           appearanceNotRequired,
           appearanceChannels: appearances.map((appearance) => ({
-            name: displayYoutubeChannelName(channelSuggestions, appearance.channel_name),
+            ...resolveYoutubeAppearanceChannel(channelSuggestions, appearance.channel_name, appearance.channel_url),
             confirmed: appearance.request_status === "confirmed",
             declined: appearance.request_status === "declined",
           })),

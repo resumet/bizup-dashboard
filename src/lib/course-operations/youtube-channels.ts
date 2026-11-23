@@ -50,6 +50,29 @@ function normalizeChannelName(value: string) {
   return value.trim().toLocaleLowerCase("ko-KR");
 }
 
+function youtubeChannelHref(value: string | null) {
+  const url = value && URL.parse(value);
+  if (!url || !["https:", "http:"].includes(url.protocol) ||
+      !/^(?:[a-z0-9-]+\.)*youtube\.com$/.test(url.hostname) || url.pathname === "/") return null;
+  return url.href;
+}
+
+export function resolveYoutubeAppearanceChannel(
+  suggestions: YoutubeChannelSuggestion[],
+  channelName: string,
+  savedUrl: string | null,
+) {
+  const href = youtubeChannelHref(savedUrl);
+  const byUrl = href && suggestions.find(item => youtubeChannelHref(item.channelUrl) === href);
+  if (byUrl) return { name: byUrl.alias || byUrl.channelName, href };
+
+  const name = normalizeChannelName(channelName);
+  const byName = suggestions.filter(item => normalizeChannelName(item.channelName) === name);
+  const matches = byName.length ? byName : suggestions.filter(item => item.alias && normalizeChannelName(item.alias) === name);
+  const match = matches.length === 1 ? matches[0] : undefined;
+  return { name: match?.alias || channelName, href: href ?? youtubeChannelHref(match?.channelUrl ?? null) };
+}
+
 export function findYoutubeChannelUrlByName(
   suggestions: YoutubeChannelSuggestion[],
   channelName: string,

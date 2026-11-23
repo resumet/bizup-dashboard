@@ -41,9 +41,16 @@ test("출연 불가만 뒤로 보내고 같은 채널에 진행 중인 신청이
     { name: "다", confirmed: false, declined: false },
     { name: " 가 ", confirmed: true, declined: false },
     { name: "라", confirmed: false, declined: true },
-  ];
+  ].map(channel => ({ ...channel, href: null }));
   assert.deepEqual(orderedChannelChips(channels), [
     { name: "다", declined: false }, { name: "가", declined: false },
     { name: "나", declined: true }, { name: "라", declined: true },
-  ]);
+  ].map(channel => ({ ...channel, href: null })));
+});
+
+test("별명이 같은 두 채널은 각자의 링크로 표시한다", () => {
+  const channels = ["first", "second"].map(handle => ({
+    name: "별명", href: `https://www.youtube.com/@${handle}`, confirmed: true, declined: false,
+  }));
+  assert.deepEqual(orderedChannelChips(channels).map(chip => chip.href), channels.map(chip => chip.href));
 });

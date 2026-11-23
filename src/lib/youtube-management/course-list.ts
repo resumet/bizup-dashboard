@@ -7,16 +7,17 @@ export const YOUTUBE_COURSE_GROUPS = [
 
 type YoutubeCourseGroupKey = (typeof YOUTUBE_COURSE_GROUPS)[number]["key"];
 
-export type AppearanceChannel = { name: string; confirmed: boolean; declined: boolean };
+export type AppearanceChannel = { name: string; href: string | null; confirmed: boolean; declined: boolean };
 
 export function orderedChannelChips(channels: readonly AppearanceChannel[]) {
   const seen = new Set<string>();
   const chips = [];
   for (const channel of [...channels].sort((a, b) => Number(a.declined) - Number(b.declined))) {
     const name = channel.name.trim();
-    if (!name || seen.has(name)) continue;
-    seen.add(name);
-    chips.push({ name, declined: channel.declined });
+    const key = channel.href || name;
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+    chips.push({ name, href: channel.href, declined: channel.declined });
   }
   return chips;
 }

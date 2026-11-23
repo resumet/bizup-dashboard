@@ -131,9 +131,12 @@ function ChannelChips({ channels, colors, disabled, emptyLabel = "-" }: { channe
   if (disabled) return <span className="text-muted-foreground">진행하지 않음</span>;
   const chips = orderedChannelChips(channels);
   if (!chips.length) return <span className="text-muted-foreground">{emptyLabel}</span>;
-  return <div className="flex min-w-44 flex-wrap gap-1.5">{chips.map(({ name, declined }) =>
-    <Badge key={name} variant="outline" className="max-w-44 truncate font-medium"
+  return <div className="flex min-w-44 flex-wrap gap-1.5">{chips.map(({ name, href, declined }) => {
+    const label = <>{name}{declined && <span className="sr-only"> (출연 불가)</span>}</>;
+    return <Badge key={href || name} asChild={Boolean(href)} variant="outline" className="max-w-44 truncate font-medium"
       style={declined ? { backgroundColor: "#f3f4f6", borderColor: "#d1d5db", color: "#4b5563", textDecoration: "line-through" } : colors.get(name)}
-      title={declined ? `${name} · 출연 불가` : name}>{name}{declined && <span className="sr-only"> (출연 불가)</span>}</Badge>
-  )}</div>;
+      title={declined ? `${name} · 출연 불가` : name}>
+      {href ? <a href={href} target="_blank" rel="noopener noreferrer">{label}<span className="sr-only"> (새 탭에서 열기)</span></a> : label}
+    </Badge>;
+  })}</div>;
 }
