@@ -91,6 +91,14 @@ test("강의 운영 입력값을 DB 저장 형식으로 변환한다", () => {
   assert.equal(parsed.rosterJobIds.length, 1);
 });
 
+test("기본 랜딩 QR은 기본 랜딩페이지와 별도로 검증하고 저장한다", () => {
+  const parsed = parseCourseOperationsInput({ ...validInput, landingPageQrLink: " https://example.com/landing-qr " });
+  assert.equal(parsed.landingPageQrLink, "https://example.com/landing-qr");
+  assert.equal(parsed.landingPageLink, validInput.landingPageLink);
+  assert.equal(parseCourseOperationsInput(validInput).landingPageQrLink, "");
+  assert.throws(() => parseCourseOperationsInput({ ...validInput, landingPageQrLink: "javascript:alert(1)" }), /기본 랜딩 QR/);
+});
+
 test("강의 옵션이 없어도 입력값을 저장 형식으로 변환한다", () => {
   const parsed = parseCourseOperationsInput({ ...validInput, options: [] });
   assert.deepEqual(parsed.options, []);

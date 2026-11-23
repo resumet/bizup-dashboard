@@ -112,6 +112,7 @@ function formatCalculatedPrice(value: number | null, suffix = "원") {
 
 type CourseLinkFieldKey =
   | "landingPageLink"
+  | "landingPageQrLink"
   | "freeKakaoRoom1Link"
   | "freeKakaoRoom2Link"
   | "paidKakaoRoomLink"
@@ -128,20 +129,26 @@ type CourseLinkFieldKey =
   | "preQuestionFormLink"
   | "preQuestionResponsesLink";
 
-const COURSE_LINKS: Array<{ field: CourseLinkFieldKey; label: string }> = [
-  { field: "landingPageLink", label: "기본 랜딩페이지" },
-  { field: "freeKakaoRoom1Link", label: "무료카톡방 1번" },
-  { field: "freeKakaoRoom2Link", label: "무료카톡방 2번" },
-  { field: "paidKakaoRoomLink", label: "유료수강생단톡방" },
-  { field: "communicationRoomLink", label: "소통방" },
-  { field: "paymentLink", label: "결제링크" },
-  { field: "inquiryLink", label: "문의하기 링크" },
-  { field: "curriculumLink", label: "커리큘럼 보기 링크" },
-  { field: "courseViewingLink", label: "강의 시청하기 링크" },
-  { field: "courseMaterialsLink", label: "강사자료 폴더" },
-  { field: "courseCanvaLink", label: "교안(캔바)" },
-  { field: "preQuestionFormLink", label: "사전질문지 폼주소" },
-  { field: "preQuestionResponsesLink", label: "사전질문 응답지 주소" },
+const COURSE_LINK_GROUPS: Array<{ title: string; items: Array<{ field: CourseLinkFieldKey; label: string }> }> = [
+  { title: "강의 페이지", items: [
+    { field: "landingPageLink", label: "기본 랜딩페이지" },
+    { field: "landingPageQrLink", label: "기본 랜딩 QR" },
+    { field: "paymentLink", label: "결제페이지 QR" },
+    { field: "curriculumLink", label: "커리큘럼페이지 QR" },
+    { field: "inquiryLink", label: "문의하기 QR" },
+  ] },
+  { title: "소통링크", items: [
+    { field: "freeKakaoRoom1Link", label: "무료단톡방1" },
+    { field: "freeKakaoRoom2Link", label: "무료단톡방2" },
+    { field: "communicationRoomLink", label: "소통방" },
+  ] },
+  { title: "기타링크", items: [
+    { field: "courseViewingLink", label: "유튜브 라이브 링크" },
+    { field: "courseMaterialsLink", label: "강사자료 드라이브" },
+    { field: "courseCanvaLink", label: "교안 (캔바)" },
+    { field: "preQuestionFormLink", label: "사전질문지 폼주소" },
+    { field: "preQuestionResponsesLink", label: "사전질문지 응답지 주소" },
+  ] },
 ];
 
 const PROMOTION_CONTENT_LINKS: Array<{ field: CourseLinkFieldKey; label: string }> = [
@@ -1240,12 +1247,10 @@ export function CourseOperationsEditor({
             <CardTitle>링크 관리</CardTitle>
           </CardHeader>
           <CardContent className="space-y-8">
-            <section aria-labelledby="default-course-links-heading">
-              <h3 id="default-course-links-heading" className="mb-5 font-semibold">
-                기본 링크
-              </h3>
+            {COURSE_LINK_GROUPS.map((group, index) => <section key={group.title} aria-labelledby={`course-links-heading-${index}`} className={index ? "border-t pt-6" : undefined}>
+              <h3 id={`course-links-heading-${index}`} className="mb-5 font-semibold">{group.title}</h3>
               <div className="grid gap-x-8 gap-y-5 lg:grid-cols-2">
-                {COURSE_LINKS.map((item) => (
+                {group.items.map((item) => (
                   <CourseLinkInput
                     key={item.field}
                     field={item.field}
@@ -1255,9 +1260,9 @@ export function CourseOperationsEditor({
                   />
                 ))}
               </div>
-            </section>
+              {index === 1 && <details className="mt-5"><summary className="cursor-pointer text-sm text-muted-foreground">유료수강생 단톡방</summary><div className="mt-4"><CourseLinkInput field="paidKakaoRoomLink" label="유료수강생단톡방" value={draft.paidKakaoRoomLink} onChange={updateField} /></div></details>}
 
-            <section className="border-t pt-6" aria-labelledby="custom-course-links-heading">
+            {index === 2 && <div className="mt-6 border-t pt-6" aria-labelledby="custom-course-links-heading">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
                 <h3 id="custom-course-links-heading" className="font-semibold">
                   추가 링크
@@ -1291,7 +1296,8 @@ export function CourseOperationsEditor({
                   필요한 경우 강의별 추가 링크를 등록할 수 있습니다.
                 </p>
               )}
-            </section>
+            </div>}
+            </section>)}
           </CardContent>
         </Card>
 

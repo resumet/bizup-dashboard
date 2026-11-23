@@ -55,6 +55,7 @@ export type CourseOperationsDraft = {
   first50Event: string;
   courseDifferentiation: string;
   landingPageLink: string;
+  landingPageQrLink: string;
   freeKakaoRoom1Link: string;
   freeKakaoRoom2Link: string;
   paidKakaoRoomLink: string;

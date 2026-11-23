@@ -28,6 +28,7 @@ const EMPTY_DRAFT: CourseOperationsDraft = {
   first50Event: "",
   courseDifferentiation: "",
   landingPageLink: "",
+  landingPageQrLink: "",
   freeKakaoRoom1Link: "",
   freeKakaoRoom2Link: "",
   paidKakaoRoomLink: "",
