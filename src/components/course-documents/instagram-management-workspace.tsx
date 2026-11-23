@@ -19,15 +19,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { instagramCourseOptionLabel } from "@/lib/course-documents/course-options";
+import { instagramCourseDetails } from "@/lib/course-documents/course-options";
 import { instagramProgressSummary, progressPercentage } from "@/lib/course-documents/instagram-progress";
 import { instagramDmMaterialValue } from "@/lib/course-documents/instagram-upload";
 import { instagramBulkFilmingSelectablePositions, mergeInstagramFilmingDates, parseInstagramBulkTitles } from "@/lib/course-documents/materials";
-import type { BlockedPhone, CourseDocumentCourse, CourseDocumentMaterial, CourseDocumentSummary } from "@/lib/course-documents/types";
-import { formatWebinarDate } from "@/lib/course-operations/webinar-proximity";
-import { ToastNotice } from "@/components/ui/toast";
+import type { BlockedPhone, CourseDocumentCourse, CourseDocumentMaterial, CourseDocumentSummary, InstagramEmployee } from "@/lib/course-documents/types";
+import { toast as showToast, ToastNotice } from "@/components/ui/toast";
 
-type LoadResponse = { courses?: CourseDocumentCourse[]; blockedPhones?: BlockedPhone[]; message?: string };
+type LoadResponse = { courses?: CourseDocumentCourse[]; employees?: InstagramEmployee[]; blockedPhones?: BlockedPhone[]; message?: string };
 
 function dateTime(value: string) {
   return new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Seoul" }).format(new Date(value));
@@ -41,6 +40,7 @@ function materialSnapshots(courses: CourseDocumentCourse[]) {
 }
 
 type InstagramSettingsDraft = {
+  assigneeId: string;
   accountUrl: string;
   totalCount: string;
   planningCompletedCount: string;
@@ -52,6 +52,7 @@ type DmFilter = "all" | "with-dm" | "without-dm";
 
 function instagramSettingsDraft(course: CourseDocumentCourse): InstagramSettingsDraft {
   return {
+    assigneeId: course.instagramAssignee?.id ?? "",
     accountUrl: course.instagramAccountUrl,
     totalCount: String(course.instagramTotalCount),
     planningCompletedCount: String(course.materials.filter((item) => item.planningCompleted).length),
@@ -84,6 +85,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
   const router = useRouter();
   const endpoint = courseId ? `/api/instagram-management?courseId=${courseId}` : "/api/instagram-management?view=list";
   const [courses, setCourses] = useState<CourseDocumentCourse[]>([]);
+  const [employees, setEmployees] = useState<InstagramEmployee[]>([]);
   const [blockedPhones, setBlockedPhones] = useState<BlockedPhone[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -105,6 +107,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
   }, []);
   const [savedMaterialsByCourse, setSavedMaterialsByCourse] = useState<Record<string, CourseDocumentMaterial[]>>({});
   const [settingsDraft, setSettingsDraft] = useState<InstagramSettingsDraft>({
+    assigneeId: "",
     accountUrl: "",
     totalCount: "0",
     planningCompletedCount: "0",
@@ -135,6 +138,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
       const body = await response.json() as LoadResponse;
       if (!response.ok || !body.courses || !body.blockedPhones) throw new Error(body.message ?? "데이터를 불러오지 못했습니다.");
       setCourses(body.courses);
+      setEmployees(body.employees ?? []);
       setSavedMaterialsByCourse(materialSnapshots(body.courses));
       setBlockedPhones(body.blockedPhones);
       const loadedCourse = body.courses.find((course) => course.id === courseId);
@@ -157,6 +161,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
         setBulkFilmingDateDialogOpen(false);
         setBulkFilmingDate("");
         setCourses(body.courses);
+        setEmployees(body.employees ?? []);
         setSavedMaterialsByCourse(materialSnapshots(body.courses));
         setBlockedPhones(body.blockedPhones);
         const loadedCourse = body.courses.find((course) => course.id === courseId);
@@ -178,7 +183,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
     const body = await response.json() as {
       id?: string;
       setting?: { enabled: boolean; accessToken: string };
-      instagramSettings?: { accountUrl: string; totalCount: number };
+      instagramSettings?: { accountUrl: string; totalCount: number; assigneeId: string | null };
       material?: CourseDocumentMaterial;
       materials?: CourseDocumentMaterial[];
       document?: CourseDocumentSummary;
@@ -386,6 +391,7 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
       const body = await post({
         action: "save-instagram-settings",
         courseId: selectedCourse.id,
+        assigneeId: settingsDraft.assigneeId || null,
         accountUrl: settingsDraft.accountUrl,
         totalCount,
         planningCompletedCount,
@@ -393,9 +399,13 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
       });
       if (!body.instagramSettings || !body.materials) throw new Error("저장된 인스타그램 진행 설정을 확인하지 못했습니다.");
       const nextMaterials = body.materials;
+      const savedAssigneeId = body.instagramSettings.assigneeId;
+      const savedAssignee = employees.find(employee => employee.id === savedAssigneeId)
+        ?? (selectedCourse.instagramAssignee?.id === savedAssigneeId ? selectedCourse.instagramAssignee : null);
       setCourses((current) => current.map((course) => course.id === selectedCourse.id ? {
         ...course,
         instagramAccountUrl: body.instagramSettings!.accountUrl,
+        instagramAssignee: savedAssignee,
         instagramTotalCount: body.instagramSettings!.totalCount,
         materials: nextMaterials,
       } : course));
@@ -404,16 +414,17 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
         [selectedCourse.id]: nextMaterials.map((material) => ({ ...material })),
       }));
       setSettingsDraft({
+        assigneeId: savedAssigneeId ?? "",
         accountUrl: body.instagramSettings.accountUrl,
         totalCount: String(body.instagramSettings.totalCount),
         planningCompletedCount: String(nextMaterials.filter((item) => item.planningCompleted).length),
         filmingCompletedCount: String(nextMaterials.filter((item) => item.filmingCompleted).length),
       });
       setSelectedFilmingPositions(new Set());
+      showToast("인스타그램 진행 설정을 저장했습니다.");
       setSettingsDialogOpen(false);
-      setNotice("인스타그램 진행 설정을 저장했습니다.");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "인스타그램 진행 설정을 저장하지 못했습니다.");
+      showToast(caught instanceof Error ? caught.message : "인스타그램 진행 설정을 저장하지 못했습니다.", { tone: "error" });
     } finally {
       setSavingSettings(false);
     }
@@ -625,15 +636,28 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
               const items = courses.filter(course => group.status === "ongoing" ? !["on_hold", "completed", "canceled"].includes(course.status ?? "") : course.status === group.status);
               return <details key={group.status} open={group.status === "ongoing"} className="group rounded-lg border">
                 <summary className="cursor-pointer px-4 py-3 font-medium">{group.label} <span className="ml-2 text-sm text-muted-foreground">{items.length}</span></summary>
-                <Table><TableHeader><TableRow><TableHead>강의</TableHead><TableHead>강사</TableHead><TableHead>기수</TableHead><TableHead>웨비나 날짜</TableHead><TableHead className="text-right">전체 건수</TableHead><TableHead className="text-right">촬영 완료</TableHead><TableHead className="text-right">업로드 완료</TableHead><TableHead>작성 자료</TableHead><TableHead>외부 작성</TableHead></TableRow></TableHeader><TableBody>{items.map(course => {
+                <Table><TableHeader><TableRow><TableHead>강의</TableHead><TableHead>강사</TableHead><TableHead>담당자</TableHead><TableHead className="text-right">전체 건수</TableHead><TableHead className="text-right">촬영 완료</TableHead><TableHead className="text-right">업로드 완료</TableHead><TableHead>작성 자료</TableHead><TableHead>외부 작성</TableHead><TableHead><span className="sr-only">관리</span></TableHead></TableRow></TableHeader><TableBody>{items.map(course => {
                   const summary = instagramProgressSummary(course.materials, course.freeWebinarAt);
-                  return <TableRow key={course.id}><TableCell><Link className="font-medium hover:underline" href={`/services/instagram-management/${course.id}`}>{course.name}</Link></TableCell><TableCell>{course.instructorName || "—"}</TableCell><TableCell>{course.cohort || "—"}</TableCell><TableCell><time dateTime={course.freeWebinarAt || undefined}>{formatWebinarDate(course.freeWebinarAt)}</time></TableCell><TableCell className="text-right font-medium">{summary.totalCount}건</TableCell><TableCell className="text-right">{summary.filmingCompletedCount}건 ({progressPercentage(summary.filmingCompletedCount, summary.totalCount)}%)</TableCell><TableCell className="text-right">{summary.uploadCompletedCount}건 ({progressPercentage(summary.uploadCompletedCount, summary.totalCount)}%)</TableCell><TableCell>{course.documents.length}</TableCell><TableCell>{course.externalEditEnabled ? "외부 작성 허용" : "비활성화"}</TableCell><TableCell className="text-right"><Button type="button" size="icon-xs" variant="ghost" aria-label={`${course.name} 삭제`} onClick={() => { setCourseDeleteError(""); setCourseDeleteTarget(course); }}><Trash2 /></Button></TableCell></TableRow>;
+                  return <TableRow key={course.id}>
+                    <TableCell className="min-w-48 max-w-lg whitespace-normal"><Link className="font-medium hover:underline" href={`/services/instagram-management/${course.id}`}>{course.name}</Link>
+                      <p className="mt-1 text-xs text-muted-foreground">{instagramCourseDetails(course).join(" | ")}</p>
+                    </TableCell>
+                    <TableCell>{course.instructorName || "—"}</TableCell>
+                    <TableCell>{course.instagramAssignee?.name ?? "미지정"}</TableCell>
+                    <TableCell className="text-right font-medium">{summary.totalCount}건</TableCell><TableCell className="text-right">{summary.filmingCompletedCount}건 ({progressPercentage(summary.filmingCompletedCount, summary.totalCount)}%)</TableCell><TableCell className="text-right">{summary.uploadCompletedCount}건 ({progressPercentage(summary.uploadCompletedCount, summary.totalCount)}%)</TableCell><TableCell>{course.documents.length}</TableCell><TableCell>{course.externalEditEnabled ? "외부 작성 허용" : "비활성화"}</TableCell><TableCell className="text-right"><Button type="button" size="icon-xs" variant="ghost" aria-label={`${course.name} 삭제`} onClick={() => { setCourseDeleteError(""); setCourseDeleteTarget(course); }}><Trash2 /></Button></TableCell></TableRow>;
                 })}</TableBody></Table>
                 {!items.length && <p className="p-5 text-sm text-muted-foreground">해당 상태의 강의가 없습니다.</p>}
               </details>;
             })}</div> : selectedCourse ? <div className="space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h1 className="text-2xl font-semibold">{instagramCourseOptionLabel(selectedCourse)}</h1>
+                  <div className="min-w-0">
+                    <h1 className="break-words text-2xl font-semibold">{selectedCourse.name}</h1>
+                    {progressSummary && <p className="mt-1 text-sm text-muted-foreground">{[
+                      ...instagramCourseDetails(selectedCourse), `제작 목표 ${progressSummary.totalCount}개`,
+                      `업로드 완료 ${progressSummary.uploadCompletedCount}개`,
+                      `전체 진행률 ${progressPercentage(progressSummary.uploadCompletedCount, progressSummary.totalCount)}%`,
+                    ].join(" | ")}</p>}
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" asChild><Link href={`/services/course-operations/${selectedCourse.id}`}>강의 바로가기<ExternalLink /></Link></Button>
                     {selectedCourse.instagramAccountUrl ? <Button variant="outline" asChild><a href={selectedCourse.instagramAccountUrl} target="_blank" rel="noopener noreferrer"><ExternalLink />계정 열기</a></Button> : null}
@@ -789,6 +813,16 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
             <DialogDescription className="sr-only">인스타그램 계정 링크와 전체·기획 완료·촬영 완료 건수를 설정합니다.</DialogDescription>
           </DialogHeader>
           <form className="space-y-5" onSubmit={(event) => { event.preventDefault(); void saveInstagramSettings(); }}>
+            <div className="space-y-2">
+              <Label htmlFor="instagram-assignee">인스타그램 담당자</Label>
+              <select id="instagram-assignee" className="h-10 w-full rounded-md border bg-background px-3 text-sm" disabled={savingSettings}
+                value={settingsDraft.assigneeId} onChange={event => setSettingsDraft(current => ({ ...current, assigneeId: event.target.value }))}>
+                <option value="">미지정</option>
+                {selectedCourse?.instagramAssignee && !employees.some(employee => employee.id === selectedCourse.instagramAssignee?.id) &&
+                  <option value={selectedCourse.instagramAssignee.id} disabled>{selectedCourse.instagramAssignee.name} (이전 담당자)</option>}
+                {employees.map(employee => <option key={employee.id} value={employee.id}>{employee.name}</option>)}
+              </select>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="instagram-account-url">업로드 중인 계정 링크</Label>
               <Input id="instagram-account-url" type="url" maxLength={2048} placeholder="https://www.instagram.com/..." value={settingsDraft.accountUrl} disabled={savingSettings} onChange={(event) => setSettingsDraft((current) => ({ ...current, accountUrl: event.target.value }))} />

@@ -118,7 +118,10 @@ export type CourseDocumentMaterial = {
   additionalDescription: string;
 };
 
+export type InstagramEmployee = { id: string; name: string };
+
 export type CourseDocumentCourse = {
+  instagramAssignee: InstagramEmployee | null;
   status?: string | null;
   id: string;
   name: string;

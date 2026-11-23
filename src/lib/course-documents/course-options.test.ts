@@ -15,6 +15,7 @@ function course(overrides: Partial<CourseDocumentCourse> = {}): CourseDocumentCo
     externalAccessToken: "",
     planningSheetUrl: "",
     instagramAccountUrl: "",
+    instagramAssignee: null,
     instagramTotalCount: 0,
     materials: [],
     documents: [],

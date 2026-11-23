@@ -52,6 +52,7 @@ const requestSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("save-instagram-settings"),
     courseId: z.uuid(),
+    assigneeId: z.uuid().nullable().optional(),
     accountUrl: courseDocumentInstagramUrlSchema,
     totalCount: z.number().int().min(0).max(COURSE_DOCUMENT_MATERIAL_LIMIT),
     planningCompletedCount: z.number().int().min(0).max(COURSE_DOCUMENT_MATERIAL_LIMIT),
@@ -165,14 +166,15 @@ export async function GET(request: Request) {
 
     const courseIds = (courses ?? []).map((course) => course.id);
     const materialCourseIds = courseIds.length ? courseIds : ["00000000-0000-0000-0000-000000000000"];
-    const [settingsResult, documentsResult, materialsResult, leadsResult, blockedResult] = await Promise.all([
-      admin.from("course_document_settings").select("course_id,external_edit_enabled,external_access_token,planning_sheet_url,instagram_account_url,instagram_total_count").eq("workspace_id", membership.workspace_id),
+    const [settingsResult, directoryResult, documentsResult, materialsResult, leadsResult, blockedResult] = await Promise.all([
+      admin.from("course_document_settings").select("course_id,external_edit_enabled,external_access_token,planning_sheet_url,instagram_account_url,instagram_total_count,instagram_assignee_id").eq("workspace_id", membership.workspace_id),
+      admin.rpc("instagram_employee_directory", { p_workspace_id: membership.workspace_id }),
       admin.from("course_documents").select("id,course_id,instructor_name,title,slug,status,lead_gate_enabled,lead_gate_after_block_id,created_at,updated_at,published_at,course_document_leads(count)").eq("workspace_id", membership.workspace_id).in("course_id", materialCourseIds).is("deleted_at", null).order("updated_at", { ascending: false }),
       admin.from("course_instagram_materials").select("course_id,position,title,reference_planning_number,document_id,planning_completed,filming_date,filming_completed,editing_completed,upload_date,upload_completed,uploaded_url,dm_material,dm_not_required,dm_material_description,additional_description").in("course_id", materialCourseIds).order("position"),
       includeLeads ? admin.from("course_document_leads").select("id,document_id,course_id,instructor_name,name,phone,utm_source,utm_medium,utm_campaign,utm_content,referrer,created_at,course_documents!inner(title),courses!inner(name)").eq("workspace_id", membership.workspace_id).order("created_at", { ascending: false }).limit(10_000) : Promise.resolve({ data: [], error: null }),
       !courseId ? admin.from("course_document_blocked_phones").select("id,phone_normalized,memo,created_at").eq("workspace_id", membership.workspace_id).order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
     ]);
-    const queryError = settingsResult.error ?? documentsResult.error ?? materialsResult.error ?? leadsResult.error ?? blockedResult.error;
+    const queryError = settingsResult.error ?? directoryResult.error ?? documentsResult.error ?? materialsResult.error ?? leadsResult.error ?? blockedResult.error;
     if (queryError) throw new Error(`인스타그램 문서 관리 조회 실패: ${queryError.code}`);
 
     const leads: CourseDocumentLead[] = (leadsResult.data ?? []).map((row) => {
@@ -203,6 +205,8 @@ export async function GET(request: Request) {
       savedMaterialsByCourse.set(material.course_id, saved);
     }
     const settingsByCourse = new Map((settingsResult.data ?? []).map((item) => [item.course_id, item] as const));
+    const directory: { id: string; name: string; active: boolean }[] = directoryResult.data ?? [];
+    const employeesById = new Map(directory.map(({ id, name }) => [id, { id, name }]));
     const courseItems: CourseDocumentCourse[] = (courses ?? []).map((course) => {
       const setting = settingsByCourse.get(course.id);
       return {
@@ -216,6 +220,7 @@ export async function GET(request: Request) {
         externalAccessToken: setting?.external_access_token ?? "",
         planningSheetUrl: setting?.planning_sheet_url ?? "",
         instagramAccountUrl: setting?.instagram_account_url ?? "",
+        instagramAssignee: employeesById.get(setting?.instagram_assignee_id) ?? null,
         instagramTotalCount: setting?.instagram_total_count ?? 0,
         materials: courseDocumentMaterials(
           savedMaterialsByCourse.get(course.id) ?? [],
@@ -230,7 +235,8 @@ export async function GET(request: Request) {
       memo: row.memo,
       createdAt: row.created_at,
     }));
-    return Response.json({ courses: sortByNearestWebinar(courseItems), leads, blockedPhones }, { headers: { "Cache-Control": "private, no-store" } });
+    const employees = courseId ? directory.filter(employee => employee.active).map(({ id, name }) => ({ id, name })) : [];
+    return Response.json({ courses: sortByNearestWebinar(courseItems), leads, blockedPhones, employees }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return courseDocumentErrorResponse(error);
   }
@@ -256,14 +262,17 @@ export async function POST(request: Request) {
     }
 
     if (input.action === "save-instagram-settings") {
-      const { error: resizeError } = await admin.rpc("resize_instagram_progress", {
+      const { error: resizeError } = await admin.rpc("save_instagram_settings", {
         p_course_id: input.courseId,
         p_workspace_id: membership.workspace_id,
         p_account_url: input.accountUrl,
         p_total_count: input.totalCount,
         p_planning_completed_count: input.planningCompletedCount,
         p_filming_completed_count: input.filmingCompletedCount,
+        p_assignee_id: input.assigneeId ?? null,
+        p_set_assignee: input.assigneeId !== undefined,
       });
+      if (resizeError?.message.includes("INVALID_INSTAGRAM_ASSIGNEE")) throw new Error("현재 재직 중인 직원을 담당자로 선택해 주세요.");
       if (resizeError?.message.includes("INSTAGRAM_TOTAL_COUNT_HAS_DATA")) {
         throw new Error("줄이려는 범위에 저장된 자료가 있습니다. 해당 항목을 비운 뒤 전체 진행 건수를 줄여 주세요.");
       }
@@ -272,14 +281,9 @@ export async function POST(request: Request) {
       }
       if (resizeError) throw new Error(`인스타그램 진행 설정 저장 실패: ${resizeError.code}`);
 
-      const { error: scheduleError } = await admin.rpc("refresh_instagram_upload_schedule", {
-        p_course_id: input.courseId,
-      });
-      if (scheduleError) throw new Error(`인스타그램 업로드 일정 생성 실패: ${scheduleError.code}`);
-
       const [settingsResult, materialsResult] = await Promise.all([
         admin.from("course_document_settings")
-          .select("instagram_account_url,instagram_total_count")
+          .select("instagram_account_url,instagram_total_count,instagram_assignee_id")
           .eq("course_id", input.courseId)
           .eq("workspace_id", membership.workspace_id)
           .single(),
@@ -295,6 +299,7 @@ export async function POST(request: Request) {
         instagramSettings: {
           accountUrl: settingsResult.data.instagram_account_url,
           totalCount: settingsResult.data.instagram_total_count,
+          assigneeId: settingsResult.data.instagram_assignee_id,
         },
         materials: (materialsResult.data ?? []).map(toMaterial),
       });
