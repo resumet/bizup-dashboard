@@ -52,6 +52,7 @@ export function driveResource(value: string) {
 }
 
 const urlField = z.string().trim().max(2048);
+const imageField = urlField.refine(value => !value || !!webLink(value), "이미지 주소를 확인해 주세요.").default("");
 const months = z.number().int().min(0).max(120);
 export function removeBoldMarkers(text: string) {
   return text.replaceAll("**", "");
@@ -80,6 +81,9 @@ export const defaultSalesColors = { titleBackgroundColor: "#f0fdfa", buttonColor
 const hexColor = z.string().regex(/^#[0-9a-f]{6}$/i, "올바른 색상을 선택해 주세요.");
 
 export const draftSchema = z.object({
+  videoImageUrl: imageField,
+  recapImageUrl: imageField,
+  concernImageUrl: imageField,
   titleBackgroundColor: hexColor.default(defaultSalesColors.titleBackgroundColor),
   buttonColor: hexColor.default(defaultSalesColors.buttonColor),
   background: z.enum(Object.keys(pageBackgrounds) as (keyof typeof pageBackgrounds)[]).default("white"),
@@ -99,7 +103,7 @@ export type VideoOption = { id: string; label: string; url: string };
 export type SalesPage = Omit<SalesDraft, "videoId"> & { instructor: string; courseName: string; paymentUrl: string; videoUrl: string };
 
 export function newDraft(courseName: string, chatUrl: string, replayUrl: string): SalesDraft {
-  return { title: courseName, background: "white", ...defaultSalesColors, intro: "", recap: "", gifts: "", invitation: "", chatUrl, giftUrl: "", replayUrl: youtubeId(replayUrl) ? replayUrl : "", videoId: "",
+  return { title: courseName, background: "white", ...defaultSalesColors, videoImageUrl: "", recapImageUrl: "", concernImageUrl: "", intro: "", recap: "", gifts: "", invitation: "", chatUrl, giftUrl: "", replayUrl: youtubeId(replayUrl) ? replayUrl : "", videoId: "",
     concernQuestions: [...defaultConcernQuestions], concernExplanation: "",
     cards: cardIssuers.map(issuer => ({ issuer, interestFree: issuer === "전북" ? 3 : shortTerm.has(issuer) ? 5 : 12, installment: issuer === "현대" ? 24 : 12 })) };
 }

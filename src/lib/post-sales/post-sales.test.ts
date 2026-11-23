@@ -5,6 +5,17 @@ import { PGlite } from "@electric-sql/pglite";
 import { draftSchema, driveResource, newDraft, salesSnapshot } from "./model";
 import { checkDriveAccess } from "./drive";
 
+test("섹션 이미지는 기존 초안과 호환되고 공개 스냅샷에 보존된다", () => {
+  const draft = newDraft("강의", "", "");
+  assert.equal(draftSchema.parse({ ...draft, videoImageUrl: undefined }).videoImageUrl, "");
+  assert.equal(draftSchema.safeParse({ ...draft, recapImageUrl: "javascript:alert(1)" }).success, false);
+  const images = { videoImageUrl: "https://example.org/video.webp", recapImageUrl: "https://example.org/recap.webp", concernImageUrl: "https://example.org/concern.webp" };
+  const parsed = draftSchema.parse({ ...draft, ...images });
+  const snapshot = salesSnapshot(parsed, { name: "강의", instructor_name: "강사", payment_link: "" }, []);
+  for (const key of Object.keys(images) as (keyof typeof images)[]) assert.equal(snapshot[key], images[key]);
+  assert.equal(draftSchema.parse({ ...parsed, recapImageUrl: "" }).recapImageUrl, "");
+});
+
 test("강의 소속 영상, 결제 주소, 카드사별 기본값을 공개 데이터에 반영한다", () => {
   const draft = newDraft("무료 강의", "https://example.org/chat", "https://youtu.be/abcdefghijk");
   assert.equal(draft.cards.length, 12);

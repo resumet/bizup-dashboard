@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { pageBackgrounds, removeBoldMarkers, salesSnapshot, type SalesDraft, type VideoOption } from "@/lib/post-sales/model";
 import { giftHeading, invitationHeading, SalesPageView } from "./sales-page";
+import { SalesImageEditor } from "./image-editor";
 
 type Props = {
   course: { id: string; name: string; instructor_name: string; payment_link: string };
@@ -50,6 +51,29 @@ export function SalesEditor({ course, videos, ...initial }: Props) {
   const api = `/api/course-operations/${course.id}/post-sales`;
   function edit<K extends keyof SalesDraft>(field: K, value: SalesDraft[K]) {
     setDraft(prev => ({ ...prev, [field]: value }));
+  }
+  async function saveImage(field: "videoImageUrl" | "recapImageUrl" | "concernImageUrl", file?: File) {
+    if (pending.current) return false;
+    pending.current = true;
+    setBusy("image");
+    try {
+      let url = "";
+      if (file) {
+        const form = new FormData(); form.set("file", file);
+        const upload = await fetch(`${api}/images`, { method: "POST", body: form });
+        const result = await upload.json();
+        if (!upload.ok) throw new Error(result.message || "이미지를 업로드하지 못했습니다.");
+        url = result.url;
+      }
+      const next = { ...draft, [field]: url };
+      const response = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save", draft: next, revision }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || "이미지를 저장하지 못했습니다.");
+      setDraft(next); setRevision(result.revision); setPublicUrl(result.publicUrl || "");
+      toast(file ? "이미지를 초안에 저장했습니다." : "이미지를 초안에서 삭제했습니다.");
+      return true;
+    } catch (error) { toast(error instanceof Error ? error.message : "이미지를 저장하지 못했습니다.", { tone: "error" }); return false; }
+    finally { pending.current = false; setBusy(""); }
   }
   async function submit(action: "save" | "publish" | "check-drive" | "set-access") {
     if (pending.current) return;
@@ -137,9 +161,11 @@ export function SalesEditor({ course, videos, ...initial }: Props) {
           <label className={field}>강사 유튜브 출연영상<select className="h-10 w-full rounded-md border bg-background px-3" value={draft.videoId} onChange={e => edit("videoId", e.target.value)}>
             <option value="">{videos.length ? "선택 안 함" : "등록된 출연영상 없음"}</option>
             {videos.map(v => <option key={v.id} value={v.id}>{v.label} · {v.url}</option>)}</select></label>
+          <SalesImageEditor label="대체 이미지" url={draft.videoImageUrl} busy={!!busy} onSave={file => saveImage("videoImageUrl", file)} onDelete={() => saveImage("videoImageUrl")} />
         </EditorSection>
         <EditorSection title="3. 무료강의 내용 안내">
           <label className={field}>강의 핵심 내용<Textarea rows={5} maxLength={15000} value={draft.recap} onChange={e => edit("recap", e.target.value)} /></label>
+          <SalesImageEditor label="이미지" url={draft.recapImageUrl} busy={!!busy} onSave={file => saveImage("recapImageUrl", file)} onDelete={() => saveImage("recapImageUrl")} />
         </EditorSection>
         <EditorSection title="4. 고객 고민">
           {draft.concernQuestions.map((question, index) => <label key={index} className={field}>질문 {index + 1}
@@ -148,6 +174,7 @@ export function SalesEditor({ course, videos, ...initial }: Props) {
           </label>)}
           <label className={field}>질문 다음 상세 설명<Textarea rows={4} maxLength={8000} value={draft.concernExplanation}
             onChange={e => edit("concernExplanation", e.target.value)} /></label>
+          <SalesImageEditor label="이미지" url={draft.concernImageUrl} busy={!!busy} onSave={file => saveImage("concernImageUrl", file)} onDelete={() => saveImage("concernImageUrl")} />
         </EditorSection>
         <EditorSection title="5. 무료 강의 선물">
           <label className={field}>{giftHeading}<Textarea rows={4} maxLength={6000} placeholder="선물 내용과 활용 방법을 입력해 주세요." value={draft.gifts} onChange={e => edit("gifts", e.target.value)} /></label>

@@ -5,6 +5,12 @@ import { defaultSalesColors, pageBackgrounds, webLink, youtubeId, type SalesPage
 export const invitationHeading = "단, 이것만은 기억해 주세요!";
 export const giftHeading = "혼자서도 첫걸음을 시작할 수 있도록 선물을 준비했습니다!";
 
+function SectionImage({ url, alt }: { url?: string; alt: string }) {
+  if (!url || !webLink(url)) return null;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={url} alt={alt} loading="lazy" className="h-auto w-full rounded-xl" />;
+}
+
 function Action({ href, children, buttonColor }: { href: string; children: React.ReactNode; buttonColor?: string }) {
   const url = webLink(href);
   if (!url) return null;
@@ -28,12 +34,12 @@ export function SalesPageView({ page }: { page: SalesPage }) {
     </header>
     <div className="space-y-9 px-6 py-8 sm:px-10">
       {page.intro && <section aria-label="인사"><p className={paragraph}>{page.intro}</p></section>}
-      {video && <section aria-label="강사 유튜브 출연영상" className="space-y-3">
+      {page.videoImageUrl ? <section aria-label="유튜브 대체 이미지"><SectionImage url={page.videoImageUrl} alt="강사 유튜브 대체 이미지" /></section> : video && <section aria-label="강사 유튜브 출연영상" className="space-y-3">
         <iframe title="강사 출연영상" className="aspect-video w-full rounded-xl border-0" loading="lazy" referrerPolicy="strict-origin-when-cross-origin"
           allow="encrypted-media; picture-in-picture; fullscreen" allowFullScreen src={`https://www.youtube-nocookie.com/embed/${video}`} />
         <Action href={page.videoUrl}>유튜브에서 보기</Action></section>}
-      {page.recap && <section className="space-y-3"><h2 className={heading}>무료강의 내용 안내</h2><p className={paragraph}>{page.recap}</p></section>}
-      {(questions.length > 0 || page.concernExplanation?.trim()) && <section className="space-y-4">
+      {(page.recap || page.recapImageUrl) && <section className="space-y-3"><h2 className={heading}>무료강의 내용 안내</h2>{page.recap && <p className={paragraph}>{page.recap}</p>}<SectionImage url={page.recapImageUrl} alt="무료강의 내용 안내 이미지" /></section>}
+      {(questions.length > 0 || page.concernExplanation?.trim() || page.concernImageUrl) && <section className="space-y-4">
         <h2 className={heading}>가능한 건 알겠는데, 막상 시작하려니 막막하죠?</h2>
         {questions.length > 0 && <div className="space-y-3 rounded-xl bg-stone-100 px-5 py-4">
           <h3 className="flex items-start gap-2 text-base font-medium"><Lightbulb aria-hidden className="mt-0.5 size-5 shrink-0 text-amber-600" />이런 고민이 남아 있을 수 있습니다.</h3>
@@ -41,6 +47,7 @@ export function SalesPageView({ page }: { page: SalesPage }) {
             <li key={i} className="break-words pl-1"><strong>{question}</strong></li>)}</ol>
         </div>}
         {page.concernExplanation?.trim() && <p className={paragraph}>{page.concernExplanation}</p>}
+        <SectionImage url={page.concernImageUrl} alt="고객 고민 안내 이미지" />
       </section>}
       {(page.gifts || page.giftUrl) && <section className="space-y-4 rounded-xl border border-teal-100 bg-teal-50/60 p-5">
         <h2 className={heading}>{giftHeading}</h2>
