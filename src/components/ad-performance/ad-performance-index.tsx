@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { chatAudienceAlert } from "@/lib/ad-performance/chat-alert";
+import { ChatAudienceNotice } from "./chat-audience-notice";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AlertTriangle, ArrowLeft, BookOpenCheck, Copy, ExternalLink, Loader2, MoreHorizontal, Plus, Save, Settings2, Trash2 } from "lucide-react";
@@ -44,6 +46,7 @@ function DashboardRow({ dashboard, busy, onDelete }: {
   return <TableRow>
     <TableCell className="min-w-52 max-w-80 whitespace-normal">
       <Link className="font-medium text-primary underline-offset-4 hover:underline focus-visible:underline" href={`/services/ad-performance/${dashboard.id}`}>{courseName}</Link>
+      <ChatAudienceNotice message={chatAudienceAlert(dashboard.adLeads, dashboard.chatRoomMembers)} />
       <div className="mt-1 text-xs text-muted-foreground tabular-nums">
         {[dashboard.course?.instructorName || "강사 미정", webinarAt ? formatWebinarDate(webinarAt) : "웨비나 미정", formatDday(webinarAt)].filter(Boolean).join(" · ")}
       </div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { loadCourseChatAlerts } from "@/lib/ad-performance/chat-alert-server";
 import { redirect } from "next/navigation";
 import {
   ArrowLeft,
@@ -30,6 +31,8 @@ export default async function CourseOperationsPage() {
       membership.workspace_id,
       todayKoreaDate,
     );
+    const chatAlerts = await loadCourseChatAlerts(membership.workspace_id);
+    courses = courses.map(course => ({ ...course, chatAudienceAlert: chatAlerts[course.id] }));
   } catch (caught) {
     loadError =
       caught instanceof Error

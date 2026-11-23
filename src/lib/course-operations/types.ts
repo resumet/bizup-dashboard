@@ -94,6 +94,7 @@ export type CourseOperationsInput = Omit<
 };
 
 export type CourseSummary = {
+  chatAudienceAlert?: string;
   id: string;
   status: CourseStatus;
   name: string;

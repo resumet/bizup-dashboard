@@ -10,6 +10,7 @@ export const WORK_SERVICE_CARD_GROUPS = [
       {route:"/services/instructor-intakes",title:"강사 정보 받기"},
       {route:"/services/instagram-management",title:"강사 인스타그램 관리"},
       {route:"/services/youtube-management",title:"강사 출연 유튜브 관리"},
+      {route:"/services/internal-youtube",title:"자체 유튜브 관리"},
       {route:"/services/course-operations/students-settlements",title:"수강생관리 및 정산"},
       {route:"/services/course-wbs",title:"강의별 해야할일"},
       {route:"/services/course-webinars",title:"웨비나진행 결과관리"},

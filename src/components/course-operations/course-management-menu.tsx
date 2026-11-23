@@ -14,6 +14,7 @@ import { COURSE_STATUSES, COURSE_STATUS_LABELS, isCourseStatus, type CourseStatu
 
 export const courseMenuIcons: Record<CourseMenuKind, LucideIcon> = {
   detail: BookOpenCheck, intake: BookUser, instagram: Camera, youtube: MonitorPlay,
+  "internal-youtube": MonitorPlay,
   webinar: Radio, "free-students": UsersRound, students: UsersRound, wbs: ClipboardList,
   ads: ChartNoAxesCombined, status: CircleDot, delete: Trash2,
 };

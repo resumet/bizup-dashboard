@@ -6,6 +6,8 @@ import { BackLink } from "@/components/layout/back-link";
 import { Suspense } from "react";
 import { CourseCalendarSection } from "@/components/shared-calendar/course-calendar-section";
 import { CourseOperationsEditor } from "@/components/course-operations/course-editor";
+import { loadCourseChatAlerts } from "@/lib/ad-performance/chat-alert-server";
+import { ChatAudienceNotice } from "@/components/ad-performance/chat-audience-notice";
 import { PendingLinkLabel } from "@/components/navigation/pending-link-label";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,6 +64,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
     );
   }
   if (!course) notFound();
+  const chatAlerts = await loadCourseChatAlerts(membership.workspace_id, courseId);
 
   const [
     linkedJobsResult,
@@ -193,6 +196,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
         </div>
       </header>
       <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
+        <ChatAudienceNotice message={chatAlerts[courseId]} />
         <CourseOperationsEditor
           courseId={courseId}
           initialDraft={draft}

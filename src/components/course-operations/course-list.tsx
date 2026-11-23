@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { ChatAudienceNotice } from "@/components/ad-performance/chat-audience-notice";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CalendarDays, ChevronDown, EllipsisVertical, Grid2X2, List, Plus } from "lucide-react";
@@ -67,6 +68,7 @@ function CourseCards({ courses, todayKoreaDate, subdued = false }: {
           {course.instructor_name || "강사 미지정"} | {formatCourseListWebinarDate(course.free_webinar_at)} | {formatDashboardCohort(course.cohort)}
         </p>
       </CardHeader>
+      <div className="px-5"><ChatAudienceNotice message={course.chatAudienceAlert} /></div>
       <dl className="mt-auto grid grid-cols-2 border-t text-sm">
         <div className="col-span-2 border-b px-5 py-4">
           <dt className="text-xs text-muted-foreground">신청자DB숫자</dt>
@@ -140,7 +142,7 @@ function CourseTable({ courses, todayKoreaDate, subdued = false }: {
       <TableBody>{courses.map((course) => <TableRow key={course.id} className={subdued ? "text-muted-foreground" : ""}>
         <TableCell className="font-medium">{course.instructor_name || "강사 미지정"}</TableCell>
         <TableCell>{course.cohort ? `${course.cohort}기` : "-"}</TableCell>
-        <TableCell><Link href={`/services/course-operations/${course.id}`} className="font-medium hover:underline">{course.name}</Link></TableCell>
+        <TableCell><Link href={`/services/course-operations/${course.id}`} className="font-medium hover:underline">{course.name}</Link><ChatAudienceNotice message={course.chatAudienceAlert} /></TableCell>
         <TableCell>{formatCourseListWebinarDate(course.free_webinar_at)}</TableCell>
         <TableCell>
           <Badge variant="outline">

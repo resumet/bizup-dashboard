@@ -65,6 +65,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
       { label: "진행중 강의 보기", href: "/services/course-operations", exact: true },
       { label: "강사 인스타그램 관리", href: "/services/instagram-management" },
       { label: "강사 출연 유튜브 관리", href: "/services/youtube-management" },
+      { label: "자체 유튜브 관리", href: "/services/internal-youtube" },
       { label: "강의별 해야할일", href: "/services/course-wbs" },
       { label: "웨비나진행 결과관리", href: "/services/course-webinars" },
     ],

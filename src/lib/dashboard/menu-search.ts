@@ -21,6 +21,7 @@ export const DASHBOARD_MENU_SEARCH_ITEMS: readonly DashboardMenuSearchItem[] = [
   { label: "진행중 강의 보기", href: "/services/course-operations", group: "강의 운영", keywords: ["강의 운영 자동화", "강의"] },
   { label: "강사 인스타그램 관리", href: "/services/instagram-management", group: "강의 운영", keywords: ["콘텐츠 관리", "컨텐츠 관리", "인스타그램"] },
   { label: "강사 출연 유튜브 관리", href: "/services/youtube-management", group: "강의 운영", keywords: ["유튜브 출연 관리", "콘텐츠 관리", "컨텐츠 관리", "유튜브"] },
+  { label: "자체 유튜브 관리", href: "/services/internal-youtube", group: "강의 운영", keywords: ["자체 채널", "촬영", "유튜브"] },
   { label: "강의별 해야할일", href: "/services/course-wbs", group: "강의 운영", keywords: ["강의 WBS", "할 일", "해야 할 일"] },
   { label: "강사 정보 받기", href: "/services/instructor-intakes", group: "강의 운영" },
   { label: "근태관리/업무일지/비품신청", href: "/services/work-management", group: "기타", keywords: ["업무 관리", "업무관리"] },

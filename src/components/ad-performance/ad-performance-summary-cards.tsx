@@ -1,4 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
+import { chatAudienceAlert } from "@/lib/ad-performance/chat-alert";
+import { ChatAudienceNotice } from "./chat-audience-notice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { chatRoomTarget, summarizeAdPerformance, summarizeOrganicChannels } from "@/lib/ad-performance/calculation";
 import type { AdPerformanceDailyMetric, AdPerformanceOrganicChannel } from "@/lib/ad-performance/types";
@@ -90,6 +92,6 @@ export function AdPerformanceSummaryCards({ metrics, totalBudget, organicChannel
       detail: formatWon(summary.chatRoomEntrantCost), valueLabel: "누적 단톡방 인원", detailLabel: "단톡방 유입단가" },
       { key: "target", label: "목표 단톡방 인원", value: target === null ? "—" : `${number.format(target)}명`, valueLabel: "목표 단톡방 인원" },
       { key: "achievement", label: "달성률", value: target === null ? "—" : percentage(summary.latestChatRoomMembers, target), valueLabel: "단톡방 인원 달성률" },
-    ]} />
+    ]} footer={<ChatAudienceNotice message={chatAudienceAlert(summary.adLeads, metrics.some(row => row.chatRoomMembers !== null) ? summary.latestChatRoomMembers : null)} />} />
   </section>;
 }
