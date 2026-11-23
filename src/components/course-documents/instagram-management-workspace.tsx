@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle,Ban,CalendarDays,Circle,ClipboardList,EllipsisVertical,ExternalLink,FileSpreadsheet,ListPlus,Loader2,Pencil,Save,Settings,Trash2,Users } from "lucide-react";
@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { instagramCourseDetails } from "@/lib/course-documents/course-options";
+import { distinctChipColors } from "@/lib/chip-colors";
 import { instagramProgressSummary, progressPercentage } from "@/lib/course-documents/instagram-progress";
 import { instagramDmMaterialValue } from "@/lib/course-documents/instagram-upload";
 import { instagramBulkFilmingSelectablePositions, mergeInstagramFilmingDates, parseInstagramBulkTitles } from "@/lib/course-documents/materials";
@@ -85,6 +86,8 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
   const router = useRouter();
   const endpoint = courseId ? `/api/instagram-management?courseId=${courseId}` : "/api/instagram-management?view=list";
   const [courses, setCourses] = useState<CourseDocumentCourse[]>([]);
+  const assigneeColors = useMemo(() => distinctChipColors(courses.flatMap(course =>
+    course.instagramAssignee ? [course.instagramAssignee.id] : [])), [courses]);
   const [employees, setEmployees] = useState<InstagramEmployee[]>([]);
   const [blockedPhones, setBlockedPhones] = useState<BlockedPhone[]>([]);
   const [loading, setLoading] = useState(true);
@@ -643,7 +646,10 @@ export function InstagramManagementWorkspace({ courseId }: { courseId?: string }
                       <p className="mt-1 text-xs text-muted-foreground">{instagramCourseDetails(course).join(" | ")}</p>
                     </TableCell>
                     <TableCell>{course.instructorName || "—"}</TableCell>
-                    <TableCell>{course.instagramAssignee?.name ?? "미지정"}</TableCell>
+                    <TableCell>{course.instagramAssignee
+                      ? <Badge variant="outline" style={assigneeColors.get(course.instagramAssignee.id)}>{course.instagramAssignee.name}</Badge>
+                      : <Badge variant="outline" className="border-gray-300 bg-gray-100 text-gray-600">미지정</Badge>}
+                    </TableCell>
                     <TableCell className="text-right font-medium">{summary.totalCount}건</TableCell><TableCell className="text-right">{summary.filmingCompletedCount}건 ({progressPercentage(summary.filmingCompletedCount, summary.totalCount)}%)</TableCell><TableCell className="text-right">{summary.uploadCompletedCount}건 ({progressPercentage(summary.uploadCompletedCount, summary.totalCount)}%)</TableCell><TableCell>{course.documents.length}</TableCell><TableCell>{course.externalEditEnabled ? "외부 작성 허용" : "비활성화"}</TableCell><TableCell className="text-right"><Button type="button" size="icon-xs" variant="ghost" aria-label={`${course.name} 삭제`} onClick={() => { setCourseDeleteError(""); setCourseDeleteTarget(course); }}><Trash2 /></Button></TableCell></TableRow>;
                 })}</TableBody></Table>
                 {!items.length && <p className="p-5 text-sm text-muted-foreground">해당 상태의 강의가 없습니다.</p>}

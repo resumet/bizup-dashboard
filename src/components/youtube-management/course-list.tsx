@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { distinctChipColors } from "@/lib/chip-colors";
 import { formatWebinarDate } from "@/lib/course-operations/webinar-proximity";
 import { groupYoutubeCourses, orderedChannelChips, YOUTUBE_COURSE_GROUPS, type AppearanceChannel } from "@/lib/youtube-management/course-list";
 import type { YoutubeFilmingAlert } from "@/lib/youtube-management/filming-alert";
@@ -59,17 +60,8 @@ export function YoutubeCourseList({ courses, filmingAlertWeeks, embedded = false
     `${course.name} ${course.instructor_name} ${course.cohort}`.toLowerCase().includes(search.toLowerCase()),
   );
   const grouped = groupYoutubeCourses(visible);
-  const channelColors = useMemo(() => {
-    const names = [...new Set(courses.flatMap((course) => course.appearanceChannels.map((channel) => channel.name.trim()).filter(Boolean)))].sort((left, right) => left.localeCompare(right, "ko"));
-    return new Map(names.map((name, index) => {
-      const hue = (index * 360) / names.length;
-      return [name, {
-        borderColor: `hsl(${hue} 62% 70%)`,
-        backgroundColor: `hsl(${hue} 75% 95%)`,
-        color: `hsl(${hue} 52% 28%)`,
-      } satisfies CSSProperties];
-    }));
-  }, [courses]);
+  const channelColors = useMemo(() => distinctChipColors(courses.flatMap(course =>
+    course.appearanceChannels.map(channel => channel.name.trim()).filter(Boolean))), [courses]);
   const totalAlertCount = courses.reduce((total, course) => total + course.filmingAlert.alertCount, 0);
   const affectedCourseCount = courses.filter((course) => course.filmingAlert.alertCount > 0).length;
 
