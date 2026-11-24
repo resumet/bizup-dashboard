@@ -889,7 +889,7 @@ export function CourseOperationsEditor({
                   추가기능 메뉴<ChevronDown aria-hidden="true" />
                 </Button>
               </DropdownMenuTrigger>
-              <CourseManagementMenu courseId={courseId} itemClassName="min-h-14" />
+              <CourseManagementMenu courseId={courseId} itemClassName="h-[45px]" />
             </DropdownMenu>
           )}
         </div>
