@@ -889,7 +889,10 @@ export function CourseOperationsEditor({
                   추가기능 메뉴<ChevronDown aria-hidden="true" />
                 </Button>
               </DropdownMenuTrigger>
-              <CourseManagementMenu courseId={courseId} itemClassName="h-[45px]" />
+              <CourseManagementMenu
+                courseId={courseId}
+                itemClassName="h-[45px] hover:bg-gray-200! hover:[--accent-foreground:var(--color-gray-900)] not-data-[variant=destructive]:hover:text-accent-foreground dark:hover:[--destructive:var(--color-red-700)]"
+              />
             </DropdownMenu>
           )}
         </div>
