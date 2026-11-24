@@ -1,7 +1,6 @@
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, EllipsisVertical } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
-import { CourseManagementMenu } from "@/components/course-operations/course-management-menu";
 import { BackLink } from "@/components/layout/back-link";
 import { Suspense } from "react";
 import { CourseCalendarSection } from "@/components/shared-calendar/course-calendar-section";
@@ -10,10 +9,6 @@ import { loadCourseChatAlerts } from "@/lib/ad-performance/chat-alert-server";
 import { ChatAudienceNotice } from "@/components/ad-performance/chat-audience-notice";
 import { PendingLinkLabel } from "@/components/navigation/pending-link-label";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { courseBannerUrl } from "@/lib/course-operations/banner";
 import { formatCourseDetailHeading } from "@/lib/course-operations/course-detail-heading";
 import { toCourseNote, type CourseNote } from "@/lib/course-operations/notes";
@@ -181,20 +176,6 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
               webinarAt: course.free_webinar_at,
             })}
           </span>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="ml-auto shrink-0"
-                aria-label="강의 관련 메뉴"
-              >
-                <EllipsisVertical />
-              </Button>
-            </DropdownMenuTrigger>
-            <CourseManagementMenu courseId={courseId} />
-          </DropdownMenu>
         </div>
       </header>
       <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">

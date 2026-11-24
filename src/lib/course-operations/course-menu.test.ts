@@ -18,7 +18,7 @@ test("검색·목록·상세는 화면별 메뉴 배열 없이 공통 렌더러�
   for (const path of [
     "src/components/dashboard/dashboard-course-options.tsx",
     "src/components/course-operations/course-list.tsx",
-    "src/app/services/course-operations/[courseId]/page.tsx",
+    "src/components/course-operations/course-editor.tsx",
   ]) {
     const source = await readFile(path, "utf8");
     assert.match(source, /<CourseManagementMenu\s/);
