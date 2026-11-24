@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Eye, EyeOff, Plus, RefreshCw, Save, Search, X } from "lucide-react";
+import { Eye, EyeOff, Plus, RefreshCw, Save, Search, Trash2, TriangleAlert, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { actionLabels, statusLabels, type PersonnelDetail, type PersonnelList } from "@/lib/personnel/model";
-import { ToastNotice } from "@/components/ui/toast";
+import { toast, ToastNotice } from "@/components/ui/toast";
 
 const api = "/api/hr/personnel";
 const selectClass = "h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm";
@@ -92,7 +92,47 @@ function EmployeeForm({ detail, accounts, today, saved, busyChanged }: { detail?
   </form>;
 }
 
-function EmployeeDetail({ id, accounts, today, saved, busyChanged }: { id: string; accounts: PersonnelList["accounts"]; today: string; saved: () => void; busyChanged: (value: boolean) => void }) {
+function DeleteEmployee({ employee, busy, busyChanged, deleted, currentUserId }: {
+  employee: PersonnelDetail["employee"]; busy: boolean; busyChanged: (value: boolean) => void; deleted: () => void; currentUserId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const submitting = useRef(false);
+  const isSelf = employee.user_id === currentUserId;
+  async function remove() {
+    if (busy || submitting.current || name !== employee.name || isSelf) return;
+    submitting.current = true;
+    busyChanged(true);
+    try {
+      await post({ action: "delete", id: employee.id, expected_version: employee.version, confirmation_name: name });
+      toast("임직원 인사기록을 삭제했습니다.");
+      deleted();
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "삭제하지 못했습니다.", { tone: "error" });
+    } finally {
+      submitting.current = false;
+      busyChanged(false);
+    }
+  }
+  return <section aria-label="위험 구역" className="space-y-3 rounded-lg border border-destructive/50 bg-destructive/5 p-4">
+    <h3 className="flex items-center gap-2 font-semibold text-destructive"><TriangleAlert aria-hidden="true" className="size-4" />위험 구역</h3>
+    <p className="text-sm">{isSelf ? "본인의 인사기록은 삭제할 수 없습니다." : "인사정보와 재직·변경 이력을 영구 삭제합니다. 삭제 후에는 복구할 수 없습니다."}</p>
+    <Dialog open={open} onOpenChange={value => { if (!submitting.current) { setName(""); setOpen(value); } }}>
+      <DialogTrigger asChild><Button type="button" variant="destructive" disabled={busy || isSelf}><Trash2 />임직원 삭제</Button></DialogTrigger>
+      <DialogContent showCloseButton={false}>
+        <DialogHeader><DialogTitle>이 임직원의 인사기록을 삭제할까요?</DialogTitle>
+          <DialogDescription className="break-words">{employee.name} ({employee.email})의 인사정보와 재직·변경 이력이 영구 삭제됩니다. 인스타그램 담당자로 지정된 강의는 미지정으로 바뀝니다. 로그인 계정과 근태 기록은 유지됩니다.</DialogDescription>
+        </DialogHeader>
+        <Field label={`확인을 위해 ‘${employee.name}’ 입력`}><Input autoComplete="off" spellCheck={false} maxLength={100} disabled={busy} value={name} onChange={event => setName(event.target.value)} /></Field>
+        <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={() => { setOpen(false); setName(""); }}>취소</Button>
+          <Button type="button" variant="destructive" disabled={busy || !name || name !== employee.name} onClick={remove}>{busy ? "삭제 중…" : "영구 삭제"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </section>;
+}
+
+function EmployeeDetail({ id, accounts, today, saved, busy, busyChanged, deleted, currentUserId }: { id: string; accounts: PersonnelList["accounts"]; today: string; saved: () => void; busy: boolean; busyChanged: (value: boolean) => void; deleted: () => void; currentUserId: string }) {
   const [detail, setDetail] = useState<PersonnelDetail>();
   const [year, setYear] = useState(Number(today.slice(0, 4)));
   const [error, setError] = useState("");
@@ -111,11 +151,12 @@ function EmployeeDetail({ id, accounts, today, saved, busyChanged }: { id: strin
       </section>
       <section className="space-y-3 border-t pt-5"><h3 className="font-semibold">재직 기간</h3><ul className="divide-y text-sm">{detail.periods.map(period => <li className="py-3" key={period.id}>{period.start_date} ~ {period.end_date ?? "재직 중"}{period.end_reason && <span className="ml-3 text-muted-foreground">{actionLabels[period.end_reason as keyof typeof actionLabels]}</span>}</li>)}</ul></section>
       <section className="space-y-3 border-t pt-5"><h3 className="font-semibold">변경 이력 · 최근 100건</h3>{!detail.events.length && <p className="text-sm text-muted-foreground">변경 이력이 없습니다.</p>}<ul className="divide-y">{detail.events.map(event => <li className="space-y-1 py-3 text-sm" key={event.id}><p className="font-medium">{event.effective_date} · {actionLabels[event.action]} · {event.actor_name}</p><p className="whitespace-pre-wrap break-words text-muted-foreground">{event.reason}</p></li>)}</ul></section>
+      <DeleteEmployee key={detail.employee.version} employee={detail.employee} busy={busy} busyChanged={busyChanged} deleted={deleted} currentUserId={currentUserId} />
     </>}
   </div>;
 }
 
-export function PersonnelManager({ today }: { today: string }) {
+export function PersonnelManager({ today, currentUserId }: { today: string; currentUserId: string }) {
   const [page, setPage] = useState(0), [status, setStatus] = useState("employed"), [search, setSearch] = useState(""), [q, setQ] = useState("");
   const [result, setResult] = useState<PersonnelList>();
   const [loadedKey, setLoadedKey] = useState("");
@@ -132,6 +173,11 @@ export function PersonnelManager({ today }: { today: string }) {
     return () => controller.abort();
   }, [query, key]);
   function saved() { setSelected(null); setRevision(value => value + 1); setMessage("임직원 정보를 저장했습니다."); }
+  function deleted() {
+    setSelected(null);
+    if (page > 0 && result?.items.length === 1) setPage(page - 1);
+    setRevision(value => value + 1);
+  }
   return <div className="mx-auto max-w-[1900px] space-y-5 px-4 py-7 sm:px-6">
     <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-semibold">임직원 관리</h1><Button disabled={loadedKey !== key} onClick={() => { setSelected("new"); setMessage(""); }}><Plus className="size-4" />신규채용</Button></div>
     <form className="flex flex-wrap gap-2" onSubmit={event => { event.preventDefault(); setQ(search); setPage(0); }}><select aria-label="재직 상태" className={`${selectClass} sm:max-w-32`} value={status} onChange={event => { setStatus(event.target.value); setPage(0); }}><option value="all">전체</option>{Object.entries(statusLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select><Input className="min-w-0 flex-1 sm:max-w-sm" aria-label="이름 또는 이메일 검색" placeholder="이름 또는 이메일" maxLength={150} value={search} onChange={event => setSearch(event.target.value)} /><Button size="icon" variant="outline" aria-label="검색" title="검색"><Search /></Button><Button type="button" size="icon" variant="outline" title="새로고침" aria-label="새로고침" onClick={() => setRevision(value => value + 1)}><RefreshCw /></Button></form>
@@ -141,6 +187,6 @@ export function PersonnelManager({ today }: { today: string }) {
       {!result?.items.length && <p className="py-6 text-center text-sm text-muted-foreground">해당하는 임직원이 없습니다.</p>}
       <div className="flex items-center justify-end gap-3 text-sm"><span>총 {result?.total ?? 0}명 · {page + 1}페이지</span><Button variant="outline" disabled={page === 0} onClick={() => setPage(value => value - 1)}>이전</Button><Button variant="outline" disabled={(page + 1) * 50 >= (result?.total ?? 0)} onClick={() => setPage(value => value + 1)}>다음</Button></div>
     </>}
-    <Dialog open={selected !== null} onOpenChange={open => { if (!open && !busy) setSelected(null); }}><DialogContent className="flex max-h-[90dvh] flex-col gap-0 overflow-clip p-0 sm:max-w-3xl"><DialogHeader className="shrink-0 border-b p-5 pr-12"><DialogTitle>{selected === "new" ? "신규채용" : "임직원 상세"}</DialogTitle><DialogDescription>신상정보 · 계약정보 · 재직 이력</DialogDescription></DialogHeader><div className="min-h-0 overflow-y-auto p-5">{selected === "new" ? <EmployeeForm key="new" accounts={result?.accounts ?? []} today={today} saved={saved} busyChanged={setBusy} /> : selected && <EmployeeDetail key={selected} id={selected} accounts={result?.accounts ?? []} today={today} saved={saved} busyChanged={setBusy} />}</div></DialogContent></Dialog>
+    <Dialog open={selected !== null} onOpenChange={open => { if (!open && !busy) setSelected(null); }}><DialogContent className="flex max-h-[90dvh] flex-col gap-0 overflow-clip p-0 sm:max-w-3xl"><DialogHeader className="shrink-0 border-b p-5 pr-12"><DialogTitle>{selected === "new" ? "신규채용" : "임직원 상세"}</DialogTitle><DialogDescription>신상정보 · 계약정보 · 재직 이력</DialogDescription></DialogHeader><div className="min-h-0 overflow-y-auto p-5">{selected === "new" ? <EmployeeForm key="new" accounts={result?.accounts ?? []} today={today} saved={saved} busyChanged={setBusy} /> : selected && <EmployeeDetail key={selected} id={selected} busy={busy} currentUserId={currentUserId} deleted={deleted} accounts={result?.accounts ?? []} today={today} saved={saved} busyChanged={setBusy} />}</div></DialogContent></Dialog>
   </div>;
 }

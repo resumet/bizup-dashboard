@@ -28,5 +28,6 @@ export async function createPersonnelFixture() {
     await db.exec(await readFile(`supabase/migrations_archive/20260929/${name}.sql`, "utf8"));
   }
   await db.exec("grant usage on schema public,auth to authenticated,service_role; grant select on public.workspace_members to authenticated; grant select on public.work_tasks,public.work_task_events,public.work_daily_reviews to authenticated; grant all on all tables in schema public to service_role;");
+  await db.exec(await readFile("supabase/migrations/20261124045732_delete_workspace_personnel.sql", "utf8"));
   return db;
 }

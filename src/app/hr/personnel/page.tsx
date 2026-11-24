@@ -11,5 +11,5 @@ export default async function Page() {
     if (error instanceof PersonnelError && error.status === 403) notFound();
     throw error;
   }
-  return <PersonnelManager today={context.today} />;
+  return <PersonnelManager today={context.today} currentUserId={context.user.id} />;
 }

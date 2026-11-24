@@ -31,6 +31,17 @@ export async function POST(request: Request) {
     if (raw.length > 30000) throw new PersonnelError("입력 내용이 너무 큽니다.", 413);
     let input: unknown;
     try { input = JSON.parse(raw); } catch { throw new PersonnelError("입력 형식을 확인해 주세요."); }
+    if (typeof input === "object" && input !== null && "action" in input && input.action === "delete") {
+      const params = z.object({ action: z.literal("delete"), id: z.uuid(), expected_version: z.number().int().positive(), confirmation_name: z.string().min(1).max(100) }).strict().safeParse(input);
+      if (!params.success) throw new PersonnelError("삭제할 임직원과 확인 이름을 확인해 주세요.");
+      const { id, expected_version, confirmation_name } = params.data;
+      const result = await context.admin.rpc("personnel_delete", {
+        p_workspace_id: context.workspaceId, p_actor_id: context.user.id, p_id: id,
+        p_expected_version: expected_version, p_confirmation_name: confirmation_name,
+      });
+      if (result.error) throw personnelDatabaseError(result.error);
+      return json({ id });
+    }
     const reveal = z.object({ action: z.literal("reveal"), id: z.uuid() }).strict().safeParse(input);
     if (reveal.success) {
       const result = await context.admin.rpc("personnel_reveal", { p_workspace_id: context.workspaceId, p_actor_id: context.user.id, p_id: reveal.data.id });

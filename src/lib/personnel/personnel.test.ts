@@ -70,5 +70,30 @@ test("workspace personnel preserves identities, periods and leave grants and enf
     await db.exec("reset role");
     assert.equal((await db.query<{ resident_number: string }>("select resident_number from personnel_private.employees where id=$1", [staff.id])).rows[0].resident_number, "0001013000000");
     await assert.rejects(db.query("delete from auth.users where id=$1", [ids.staff]), /foreign key/);
+    const remove = (id: string, version: number, name: string, actor = ids.root, workspace = ids.workspace) =>
+      db.query("select public.personnel_delete($1,$2,$3,$4,$5)", [workspace, actor, id, version, name]);
+    await db.exec("set role authenticated");
+    await assert.rejects(remove(staff.id, detail.employee.version, body.name), /permission denied/);
+    await db.exec("reset role; set role service_role");
+    await assert.rejects(remove(staff.id, detail.employee.version, body.name, ids.manager), /최고관리자/);
+    await assert.rejects(remove(staff.id, detail.employee.version, body.name, ids.root, randomUUID()), /최고관리자/);
+    await assert.rejects(remove(root.id, root.version, root.name), /본인/);
+    await assert.rejects(remove(staff.id, detail.employee.version, body.name + " "), /일치하지/);
+    await assert.rejects(remove(staff.id, detail.employee.version - 1, body.name), /변경/);
+    await remove(staff.id, detail.employee.version, body.name);
+    await assert.rejects(query(staff.id), /찾을 수/);
+    await assert.rejects(remove(staff.id, detail.employee.version, body.name), /찾을 수/);
+    assert.equal((await query(newId)).employee.name, body.name);
+    assert.equal(await rpc<boolean>("select public.personnel_access($1,$2) data", [ids.workspace, ids.staff]), false);
+    assert.equal((await db.query("select 1 from public.hr_annual_leave_grants where user_id=$1", [ids.staff])).rows.length, 1);
+    const rehiredId = await save({ ...newBody, user_id: ids.staff, email: staff.email });
+    assert.equal(await rpc<boolean>("select public.personnel_access($1,$2) data", [ids.workspace, ids.staff]), true);
+    const rehired = (await query(rehiredId)).employee;
+    await remove(rehired.id, rehired.version, rehired.name);
+    assert.equal(await rpc<boolean>("select public.personnel_access($1,$2) data", [ids.workspace, ids.staff]), true);
+    await db.exec("reset role");
+    for (const table of ["events", "periods"]) {
+      assert.equal((await db.query(`select 1 from personnel_private.${table} where employee_id=$1`, [staff.id])).rows.length, 0);
+    }
   } finally { await db.close(); }
 });

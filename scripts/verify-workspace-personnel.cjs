@@ -31,7 +31,7 @@ const sessions = new AsyncLocalStorage();
       queue = operation.then(() => undefined);
       return operation;
     }
-    global.__personnelAuth = { auth: { getClaims: async () => ({ data: { claims: { sub: identity().id, email: identity().email } }, error: null }) } };
+    global.__personnelAuth = { auth: { getUser: async () => ({ data: { user: identity() }, error: null }) } };
     global.__personnelMembership = async () => ({ workspace_id: ids.workspace, role: identity().id === ids.root ? 'super_admin' : 'user' });
     global.__personnelAdmin = {
       async rpc(name, args) {
@@ -40,6 +40,7 @@ const sessions = new AsyncLocalStorage();
           personnel_query: ['select public.personnel_query($1,$2,$3,$4,$5,$6) data', [args.p_workspace_id, args.p_actor_id, args.p_id ?? null, args.p_page ?? 0, args.p_q ?? '', args.p_status ?? 'all']],
           personnel_save: ['select public.personnel_save($1,$2,$3::jsonb) data', [args.p_workspace_id, args.p_actor_id, JSON.stringify(args.p)]],
           personnel_reveal: ['select public.personnel_reveal($1,$2,$3) data', [args.p_workspace_id, args.p_actor_id, args.p_id]],
+          personnel_delete: ['select public.personnel_delete($1,$2,$3,$4,$5) data', [args.p_workspace_id, args.p_actor_id, args.p_id, args.p_expected_version, args.p_confirmation_name]],
         };
         assert.ok(queries[name], `Unexpected RPC ${name}`);
         const result = await execute(...queries[name]); return { data: result.rows[0]?.data, error: result.error };
@@ -66,7 +67,7 @@ const sessions = new AsyncLocalStorage();
     const balanceResponse = await api.GET(new Request(`http://localhost/api/hr/personnel?id=${staffId}&year=${balanceYear}`));
     assert.equal(balanceResponse.status, 200);
     assert.deepEqual((await balanceResponse.json()).leave, { year: balanceYear, baseGranted: 12, extraGranted: 0.5, used: 1, pending: 0.5, remaining: 11.5, availableToRequest: 11, upcoming: 1 });
-    const bundle = await esbuild.build({ stdin: { contents: `import React from 'react'; import {createRoot} from 'react-dom/client'; import {PersonnelManager} from './src/components/hr/personnel-manager'; createRoot(document.getElementById('root')).render(<PersonnelManager today='${today}'/>);`, loader: 'tsx', resolveDir: process.cwd() }, bundle: true, write: false, platform: 'browser', jsx: 'automatic' });
+    const bundle = await esbuild.build({ stdin: { contents: `import React from 'react'; import {createRoot} from 'react-dom/client'; import {ToastProvider} from './src/components/ui/toast'; import {PersonnelManager} from './src/components/hr/personnel-manager'; createRoot(document.getElementById('root')).render(<ToastProvider><PersonnelManager today='${today}' currentUserId='${ids.root}'/></ToastProvider>);`, loader: 'tsx', resolveDir: process.cwd() }, bundle: true, write: false, platform: 'browser', jsx: 'automatic' });
     const css = await postcss([tailwind()]).process(await fs.readFile('src/app/globals.css', 'utf8'), { from: path.resolve('src/app/globals.css') });
     server = http.createServer(async (req, res) => sessions.run(req.headers.cookie?.includes('staff=1') ? 'staff' : 'root', async () => {
       try {
@@ -98,7 +99,7 @@ const sessions = new AsyncLocalStorage();
     await page.getByLabel('주민등록번호').fill('000101-3000000');
     await page.getByLabel('처리 사유').fill('신규채용 테스트');
     await page.getByRole('button', { name: '신규채용 저장' }).click();
-    await page.getByText('임직원 정보를 저장했습니다.').waitFor();
+    await page.getByText('임직원 정보를 저장했습니다.', { exact: true }).last().waitFor();
     await page.getByRole('button', { name: '검증 직원', exact: true }).click();
     await page.getByLabel('주소', { exact: true }).waitFor();
     assert.equal(await page.getByLabel('주소', { exact: true }).inputValue(), '검증 주소');
@@ -118,7 +119,7 @@ const sessions = new AsyncLocalStorage();
     await page.getByLabel('퇴직일').fill('2021-01-01');
     await page.getByLabel('처리 사유').fill('퇴사 검증');
     await page.getByRole('button', { name: '퇴사 저장' }).click();
-    await page.getByText('임직원 정보를 저장했습니다.').waitFor();
+    await page.getByText('임직원 정보를 저장했습니다.', { exact: true }).last().waitFor();
     await page.getByLabel('재직 상태').selectOption('resigned');
     await page.getByRole('button', { name: '검증 직원', exact: true }).click();
     await page.getByText('퇴사 검증', { exact: true }).waitFor();
@@ -127,18 +128,33 @@ const sessions = new AsyncLocalStorage();
     await page.getByLabel('재입사일').fill('2022-01-01');
     await page.getByLabel('처리 사유').fill('재입사 검증');
     await page.getByRole('button', { name: '재입사 저장' }).click();
-    await page.getByText('임직원 정보를 저장했습니다.').waitFor();
+    await page.getByText('임직원 정보를 저장했습니다.', { exact: true }).last().waitFor();
     await page.getByLabel('재직 상태').selectOption('employed');
     await page.getByRole('button', { name: '검증 직원', exact: true }).click();
     await page.getByText('2020-01-01 ~ 2021-01-01').waitFor();
     await page.getByText('2022-01-01 ~ 재직 중').waitFor();
+    await page.getByRole('button', { name: '임직원 삭제' }).click();
+    const confirmName = page.getByLabel('확인을 위해 ‘검증 직원’ 입력');
+    const confirmDelete = page.getByRole('button', { name: '영구 삭제' });
+    assert.ok(await confirmDelete.isDisabled());
+    await confirmName.fill('다른 이름');
+    assert.ok(await confirmDelete.isDisabled());
+    await confirmName.fill('검증 직원');
+    await page.getByRole('button', { name: '취소', exact: true }).click();
+    await page.getByRole('button', { name: '임직원 삭제' }).click();
+    assert.equal(await confirmName.inputValue(), '');
+    await confirmName.fill('검증 직원');
+    await confirmDelete.click();
+    await page.getByText('임직원 인사기록을 삭제했습니다.', { exact: true }).waitFor();
+    await page.getByRole('button', { name: '신규채용' }).waitFor();
+    assert.equal((await db.query("select id from personnel_private.employees where email='new@example.test'")).rows.length, 0);
     const staffContext = await browser.newContext();
     await staffContext.addCookies([{ name: 'staff', value: '1', url: origin }]);
     assert.equal((await staffContext.request.get(origin + '/api/hr/personnel')).status(), 403);
     assert.equal((await staffContext.request.post(origin + '/api/hr/personnel', { headers: { Origin: origin }, data: {} })).status(), 403);
     assert.equal((await page.request.post(origin + '/api/hr/personnel', { headers: { Origin: 'https://outside.example' }, data: {} })).status(), 403);
     assert.deepEqual(errors, []);
-    console.log('PASS: actual UI, API, permissions and PostgreSQL; plaintext resident number without key, bank account leading zeros, reveal, resignation, rehire, history retention, desktop/mobile. Auth and Supabase transport are isolated test adapters.');
+    console.log('PASS: personnel UI, API and PostgreSQL, including name-confirmed deletion, cancellation, payroll details, reveal, resignation, rehire and desktop/mobile layouts. Auth and Supabase transport are isolated test adapters.');
   } finally {
     await browser?.close();
     if (server) await new Promise(resolve => server.close(resolve));
