@@ -885,9 +885,11 @@ export function CourseOperationsEditor({
           {courseId && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button type="button" variant="outline" className="min-h-10">추가기능 메뉴<ChevronDown aria-hidden="true" /></Button>
+                <Button type="button" className="min-h-10 bg-purple-700 text-white hover:bg-purple-800 aria-expanded:bg-purple-800 focus-visible:ring-purple-500/50">
+                  추가기능 메뉴<ChevronDown aria-hidden="true" />
+                </Button>
               </DropdownMenuTrigger>
-              <CourseManagementMenu courseId={courseId} />
+              <CourseManagementMenu courseId={courseId} itemClassName="min-h-14" />
             </DropdownMenu>
           )}
         </div>

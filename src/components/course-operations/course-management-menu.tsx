@@ -21,7 +21,7 @@ export const courseMenuIcons: Record<CourseMenuKind, LucideIcon> = {
 type Subject = { name: string; status: CourseStatus; canDelete: boolean };
 type Blocker = { id: string; title: string; href: string; status: string; leadCount: number };
 
-export function CourseManagementMenu({ courseId, align = "end" }: { courseId: string; align?: "start" | "end" }) {
+export function CourseManagementMenu({ courseId, align = "end", itemClassName }: { courseId: string; align?: "start" | "end"; itemClassName?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const statusId = useId();
@@ -73,8 +73,8 @@ export function CourseManagementMenu({ courseId, align = "end" }: { courseId: st
         const Icon = courseMenuIcons[item.kind];
         return <Fragment key={item.kind}>
           {item.kind === "status" ? <DropdownMenuSeparator /> : null}
-          {item.href ? <DropdownMenuItem asChild><Link href={item.href}><Icon aria-hidden="true" />{item.label}</Link></DropdownMenuItem>
-            : <DropdownMenuItem variant={item.kind === "delete" ? "destructive" : "default"} onSelect={() => void open(item.kind as "status" | "delete")}><Icon aria-hidden="true" />{item.label}</DropdownMenuItem>}
+          {item.href ? <DropdownMenuItem asChild className={itemClassName}><Link href={item.href}><Icon aria-hidden="true" />{item.label}</Link></DropdownMenuItem>
+            : <DropdownMenuItem className={itemClassName} variant={item.kind === "delete" ? "destructive" : "default"} onSelect={() => void open(item.kind as "status" | "delete")}><Icon aria-hidden="true" />{item.label}</DropdownMenuItem>}
         </Fragment>;
       })}
     </DropdownMenuContent>
