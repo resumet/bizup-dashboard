@@ -7,6 +7,7 @@ import {
   LoaderCircle, MoreHorizontal, Plus, Save, Trash2,
 } from "lucide-react";
 import { WbsGantt } from "@/components/course-wbs/wbs-gantt";
+import { WbsCalendar } from "./wbs-calendar";
 import { WbsAttention } from "./wbs-attention";
 import { WbsTaskLink } from "./task-link";
 import { wbsProgress } from "@/lib/course-wbs/attention";
@@ -235,7 +236,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [dashboard, setDashboard] = useState<WbsDashboard>(EMPTY_DASHBOARD);
-  const [overviewTab, setOverviewTab] = useState<"manage" | "analysis" | "summary">("manage");
+  const [overviewTab, setOverviewTab] = useState<"manage" | "analysis" | "summary" | "calendar">("manage");
   const [newCourseId, setNewCourseId] = useState("");
   const [people, setPeople] = useState<string[]>([]);
   const [employeeNames, setEmployeeNames] = useState<string[]>([]);
@@ -247,7 +248,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   const [dropTarget, setDropTarget] = useState<{ id: string; position: "before" | "after" } | null>(null);
   const [hasWbs, setHasWbs] = useState(false);
   const [updatedAt, setUpdatedAt] = useState("");
-  const [view, setView] = useState<"list" | "compact" | "gantt">("compact");
+  const [view, setView] = useState<"list" | "compact" | "gantt" | "calendar">("compact");
   const [loading, setLoading] = useState(true);
   const [loadingWbs, setLoadingWbs] = useState(false);
   const [courseReady, setCourseReady] = useState(false);
@@ -620,16 +621,21 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
         <p className="mt-2 text-sm text-muted-foreground">강의를 만든 뒤 WBS를 연결할 수 있습니다.</p>
         <Button className="mt-5" asChild><Link href="/services/course-operations/new"><Plus /> 강의 만들기</Link></Button>
       </div>
-    ) : !courseId ? <Tabs value={overviewTab} onValueChange={(value) => setOverviewTab(value as "manage" | "analysis" | "summary")}>
+    ) : !courseId ? <Tabs value={overviewTab} onValueChange={(value) => setOverviewTab(value as typeof overviewTab)}>
       <div className="flex flex-wrap items-center justify-between gap-3">
       <TabsList aria-label="강의별 해야할일 화면">
         <TabsTrigger value="manage"><ClipboardList /> 강의별 해야할일</TabsTrigger>
         <TabsTrigger value="summary">업무 요약</TabsTrigger>
         <TabsTrigger value="analysis"><CalendarDays /> 업무 현황</TabsTrigger>
+        <TabsTrigger value="calendar"><CalendarDays /> 달력</TabsTrigger>
       </TabsList>
       <div className="flex flex-wrap gap-2"><Button variant="outline" asChild><Link href="/services/course-wbs/templates">템플릿 관리</Link></Button><Button onClick={() => { setNewCourseId(""); setCreateDialogOpen(true); }} disabled={deleting}><Plus /> WBS 만들기</Button></div>
       </div>
       <TabsContent value="summary" className="mt-6"><WbsAttention courses={courses} entries={schedules} today={today} templateItems={template?.items ?? []} onSelect={(id, item) => { selectCourse(id); setView("list"); if (item) addedItemId.current = item.id; }} /></TabsContent>
+      <TabsContent value="calendar" className="mt-6">
+        <WbsCalendar entries={schedules} today={today} courseLabels={new Map(courses.map(entry => [entry.id, courseLabel(entry)]))}
+          onOpenTask={(id, itemId) => { selectCourse(id); setTaskDialogItemId(itemId); }} />
+      </TabsContent>
       <TabsContent value="analysis" className="mt-6">
       <section className="mb-8" aria-label="WBS 대시보드">
         <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
@@ -701,15 +707,18 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
 
       <section className="min-w-0" aria-label="강의별 해야할일 항목">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex rounded-lg border bg-background p-1" role="group" aria-label="보기 방식">
+            <div className="flex max-w-full flex-wrap rounded-lg border bg-background p-1" role="group" aria-label="보기 방식">
               <Button size="sm" variant={view === "compact" ? "secondary" : "ghost"} onClick={() => setView("compact")} aria-pressed={view === "compact"}><ClipboardList /> 간소화목록</Button>
               <Button size="sm" variant={view === "list" ? "secondary" : "ghost"} onClick={() => setView("list")} aria-pressed={view === "list"}><ClipboardList /> 목록</Button>
               <Button size="sm" variant={view === "gantt" ? "secondary" : "ghost"} onClick={() => setView("gantt")} aria-pressed={view === "gantt"}><CalendarDays /> 간트 차트</Button>
+              <Button size="sm" variant={view === "calendar" ? "secondary" : "ghost"} onClick={() => setView("calendar")} aria-pressed={view === "calendar"}><CalendarDays /> 달력</Button>
             </div>
             {view === "compact" ? <p className="text-xs text-muted-foreground">완료 여부를 변경한 뒤 강의별 해야할일 저장을 눌러 주세요.</p> : null}
             {view !== "compact" ? <Button size="sm" variant="outline" onClick={addItem} disabled={loadingWbs || !courseReady || saving}><Plus /> 항목 추가</Button> : null}
           </div>
-          {loadingWbs ? <div className="flex min-h-72 items-center justify-center rounded-xl border bg-background text-sm text-muted-foreground"><LoaderCircle className="mr-2 size-4 animate-spin" /> WBS를 불러오는 중...</div> : !courseReady ? <div className="rounded-xl border border-dashed bg-background px-6 py-16 text-center text-sm text-muted-foreground">이 강의의 WBS를 불러오지 못했습니다.<div><Button className="mt-4" variant="outline" onClick={() => void loadCourse(courseId)}>다시 시도</Button></div></div> : view === "gantt" ? <WbsGantt key={courseId} items={sortedItems} webinarDate={webinarDate} todayDate={today} onSelectItem={setSelectedScheduleItem} selectedItemId={selectedScheduleItem?.id} /> : view === "compact" ? (
+          {loadingWbs ? <div className="flex min-h-72 items-center justify-center rounded-xl border bg-background text-sm text-muted-foreground"><LoaderCircle className="mr-2 size-4 animate-spin" /> WBS를 불러오는 중...</div> : !courseReady ? <div className="rounded-xl border border-dashed bg-background px-6 py-16 text-center text-sm text-muted-foreground">이 강의의 WBS를 불러오지 못했습니다.<div><Button className="mt-4" variant="outline" onClick={() => void loadCourse(courseId)}>다시 시도</Button></div></div> : view === "calendar" ? (
+            <WbsCalendar key={courseId} entries={[{ courseId, items: sortedItems }]} today={today} initialDate={webinarDate || today} onOpenTask={(_, itemId) => setTaskDialogItemId(itemId)} />
+          ) : view === "gantt" ? <WbsGantt key={courseId} items={sortedItems} webinarDate={webinarDate} todayDate={today} onSelectItem={setSelectedScheduleItem} selectedItemId={selectedScheduleItem?.id} /> : view === "compact" ? (
             <div className="overflow-x-auto rounded-xl border bg-background shadow-sm" aria-busy={saving}>
               <table className="w-full min-w-[760px] border-collapse text-sm" aria-label="간소화 WBS 목록">
                 <thead className="bg-muted/50 text-left text-xs font-medium text-muted-foreground">
