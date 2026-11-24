@@ -48,15 +48,11 @@ function CourseMetadata({ course, today }: { course: CourseSummary; today: strin
 }
 
 function CoursePageLinkCount({ filled }: { filled: number }) {
-  const missing = COURSE_PAGE_LINKS.length - filled;
-  return <span className="inline-flex items-center gap-2">
-    <Badge variant="outline" className={missing === 0
-      ? "border-green-300 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
-      : "border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"}>
-      {filled}/{COURSE_PAGE_LINKS.length}
-    </Badge>
-    {missing > 0 && <span className="text-xs text-muted-foreground">미입력 {missing}개</span>}
-  </span>;
+  return <Badge variant="outline" className={filled === COURSE_PAGE_LINKS.length
+    ? "border-green-300 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
+    : "border-red-200 bg-red-100 text-red-900"}>
+    {filled}/{COURSE_PAGE_LINKS.length}
+  </Badge>;
 }
 
 function CourseActionsMenu({ course }: { course: CourseSummary }) {

@@ -501,7 +501,10 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
     else url.searchParams.delete("courseId");
     window.history.replaceState(null, "", url);
     if (id) void loadCourse(id);
-    else setLoadingWbs(false);
+    else {
+      setLoadingWbs(false);
+      setOverviewTab("manage");
+    }
   }
 
   async function deleteWbs() {
@@ -597,7 +600,14 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
   return <>
     <header className="border-b bg-background" aria-label="강의별 해야할일 상단">
       <div className="mx-auto flex min-h-18 max-w-[1900px] items-center gap-3 px-5 py-3 lg:px-8">
-        <Button variant="ghost" size="sm" asChild><BackLink href="/work">뒤로가기</BackLink></Button>
+        <Button variant="ghost" size="sm" asChild>
+          <BackLink href={courseId || (loading && initialCourseId) ? "/services/course-wbs" : "/work"}
+            onClick={event => {
+              if (!courseId || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+              event.preventDefault();
+              selectCourse("");
+            }}>뒤로가기</BackLink>
+        </Button>
         <div className="h-5 w-px shrink-0 bg-border" />
         <span className="min-w-0 line-clamp-2 text-sm font-semibold leading-5 sm:text-base">
           {courseId ? courseWbsHeading(course) : "강의별 해야할일"}
@@ -685,7 +695,7 @@ export function CourseWbsWorkspace({ initialCourseId }: { initialCourseId: strin
       </TabsContent>
     </Tabs> : <>
       <div className="mb-4 flex flex-wrap items-center justify-end gap-2" role="group" aria-label="WBS 작업">
-        <Button size="sm" variant="outline" onClick={() => { selectCourse(""); setOverviewTab("manage"); }}>WBS 목록</Button>
+        <Button size="sm" variant="outline" onClick={() => selectCourse("")}>WBS 목록</Button>
         <Button size="sm" variant="outline" onClick={applyTemplate} disabled={!template || !courseReady || loadingWbs || saving}><ClipboardList /> 템플릿 불러오기</Button>
         <div className="flex shrink-0 items-center gap-2">
           {course ? <Button variant="outline" size="sm" asChild><Link href={`/services/course-operations/${course.id}`}>강의 상세 <ExternalLink /></Link></Button> : null}
