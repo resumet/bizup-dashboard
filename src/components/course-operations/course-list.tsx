@@ -17,7 +17,8 @@ import { courseBannerUrl } from "@/lib/course-operations/banner";
 import { COURSE_LIST_COLLAPSIBLE_STATUS_ORDER, COURSE_LIST_INITIAL_OPEN_STATUSES, formatCourseWbsProgress } from "@/lib/course-operations/course-list-display";
 import { partitionCoursesByStatus } from "@/lib/course-operations/course-list-status";
 import { COURSE_STATUS_LABELS, type CourseStatus } from "@/lib/course-operations/course-status";
-import { formatWebinarCountdown, sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
+import { formatWebinarCountdownLabel, sortByNearestWebinar } from "@/lib/course-operations/webinar-proximity";
+import { COURSE_PAGE_LINKS } from "@/lib/course-operations/course-page-links";
 import { formatDashboardCohort, formatDashboardWebinarDate } from "@/lib/dashboard/course-metadata";
 
 type ViewMode = "cards" | "list" | "calendar";
@@ -38,6 +39,24 @@ function CourseSectionHeading({ title, count }: { title: string; count: number }
     <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
     <span className="text-sm tabular-nums text-muted-foreground">{count}개</span>
   </div>;
+}
+
+function CourseMetadata({ course, today }: { course: CourseSummary; today: string }) {
+  return <p className="text-xs text-muted-foreground">
+    {course.instructor_name || "강사 미지정"} | {formatDashboardCohort(course.cohort)} | {formatWebinarCountdownLabel(course.free_webinar_at, today) || "일정 미정"}
+  </p>;
+}
+
+function CoursePageLinkCount({ filled }: { filled: number }) {
+  const missing = COURSE_PAGE_LINKS.length - filled;
+  return <span className="inline-flex items-center gap-2">
+    <Badge variant="outline" className={missing === 0
+      ? "border-green-300 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
+      : "border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"}>
+      {filled}/{COURSE_PAGE_LINKS.length}
+    </Badge>
+    {missing > 0 && <span className="text-xs text-muted-foreground">미입력 {missing}개</span>}
+  </span>;
 }
 
 function CourseActionsMenu({ course }: { course: CourseSummary }) {
@@ -64,19 +83,21 @@ function CourseCards({ courses, todayKoreaDate, subdued = false }: {
             {course.name}
           </Link>
         </CardTitle>
-        <p className="truncate text-sm text-muted-foreground" title={`${course.instructor_name || "강사 미지정"} | ${formatCourseListWebinarDate(course.free_webinar_at)} | ${formatDashboardCohort(course.cohort)}`}>
-          {course.instructor_name || "강사 미지정"} | {formatCourseListWebinarDate(course.free_webinar_at)} | {formatDashboardCohort(course.cohort)}
-        </p>
+        <CourseMetadata course={course} today={todayKoreaDate} />
       </CardHeader>
       <div className="px-5"><ChatAudienceNotice message={course.chatAudienceAlert} /></div>
       <dl className="mt-auto grid grid-cols-2 border-t text-sm">
-        <div className="col-span-2 border-b px-5 py-4">
+        <div className="border-b px-5 py-4">
           <dt className="text-xs text-muted-foreground">신청자DB숫자</dt>
           <dd className="mt-1 font-medium tabular-nums">{course.free_applicant_count == null ? "—" : number.format(course.free_applicant_count)}</dd>
         </div>
+        <div className="border-b border-l px-5 py-4">
+          <dt className="text-xs text-muted-foreground">강의 페이지 링크</dt>
+          <dd className="mt-1"><CoursePageLinkCount filled={course.course_page_link_count} /></dd>
+        </div>
         <div className="px-5 py-4">
-          <dt className="text-xs text-muted-foreground">웨비나까지</dt>
-          <dd className="mt-1 font-medium tabular-nums">{formatWebinarCountdown(course.free_webinar_at, todayKoreaDate) || "일정 미정"}</dd>
+          <dt className="text-xs text-muted-foreground">웨비나 날짜</dt>
+          <dd className="mt-1 font-medium tabular-nums">{formatCourseListWebinarDate(course.free_webinar_at)}</dd>
         </div>
         <div className="border-l px-5 py-4">
           <dt className="text-xs text-muted-foreground">WBS 일정</dt>
@@ -138,16 +159,16 @@ function CourseTable({ courses, todayKoreaDate, subdued = false }: {
   if (!courses.length) return <div className="rounded-xl border border-dashed bg-background px-5 py-10 text-center text-sm text-muted-foreground">표시할 강의가 없습니다.</div>;
   return <Card className={`gap-0 overflow-hidden py-0 shadow-none ${subdued ? "bg-muted/30" : ""}`}>
     <Table>
-      <TableHeader><TableRow><TableHead>강사명</TableHead><TableHead>기수</TableHead><TableHead>강의명</TableHead><TableHead>웨비나 날짜</TableHead><TableHead>웨비나까지</TableHead><TableHead>WBS 일정</TableHead><TableHead className="text-right">신청자DB숫자</TableHead>{!subdued ? <TableHead>광고접수 DB 단가</TableHead> : null}<TableHead className="w-16 text-right">관리</TableHead></TableRow></TableHeader>
+      <TableHeader><TableRow><TableHead>강의명</TableHead><TableHead>웨비나 날짜</TableHead><TableHead>강의 페이지 링크</TableHead><TableHead>WBS 일정</TableHead><TableHead className="text-right">신청자DB숫자</TableHead>{!subdued ? <TableHead>광고접수 DB 단가</TableHead> : null}<TableHead className="w-16 text-right">관리</TableHead></TableRow></TableHeader>
       <TableBody>{courses.map((course) => <TableRow key={course.id} className={subdued ? "text-muted-foreground" : ""}>
-        <TableCell className="font-medium">{course.instructor_name || "강사 미지정"}</TableCell>
-        <TableCell>{course.cohort ? `${course.cohort}기` : "-"}</TableCell>
-        <TableCell><Link href={`/services/course-operations/${course.id}`} className="font-medium hover:underline">{course.name}</Link><ChatAudienceNotice message={course.chatAudienceAlert} /></TableCell>
+        <TableCell>
+          <Link href={`/services/course-operations/${course.id}`} className="font-medium hover:underline">{course.name}</Link>
+          <CourseMetadata course={course} today={todayKoreaDate} />
+          <ChatAudienceNotice message={course.chatAudienceAlert} />
+        </TableCell>
         <TableCell>{formatCourseListWebinarDate(course.free_webinar_at)}</TableCell>
         <TableCell>
-          <Badge variant="outline">
-            {formatWebinarCountdown(course.free_webinar_at, todayKoreaDate) || "일정 미정"}
-          </Badge>
+          <CoursePageLinkCount filled={course.course_page_link_count} />
         </TableCell>
         <TableCell>
           <Badge variant={course.wbs_overdue_item_count > 0 ? "destructive" : "secondary"}>

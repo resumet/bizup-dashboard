@@ -96,6 +96,7 @@ export type CourseOperationsInput = Omit<
 };
 
 export type CourseSummary = {
+  course_page_link_count: number;
   chatAudienceAlert?: string;
   id: string;
   status: CourseStatus;

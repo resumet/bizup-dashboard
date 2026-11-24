@@ -26,6 +26,7 @@ function course(overrides: Partial<CourseSummary> = {}): CourseSummary {
     nova_settled: false,
     instructor_settled: false,
     landing_page_link: "https://example.com/landing",
+    course_page_link_count: 2,
     free_kakao_room_1_link: "https://example.com/free",
     free_kakao_room_2_link: "",
     paid_kakao_room_link: "https://example.com/paid",

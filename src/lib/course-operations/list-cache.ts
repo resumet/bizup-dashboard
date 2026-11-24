@@ -8,6 +8,7 @@ import { toKoreaDate } from "./schedule";
 import { normalizeRequiredTasks } from "./required-tasks";
 import { summarizeCourseAdLeadCosts } from "./ad-performance-costs";
 import type { CourseSummary } from "./types";
+import { countCoursePageLinks } from "./course-page-links";
 
 export const COURSE_OPERATIONS_LIST_CACHE_TAG = "course-operations-list";
 export const COURSE_OPERATIONS_LIST_REVALIDATE_SECONDS = 300;
@@ -36,7 +37,7 @@ const loadCachedCourseSummaries = unstable_cache(
       admin
         .from("courses")
         .select(
-          "id,status,name,instructor_name,banner_image_path,free_webinar_at,starts_at,updated_at,cohort,nova_settled,instructor_settled,landing_page_link,free_kakao_room_1_link,free_kakao_room_2_link,paid_kakao_room_link,payment_link,curriculum_link,course_materials_link,required_tasks,course_options(count),course_jobs(count),message_studio_projects(count)",
+          "id,status,name,instructor_name,banner_image_path,free_webinar_at,starts_at,updated_at,cohort,nova_settled,instructor_settled,landing_page_link,landing_page_qr_link,basic_payment_page_link,inquiry_link,free_kakao_room_1_link,free_kakao_room_2_link,paid_kakao_room_link,payment_link,curriculum_link,course_materials_link,required_tasks,course_options(count),course_jobs(count),message_studio_projects(count)",
         )
         .eq("workspace_id", workspaceId)
         .order("updated_at", { ascending: false }),
@@ -100,6 +101,7 @@ const loadCachedCourseSummaries = unstable_cache(
 
     return (coursesResult.data ?? []).map((course) => ({
       ...course,
+      course_page_link_count: countCoursePageLinks(course),
       course_options: Array.from({ length: course.course_options?.[0]?.count ?? 0 }, (_, index) => ({ id: String(index) })),
       course_jobs: Array.from({ length: course.course_jobs?.[0]?.count ?? 0 }, (_, index) => ({ id: String(index) })),
       message_studio_projects: Array.from({ length: course.message_studio_projects?.[0]?.count ?? 0 }, (_, index) => ({ id: String(index) })),
@@ -112,7 +114,7 @@ const loadCachedCourseSummaries = unstable_cache(
       free_applicant_count: applicantsByCourse.get(course.id) ?? null,
     })) as CourseSummary[];
   },
-  [COURSE_OPERATIONS_LIST_CACHE_TAG, "free-applicant-count-v1"],
+  [COURSE_OPERATIONS_LIST_CACHE_TAG, "course-page-link-count-v1"],
   {
     tags: [COURSE_OPERATIONS_LIST_CACHE_TAG],
     revalidate: COURSE_OPERATIONS_LIST_REVALIDATE_SECONDS,

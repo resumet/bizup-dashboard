@@ -20,6 +20,7 @@ import { CourseNotesCard } from "@/components/course-operations/course-notes-car
 import { CourseLandingUtms } from "@/components/course-operations/course-landing-utms";
 import { CourseShareDialog } from "@/components/course-operations/course-share-dialog";
 import { LinkCopyDialog } from "@/components/course-operations/link-copy-dialog";
+import { COURSE_PAGE_LINKS } from "@/lib/course-operations/course-page-links";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -131,14 +132,8 @@ type CourseLinkFieldKey =
   | "preQuestionFormLink"
   | "preQuestionResponsesLink";
 
-const COURSE_LINK_GROUPS: Array<{ title: string; items: Array<{ field: CourseLinkFieldKey; label: string }> }> = [
-  { title: "강의 페이지", items: [
-    { field: "landingPageLink", label: "기본 랜딩페이지" },
-    { field: "landingPageQrLink", label: "기본 랜딩 QR" },
-    { field: "basicPaymentPageLink", label: "기본 결제페이지" },
-    { field: "paymentLink", label: "결제페이지 QR" },
-    { field: "inquiryLink", label: "문의하기 QR" },
-  ] },
+const COURSE_LINK_GROUPS: Array<{ title: string; items: ReadonlyArray<{ field: CourseLinkFieldKey; label: string }> }> = [
+  { title: "강의 페이지", items: COURSE_PAGE_LINKS },
   { title: "소통링크", items: [
     { field: "freeKakaoRoom1Link", label: "무료단톡방1" },
     { field: "freeKakaoRoom2Link", label: "무료단톡방2" },

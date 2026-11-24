@@ -25,11 +25,19 @@ export function formatWebinarCountdown(
   freeWebinarAt: string,
   todayKoreaDate: string,
 ) {
+  const label = formatWebinarCountdownLabel(freeWebinarAt, todayKoreaDate);
+  return label ? `(${label})` : "";
+}
+
+export function formatWebinarCountdownLabel(
+  freeWebinarAt: string,
+  todayKoreaDate: string,
+) {
   const days = getWebinarDayDifference(freeWebinarAt, todayKoreaDate);
   if (days === null) return "";
-  if (days > 0) return `(D-${days}일)`;
-  if (days === 0) return "(D-Day)";
-  return `(D+${Math.abs(days)}일)`;
+  if (days > 0) return `D-${days}일`;
+  if (days === 0) return "D-Day";
+  return `D+${Math.abs(days)}일`;
 }
 
 export function sortByNearestWebinar<
