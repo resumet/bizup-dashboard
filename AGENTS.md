@@ -28,6 +28,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `ToastProvider`는 루트 레이아웃에 한 번만 둔다. 토스트는 하단 중앙, 성공·안내 4초/오류 8초 자동 닫힘, 수동 닫기, 포커스·마우스 진입 시 일시정지, 스크린리더 알림을 공통으로 제공한다. 페이지별 위치·타이머·Portal을 추가하지 않는다.
 - 입력 필드 검증, 최초 조회 실패와 재시도, 진행 상태, 삭제 확인 대화상자, 지속적으로 확인해야 하는 업무 데이터는 해당 위치에 유지한다. 저장·삭제 결과 알림과 혼동하지 않는다.
 
+## Short-link type registry
+
+- 짧은 주소 발급 API의 type은 `src/lib/short-links/types.ts`의 `SHORT_LINK_TYPES`에서 관리한다. 발급 기능은 이 목록을 참조하고 화면별로 타입을 하드코딩하지 않는다.
+- 새 type 생성·추가 요청을 받으면 구현 전에 반드시 이 목록을 확인한다. 이미 등록된 값이면 기존 용도를 사용자에게 먼저 알리고, 다른 용도로 재배정하는 작업은 진행하지 않는다. 사용자가 기존 용도 재사용을 요청한 경우에만 그대로 사용한다.
+- 현재 배정: `0000` = 기본 랜딩 QR (`landingPageLink` → `landingPageQrLink`), `0001` = 결제페이지 QR (`basicPaymentPageLink` → `paymentLink`). 새 배정은 목록과 관련 문서를 함께 갱신한다. 기존 코드는 변경·재사용하지 않는다.
+- type은 앞자리 0을 유지하는 4자리 숫자 문자열이며, 같은 강의·type은 외부 API에서 같은 링크로 취급된다.
+
 ## Deployment workflow
 
 When the user asks to deploy or apply changes, use the Git-backed production workflow unless they explicitly request a preview or a local-only deployment.
