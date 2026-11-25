@@ -33,6 +33,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - 짧은 주소 유형의 기준은 BZUP Link 서버의 `GET /api/v1/short-link-types`다. 서버 전용 `src/lib/short-links/client.ts`의 `listShortLinkTypes()`로 조회한다. 숫자 `type`과 호환 매핑은 사용하지 않는다.
 - 새 type_key 생성·추가 요청을 받으면 구현 전에 반드시 서버 목록과 `src/lib/short-links/types.ts`의 화면 연결 목록을 확인한다. 이미 등록된 key면 기존 용도를 사용자에게 먼저 알리고, 다른 용도로 재배정하지 않는다. 목록 조회 실패 시 임의의 key를 만들지 않는다. 새 유형은 BZUP Link 운영자에게 등록을 요청한다.
 - 현재 화면 연결: `landing` = 기본 랜딩 QR (`landingPageLink` → `landingPageQrLink`), `payment` = 결제페이지 QR (`basicPaymentPageLink` → `paymentLink`). 화면 연결은 `SHORT_LINK_TYPES`에서 관리한다.
+- `aftersales` = 사후 세일즈 공개 주소 → 강의 `free_gift_link` 자동 저장. `POST_SALES_SHORT_LINK_TYPE`에 정의하고 사후 세일즈 저장 흐름에서 공통 서버 발급 함수를 호출한다. 최초 미공개 초안에는 공개 주소가 없으므로 발급하지 않는다.
 - 화면은 공통 `src/lib/short-links/browser.ts`의 `issueCourseShortLink()`를 호출한다. 외부 API 인증·유형 조회·발급·409 처리·오류 변환은 서버 전용 `createShortLink()` 한곳에서 관리한다. 화면별 fetch/외부 API 호출을 복제하지 않는다. 동일 강의·type_key는 하나의 링크다.
 
 ## Deployment workflow

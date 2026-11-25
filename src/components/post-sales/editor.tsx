@@ -73,7 +73,8 @@ export function SalesEditor({ course, videos, ...initial }: Props) {
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || "이미지를 저장하지 못했습니다.");
       setDraft(next); setRevision(result.revision); setPublicUrl(result.publicUrl || "");
-      toast(file ? "이미지를 초안에 저장했습니다." : "이미지를 초안에서 삭제했습니다.");
+      if (result.shortLinkWarning) toast(result.shortLinkWarning, { tone: "error" });
+      else toast(file ? "이미지를 초안에 저장했습니다." : "이미지를 초안에서 삭제했습니다.");
       return true;
     } catch (error) { toast(error instanceof Error ? error.message : "이미지를 저장하지 못했습니다.", { tone: "error" }); return false; }
     finally { pending.current = false; setBusy(""); }
@@ -97,9 +98,11 @@ export function SalesEditor({ course, videos, ...initial }: Props) {
           toast(result.enabled ? "공개 주소를 활성화했습니다." : "공개 주소를 비활성화했습니다.");
         } else if (action === "publish") {
           setEnabled(true);
-          toast("외부에 공개하고 강의에 링크를 저장했습니다.");
+          if (result.shortLinkWarning) toast(result.shortLinkWarning, { tone: "error" });
+          else toast("외부에 공개하고 강의에 짧은 주소를 저장했습니다.");
           router.refresh();
-        } else toast("초안을 저장했습니다.");
+        } else if (result.shortLinkWarning) toast(result.shortLinkWarning, { tone: "error" });
+        else toast(result.shortUrl ? "초안을 저장하고 강의에 짧은 주소를 저장했습니다." : "초안을 저장했습니다.");
       }
     } catch (error) { toast(error instanceof Error ? error.message : "요청을 처리하지 못했습니다.", { tone: "error" }); }
     finally { pending.current = false; setBusy(""); }

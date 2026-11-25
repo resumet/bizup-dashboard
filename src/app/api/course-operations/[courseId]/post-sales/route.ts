@@ -5,6 +5,7 @@ import { invalidateCourseOperationsList } from "@/lib/course-operations/list-cac
 import { salesContext, salesVideos } from "@/lib/post-sales/server";
 import { draftSchema, salesSnapshot, webLink } from "@/lib/post-sales/model";
 import { checkDriveAccess } from "@/lib/post-sales/drive";
+import { syncPostSalesShortLink } from "@/lib/post-sales/short-link";
 
 const requestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("check-drive"), url: z.string().max(2048) }),
@@ -48,10 +49,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ cou
       return Response.json({ message: "다른 화면에서 정보가 변경되었습니다. 새로고침 후 다시 저장해 주세요." }, { status: 409 });
     }
     if (error) throw new Error("사후 세일즈 페이지를 저장하지 못했습니다.");
-    if (publish) {
+    const linkResult = await syncPostSalesShortLink({
+      courseId, courseName: ctx.course.name, publicUrl: data.publicUrl,
+    }, async (url) => {
+      const result = await ctx.admin.from("courses").update({ free_gift_link: url, updated_at: new Date().toISOString() })
+        .eq("id", courseId).eq("workspace_id", ctx.workspaceId).select("id").single();
+      if (result.error || !result.data) throw new Error("short_link_save_failed");
+    });
+    if (publish || linkResult.shortUrl) {
       invalidateCourseOperationsList();
       revalidatePath(`/services/course-operations/${courseId}`);
     }
-    return Response.json(data);
+    return Response.json({ ...data, ...linkResult });
   } catch (error) { return courseOperationsApiError(error); }
 }

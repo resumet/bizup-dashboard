@@ -17,3 +17,10 @@
 - 기본 랜딩 QR은 `type_key: "landing"`과 기본 랜딩페이지 입력값을 사용한다. 결제페이지 QR은 `type_key: "payment"`와 기본 결제페이지 입력값을 사용한다. 발급 결과는 해당 QR 입력창에 넣고 강의 저장 버튼으로 저장한다. 다른 필드의 미저장 입력은 유지하고 발급 중 중복 클릭과 강의 저장을 막는다.
 - 전환 근거: `docs/dashboard-short-link-type-key-handoff.md`, 공식 명세 `https://bizup.im/openapi.yaml` (2.0.0). 원본 페이지 URL과 다른 서비스의 QR은 정리 대상이 아니다. 삭제된 bizup.im 주소는 404 확인 후 해당 값만 조건부로 비운다.
 - 2026-11-26 전환 시 공용 워크스페이스에서 기존 bizup.im QR 1건의 404를 확인하여 해당 기본 랜딩 QR 값만 비웠고, DB 재조회로 확인했다. 스키마 변경은 없다.
+
+## 사후 세일즈 자동 연결
+
+- `POST_SALES_SHORT_LINK_TYPE.typeKey = "aftersales"`. 공개 주소가 있는 사후 세일즈를 저장·공개할 때 `syncPostSalesShortLink()`가 공통 `createShortLink()`를 호출하고 결과를 해당 강의의 `free_gift_link`에 저장한다. 홍보컨텐츠의 사후 세일즈 링크에 표시된다.
+- 첫 미공개 초안은 공개 주소가 없어 발급하지 않는다. 최초 외부공개부터 자동 연결하며, 이후 초안·이미지 저장도 실패했던 링크 연결을 재시도한다.
+- 페이지 저장 RPC는 원본 주소로 강의 링크를 덮어쓰지 않는다. 발급·연결 실패 시 본문과 최신 revision은 정상 반환하고 `shortLinkWarning`을 공통 Toast로 표시한다. 기존 강의 링크는 그대로 유지한다.
+- `aftersales`가 서버에 미등록이면 임의로 생성하거나 대체하지 않고 공통 함수의 유형 확인 오류를 안내한다.

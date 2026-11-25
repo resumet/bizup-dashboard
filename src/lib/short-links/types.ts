@@ -16,10 +16,13 @@ export const SHORT_LINK_TYPES = {
 
 export type ShortLinkField = keyof typeof SHORT_LINK_TYPES;
 
+// Automatically synchronized after a post-sales page has a public URL.
+export const POST_SALES_SHORT_LINK_TYPE = { typeKey: "aftersales", label: "사후 세일즈", sourceField: "publicUrl", targetField: "freeGiftLink" } as const;
+
 export function isShortLinkField(field: string): field is ShortLinkField {
   return Object.hasOwn(SHORT_LINK_TYPES, field);
 }
 
 export function findShortLinkType(typeKey: string) {
-  return Object.values(SHORT_LINK_TYPES).find(item => item.typeKey === typeKey);
+  return [...Object.values(SHORT_LINK_TYPES), POST_SALES_SHORT_LINK_TYPE].find(item => item.typeKey === typeKey);
 }

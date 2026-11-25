@@ -57,6 +57,7 @@ test("초안과 공개본 분리, 최초 공개·재공개 링크 저장, 동시
   try {
     await db.exec("create role anon; create role authenticated; create role service_role bypassrls; create table courses(id uuid primary key, workspace_id uuid, payment_link text, free_gift_link text, updated_at timestamptz);");
     await db.exec(await readFile("supabase/migrations/20261120041516_course_post_sales_pages.sql", "utf8"));
+    await db.exec(await readFile("supabase/migrations/20261125165300_post_sales_short_link_ownership.sql", "utf8"));
     const course = "00000000-0000-4000-8000-000000000001", workspace = "00000000-0000-4000-8000-000000000002";
     await db.query("insert into courses values($1,$2,'https://example.org/pay','legacy',now())", [course, workspace]);
     const save = async (revision: number, title: string, publish: boolean, ws = workspace) => {
@@ -72,11 +73,13 @@ test("초안과 공개본 분리, 최초 공개·재공개 링크 저장, 동시
     assert.match(published.publicUrl!, /^https:\/\/example.org\/public\/post-sales\//);
     await save(2, "편집 중", false);
     const row = (await db.query<{ title:string; link:string }>("select published->>'title' title, c.free_gift_link link from course_post_sales_pages join courses c on c.id=course_id")).rows[0];
-    assert.deepEqual(row, { title: "첫 공개", link: published.publicUrl });
+    assert.deepEqual(row, { title: "첫 공개", link: "legacy" });
+    await db.exec("update courses set free_gift_link='https://bizup.im/saved'");
     await assert.rejects(save(2, "충돌", true), /STALE_REVISION/);
     await assert.rejects(save(3, "타 워크스페이스", true, course), /NOT_FOUND/);
     const next = await save(3, "수정 공개", true);
     assert.equal(next.publicUrl, published.publicUrl);
+    assert.equal((await db.query<{ link: string }>("select free_gift_link link from courses")).rows[0].link, "https://bizup.im/saved");
     await db.exec(await readFile("supabase/migrations/20261120083952_post_sales_public_access.sql", "utf8"));
     const visible = async () => (await db.query<{ title: string }>(
       "select published->>'title' title from course_post_sales_pages where public_url=$1 and public_enabled and published is not null", [next.publicUrl]
