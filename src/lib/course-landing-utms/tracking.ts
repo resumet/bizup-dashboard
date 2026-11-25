@@ -7,6 +7,7 @@ const mediaLabels = new Map(Object.entries({
   naver_cafe: "네이버 카페", kakao_free_lecture: "무료강의 안내방", threads: "쓰레드",
   daungeun: "당근", LgT3ax: "강사인스타그램", tH68Mi: "문자메시지", "4GRWEC": "블로그",
   UwXIWr: "카카오모먼트", QxUfOJ: "페이드",
+  y7RRLt: "현장속으로_메타", nFTpN3: "현장속으로_구글",
 }));
 
 function trackingPayload(text: string): string {

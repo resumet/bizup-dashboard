@@ -9,6 +9,7 @@ const flight = (rows: unknown[]) => "b:" + JSON.stringify(["$", "component", nul
   influencerUsers: [
     { username: "늦지않았다", ErpUserReferralLink: [{ code: "old-code" }, { code: "6n3y5y" }] },
     { username: "초월스토리", ErpUserReferralLink: [{ code: "6uq51m" }] },
+    { username: "현장속으로_자체MCN", ErpUserReferralLink: [{ code: "mcn" }] },
   ],
   paidPlatforms: [{ code: "grossimpact", name: "그로스임팩트" }],
   referralLinks: rows,
@@ -42,6 +43,15 @@ test("저장 계정으로 로그인한 뒤 해당 강의의 매체별 UTM과 단
   assert.equal(rows[0].url, affiliate.urlLink);
   assert.equal(rows[0].short_url, affiliate.shortUrl);
   assert.equal(rows[1].short_url, "");
+  const mcnLinks = ["y7RRLt", "nFTpN3"].map(media => ({
+    ...affiliate, urlLink: `${landing}?channel=influencer&code=mcn&media=${media}`,
+  }));
+  const mcnRows = await read(flight(mcnLinks));
+  assert.deepEqual(mcnRows.map(row => [row.channel, row.referral_code, row.medium]), [
+    ["제휴", "현장속으로_자체MCN", "현장속으로_메타"],
+    ["제휴", "현장속으로_자체MCN", "현장속으로_구글"],
+  ]);
+  assert.deepEqual(mcnRows.map(row => row.url), mcnLinks.map(link => link.urlLink));
   const chunks = ["7:T5,hellob:".concat(payload.slice(2, 40)), payload.slice(40)];
   assert.deepEqual(await read(chunks.map(chunk => `<script>self.__next_f.push([1,${JSON.stringify(chunk)}])</script>`).join("")), rows);
   assert.deepEqual(await read(flight([])), []);
