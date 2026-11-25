@@ -193,7 +193,7 @@ export function SharedCalendar({ today, initialDate = today, currentUserId, init
         date.slice(0, 7) !== month && "bg-muted/30",
         selectedDate === date && "bg-blue-50/60",
         date === today && "ring-2 ring-inset ring-blue-500",
-        dropDate === date ? "bg-blue-100 ring-2 ring-inset ring-blue-500" : "hover:bg-yellow-50",
+        dropDate === date ? "bg-blue-100 ring-2 ring-inset ring-blue-500" : "hover:bg-[#ffeb3b]",
       )}>
         <button type="button" aria-label={`${date} 일정 보기${holidayNames.length ? `, 공휴일 ${holidayNames.join(", ")}` : ""}`} aria-pressed={selectedDate === date} onClick={(e) => { setSelectedDate(date); if (e.detail === 0) addOnDate(date); }} className={cn("grid size-[24px] shrink-0 place-items-center rounded-full text-sm focus-visible:outline-2 focus-visible:outline-ring", date === today && "bg-primary text-primary-foreground", date !== today && holidayNames.length > 0 && "text-red-600", date.slice(0, 7) !== month && "opacity-50")}>{Number(date.slice(8))}</button>
           {holidayNames.length ? <p data-calendar-holiday title={holidayNames.join(", ")} className="truncate px-1 text-[10px] font-medium text-red-600 sm:px-2 sm:text-xs">{holidayNames.join(", ")}</p> : null}
