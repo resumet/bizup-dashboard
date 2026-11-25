@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { createShortLink, ShortLinkError, shortLinkInputSchema } from "@/lib/short-links/client";
+import { createShortLink, ShortLinkError } from "@/lib/short-links/client";
+import { shortLinkInputSchema } from "@/lib/short-links/model";
 import { requireCourseOperationsMembership } from "@/lib/course-operations/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -16,7 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cou
     if (!z.string().uuid().safeParse(courseId).success) return Response.json({ message: "강의 UUID가 올바르지 않습니다." }, { status: 400, headers });
     const body = await request.json().catch(() => null);
     const parsed = shortLinkInputSchema.omit({ course_id: true }).safeParse(body);
-    if (!parsed.success) return Response.json({ message: "4자리 타입, 연결 주소와 이름을 확인해 주세요." }, { status: 400, headers });
+    if (!parsed.success) return Response.json({ message: "유형 식별자, 연결 주소와 이름을 확인해 주세요." }, { status: 400, headers });
     const membership = await requireCourseOperationsMembership(user.id);
     const { data: course, error } = await createAdminClient().from("courses").select("id").eq("id", courseId).eq("workspace_id", membership.workspace_id).maybeSingle();
     if (error) throw new Error("course_lookup_failed");

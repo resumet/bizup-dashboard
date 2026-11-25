@@ -25,6 +25,7 @@ import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu
 import { LinkCopyDialog } from "@/components/course-operations/link-copy-dialog";
 import { COURSE_PAGE_LINKS } from "@/lib/course-operations/course-page-links";
 import { SHORT_LINK_TYPES, isShortLinkField, type ShortLinkField } from "@/lib/short-links/types";
+import { issueCourseShortLink } from "@/lib/short-links/browser";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -615,13 +616,10 @@ export function CourseOperationsEditor({
     issuingQrRef.current = true;
     setIssuingQrField(field);
     try {
-      const response = await fetch(`/api/course-operations/${courseId}/short-links`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: config.type, destination_url: destinationUrl, name: `${draft.name || "강의"} ${config.label}`.slice(0, 120) }),
+      const result = await issueCourseShortLink({
+        course_id: courseId, type_key: config.typeKey,
+        destination_url: destinationUrl, name: `${draft.name || "강의"} ${config.label}`.slice(0, 120),
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message || "짧은 주소를 발급하지 못했습니다.");
       setDraft(current => ({ ...current, [field]: result.short_url }));
       toast(result.existing ? "기존 짧은 주소를 입력했습니다. 강의를 저장해 주세요." : "짧은 주소를 발급했습니다. 강의를 저장해 주세요.");
     } catch (cause) {
