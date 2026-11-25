@@ -395,6 +395,8 @@ export function CourseOperationsEditor({
     };
   });
   const [saving, setSaving] = useState(false);
+  const [issuingLandingQr, setIssuingLandingQr] = useState(false);
+  const issuingLandingQrRef = useRef(false);
   const [savedBannerUrl, setSavedBannerUrl] = useState(initialBannerUrl);
   const [bannerSelection, setBannerSelection] = useState<{
     file: File;
@@ -602,6 +604,31 @@ export function CourseOperationsEditor({
     void loadDetailSection(section);
   }
 
+  async function issueLandingQr() {
+    if (issuingLandingQrRef.current) return;
+    if (!courseId) { toast("강의를 먼저 저장해 주세요.", { tone: "info" }); return; }
+    const destinationUrl = getOpenableLink(draft.landingPageLink.trim());
+    if (!destinationUrl) { toast("기본 랜딩페이지에 올바른 http/https 주소를 입력해 주세요.", { tone: "error" }); return; }
+    issuingLandingQrRef.current = true;
+    setIssuingLandingQr(true);
+    try {
+      const response = await fetch(`/api/course-operations/${courseId}/short-links`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "0000", destination_url: destinationUrl, name: `${draft.name || "강의"} 기본 랜딩 QR`.slice(0, 120) }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || "짧은 주소를 발급하지 못했습니다.");
+      setDraft(current => ({ ...current, landingPageQrLink: result.short_url }));
+      toast(result.existing ? "기존 짧은 주소를 입력했습니다. 강의를 저장해 주세요." : "짧은 주소를 발급했습니다. 강의를 저장해 주세요.");
+    } catch (cause) {
+      toast(cause instanceof Error ? cause.message : "짧은 주소를 발급하지 못했습니다.", { tone: "error" });
+    } finally {
+      issuingLandingQrRef.current = false;
+      setIssuingLandingQr(false);
+    }
+  }
+
   function updateField(
     field: Exclude<
       keyof CourseOperationsDraft,
@@ -740,6 +767,7 @@ export function CourseOperationsEditor({
   }
 
   async function saveCourse() {
+    if (issuingLandingQrRef.current) return;
     setSaving(true);
     setError("");
     setNotice("");
@@ -878,7 +906,7 @@ export function CourseOperationsEditor({
               liveVideos: draft.liveVideos,
             }}
           />
-          <Button className="min-h-10" onClick={saveCourse} disabled={saving}>
+          <Button className="min-h-10" onClick={saveCourse} disabled={saving || issuingLandingQr}>
             {saving ? <Loader2 className="animate-spin" /> : <Save />}
             {saving ? "저장 중" : courseId ? "변경사항 저장" : "강의 만들기"}
           </Button>
@@ -1280,6 +1308,7 @@ export function CourseOperationsEditor({
                     label={item.label}
                     value={draft[item.field]}
                     onChange={updateField}
+                    action={item.field === "landingPageQrLink" ? <Button type="button" variant="outline" className="h-10 shrink-0" disabled={saving || issuingLandingQr} onClick={() => void issueLandingQr()}>{issuingLandingQr ? "발급 중…" : "발급"}</Button> : undefined}
                   />
                 ))}
               </div>
@@ -2014,7 +2043,7 @@ export function CourseOperationsEditor({
       </Tabs>
 
       <div className="flex justify-end border-t pt-6">
-        <Button className="min-h-10" onClick={saveCourse} disabled={saving}>
+        <Button className="min-h-10" onClick={saveCourse} disabled={saving || issuingLandingQr}>
           {saving ? <Loader2 className="animate-spin" /> : <Save />}
           {saving ? "저장 중" : courseId ? "강의 정보 저장" : "강의 만들기"}
         </Button>
