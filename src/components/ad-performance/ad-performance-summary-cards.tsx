@@ -80,10 +80,10 @@ export function AdPerformanceSummaryCards({ metrics, totalBudget, organicChannel
     {!showPaidMetrics && <MetricCard title="광고비 집행" columns={[
       { key: "budget", label: "설정 광고비", value: formatWon(totalBudget), valueLabel: "전체 설정 광고비" },
       { key: "spent", label: "사용 광고비", value: formatWon(summary.spend), valueLabel: "현재 사용 광고비" },
-      { key: "rate", label: "소진율", value: percentage(summary.spend, totalBudget), valueLabel: "광고비 소진율" },
+      { key: "remaining", label: "남은 광고비", value: totalBudget > 0 ? formatWon(summary.remainingBudget) : "예산 미설정", valueLabel: "남은 광고비" },
     ]} footer={<dl className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t pt-3 text-sm text-foreground">
-      <dt>남은 광고비</dt>
-      <dd className="font-semibold tabular-nums">{totalBudget > 0 ? formatWon(summary.remainingBudget) : "예산 미설정"}</dd>
+      <dt>소진율</dt>
+      <dd className="font-semibold tabular-nums" aria-label="광고비 소진율">{percentage(summary.spend, totalBudget)}</dd>
     </dl>} />}
     {showPaidMetrics && <>
       <MetricCard title="집행비용" columns={spendColumns} />
