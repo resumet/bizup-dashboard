@@ -98,7 +98,7 @@ function readAnswers(form: HTMLFormElement): Answers {
   const evidenceRowCount = Math.min(30, Math.max(0, Number(text("evidenceRowCount")) || EVIDENCE_AVAILABILITY_ITEMS.length));
   const availableStudents = number("availableStudents");
   return {
-    youtubeApplication: Object.fromEntries(YOUTUBE_APPLICATION_FIELDS.map(({ key }) => [key, text(`youtube-${key}`)])),
+    youtubeApplication: Object.fromEntries(YOUTUBE_APPLICATION_FIELDS.filter(({ key }) => key !== "youtubeUrls").map(({ key }) => [key, text(`youtube-${key}`)])),
     realName: text("realName"), nickname: text("nickname"), phone: text("phone"), email: text("email"), lectureItem: text("lectureItem"),
     residence: text("residence"), filmingLocations: text("filmingLocations"),
     careerAndFilmingMaterials: text("careerAndFilmingMaterials"), practicalProcess: text("practicalProcess"),
@@ -325,12 +325,17 @@ export function IntakeForm({ token, initialAnswers, initialPhotos, initialImages
       <section className={sectionClass}><h2 className="text-lg font-semibold">계정 설정 정보</h2><div className="space-y-4"><div className="flex flex-wrap items-center gap-2"><p className="font-medium">23. 인스타 신규계정 생성후 아이디, 비밀번호 (기존 계정이 있다면 해당 계정 정보) 등록</p><DescriptionLink fieldIndex={22} /></div><div className="grid gap-5 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="instagramAccountId">아이디</Label><Input id="instagramAccountId" name="instagramAccountId" maxLength={200} defaultValue={initialAnswers.instagramAccountId} /></div><div className="space-y-2"><Label htmlFor="instagramAccountPassword">비밀번호</Label><Input id="instagramAccountPassword" name="instagramAccountPassword" type="password" maxLength={500} defaultValue={initialAnswers.instagramAccountPassword} /></div></div></div><div className="space-y-2"><div className="flex gap-2"><Label htmlFor="blueBadge">24. 블루뱃지</Label><DescriptionLink fieldIndex={23} /></div><Textarea id="blueBadge" name="blueBadge" rows={3} maxLength={1000} defaultValue={initialAnswers.blueBadge} /></div><div className="space-y-2"><div className="flex gap-2"><Label htmlFor="twoFactorSecurity">25. 2차 보안</Label><DescriptionLink fieldIndex={24} /></div><Textarea id="twoFactorSecurity" name="twoFactorSecurity" rows={3} maxLength={1000} defaultValue={initialAnswers.twoFactorSecurity} /></div><div className="space-y-4"><div className="flex gap-2"><p className="font-medium">26. 인포크 링크 아이디, 비밀번호</p><DescriptionLink fieldIndex={25} /></div><div className="grid gap-5 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="infokLinkId">아이디</Label><Input id="infokLinkId" name="infokLinkId" maxLength={200} defaultValue={initialAnswers.infokLinkId} /></div><div className="space-y-2"><Label htmlFor="infokLinkPassword">비밀번호</Label><Input id="infokLinkPassword" name="infokLinkPassword" type="password" maxLength={500} defaultValue={initialAnswers.infokLinkPassword} /></div></div></div></section>
       <section className={sectionClass}>
         <h2 className="text-lg font-semibold">38. {YOUTUBE_APPLICATION_LABEL}</h2>
-        <p className="text-sm text-muted-foreground">유튜브 출연을 신청할 경우 해당하는 항목을 입력해 주세요.</p>
-        {YOUTUBE_APPLICATION_FIELDS.map(({ key, group, label }, index) => (
+        {YOUTUBE_APPLICATION_FIELDS.map(({ key, number, group, label, help }, index) => (
           <div key={key} className="space-y-2">
-            {group !== YOUTUBE_APPLICATION_FIELDS[index - 1]?.group && <h3 className="font-semibold">{group}</h3>}
-            <Label htmlFor={`youtube-${key}`}>38-{index + 1}. {label}</Label>
-            <Textarea id={`youtube-${key}`} name={`youtube-${key}`} rows={key === "scenes" ? 5 : 3} maxLength={8000} defaultValue={initialAnswers.youtubeApplication?.[key] ?? ""} />
+            {group && group !== YOUTUBE_APPLICATION_FIELDS[index - 1]?.group && <h3 className="font-semibold">{group}</h3>}
+            <Label htmlFor={`youtube-${key}`}>38-{number}. {label}</Label>
+            {key === "youtubeUrls" ? <>
+              <Textarea id="youtube-youtubeUrls" readOnly value={answers.youtubeUnavailable ? "유튜브 출연 영상 없음" : answers.youtubeUrls.join("\n")} placeholder="미입력" rows={3} />
+              <a className="text-sm text-primary underline" href="#youtubeUrls">18번에서 수정하기</a>
+            </> : <>
+              <Textarea id={`youtube-${key}`} name={`youtube-${key}`} rows={key === "scenes" ? 5 : 3} maxLength={8000} defaultValue={initialAnswers.youtubeApplication?.[key] ?? ""} aria-describedby={`youtube-${key}-help`} />
+              <p id={`youtube-${key}-help`} className="whitespace-pre-line text-sm text-muted-foreground">{help}</p>
+            </>}
           </div>
         ))}
       </section>

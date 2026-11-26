@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { EMPTY_ANSWERS, EMPTY_IMAGE_PATHS } from "./model";
+import { answersSchema, EMPTY_ANSWERS, EMPTY_IMAGE_PATHS } from "./model";
 import { instructorIntakeExportNames, instructorIntakeMarkdown } from "./export";
 
 test("사전조사 파일과 이미지 폴더 이름을 강사명과 강의명으로 만든다", () => {
@@ -9,6 +9,22 @@ test("사전조사 파일과 이미지 폴더 이름을 강사명과 강의명�
     markdown: "조은정-AI 강의-사전조사파일.md",
     imagesFolder: "조은정-AI 강의-사전조사-이미지",
   });
+});
+
+test("38번은 이전 신청서의 별도 영상·희망 채널 대신 18번과 같은 영상 목록 및 새 마무리 멘트를 출력한다", () => {
+  const video = "https://youtu.be/abcdefghijk";
+  const answers = answersSchema.parse({
+    ...EMPTY_ANSWERS,
+    youtubeUrls: [video],
+    youtubeApplication: { previousAppearances: "이전 영상 값", desiredChannels: "삭제된 희망 채널", outro: "함께해요." },
+  });
+  assert.deepEqual(answers.youtubeApplication, { outro: "함께해요." });
+  const markdown = instructorIntakeMarkdown(answers, 0, EMPTY_IMAGE_PATHS);
+  assert.ok(markdown.includes(`### 38-2. 이전 출연 영상 목록\n\n- ${video}`));
+  assert.doesNotMatch(markdown, /### 38-3\.|이전 영상 값|삭제된 희망 채널/);
+  assert.ok(markdown.includes("### 38-9. 마무리 멘트\n\n함께해요."));
+  const noVideos = instructorIntakeMarkdown({ ...answers, youtubeUrls: [], youtubeUnavailable: true }, 0, EMPTY_IMAGE_PATHS);
+  assert.ok(noVideos.includes("### 38-2. 이전 출연 영상 목록\n\n없음"));
 });
 
 test("사전조사 마크다운은 항목 번호, 제목, 입력 내용을 순서대로 보관한다", () => {

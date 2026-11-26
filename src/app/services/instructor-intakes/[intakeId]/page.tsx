@@ -64,8 +64,8 @@ export default async function InstructorIntakeDetail({ params }: { params: Promi
     <div key="career-materials" className="space-y-2"><p className="text-muted-foreground">{FILMING_INFO_GUIDANCE.careerAndFilmingMaterials}</p><div>{a.careerAndFilmingMaterials || "미입력"}</div></div>,
     <div key="practical-process" className="space-y-2"><p className="text-muted-foreground">{FILMING_INFO_GUIDANCE.practicalProcess}</p><div>{a.practicalProcess || "미입력"}</div></div>,
     <EvidenceAvailability key="evidence-availability" items={a.evidenceAvailability} />,
-    <dl key="youtube-application" className="space-y-4">{YOUTUBE_APPLICATION_FIELDS.map(({ key, label }, index) => (
-      <div key={key}><dt className="font-medium">38-{index + 1}. {label}</dt><dd>{a.youtubeApplication?.[key] || "미입력"}</dd></div>
+    <dl key="youtube-application" className="space-y-4">{YOUTUBE_APPLICATION_FIELDS.map(({ key, number, label }) => (
+      <div key={key}><dt className="font-medium">38-{number}. {label}</dt><dd>{key === "youtubeUrls" ? <Urls values={a.youtubeUrls} unavailable={a.youtubeUnavailable} /> : a.youtubeApplication?.[key] || "미입력"}</dd></div>
     ))}</dl>,
   ];
   return <main className="mx-auto max-w-5xl space-y-7 px-5 py-8">

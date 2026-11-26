@@ -180,19 +180,25 @@ export const DEFAULT_INTAKE_SETTINGS: IntakeSettings = { examples: DEFAULT_INTAK
 
 export const YOUTUBE_APPLICATION_LABEL = "유튜브 출연 신청서 정보";
 export const YOUTUBE_APPLICATION_FIELDS = [
-  { key: "onlineChannels", group: "온라인 채널 정보", label: "운영 중인 유튜브·인스타그램·블로그 링크" },
-  { key: "previousAppearances", group: "온라인 채널 정보", label: "이전 출연 영상 목록" },
-  { key: "desiredChannels", group: "출연 관련 희망 사항", label: "출연 희망 채널 및 개수" },
-  { key: "goals", group: "출연 관련 희망 사항", label: "이번 출연을 통해 기대하는 바" },
-  { key: "concept", group: "출연 관련 희망 사항", label: "희망 촬영 컨셉 및 레퍼런스" },
-  { key: "thumbnail", group: "출연 관련 희망 사항", label: "희망 썸네일 방향" },
-  { key: "intro", group: "출연 관련 희망 사항", label: "희망 인트로 멘트" },
-  { key: "scenes", group: "영상에 포함되었으면 하는 필수 장면", label: "촬영 장면·장소·소품 및 스토리보드" },
+  { number: 1, key: "onlineChannels", group: "온라인 채널 정보", label: "운영 중인 유튜브·인스타그램·블로그 링크", help: "- 유튜브: https://youtube.com/@yourchannel\n- 인스타그램: https://instagram.com/yourid" },
+  { number: 2, key: "youtubeUrls", group: "온라인 채널 정보", label: "이전 출연 영상 목록", help: "" },
+  { number: 4, key: "goals", group: "출연 관련 희망 사항", label: "이번 출연을 통해 기대하는 바", help: "예) 브랜딩 강화 / 수강생 모집 등" },
+  { number: 5, key: "concept", group: "출연 관련 희망 사항", label: "희망 촬영 컨셉 및 레퍼런스", help: "예) 인터뷰 중심 / 브이로그형" },
+  { number: 6, key: "thumbnail", group: "출연 관련 희망 사항", label: "희망 썸네일 방향", help: "- 문구: “퇴사 3개월 만에 월 300만 원”\n- 색상: 밝고 직관적인 스타일" },
+  { number: 7, key: "intro", group: "출연 관련 희망 사항", label: "희망 인트로 멘트", help: "예) 퇴사 후 불안했지만, 지금은 강사로 500명을 만나고 있습니다." },
+  { number: 8, key: "scenes", group: "영상에 포함되었으면 하는 필수 장면", label: "촬영 장면·장소·소품 및 스토리보드", help: "- 시연 장면 (강의 진행 장면, 도구 사용 등)\n- 반드시 포함되었으면 하는 장소\n- 기타 강조하고 싶은 장면이나 소품" },
+  { number: 9, key: "outro", group: "", label: "마무리 멘트", help: "희망하는 마무리 멘트가 있다면 알려주세요.\n예) 이제 시작하고 싶은 분들은 저와 함께해요." },
 ] as const;
-const youtubeApplicationSchema = z.partialRecord(
-  z.enum(YOUTUBE_APPLICATION_FIELDS.map(field => field.key)),
-  text(8000),
-);
+const applicationText = text(8000).optional();
+const youtubeApplicationSchema = z.object({
+  onlineChannels: applicationText,
+  goals: applicationText,
+  concept: applicationText,
+  thumbnail: applicationText,
+  intro: applicationText,
+  scenes: applicationText,
+  outro: applicationText,
+});
 
 export const answersSchema = z.object({
   youtubeApplication: youtubeApplicationSchema.optional(),
@@ -280,7 +286,7 @@ export function intakeProgress(answers: Answers, photoCount: number, imagePaths:
     !!answers.residence || !!answers.filmingLocations,
     !!answers.careerAndFilmingMaterials, !!answers.practicalProcess,
     answers.evidenceAvailability.some((item) => item.canShow || item.preparation),
-    Object.values(answers.youtubeApplication ?? {}).some(Boolean),
+    answers.youtubeUrls.length > 0 || Object.values(answers.youtubeApplication ?? {}).some(Boolean),
   ];
   const received = completed.filter(Boolean).length;
   return { completed, received, total: completed.length, percent: Math.round((received / completed.length) * 100) };
