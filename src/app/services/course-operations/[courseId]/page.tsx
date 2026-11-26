@@ -6,7 +6,7 @@ import { Suspense } from "react";
 import { CourseCalendarSection } from "@/components/shared-calendar/course-calendar-section";
 import { CourseOperationsEditor } from "@/components/course-operations/course-editor";
 import { CourseReplayLink } from "@/components/replay-guide/course-link";
-import { loadCourseChatAlerts } from "@/lib/ad-performance/chat-alert-server";
+import { loadCourseChatAudience } from "@/lib/ad-performance/chat-alert-server";
 import { ChatAudienceNotice } from "@/components/ad-performance/chat-audience-notice";
 import { PendingLinkLabel } from "@/components/navigation/pending-link-label";
 import { Button } from "@/components/ui/button";
@@ -60,7 +60,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
     );
   }
   if (!course) notFound();
-  const chatAlerts = await loadCourseChatAlerts(membership.workspace_id, courseId);
+  const chatAudience = await loadCourseChatAudience(membership.workspace_id, courseId);
 
   const [
     linkedJobsResult,
@@ -154,37 +154,36 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
 
   return (
     <main className="min-h-screen">
-      <header className="border-b bg-background">
-        <div className="mx-auto flex min-h-18 max-w-[1900px] items-center px-5 py-3 lg:px-8">
-          <Button variant="ghost" size="sm" asChild>
-            <BackLink href="/services/course-operations">
-              <PendingLinkLabel
-                idle={
-                  <>
-                    <ArrowLeft />뒤로가기
-                  </>
-                }
-                pending="이동 중"
-              />
-            </BackLink>
-          </Button>
-          <div className="mx-3 h-5 w-px bg-border" />
-          <div className="min-w-0 space-y-1">
-            <h1 className="text-lg font-semibold">{course.name}</h1>
-            <p className="text-sm text-muted-foreground">
-              {formatCourseDetailSubtitle({
-                cohort: course.cohort,
-                instructorName: course.instructor_name,
-                webinarAt: course.free_webinar_at,
-              })}
-            </p>
-          </div>
-        </div>
-      </header>
-      <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
-        <ChatAudienceNotice message={chatAlerts[courseId]} />
-        <CourseOperationsEditor
+      <CourseOperationsEditor
           courseId={courseId}
+          detailLayout={{
+            heading: <>
+              <Button variant="ghost" size="sm" asChild>
+                <BackLink href="/services/course-operations">
+                  <PendingLinkLabel
+                    idle={
+                      <>
+                        <ArrowLeft />뒤로가기
+                      </>
+                    }
+                    pending="이동 중"
+                  />
+                </BackLink>
+              </Button>
+              <div className="mx-3 h-5 w-px bg-border" />
+              <div className="min-w-0 space-y-1">
+                <h1 className="text-lg font-semibold">{course.name}</h1>
+                <p className="text-sm text-muted-foreground">
+                  {formatCourseDetailSubtitle({
+                    cohort: course.cohort,
+                    instructorName: course.instructor_name,
+                    webinarAt: course.free_webinar_at,
+                  })}
+                </p>
+              </div>
+            </>,
+            notice: <ChatAudienceNotice message={chatAudience[courseId]?.alert} />,
+          }}
           initialDraft={draft}
           replayGuideLink={<CourseReplayLink courseId={courseId} workspaceId={membership.workspace_id} />}
           initialBannerUrl={
@@ -199,6 +198,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
           notesLoadError={notesLoadError}
           loadError={loadError}
         />
+      <div className="mx-auto max-w-[1900px] px-5 pb-8 lg:px-8">
         <Suspense fallback={<p className="mt-6 text-sm text-muted-foreground">공용캘린더 일정을 불러오는 중…</p>}>
           <CourseCalendarSection supabase={supabase} workspaceId={membership.workspace_id} courseId={courseId} />
         </Suspense>

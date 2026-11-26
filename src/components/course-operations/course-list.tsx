@@ -4,7 +4,7 @@ import Image from "next/image";
 import { ChatAudienceNotice } from "@/components/ad-performance/chat-audience-notice";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { CalendarDays, ChevronDown, EllipsisVertical, Grid2X2, List, Plus } from "lucide-react";
+import { CalendarDays, ChevronDown, Grid2X2, List, Plus } from "lucide-react";
 import { CourseListCalendar } from "@/components/course-operations/course-list-calendar";
 import { CourseManagementMenu } from "@/components/course-operations/course-management-menu";
 import { Badge } from "@/components/ui/badge";
@@ -56,7 +56,7 @@ function CoursePageLinkCount({ filled }: { filled: number }) {
 }
 
 function CourseActionsMenu({ course }: { course: CourseSummary }) {
-  return <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={`${course.name} 관리 메뉴`}><EllipsisVertical /></Button></DropdownMenuTrigger><CourseManagementMenu courseId={course.id} /></DropdownMenu>;
+  return <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" size="sm" aria-label={`${course.name} 관리 메뉴`}>관리<ChevronDown aria-hidden="true" /></Button></DropdownMenuTrigger><CourseManagementMenu courseId={course.id} /></DropdownMenu>;
 }
 
 function CourseCards({ courses, todayKoreaDate, subdued = false }: {
@@ -67,13 +67,13 @@ function CourseCards({ courses, todayKoreaDate, subdued = false }: {
   if (!courses.length) return <div className="rounded-xl border border-dashed bg-background px-5 py-10 text-center text-sm text-muted-foreground">표시할 강의가 없습니다.</div>;
   return <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{courses.map((course, index) => (
     <Card key={course.id} className={`relative gap-0 overflow-hidden py-0 shadow-none transition-colors hover:ring-foreground/20 ${subdued ? "bg-muted/30" : ""}`}>
-      <div className="absolute right-2 top-2 z-10 rounded-lg border bg-background/95">
+      <div className="absolute right-2 top-2 z-10">
         <CourseActionsMenu course={course} />
       </div>
       {course.banner_image_path ? <Link href={`/services/course-operations/${course.id}`} className={`relative block aspect-video overflow-hidden border-b bg-muted ${subdued ? "grayscale-[35%]" : ""}`} aria-label={`${course.name} 강의 배너로 상세보기`}>
         <Image src={courseBannerUrl(course.id, course.updated_at)} alt={`${course.name} 배너`} fill unoptimized loading={index < 2 && !subdued ? "eager" : "lazy"} priority={index < 2 && !subdued} sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw" className="object-cover" />
       </Link> : null}
-      <CardHeader className="gap-2 px-5 py-5 pr-14">
+      <CardHeader className="gap-2 px-5 py-5 pr-24">
         <CardTitle className="line-clamp-2 text-lg leading-7" title={course.name}>
           <Link href={`/services/course-operations/${course.id}`} className="underline-offset-4 hover:underline">
             {course.name}
@@ -88,14 +88,18 @@ function CourseCards({ courses, todayKoreaDate, subdued = false }: {
           <dd className="mt-1 font-medium tabular-nums">{course.free_applicant_count == null ? "—" : number.format(course.free_applicant_count)}</dd>
         </div>
         <div className="border-b border-l px-5 py-4">
+          <dt className="text-xs text-muted-foreground">카톡방 인원</dt>
+          <dd className="mt-1 font-medium tabular-nums">{course.chatRoomMembers == null ? "—" : number.format(course.chatRoomMembers)}</dd>
+        </div>
+        <div className="border-b px-5 py-4">
           <dt className="text-xs text-muted-foreground">강의 페이지 링크</dt>
           <dd className="mt-1"><CoursePageLinkCount filled={course.course_page_link_count} /></dd>
         </div>
-        <div className="px-5 py-4">
+        <div className="border-b border-l px-5 py-4">
           <dt className="text-xs text-muted-foreground">웨비나 날짜</dt>
           <dd className="mt-1 font-medium tabular-nums">{formatCourseListWebinarDate(course.free_webinar_at)}</dd>
         </div>
-        <div className="border-l px-5 py-4">
+        <div className="col-span-2 px-5 py-4">
           <dt className="text-xs text-muted-foreground">WBS 일정</dt>
           <dd className={`mt-1 font-medium tabular-nums ${course.wbs_overdue_item_count > 0 ? "text-destructive" : ""}`}>
             {formatCourseWbsProgress(course.wbs_overdue_item_count, course.wbs_total_item_count)}
@@ -155,7 +159,7 @@ function CourseTable({ courses, todayKoreaDate, subdued = false }: {
   if (!courses.length) return <div className="rounded-xl border border-dashed bg-background px-5 py-10 text-center text-sm text-muted-foreground">표시할 강의가 없습니다.</div>;
   return <Card className={`gap-0 overflow-hidden py-0 shadow-none ${subdued ? "bg-muted/30" : ""}`}>
     <Table>
-      <TableHeader><TableRow><TableHead>강의명</TableHead><TableHead>웨비나 날짜</TableHead><TableHead>강의 페이지 링크</TableHead><TableHead>WBS 일정</TableHead><TableHead className="text-right">신청자DB숫자</TableHead>{!subdued ? <TableHead>광고접수 DB 단가</TableHead> : null}<TableHead className="w-16 text-right">관리</TableHead></TableRow></TableHeader>
+      <TableHeader><TableRow><TableHead>강의명</TableHead><TableHead>웨비나 날짜</TableHead><TableHead>강의 페이지 링크</TableHead><TableHead>WBS 일정</TableHead><TableHead className="text-right">신청자DB숫자</TableHead><TableHead className="text-right">카톡방 인원</TableHead>{!subdued ? <TableHead>광고접수 DB 단가</TableHead> : null}<TableHead className="text-right">관리</TableHead></TableRow></TableHeader>
       <TableBody>{courses.map((course) => <TableRow key={course.id} className={subdued ? "text-muted-foreground" : ""}>
         <TableCell>
           <Link href={`/services/course-operations/${course.id}`} className="font-medium hover:underline">{course.name}</Link>
@@ -172,6 +176,7 @@ function CourseTable({ courses, todayKoreaDate, subdued = false }: {
           </Badge>
         </TableCell>
         <TableCell className="text-right tabular-nums">{course.free_applicant_count == null ? "—" : number.format(course.free_applicant_count)}</TableCell>
+        <TableCell className="text-right tabular-nums">{course.chatRoomMembers == null ? "—" : number.format(course.chatRoomMembers)}</TableCell>
         {!subdued ? <TableCell className="text-xs tabular-nums">
           <div>G : {formatAdLeadCost(course.google_ad_lead_cost)}</div>
           <div className="mt-1">M : {formatAdLeadCost(course.meta_ad_lead_cost)}</div>

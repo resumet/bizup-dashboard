@@ -363,6 +363,7 @@ export function CourseOperationsEditor({
   loadError,
   deferDetailSections = false,
   replayGuideLink,
+  detailLayout,
 }: {
   courseId?: string;
   sourceScheduleDraftId?: string;
@@ -382,6 +383,7 @@ export function CourseOperationsEditor({
   loadError?: string;
   deferDetailSections?: boolean;
   replayGuideLink?: React.ReactNode;
+  detailLayout?: { heading: React.ReactNode; notice: React.ReactNode };
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState(() => {
@@ -875,59 +877,60 @@ export function CourseOperationsEditor({
     (bannerRemoved ? "" : savedBannerUrl);
 
   const salesEventsCard = (
-    <Card>
-      <CardHeader>
-        <CardTitle>판매 이벤트</CardTitle>
-        <CardDescription>
-          기간, 혜택, 제공 조건을 자유롭게 기록합니다.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-5 sm:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="early-bird-event">얼리버드 이벤트</Label>
-          <Textarea
-            id="early-bird-event"
-            className="h-32 min-h-32 max-h-32 resize-none overflow-y-auto field-sizing-fixed"
-            placeholder="예: 9월 1일까지 10만원 할인"
-            maxLength={2_000}
-            value={draft.earlyBirdEvent}
-            onChange={(event) =>
-              updateField("earlyBirdEvent", event.target.value)
-            }
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="first-50-event">선착순 50명 이벤트</Label>
-          <Textarea
-            id="first-50-event"
-            className="h-32 min-h-32 max-h-32 resize-none overflow-y-auto field-sizing-fixed"
-            placeholder="예: 워크북과 1:1 피드백 제공"
-            maxLength={2_000}
-            value={draft.first50Event}
-            onChange={(event) =>
-              updateField("first50Event", event.target.value)
-            }
-          />
-        </div>
-        <div className="grid gap-2 sm:col-span-2">
-          <Label htmlFor="course-differentiation">
-            강의 차별점을 상세하게 기재
-          </Label>
-          <Textarea
-            id="course-differentiation"
-            className="h-48 min-h-48 resize-y field-sizing-fixed"
-            placeholder="다른 강의와 구분되는 특징, 제공 가치와 수강생이 얻게 될 변화를 상세하게 기재해 주세요."
-            maxLength={10_000}
-            value={draft.courseDifferentiation}
-            onChange={(event) =>
-              updateField("courseDifferentiation", event.target.value)
-            }
-          />
-          <p className="text-right text-xs text-muted-foreground">
-            {draft.courseDifferentiation.length.toLocaleString()} / 10,000자
-          </p>
-        </div>
-      </CardContent>
+    <Card className="py-0">
+      <details className="group/events">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 font-medium focus-visible:outline-offset-[-3px] [&::-webkit-details-marker]:hidden">
+          판매 이벤트
+          <ChevronDown aria-hidden="true" className="size-4 shrink-0 transition-transform group-open/events:rotate-180" />
+        </summary>
+        <CardContent className="grid gap-5 pb-4 sm:grid-cols-2">
+          <p className="text-sm text-muted-foreground sm:col-span-2">기간, 혜택, 제공 조건을 자유롭게 기록합니다.</p>
+          <div className="grid gap-2">
+            <Label htmlFor="early-bird-event">얼리버드 이벤트</Label>
+            <Textarea
+              id="early-bird-event"
+              className="h-32 min-h-32 max-h-32 resize-none overflow-y-auto field-sizing-fixed"
+              placeholder="예: 9월 1일까지 10만원 할인"
+              maxLength={2_000}
+              value={draft.earlyBirdEvent}
+              onChange={(event) =>
+                updateField("earlyBirdEvent", event.target.value)
+              }
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="first-50-event">선착순 50명 이벤트</Label>
+            <Textarea
+              id="first-50-event"
+              className="h-32 min-h-32 max-h-32 resize-none overflow-y-auto field-sizing-fixed"
+              placeholder="예: 워크북과 1:1 피드백 제공"
+              maxLength={2_000}
+              value={draft.first50Event}
+              onChange={(event) =>
+                updateField("first50Event", event.target.value)
+              }
+            />
+          </div>
+          <div className="grid gap-2 sm:col-span-2">
+            <Label htmlFor="course-differentiation">
+              강의 차별점을 상세하게 기재
+            </Label>
+            <Textarea
+              id="course-differentiation"
+              className="h-48 min-h-48 resize-y field-sizing-fixed"
+              placeholder="다른 강의와 구분되는 특징, 제공 가치와 수강생이 얻게 될 변화를 상세하게 기재해 주세요."
+              maxLength={10_000}
+              value={draft.courseDifferentiation}
+              onChange={(event) =>
+                updateField("courseDifferentiation", event.target.value)
+              }
+            />
+            <p className="text-right text-xs text-muted-foreground">
+              {draft.courseDifferentiation.length.toLocaleString()} / 10,000자
+            </p>
+          </div>
+        </CardContent>
+      </details>
     </Card>
   );
   const courseOptionsCard = (
@@ -1161,62 +1164,72 @@ export function CourseOperationsEditor({
     <DeferredSectionState status={sectionStatuses.sales} error={sectionErrors.sales} onRetry={() => retrySection("sales")} />
   );
 
-  return (
-    <div className="space-y-6">
-      <div className={`flex flex-col gap-4 sm:flex-row sm:items-end ${courseId ? "sm:justify-end" : "sm:justify-between"}`}>
-        {!courseId ? <div>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            새 강의 만들기
-          </h1>
-        </div> : null}
-        <div className="flex flex-wrap gap-2">
-          <CourseShareDialog
-            onOpen={() => void loadDetailSection("videos")}
-            data={{
-              name: draft.name,
-              instructorName: draft.instructorName,
-              freeWebinarDate: draft.freeWebinarAt,
-              freeWebinarTime: draft.freeWebinarTime,
-              startsDate: draft.startsAt,
-              earlyBirdEvent: draft.earlyBirdEvent,
-              first50Event: draft.first50Event,
-              landingPageLink: draft.landingPageLink,
-              freeKakaoRoom1Link: draft.freeKakaoRoom1Link,
-              freeKakaoRoom2Link: draft.freeKakaoRoom2Link,
-              paidKakaoRoomLink: draft.paidKakaoRoomLink,
-              communicationRoomLink: draft.communicationRoomLink,
-              paymentLink: draft.paymentLink,
-              inquiryLink: draft.inquiryLink,
-              curriculumLink: draft.curriculumLink,
-              preBlogLink1: draft.preBlogLink1,
-              preBlogLink2: draft.preBlogLink2,
-              freeGiftLink: draft.freeGiftLink,
-              courseViewingLink: draft.courseViewingLink,
-              options: draft.options,
-              youtubeAppearances: draft.youtubeAppearances,
-              liveVideos: draft.liveVideos,
-            }}
+  const actions = (
+    <div className="flex flex-wrap gap-2">
+      <CourseShareDialog
+        onOpen={() => void loadDetailSection("videos")}
+        data={{
+          name: draft.name,
+          instructorName: draft.instructorName,
+          freeWebinarDate: draft.freeWebinarAt,
+          freeWebinarTime: draft.freeWebinarTime,
+          startsDate: draft.startsAt,
+          earlyBirdEvent: draft.earlyBirdEvent,
+          first50Event: draft.first50Event,
+          landingPageLink: draft.landingPageLink,
+          freeKakaoRoom1Link: draft.freeKakaoRoom1Link,
+          freeKakaoRoom2Link: draft.freeKakaoRoom2Link,
+          paidKakaoRoomLink: draft.paidKakaoRoomLink,
+          communicationRoomLink: draft.communicationRoomLink,
+          paymentLink: draft.paymentLink,
+          inquiryLink: draft.inquiryLink,
+          curriculumLink: draft.curriculumLink,
+          preBlogLink1: draft.preBlogLink1,
+          preBlogLink2: draft.preBlogLink2,
+          freeGiftLink: draft.freeGiftLink,
+          courseViewingLink: draft.courseViewingLink,
+          options: draft.options,
+          youtubeAppearances: draft.youtubeAppearances,
+          liveVideos: draft.liveVideos,
+        }}
+      />
+      <Button className="min-h-10" onClick={saveCourse} disabled={saving || issuingQrField !== null}>
+        {saving ? <Loader2 className="animate-spin" /> : <Save />}
+        {saving ? "저장 중" : courseId ? "변경사항 저장" : "강의 만들기"}
+      </Button>
+      {courseId && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" className="min-h-10 bg-purple-700 text-white hover:bg-purple-800 aria-expanded:bg-purple-800 focus-visible:ring-purple-500/50">
+              추가기능 메뉴<ChevronDown aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <CourseManagementMenu
+            courseId={courseId}
+            itemClassName="h-[45px] hover:bg-gray-200! hover:[--accent-foreground:var(--color-gray-900)] not-data-[variant=destructive]:hover:text-accent-foreground dark:hover:[--destructive:var(--color-red-700)]"
           />
-          <Button className="min-h-10" onClick={saveCourse} disabled={saving || issuingQrField !== null}>
-            {saving ? <Loader2 className="animate-spin" /> : <Save />}
-            {saving ? "저장 중" : courseId ? "변경사항 저장" : "강의 만들기"}
-          </Button>
-          {courseId && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button type="button" className="min-h-10 bg-purple-700 text-white hover:bg-purple-800 aria-expanded:bg-purple-800 focus-visible:ring-purple-500/50">
-                  추가기능 메뉴<ChevronDown aria-hidden="true" />
-                </Button>
-              </DropdownMenuTrigger>
-              <CourseManagementMenu
-                courseId={courseId}
-                itemClassName="h-[45px] hover:bg-gray-200! hover:[--accent-foreground:var(--color-gray-900)] not-data-[variant=destructive]:hover:text-accent-foreground dark:hover:[--destructive:var(--color-red-700)]"
-              />
-            </DropdownMenu>
-          )}
-        </div>
-      </div>
+        </DropdownMenu>
+      )}
+    </div>
+  );
 
+  return (
+    <>
+      {detailLayout && (
+        <header className="sticky top-[calc(var(--spacing)*29+1px)] z-20 border-b bg-background shadow-sm lg:top-16">
+          <div className="mx-auto flex max-w-[1900px] flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-3 lg:px-8">
+            <div className="flex min-w-0 flex-1 basis-64 items-center">{detailLayout.heading}</div>
+            <div className="max-sm:[&_button]:px-2 max-sm:[&_button]:text-xs">{actions}</div>
+          </div>
+        </header>
+      )}
+      <div className={detailLayout ? "mx-auto max-w-[1900px] space-y-6 px-5 pt-8 lg:px-8" : "space-y-6"}>
+        {detailLayout ? detailLayout.notice : (
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            {!courseId && <h1 className="text-3xl font-semibold tracking-tight">새 강의 만들기</h1>}
+            {actions}
+          </div>
+        )}
       {loadError ? (
         <Alert variant="destructive">
           <AlertTitle>연결 항목을 모두 불러오지 못했습니다</AlertTitle>
@@ -2053,6 +2066,7 @@ export function CourseOperationsEditor({
           {saving ? "저장 중" : courseId ? "강의 정보 저장" : "강의 만들기"}
         </Button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

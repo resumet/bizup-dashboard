@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { loadCourseChatAlerts } from "@/lib/ad-performance/chat-alert-server";
+import { loadCourseChatAudience } from "@/lib/ad-performance/chat-alert-server";
 import { redirect } from "next/navigation";
 import {
   ArrowLeft,
@@ -31,8 +31,12 @@ export default async function CourseOperationsPage() {
       membership.workspace_id,
       todayKoreaDate,
     );
-    const chatAlerts = await loadCourseChatAlerts(membership.workspace_id);
-    courses = courses.map(course => ({ ...course, chatAudienceAlert: chatAlerts[course.id] }));
+    const audience = await loadCourseChatAudience(membership.workspace_id);
+    courses = courses.map(course => ({
+      ...course,
+      chatRoomMembers: audience[course.id]?.members ?? null,
+      chatAudienceAlert: audience[course.id]?.alert ?? undefined,
+    }));
   } catch (caught) {
     loadError =
       caught instanceof Error
