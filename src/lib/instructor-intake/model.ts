@@ -178,7 +178,24 @@ export const intakeSettingsSchema = z.object({ examples: intakeExamplesSchema, e
 export type IntakeSettings = z.infer<typeof intakeSettingsSchema>;
 export const DEFAULT_INTAKE_SETTINGS: IntakeSettings = { examples: DEFAULT_INTAKE_EXAMPLES, exampleImagePaths: EMPTY_IMAGE_PATHS };
 
+export const YOUTUBE_APPLICATION_LABEL = "유튜브 출연 신청서 정보";
+export const YOUTUBE_APPLICATION_FIELDS = [
+  { key: "onlineChannels", group: "온라인 채널 정보", label: "운영 중인 유튜브·인스타그램·블로그 링크" },
+  { key: "previousAppearances", group: "온라인 채널 정보", label: "이전 출연 영상 목록" },
+  { key: "desiredChannels", group: "출연 관련 희망 사항", label: "출연 희망 채널 및 개수" },
+  { key: "goals", group: "출연 관련 희망 사항", label: "이번 출연을 통해 기대하는 바" },
+  { key: "concept", group: "출연 관련 희망 사항", label: "희망 촬영 컨셉 및 레퍼런스" },
+  { key: "thumbnail", group: "출연 관련 희망 사항", label: "희망 썸네일 방향" },
+  { key: "intro", group: "출연 관련 희망 사항", label: "희망 인트로 멘트" },
+  { key: "scenes", group: "영상에 포함되었으면 하는 필수 장면", label: "촬영 장면·장소·소품 및 스토리보드" },
+] as const;
+const youtubeApplicationSchema = z.partialRecord(
+  z.enum(YOUTUBE_APPLICATION_FIELDS.map(field => field.key)),
+  text(8000),
+);
+
 export const answersSchema = z.object({
+  youtubeApplication: youtubeApplicationSchema.optional(),
   realName: text(80), nickname: text(80), phone: mobilePhone, email: emailAddress, lectureItem: text(3000),
   residence: text(500), filmingLocations: text(3000),
   careerAndFilmingMaterials: longText, practicalProcess: longText,
@@ -231,6 +248,7 @@ FIELD_LABELS.push(
   "주요 이력 및 촬영 가능한 소재",
   "촬영 시 반드시 보여줄 수 있는 실전 과정",
   "영상 공개 가능 증빙자료",
+  YOUTUBE_APPLICATION_LABEL,
 );
 export const FIELD_DESCRIPTION_LINKS: Record<number, string> = {
   29: "https://possible-louse-74d.notion.site/3a1119af8a6780269985c82c7858b6d0?source=copy_link",
@@ -262,6 +280,7 @@ export function intakeProgress(answers: Answers, photoCount: number, imagePaths:
     !!answers.residence || !!answers.filmingLocations,
     !!answers.careerAndFilmingMaterials, !!answers.practicalProcess,
     answers.evidenceAvailability.some((item) => item.canShow || item.preparation),
+    Object.values(answers.youtubeApplication ?? {}).some(Boolean),
   ];
   const received = completed.filter(Boolean).length;
   return { completed, received, total: completed.length, percent: Math.round((received / completed.length) * 100) };
@@ -275,7 +294,8 @@ export const saveSchema = z.object({
   if (new Set(allPaths).size !== allPaths.length) context.addIssue({ code: "custom", message: "중복된 사진이 포함되어 있습니다." });
   if (value.submit) {
     const progress = intakeProgress(value.answers, value.photoPaths.length, value.imagePaths);
-    if (progress.received !== progress.total) context.addIssue({ code: "custom", message: `제출 전에 다음 항목을 입력해 주세요: ${FIELD_LABELS.filter((_, index) => !progress.completed[index]).join(", ")}` });
+    const missing = FIELD_LABELS.filter((label, index) => label !== YOUTUBE_APPLICATION_LABEL && !progress.completed[index]);
+    if (missing.length) context.addIssue({ code: "custom", message: `제출 전에 다음 항목을 입력해 주세요: ${missing.join(", ")}` });
   }
 });
 export const createIntakeSchema = z.object({ courseId: z.string().uuid("기존 강의를 선택해 주세요.") });

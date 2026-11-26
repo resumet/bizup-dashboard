@@ -1,5 +1,5 @@
 import type { Answers, ImagePaths } from "./model";
-import { FIELD_LABELS } from "./model";
+import { FIELD_LABELS, YOUTUBE_APPLICATION_FIELDS } from "./model";
 
 type ExportNameInput = {
   instructorName: string;
@@ -82,6 +82,7 @@ export function instructorIntakeMarkdown(answers: Answers, photoCount: number, i
     `아이디: ${text(answers.infokLinkId)}\n비밀번호: ${text(answers.infokLinkPassword)}`,
     `거주지: ${text(answers.residence)}\n촬영 가능 장소: ${text(answers.filmingLocations)}`,
     text(answers.careerAndFilmingMaterials), text(answers.practicalProcess), evidenceAvailability(answers.evidenceAvailability),
+    YOUTUBE_APPLICATION_FIELDS.map(({ key, label }, index) => `### 38-${index + 1}. ${label}\n\n${text(answers.youtubeApplication?.[key] ?? "")}`).join("\n\n"),
   ];
 
   return FIELD_LABELS.map((label, index) => `## ${index + 1}. ${label}\n\n${values[index] ?? "미입력"}`).join("\n\n") + "\n";

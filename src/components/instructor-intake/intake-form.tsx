@@ -10,6 +10,8 @@ import {
   EVIDENCE_AVAILABILITY_ITEMS,
   FILMING_INFO_GUIDANCE,
   FIELD_DESCRIPTION_LINKS,
+  YOUTUBE_APPLICATION_FIELDS,
+  YOUTUBE_APPLICATION_LABEL,
   MATERIAL_IMAGE_LABELS,
   MAX_MATERIAL_IMAGES,
   MAX_PHOTO_BYTES,
@@ -46,7 +48,12 @@ const SECTION_NAVIGATION = [
   { id: "intake-revenue", label: "매출과 수익" },
   { id: "intake-students", label: "출연 가능 수강생" },
   { id: "intake-accounts", label: "계정 설정" },
+  { id: "intake-youtube", label: YOUTUBE_APPLICATION_LABEL },
 ] as const;
+
+function sectionNumber(index: number) {
+  return SECTION_NAVIGATION[index].id === "intake-youtube" ? "38" : String(index + 1).padStart(2, "0");
+}
 
 function IntakeSectionNavigator() {
   const [activeId, setActiveId] = useState<(typeof SECTION_NAVIGATION)[number]["id"]>(SECTION_NAVIGATION[0].id);
@@ -59,7 +66,7 @@ function IntakeSectionNavigator() {
         section.id = item.id;
         const title = section.querySelector<HTMLElement>(":scope > h2, :scope > label.text-base");
         if (title) {
-          title.textContent = `${String(index + 1).padStart(2, "0")}. ${item.label}`;
+          title.textContent = `${sectionNumber(index)}. ${item.label}`;
           title.classList.add("text-primary");
         }
       }
@@ -80,7 +87,7 @@ function IntakeSectionNavigator() {
     };
   }, []);
 
-  return <aside className="hidden lg:block"><nav className="fixed right-4 top-6 z-30 max-h-[calc(100dvh-3rem)] w-44 overflow-y-auto rounded-xl border bg-card p-3 shadow-lg" aria-label="강사 정보 섹션"><p className="px-2 pb-2 text-sm font-semibold">섹션</p><ol className="space-y-1">{SECTION_NAVIGATION.map((item, index) => <li key={item.id}><button type="button" className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${activeId === item.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`} aria-current={activeId === item.id ? "location" : undefined} onClick={() => document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" })}><span className="w-5 shrink-0 text-xs tabular-nums">{String(index + 1).padStart(2, "0")}</span><span>{item.label}</span></button></li>)}</ol></nav></aside>;
+  return <aside className="hidden lg:block"><nav className="fixed right-4 top-6 z-30 max-h-[calc(100dvh-3rem)] w-44 overflow-y-auto rounded-xl border bg-card p-3 shadow-lg" aria-label="강사 정보 섹션"><p className="px-2 pb-2 text-sm font-semibold">섹션</p><ol className="space-y-1">{SECTION_NAVIGATION.map((item, index) => <li key={item.id}><button type="button" className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${activeId === item.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`} aria-current={activeId === item.id ? "location" : undefined} onClick={() => document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" })}><span className="w-5 shrink-0 text-xs tabular-nums">{sectionNumber(index)}</span><span>{item.label}</span></button></li>)}</ol></nav></aside>;
 }
 function readAnswers(form: HTMLFormElement): Answers {
   const data = new FormData(form);
@@ -91,6 +98,7 @@ function readAnswers(form: HTMLFormElement): Answers {
   const evidenceRowCount = Math.min(30, Math.max(0, Number(text("evidenceRowCount")) || EVIDENCE_AVAILABILITY_ITEMS.length));
   const availableStudents = number("availableStudents");
   return {
+    youtubeApplication: Object.fromEntries(YOUTUBE_APPLICATION_FIELDS.map(({ key }) => [key, text(`youtube-${key}`)])),
     realName: text("realName"), nickname: text("nickname"), phone: text("phone"), email: text("email"), lectureItem: text("lectureItem"),
     residence: text("residence"), filmingLocations: text("filmingLocations"),
     careerAndFilmingMaterials: text("careerAndFilmingMaterials"), practicalProcess: text("practicalProcess"),
@@ -315,6 +323,17 @@ export function IntakeForm({ token, initialAnswers, initialPhotos, initialImages
       <section className={sectionClass}><h2 className="text-lg font-semibold">매출과 순이익</h2><div className="grid gap-5 sm:grid-cols-2"><MoneyField name="monthlyRevenue" label="강의 아이템으로 낸 월 매출 (원)" value={initialAnswers.monthlyRevenue} /><MoneyField name="monthlyProfit" label="강의 아이템으로 번 월 순수익 (원)" value={initialAnswers.monthlyProfit} min={-1_000_000_000_000} help="적자는 음수로 입력할 수 있습니다." /></div><div className="grid gap-5 sm:grid-cols-2"><MoneyField name="expectedRevenue" label="수강생이 강의 종료 1개월 이후에 낸 매출 (원)" value={initialAnswers.expectedRevenue} /><MoneyField name="expectedProfit" label="수강생이 강의 종료 1개월 이후에 번 순이익 (원)" value={initialAnswers.expectedProfit} min={-1_000_000_000_000} /></div><div className="grid gap-5 sm:grid-cols-2"><MoneyField name="threeMonthExpectedRevenue" label="수강생이 강의 종료 3개월 이후에 낸 매출 (원)" value={initialAnswers.threeMonthExpectedRevenue} /><MoneyField name="threeMonthExpectedProfit" label="수강생이 강의 종료 3개월 이후에 번 순이익 (원)" value={initialAnswers.threeMonthExpectedProfit} min={-1_000_000_000_000} /></div><div className="grid gap-5 sm:grid-cols-2"><NumericField name="studentSuccessRate" label="강의 수강생 중 성과를 낸 사람의 비율 (%)" value={initialAnswers.studentSuccessRate} min={0} help="0~100 사이의 숫자를 입력해 주세요." /><div className="space-y-2"><Label htmlFor="studentFailureReasons">성과를 내지 못한 사람들의 주요 원인</Label><Textarea id="studentFailureReasons" name="studentFailureReasons" rows={3} maxLength={12_000} defaultValue={initialAnswers.studentFailureReasons} /></div></div></section>
       <section className={sectionClass}><NumericField name="availableStudents" label="22. 무료강의 출연 가능 수강생 (명)" value={initialAnswers.availableStudents} min={3} help="최소 3명부터 최대 100명까지 입력할 수 있습니다." />{answers.availableStudents !== null && answers.availableStudents >= 3 ? <div className="mt-5 space-y-3"><div><h2 className="font-semibold">출연 가능 수강생 정보</h2><p className="mt-1 text-sm text-muted-foreground">닉네임은 필수이며, 이름과 전화번호는 선택 입력입니다.</p></div><div className="overflow-x-auto rounded-lg border"><table className="w-full min-w-[640px] text-sm"><thead className="bg-muted/50 text-left"><tr><th className="w-16 p-3 font-medium">번호</th><th className="p-3 font-medium">닉네임 <span className="text-destructive">*</span></th><th className="p-3 font-medium">이름</th><th className="p-3 font-medium">전화번호</th></tr></thead><tbody>{Array.from({ length: answers.availableStudents }, (_, index) => <tr key={index} className="border-t"><td className="p-3 text-muted-foreground">{index + 1}</td><td className="p-3"><Input name={`availableStudentNickname${index}`} maxLength={80} required defaultValue={answers.availableStudentCandidates[index]?.nickname ?? ""} placeholder="필수 입력" /></td><td className="p-3"><Input name={`availableStudentName${index}`} maxLength={80} defaultValue={answers.availableStudentCandidates[index]?.name ?? ""} placeholder="선택 입력" /></td><td className="p-3"><Input name={`availableStudentPhone${index}`} maxLength={30} inputMode="tel" defaultValue={answers.availableStudentCandidates[index]?.phone ?? ""} placeholder="선택 입력" /></td></tr>)}</tbody></table></div></div> : null}</section>
       <section className={sectionClass}><h2 className="text-lg font-semibold">계정 설정 정보</h2><div className="space-y-4"><div className="flex flex-wrap items-center gap-2"><p className="font-medium">23. 인스타 신규계정 생성후 아이디, 비밀번호 (기존 계정이 있다면 해당 계정 정보) 등록</p><DescriptionLink fieldIndex={22} /></div><div className="grid gap-5 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="instagramAccountId">아이디</Label><Input id="instagramAccountId" name="instagramAccountId" maxLength={200} defaultValue={initialAnswers.instagramAccountId} /></div><div className="space-y-2"><Label htmlFor="instagramAccountPassword">비밀번호</Label><Input id="instagramAccountPassword" name="instagramAccountPassword" type="password" maxLength={500} defaultValue={initialAnswers.instagramAccountPassword} /></div></div></div><div className="space-y-2"><div className="flex gap-2"><Label htmlFor="blueBadge">24. 블루뱃지</Label><DescriptionLink fieldIndex={23} /></div><Textarea id="blueBadge" name="blueBadge" rows={3} maxLength={1000} defaultValue={initialAnswers.blueBadge} /></div><div className="space-y-2"><div className="flex gap-2"><Label htmlFor="twoFactorSecurity">25. 2차 보안</Label><DescriptionLink fieldIndex={24} /></div><Textarea id="twoFactorSecurity" name="twoFactorSecurity" rows={3} maxLength={1000} defaultValue={initialAnswers.twoFactorSecurity} /></div><div className="space-y-4"><div className="flex gap-2"><p className="font-medium">26. 인포크 링크 아이디, 비밀번호</p><DescriptionLink fieldIndex={25} /></div><div className="grid gap-5 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="infokLinkId">아이디</Label><Input id="infokLinkId" name="infokLinkId" maxLength={200} defaultValue={initialAnswers.infokLinkId} /></div><div className="space-y-2"><Label htmlFor="infokLinkPassword">비밀번호</Label><Input id="infokLinkPassword" name="infokLinkPassword" type="password" maxLength={500} defaultValue={initialAnswers.infokLinkPassword} /></div></div></div></section>
+      <section className={sectionClass}>
+        <h2 className="text-lg font-semibold">38. {YOUTUBE_APPLICATION_LABEL}</h2>
+        <p className="text-sm text-muted-foreground">유튜브 출연을 신청할 경우 해당하는 항목을 입력해 주세요.</p>
+        {YOUTUBE_APPLICATION_FIELDS.map(({ key, group, label }, index) => (
+          <div key={key} className="space-y-2">
+            {group !== YOUTUBE_APPLICATION_FIELDS[index - 1]?.group && <h3 className="font-semibold">{group}</h3>}
+            <Label htmlFor={`youtube-${key}`}>38-{index + 1}. {label}</Label>
+            <Textarea id={`youtube-${key}`} name={`youtube-${key}`} rows={key === "scenes" ? 5 : 3} maxLength={8000} defaultValue={initialAnswers.youtubeApplication?.[key] ?? ""} />
+          </div>
+        ))}
+      </section>
     </fieldset>
     <div className="sticky bottom-0 space-y-3 rounded-xl border bg-background/95 p-4 backdrop-blur"><ToastNotice message={message} tone="success" onDismiss={() => setMessage("")} />{error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}<div className="flex gap-3"><Button type="button" variant="outline" className="flex-1" disabled={busy} onClick={() => void save(false)}>중간 저장</Button><Button type="submit" className="flex-1" disabled={busy}>{busy ? "저장 중…" : "정보 제출"}</Button></div></div>
       </div>

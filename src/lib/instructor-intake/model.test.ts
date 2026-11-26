@@ -46,6 +46,7 @@ test("계정 설정 설명 링크는 계정 설정 항목에만 표시한다", (
 
 const complete = {
   ...EMPTY_ANSWERS,
+  youtubeApplication: { goals: "채널 출연" },
   residence: "서울",
   filmingLocations: "작업실",
   careerAndFilmingMaterials: "구독자 수와 사업 자산",
@@ -98,14 +99,14 @@ const images = {
 test("수집률은 새 촬영 정보까지 포함하며 텍스트·이미지·0원 응답을 인정한다", () => {
   assert.equal(intakeProgress(EMPTY_ANSWERS, 0).received, 0);
   assert.deepEqual(intakeProgress(complete, 1, images), {
-    completed: Array(37).fill(true),
-    received: 37,
-    total: 37,
+    completed: Array(38).fill(true),
+    received: 38,
+    total: 38,
     percent: 100,
   });
   assert.equal(
     intakeProgress({ ...complete, expectedProfit: null }, 1, images).received,
-    36,
+    37,
   );
   assert.equal(
     intakeProgress(
@@ -117,21 +118,21 @@ test("수집률은 새 촬영 정보까지 포함하며 텍스트·이미지·0�
       },
       1, images,
     ).received,
-    36,
+    37,
   );
   assert.equal(intakeProgress({ ...complete, realName: "" }, 1, images).percent, 97);
   assert.equal(
     intakeProgress({ ...complete, instagramAccountPassword: "" }, 1, images).received,
-    36,
+    37,
   );
-  assert.equal(intakeProgress(complete, 1, { ...images, reviews: [] }).received, 36);
+  assert.equal(intakeProgress(complete, 1, { ...images, reviews: [] }).received, 37);
   assert.equal(
     intakeProgress({ ...complete, availableStudentCandidates: [{ nickname: "수강생1", name: "", phone: "" }] }, 1, images).received,
-    36,
+    37,
   );
   assert.equal(
     intakeProgress({ ...complete, availableStudentCandidates: [{ nickname: "", name: "", phone: "" }, ...complete.availableStudentCandidates.slice(1)] }, 1, images).received,
-    36,
+    37,
   );
 });
 test("중간 저장은 허용하고 최종 제출은 사진과 모든 정보를 요구한다", () => {
@@ -225,4 +226,10 @@ test("조건부 강의 경험, 최소 3명, 금액과 안전한 URL을 검증한
   );
   assert.ok(!answersSchema.safeParse({ ...complete, webinarCoreContents: Array(6).fill("내용") }).success);
   assert.ok(!tokenSchema.safeParse("guessable-link").success);
+});
+
+test("출연 신청을 생략한 강사도 기존 정보로 제출할 수 있다", () => {
+  const answers = { ...complete, youtubeApplication: undefined };
+  assert.equal(intakeProgress(answers, 1, images).completed[37], false);
+  assert.ok(saveSchema.safeParse({ answers, photoPaths: ["profile.webp"], imagePaths: images, revision: 0, submit: true }).success);
 });

@@ -48,7 +48,7 @@ const { build } = require('esbuild');
   const { page, imageRoute, shortPage, shortImageRoute, publicMedia } = loaded.exports;
   const args = (kind, token) => ({ params: Promise.resolve({ kind, token }) });
 
-  for (const [kind, token] of [['schedule', scheduleToken], ['brief', briefToken]]) {
+  for (const [kind, token] of [['schedule', scheduleToken]]) {
     const metadata = await page.generateMetadata(args(kind, token));
     assert.deepEqual(metadata.title, { absolute: '홍길동-수익화 강의-1기' });
     assert.equal(metadata.openGraph.title, metadata.title.absolute);
@@ -71,23 +71,24 @@ const { build } = require('esbuild');
     assert.deepEqual(Buffer.from(await shortImage.arrayBuffer()), png);
   }
 
-  const publicBrief = await publicMedia(briefToken, 'brief');
-  assert.equal(publicBrief.course.banner_image_path, undefined);
-  assert.equal(publicBrief.course.updated_at, undefined);
+  await assert.rejects(publicMedia(briefToken, 'brief'), error => error.status === 404);
+  assert.equal((await imageRoute.GET(new Request('http://fixture'), args('brief', briefToken))).status, 404);
+  const retiredShort = { params: Promise.resolve({ code: `b-${setting.brief_short_code}` }) };
+  assert.equal((await shortImageRoute.GET(new Request('http://fixture'), retiredShort)).status, 404);
 
   setting.public_enabled = false;
   const disabledMetadata = await page.generateMetadata(args('schedule', scheduleToken));
-  assert.deepEqual(disabledMetadata.title, { absolute: '유튜브 출연 관리' });
+  assert.deepEqual(disabledMetadata.title, { absolute: '강사 출연 유튜브 관리' });
   assert.deepEqual(disabledMetadata.openGraph.images, []);
   assert.equal((await imageRoute.GET(new Request('http://fixture'), args('schedule', scheduleToken))).status, 404);
   const disabledShortArgs = { params: Promise.resolve({ code: `s-${setting.public_short_code}` }) };
-  assert.deepEqual((await shortPage.generateMetadata(disabledShortArgs)).title, { absolute: '유튜브 출연 관리' });
+  assert.deepEqual((await shortPage.generateMetadata(disabledShortArgs)).title, { absolute: '강사 출연 유튜브 관리' });
   assert.equal((await shortImageRoute.GET(new Request('http://fixture'), disabledShortArgs)).status, 404);
   assert.equal((await imageRoute.GET(new Request('http://fixture'), args('schedule', 'invalid'))).status, 404);
-  assert.equal(downloads, 4, 'Disabled and invalid shares must not read private storage.');
+  assert.equal(downloads, 2, 'Disabled and invalid shares must not read private storage.');
 
   course.banner_image_path = null;
-  assert.equal((await page.generateMetadata(args('brief', briefToken))).twitter.card, 'summary');
+  assert.equal((await page.generateMetadata(args('schedule', scheduleToken))).twitter.card, 'summary');
   assert.equal((await imageRoute.GET(new Request('http://fixture'), args('brief', briefToken))).status, 404);
   console.log('PASS: YouTube public pages expose exact course metadata and original banner bytes; private paths stay hidden; disabled, invalid and absent-image shares are blocked.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

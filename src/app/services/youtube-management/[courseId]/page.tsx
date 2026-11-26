@@ -14,12 +14,12 @@ export default async function YoutubeManagementCoursePage({
 }) {
   const { courseId } = await params;
   if (!z.uuid().safeParse(courseId).success) notFound();
+  if ((await searchParams).tab === "brief") redirect(`/services/instructor-intakes?courseId=${courseId}`);
   const initial = await loadMedia(courseId).catch((error) => {
     if (error instanceof Error && error.message === "UNAUTHORIZED") redirect("/login");
     if (error instanceof MediaError && error.status === 404) notFound();
     throw error;
   });
-  const { tab } = await searchParams;
 
-  return <YoutubeWorkspace initial={initial} initialTab={tab === "brief" ? "brief" : "schedule"} todayKoreaDate={toKoreaDate(new Date().toISOString())} />;
+  return <YoutubeWorkspace initial={initial} todayKoreaDate={toKoreaDate(new Date().toISOString())} />;
 }

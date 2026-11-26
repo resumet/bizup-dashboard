@@ -37,7 +37,7 @@ test("강사 수집 DB는 워크스페이스 접근, 익명 접근 차단, 저�
     );
     await db.exec(
       await readFile(
-        "supabase/migrations/20261028125252_expand_instructor_intake_marketing_materials.sql",
+        "supabase/migrations/20261028132451_expand_instructor_intake_marketing_materials.sql",
         "utf8",
       ),
     );

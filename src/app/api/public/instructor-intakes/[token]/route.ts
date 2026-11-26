@@ -21,7 +21,7 @@ export async function PUT(
     if (nextMaterialPaths.some((path) => !savedMaterialPaths.includes(path)))
       throw new Error("저장되지 않은 자료 이미지가 포함되어 있습니다.");
     const updated = await updatePublicIntake(row, input.revision, {
-      answers: input.answers,
+      answers: { ...input.answers, youtubeApplication: input.answers.youtubeApplication ?? row.answers.youtubeApplication },
       photo_paths: input.photoPaths,
       image_paths: input.imagePaths,
       submitted_at: input.submit ? new Date().toISOString() : null,

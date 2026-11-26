@@ -7,7 +7,7 @@ export const dynamic="force-dynamic";
 type Props={params:Promise<{kind:string;token:string}>};
 export async function generateMetadata({params}:Props):Promise<Metadata>{
   const {kind,token}=await params;
-  if(kind!=="brief"&&kind!=="schedule")return youtubeShareMetadata(null,"schedule","/public/youtube","/public/youtube/share-image");
+  if(kind!=="schedule")return youtubeShareMetadata(null,"schedule","/public/youtube","/public/youtube/share-image");
   const pagePath=`/public/youtube/${kind}/${encodeURIComponent(token)}`;
   try{
     const {course}=await getPublicYoutubeShare(token,kind);
@@ -15,7 +15,7 @@ export async function generateMetadata({params}:Props):Promise<Metadata>{
   }catch{return youtubeShareMetadata(null,kind,pagePath,"");}
 }
 export default async function PublicYoutubePage({params}:Props){
-  const {kind,token}=await params;if(kind!=="brief"&&kind!=="schedule")notFound();
+  const {kind,token}=await params;if(kind!=="schedule")notFound();
   const initial=await publicMedia(token,kind).catch(error=>{if(error instanceof MediaError&&error.status===404)notFound();throw error;});
   return <PublicYoutubeWorkspace kind={kind} token={token} initial={initial} />;
 }
