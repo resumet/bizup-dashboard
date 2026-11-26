@@ -543,13 +543,14 @@ export function CourseOperationsEditor({
 
   useEffect(() => {
     if (activeTab === "information") {
+      if (courseId) void loadDetailSection("sales");
       void loadDetailSection("videos");
     } else if (activeTab === "students") {
       void loadDetailSection("students");
     }
     // loadDetailSection is intentionally recreated with the editor state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, courseId]);
 
   async function selectMessageProject(messageProjectId: string) {
     setDraft((current) => ({
@@ -873,6 +874,293 @@ export function CourseOperationsEditor({
   const bannerPreviewUrl = bannerSelection?.previewUrl ??
     (bannerRemoved ? "" : savedBannerUrl);
 
+  const salesEventsCard = (
+    <Card>
+      <CardHeader>
+        <CardTitle>판매 이벤트</CardTitle>
+        <CardDescription>
+          기간, 혜택, 제공 조건을 자유롭게 기록합니다.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-2">
+          <Label htmlFor="early-bird-event">얼리버드 이벤트</Label>
+          <Textarea
+            id="early-bird-event"
+            className="h-32 min-h-32 max-h-32 resize-none overflow-y-auto field-sizing-fixed"
+            placeholder="예: 9월 1일까지 10만원 할인"
+            maxLength={2_000}
+            value={draft.earlyBirdEvent}
+            onChange={(event) =>
+              updateField("earlyBirdEvent", event.target.value)
+            }
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="first-50-event">선착순 50명 이벤트</Label>
+          <Textarea
+            id="first-50-event"
+            className="h-32 min-h-32 max-h-32 resize-none overflow-y-auto field-sizing-fixed"
+            placeholder="예: 워크북과 1:1 피드백 제공"
+            maxLength={2_000}
+            value={draft.first50Event}
+            onChange={(event) =>
+              updateField("first50Event", event.target.value)
+            }
+          />
+        </div>
+        <div className="grid gap-2 sm:col-span-2">
+          <Label htmlFor="course-differentiation">
+            강의 차별점을 상세하게 기재
+          </Label>
+          <Textarea
+            id="course-differentiation"
+            className="h-48 min-h-48 resize-y field-sizing-fixed"
+            placeholder="다른 강의와 구분되는 특징, 제공 가치와 수강생이 얻게 될 변화를 상세하게 기재해 주세요."
+            maxLength={10_000}
+            value={draft.courseDifferentiation}
+            onChange={(event) =>
+              updateField("courseDifferentiation", event.target.value)
+            }
+          />
+          <p className="text-right text-xs text-muted-foreground">
+            {draft.courseDifferentiation.length.toLocaleString()} / 10,000자
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+  const courseOptionsCard = (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center gap-2">
+          <CardTitle>강의 옵션과 가격</CardTitle>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setDraft((current) => ({
+                ...current,
+                options: [
+                  ...current.options,
+                  {
+                    name: "",
+                    listPrice: "",
+                    salePrice: "",
+                    groupChatLink: "",
+                    entryCode: "",
+                  },
+                ],
+              }))
+            }
+          >
+            <Plus />
+            옵션 추가
+          </Button>
+        </div>
+        <CardDescription>
+          정상가와 판매가를 입력하면 할인금액과 12개월 무이자 월 납부액을
+          자동으로 계산합니다.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="pb-1">
+          <div className="space-y-2">
+            {draft.options.length > 0 ? (
+              <div className="hidden grid-cols-[minmax(120px,0.8fr)_110px_110px_64px_130px_140px_minmax(180px,1fr)_90px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground xl:grid">
+                <span>옵션명</span>
+                <span>정상가</span>
+                <span>판매가</span>
+                <span>할인율</span>
+                <span>얼리버드 할인금액</span>
+                <span>12개월 무이자</span>
+                <span>단톡방 주소</span>
+                <span>입장코드</span>
+                <span className="sr-only">삭제</span>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                등록된 옵션이 없습니다. 옵션 없이도 강의를 만들 수 있습니다.
+              </div>
+            )}
+            {draft.options.map((option, index) => (
+              <div
+                key={`option-${index}`}
+                className="grid grid-cols-1 items-center gap-2 xl:grid-cols-[minmax(120px,0.8fr)_110px_110px_64px_130px_140px_minmax(180px,1fr)_90px_44px]"
+              >
+                <Input
+                  id={`option-name-${index}`}
+                  className="h-10 text-sm"
+                  aria-label={`${index + 1}번 옵션명`}
+                  placeholder="예: 기본 과정"
+                  value={option.name}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      options: current.options.map((item, itemIndex) =>
+                        itemIndex === index
+                          ? { ...item, name: event.target.value }
+                          : item,
+                      ),
+                    }))
+                  }
+                />
+                <Input
+                  id={`list-price-${index}`}
+                  className="h-10 text-right"
+                  aria-label={`${index + 1}번 옵션 정상가`}
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={formatPrice(option.listPrice)}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      options: current.options.map((item, itemIndex) =>
+                        itemIndex === index
+                          ? {
+                              ...item,
+                              listPrice: event.target.value.replace(
+                                /\D/gu,
+                                "",
+                              ),
+                            }
+                          : item,
+                      ),
+                    }))
+                  }
+                />
+                <Input
+                  id={`sale-price-${index}`}
+                  className="h-10 text-right"
+                  aria-label={`${index + 1}번 옵션 판매가`}
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={formatPrice(option.salePrice)}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      options: current.options.map((item, itemIndex) =>
+                        itemIndex === index
+                          ? {
+                              ...item,
+                              salePrice: event.target.value.replace(
+                                /\D/gu,
+                                "",
+                              ),
+                            }
+                          : item,
+                      ),
+                    }))
+                  }
+                />
+                <Badge
+                  variant="outline"
+                  className="h-8 justify-center font-mono text-xs"
+                >
+                  {formatDiscountRate(option.listPrice, option.salePrice)}
+                </Badge>
+                <div
+                  className="flex h-10 items-center justify-between rounded-md border bg-muted/30 px-3 font-mono text-xs xl:justify-end"
+                  aria-label={`${index + 1}번 옵션 얼리버드 할인금액`}
+                >
+                  <span className="text-muted-foreground xl:hidden">
+                    얼리버드 할인
+                  </span>
+                  <span>
+                    {formatCalculatedPrice(
+                      calculateEarlyBirdDiscountAmount(
+                        option.listPrice,
+                        option.salePrice,
+                      ),
+                    )}
+                  </span>
+                </div>
+                <div
+                  className="flex h-10 items-center justify-between rounded-md border bg-muted/30 px-3 font-mono text-xs xl:justify-end"
+                  aria-label={`${index + 1}번 옵션 12개월 무이자 월 납부액`}
+                >
+                  <span className="text-muted-foreground xl:hidden">
+                    12개월 무이자
+                  </span>
+                  <span>
+                    {formatCalculatedPrice(
+                      calculateTwelveMonthInstallment(
+                        option.listPrice,
+                        option.salePrice,
+                      ),
+                      "원/월",
+                    )}
+                  </span>
+                </div>
+                <Input
+                  id={`group-chat-link-${index}`}
+                  className="h-10"
+                  aria-label={`${index + 1}번 옵션 단톡방 주소`}
+                  type="url"
+                  placeholder="https://open.kakao.com/o/..."
+                  value={option.groupChatLink}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      options: current.options.map((item, itemIndex) =>
+                        itemIndex === index
+                          ? { ...item, groupChatLink: event.target.value }
+                          : item,
+                      ),
+                    }))
+                  }
+                />
+                <Input
+                  id={`entry-code-${index}`}
+                  className="h-10"
+                  aria-label={`${index + 1}번 옵션 입장코드`}
+                  placeholder="4~6글자"
+                  maxLength={6}
+                  value={option.entryCode}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      options: current.options.map((item, itemIndex) =>
+                        itemIndex === index
+                          ? { ...item, entryCode: event.target.value }
+                          : item,
+                      ),
+                    }))
+                  }
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="text-destructive hover:text-destructive"
+                  aria-label={`${index + 1}번 옵션 삭제`}
+                  onClick={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      options: current.options.filter(
+                        (_, itemIndex) => itemIndex !== index,
+                      ),
+                    }))
+                  }
+                >
+                  <Trash2 />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+  const salesSections = sectionStatuses.sales === "loaded" ? (
+    <div className="min-w-0 space-y-6">
+      {courseId ? <>{courseOptionsCard}{salesEventsCard}</> : <>{salesEventsCard}{courseOptionsCard}</>}
+    </div>
+  ) : (
+    <DeferredSectionState status={sectionStatuses.sales} error={sectionErrors.sales} onRetry={() => retrySection("sales")} />
+  );
+
   return (
     <div className="space-y-6">
       <div className={`flex flex-col gap-4 sm:flex-row sm:items-end ${courseId ? "sm:justify-end" : "sm:justify-between"}`}>
@@ -943,7 +1231,7 @@ export function CourseOperationsEditor({
         onValueChange={changeTab}
         className="gap-6"
       >
-        <TabsList>
+        {!courseId && <TabsList>
           <TabsTrigger value="information" className="h-10 min-w-0 px-2 md:min-w-28 md:px-5">
             정보
           </TabsTrigger>
@@ -956,7 +1244,7 @@ export function CourseOperationsEditor({
           <TabsTrigger value="messages" className="hidden">
             단톡방문자
           </TabsTrigger>
-        </TabsList>
+        </TabsList>}
 
         <TabsContent value="information" className="mt-0 space-y-6">
           <div className="grid items-start gap-6 xl:grid-cols-2">
@@ -1044,7 +1332,9 @@ export function CourseOperationsEditor({
             </CardContent>
           </Card>
 
-          <Card>
+          {courseId && <div className="min-w-0 xl:col-span-2">{salesSections}</div>}
+
+          <Card className={courseId ? "xl:col-start-2 xl:row-start-1" : undefined}>
             <CardHeader>
               <CardTitle>강의 기본 정보</CardTitle>
             </CardHeader>
@@ -1386,296 +1676,7 @@ export function CourseOperationsEditor({
         ) : null}
         </TabsContent>
 
-        <TabsContent value="sales" className="mt-0 space-y-6">
-          {sectionStatuses.sales !== "loaded" ? (
-            <DeferredSectionState
-              status={sectionStatuses.sales}
-              error={sectionErrors.sales}
-              onRetry={() => retrySection("sales")}
-            />
-          ) : (
-            <div className="space-y-6">
-
-        <Card>
-          <CardHeader>
-            <CardTitle>판매 이벤트</CardTitle>
-            <CardDescription>
-              기간, 혜택, 제공 조건을 자유롭게 기록합니다.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="early-bird-event">얼리버드 이벤트</Label>
-              <Textarea
-                id="early-bird-event"
-                className="h-32 min-h-32 max-h-32 resize-none overflow-y-auto field-sizing-fixed"
-                placeholder="예: 9월 1일까지 10만원 할인"
-                maxLength={2_000}
-                value={draft.earlyBirdEvent}
-                onChange={(event) =>
-                  updateField("earlyBirdEvent", event.target.value)
-                }
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="first-50-event">선착순 50명 이벤트</Label>
-              <Textarea
-                id="first-50-event"
-                className="h-32 min-h-32 max-h-32 resize-none overflow-y-auto field-sizing-fixed"
-                placeholder="예: 워크북과 1:1 피드백 제공"
-                maxLength={2_000}
-                value={draft.first50Event}
-                onChange={(event) =>
-                  updateField("first50Event", event.target.value)
-                }
-              />
-            </div>
-            <div className="grid gap-2 sm:col-span-2">
-              <Label htmlFor="course-differentiation">
-                강의 차별점을 상세하게 기재
-              </Label>
-              <Textarea
-                id="course-differentiation"
-                className="h-48 min-h-48 resize-y field-sizing-fixed"
-                placeholder="다른 강의와 구분되는 특징, 제공 가치와 수강생이 얻게 될 변화를 상세하게 기재해 주세요."
-                maxLength={10_000}
-                value={draft.courseDifferentiation}
-                onChange={(event) =>
-                  updateField("courseDifferentiation", event.target.value)
-                }
-              />
-              <p className="text-right text-xs text-muted-foreground">
-                {draft.courseDifferentiation.length.toLocaleString()} / 10,000자
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex flex-wrap items-center gap-2">
-              <CardTitle>강의 옵션과 가격</CardTitle>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setDraft((current) => ({
-                    ...current,
-                    options: [
-                      ...current.options,
-                      {
-                        name: "",
-                        listPrice: "",
-                        salePrice: "",
-                        groupChatLink: "",
-                        entryCode: "",
-                      },
-                    ],
-                  }))
-                }
-              >
-                <Plus />
-                옵션 추가
-              </Button>
-            </div>
-            <CardDescription>
-              정상가와 판매가를 입력하면 할인금액과 12개월 무이자 월 납부액을
-              자동으로 계산합니다.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="pb-1">
-              <div className="space-y-2">
-                {draft.options.length > 0 ? (
-                  <div className="hidden grid-cols-[minmax(120px,0.8fr)_110px_110px_64px_130px_140px_minmax(180px,1fr)_90px_44px] items-center gap-2 px-1 text-xs font-medium text-muted-foreground xl:grid">
-                    <span>옵션명</span>
-                    <span>정상가</span>
-                    <span>판매가</span>
-                    <span>할인율</span>
-                    <span>얼리버드 할인금액</span>
-                    <span>12개월 무이자</span>
-                    <span>단톡방 주소</span>
-                    <span>입장코드</span>
-                    <span className="sr-only">삭제</span>
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-                    등록된 옵션이 없습니다. 옵션 없이도 강의를 만들 수 있습니다.
-                  </div>
-                )}
-                {draft.options.map((option, index) => (
-                  <div
-                    key={`option-${index}`}
-                    className="grid grid-cols-1 items-center gap-2 xl:grid-cols-[minmax(120px,0.8fr)_110px_110px_64px_130px_140px_minmax(180px,1fr)_90px_44px]"
-                  >
-                    <Input
-                      id={`option-name-${index}`}
-                      className="h-10 text-sm"
-                      aria-label={`${index + 1}번 옵션명`}
-                      placeholder="예: 기본 과정"
-                      value={option.name}
-                      onChange={(event) =>
-                        setDraft((current) => ({
-                          ...current,
-                          options: current.options.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, name: event.target.value }
-                              : item,
-                          ),
-                        }))
-                      }
-                    />
-                    <Input
-                      id={`list-price-${index}`}
-                      className="h-10 text-right"
-                      aria-label={`${index + 1}번 옵션 정상가`}
-                      inputMode="numeric"
-                      placeholder="0"
-                      value={formatPrice(option.listPrice)}
-                      onChange={(event) =>
-                        setDraft((current) => ({
-                          ...current,
-                          options: current.options.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? {
-                                  ...item,
-                                  listPrice: event.target.value.replace(
-                                    /\D/gu,
-                                    "",
-                                  ),
-                                }
-                              : item,
-                          ),
-                        }))
-                      }
-                    />
-                    <Input
-                      id={`sale-price-${index}`}
-                      className="h-10 text-right"
-                      aria-label={`${index + 1}번 옵션 판매가`}
-                      inputMode="numeric"
-                      placeholder="0"
-                      value={formatPrice(option.salePrice)}
-                      onChange={(event) =>
-                        setDraft((current) => ({
-                          ...current,
-                          options: current.options.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? {
-                                  ...item,
-                                  salePrice: event.target.value.replace(
-                                    /\D/gu,
-                                    "",
-                                  ),
-                                }
-                              : item,
-                          ),
-                        }))
-                      }
-                    />
-                    <Badge
-                      variant="outline"
-                      className="h-8 justify-center font-mono text-xs"
-                    >
-                      {formatDiscountRate(option.listPrice, option.salePrice)}
-                    </Badge>
-                    <div
-                      className="flex h-10 items-center justify-between rounded-md border bg-muted/30 px-3 font-mono text-xs xl:justify-end"
-                      aria-label={`${index + 1}번 옵션 얼리버드 할인금액`}
-                    >
-                      <span className="text-muted-foreground xl:hidden">
-                        얼리버드 할인
-                      </span>
-                      <span>
-                        {formatCalculatedPrice(
-                          calculateEarlyBirdDiscountAmount(
-                            option.listPrice,
-                            option.salePrice,
-                          ),
-                        )}
-                      </span>
-                    </div>
-                    <div
-                      className="flex h-10 items-center justify-between rounded-md border bg-muted/30 px-3 font-mono text-xs xl:justify-end"
-                      aria-label={`${index + 1}번 옵션 12개월 무이자 월 납부액`}
-                    >
-                      <span className="text-muted-foreground xl:hidden">
-                        12개월 무이자
-                      </span>
-                      <span>
-                        {formatCalculatedPrice(
-                          calculateTwelveMonthInstallment(
-                            option.listPrice,
-                            option.salePrice,
-                          ),
-                          "원/월",
-                        )}
-                      </span>
-                    </div>
-                    <Input
-                      id={`group-chat-link-${index}`}
-                      className="h-10"
-                      aria-label={`${index + 1}번 옵션 단톡방 주소`}
-                      type="url"
-                      placeholder="https://open.kakao.com/o/..."
-                      value={option.groupChatLink}
-                      onChange={(event) =>
-                        setDraft((current) => ({
-                          ...current,
-                          options: current.options.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, groupChatLink: event.target.value }
-                              : item,
-                          ),
-                        }))
-                      }
-                    />
-                    <Input
-                      id={`entry-code-${index}`}
-                      className="h-10"
-                      aria-label={`${index + 1}번 옵션 입장코드`}
-                      placeholder="4~6글자"
-                      maxLength={6}
-                      value={option.entryCode}
-                      onChange={(event) =>
-                        setDraft((current) => ({
-                          ...current,
-                          options: current.options.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, entryCode: event.target.value }
-                              : item,
-                          ),
-                        }))
-                      }
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:text-destructive"
-                      aria-label={`${index + 1}번 옵션 삭제`}
-                      onClick={() =>
-                        setDraft((current) => ({
-                          ...current,
-                          options: current.options.filter(
-                            (_, itemIndex) => itemIndex !== index,
-                          ),
-                        }))
-                      }
-                    >
-                      <Trash2 />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-            </div>
-          )}
-        </TabsContent>
+        {!courseId && <TabsContent value="sales" className="mt-0">{salesSections}</TabsContent>}
 
         <TabsContent value="information" className="mt-0">
           {sectionStatuses.videos !== "loaded" ? (

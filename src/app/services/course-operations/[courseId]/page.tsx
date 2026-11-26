@@ -11,7 +11,7 @@ import { ChatAudienceNotice } from "@/components/ad-performance/chat-audience-no
 import { PendingLinkLabel } from "@/components/navigation/pending-link-label";
 import { Button } from "@/components/ui/button";
 import { courseBannerUrl } from "@/lib/course-operations/banner";
-import { formatCourseDetailHeading } from "@/lib/course-operations/course-detail-heading";
+import { formatCourseDetailSubtitle } from "@/lib/course-operations/course-detail-heading";
 import { toCourseNote, type CourseNote } from "@/lib/course-operations/notes";
 import type { CourseOperationsDraft } from "@/lib/course-operations/types";
 import { normalizeRequiredTasks } from "@/lib/course-operations/required-tasks";
@@ -155,7 +155,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
   return (
     <main className="min-h-screen">
       <header className="border-b bg-background">
-        <div className="mx-auto flex h-18 max-w-[1900px] items-center px-5 lg:px-8">
+        <div className="mx-auto flex min-h-18 max-w-[1900px] items-center px-5 py-3 lg:px-8">
           <Button variant="ghost" size="sm" asChild>
             <BackLink href="/services/course-operations">
               <PendingLinkLabel
@@ -169,14 +169,16 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
             </BackLink>
           </Button>
           <div className="mx-3 h-5 w-px bg-border" />
-          <span className="truncate font-semibold">
-            {formatCourseDetailHeading({
-              cohort: course.cohort,
-              instructorName: course.instructor_name,
-              courseName: course.name,
-              webinarAt: course.free_webinar_at,
-            })}
-          </span>
+          <div className="min-w-0 space-y-1">
+            <h1 className="text-lg font-semibold">{course.name}</h1>
+            <p className="text-sm text-muted-foreground">
+              {formatCourseDetailSubtitle({
+                cohort: course.cohort,
+                instructorName: course.instructor_name,
+                webinarAt: course.free_webinar_at,
+              })}
+            </p>
+          </div>
         </div>
       </header>
       <div className="mx-auto max-w-[1900px] px-5 py-8 lg:px-8">
