@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { RefreshIntakes, ShareIntake } from "@/components/instructor-intake/intake-controls";
 import { Button } from "@/components/ui/button";
 import { IntakeProgress } from "@/components/instructor-intake/progress";
-import { FIELD_DESCRIPTION_LINKS, FIELD_LABELS, YOUTUBE_APPLICATION_FIELDS, FILMING_INFO_GUIDANCE, intakeProgress, type Answers, type Photo } from "@/lib/instructor-intake/model";
+import { FIELD_DESCRIPTION_LINKS, FIELD_LABELS, YOUTUBE_APPLICATION_FIELDS, FILMING_INFO_GUIDANCE, intakeFieldHeading, intakeProgress, type Answers, type Photo } from "@/lib/instructor-intake/model";
 import { intakePageMember, memberIntake, signedImageGroups, signedPhotos } from "@/lib/instructor-intake/server";
 
 function Urls({ values, unavailable }: { values: string[]; unavailable: boolean }) {
@@ -64,8 +64,8 @@ export default async function InstructorIntakeDetail({ params }: { params: Promi
     <div key="career-materials" className="space-y-2"><p className="text-muted-foreground">{FILMING_INFO_GUIDANCE.careerAndFilmingMaterials}</p><div>{a.careerAndFilmingMaterials || "미입력"}</div></div>,
     <div key="practical-process" className="space-y-2"><p className="text-muted-foreground">{FILMING_INFO_GUIDANCE.practicalProcess}</p><div>{a.practicalProcess || "미입력"}</div></div>,
     <EvidenceAvailability key="evidence-availability" items={a.evidenceAvailability} />,
-    <dl key="youtube-application" className="space-y-4">{YOUTUBE_APPLICATION_FIELDS.map(({ key, number, label }) => (
-      <div key={key}><dt className="font-medium">38-{number}. {label}</dt><dd>{key === "youtubeUrls" ? <Urls values={a.youtubeUrls} unavailable={a.youtubeUnavailable} /> : a.youtubeApplication?.[key] || "미입력"}</dd></div>
+    <dl key="youtube-application" className="space-y-4">{YOUTUBE_APPLICATION_FIELDS.map(({ key, label }) => (
+      <div key={key}><dt className="font-medium">{label}</dt><dd>{key === "youtubeUrls" ? <Urls values={a.youtubeUrls} unavailable={a.youtubeUnavailable} /> : a.youtubeApplication?.[key] || "미입력"}</dd></div>
     ))}</dl>,
   ];
   return <main className="mx-auto max-w-5xl space-y-7 px-5 py-8">
@@ -73,6 +73,6 @@ export default async function InstructorIntakeDetail({ params }: { params: Promi
     <div className="flex flex-wrap items-center justify-between gap-4"><h1 className="text-2xl font-semibold">{row.title}</h1><div className="flex items-center gap-2"><Link href="/services/instructor-intakes/settings" className="inline-flex h-9 items-center rounded-md border px-4 text-sm font-medium hover:bg-accent">예시 설정</Link><Button asChild variant="outline" size="sm"><a href={`/api/instructor-intakes/${row.id}/export`}>강사자료 일괄 다운로드</a></Button><RefreshIntakes /></div></div>
     <div className="space-y-3 rounded-xl border bg-card p-5"><IntakeProgress answers={a} photoCount={photos.length} imagePaths={row.image_paths} /><p className="text-sm text-muted-foreground">{row.submitted_at ? `제출 완료 · ${new Date(row.submitted_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}` : "제출 대기"}{!row.share_enabled ? " · 수집 마감" : ""}</p></div>
     <ShareIntake id={row.id} token={row.access_token} enabled={row.share_enabled} revision={row.revision} />
-    <dl className="divide-y rounded-xl border bg-card">{FIELD_LABELS.map((label, index) => <div key={label} className="space-y-3 p-5 sm:p-6"><dt className="flex items-center justify-between gap-3 font-semibold"><span className="flex flex-wrap items-center gap-2"><span>{index + 1}. {label}</span>{FIELD_DESCRIPTION_LINKS[index] ? <a href={FIELD_DESCRIPTION_LINKS[index]} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary underline underline-offset-4">(설명보기)</a> : null}</span><span className={progress.completed[index] ? "text-sm font-normal text-emerald-600" : "text-sm font-normal text-muted-foreground"}>{progress.completed[index] ? "수집 완료" : "미수집"}</span></dt><dd className="whitespace-pre-wrap break-words text-sm leading-relaxed">{values[index]}</dd></div>)}</dl>
+    <dl className="divide-y rounded-xl border bg-card">{FIELD_LABELS.map((label, index) => <div key={label} className="space-y-3 p-5 sm:p-6"><dt className="flex items-center justify-between gap-3 font-semibold"><span className="flex flex-wrap items-center gap-2"><span>{intakeFieldHeading(label, index)}</span>{FIELD_DESCRIPTION_LINKS[index] ? <a href={FIELD_DESCRIPTION_LINKS[index]} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary underline underline-offset-4">(설명보기)</a> : null}</span><span className={progress.completed[index] ? "text-sm font-normal text-emerald-600" : "text-sm font-normal text-muted-foreground"}>{progress.completed[index] ? "수집 완료" : "미수집"}</span></dt><dd className="whitespace-pre-wrap break-words text-sm leading-relaxed">{values[index]}</dd></div>)}</dl>
   </main>;
 }
