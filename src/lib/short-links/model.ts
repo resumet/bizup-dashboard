@@ -23,3 +23,7 @@ export const shortLinkResultSchema = z.object({
   existing: z.boolean(),
 });
 export type ShortLinkInput = z.input<typeof shortLinkInputSchema>;
+
+export const replayLinkRequest = z.object({
+  course_id: z.uuid(), purpose: z.literal("replay-guide"),
+}).strict();

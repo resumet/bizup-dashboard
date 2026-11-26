@@ -5,6 +5,7 @@ import { BackLink } from "@/components/layout/back-link";
 import { Suspense } from "react";
 import { CourseCalendarSection } from "@/components/shared-calendar/course-calendar-section";
 import { CourseOperationsEditor } from "@/components/course-operations/course-editor";
+import { CourseReplayLink } from "@/components/replay-guide/course-link";
 import { loadCourseChatAlerts } from "@/lib/ad-performance/chat-alert-server";
 import { ChatAudienceNotice } from "@/components/ad-performance/chat-audience-notice";
 import { PendingLinkLabel } from "@/components/navigation/pending-link-label";
@@ -183,6 +184,7 @@ export default async function CourseOperationsDetailPage({ params, searchParams 
         <CourseOperationsEditor
           courseId={courseId}
           initialDraft={draft}
+          replayGuideLink={<CourseReplayLink courseId={courseId} workspaceId={membership.workspace_id} />}
           initialBannerUrl={
             course.banner_image_path
               ? courseBannerUrl(courseId, course.updated_at)

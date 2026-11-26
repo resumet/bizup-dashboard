@@ -1,8 +1,8 @@
-import { shortLinkInputSchema, shortLinkResultSchema, type ShortLinkInput } from "./model";
+import { replayLinkRequest, shortLinkInputSchema, shortLinkResultSchema, type ShortLinkInput } from "./model";
 
 // All screens call this gateway. Provider access and credentials stay on the server.
-export async function issueCourseShortLink(input: ShortLinkInput, request: typeof fetch = fetch) {
-  const parsed = shortLinkInputSchema.safeParse(input);
+export async function issueCourseShortLink(input: ShortLinkInput | { course_id: string; purpose: "replay-guide" }, request: typeof fetch = fetch) {
+  const parsed = shortLinkInputSchema.or(replayLinkRequest).safeParse(input);
   if (!parsed.success) throw new Error("강의 UUID, 유형 식별자, 연결 주소와 이름을 확인해 주세요.");
   const { course_id: courseId, ...body } = parsed.data;
   let response: Response;

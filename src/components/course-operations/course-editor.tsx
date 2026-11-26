@@ -362,6 +362,7 @@ export function CourseOperationsEditor({
   notesLoadError,
   loadError,
   deferDetailSections = false,
+  replayGuideLink,
 }: {
   courseId?: string;
   sourceScheduleDraftId?: string;
@@ -380,6 +381,7 @@ export function CourseOperationsEditor({
   notesLoadError?: string;
   loadError?: string;
   deferDetailSections?: boolean;
+  replayGuideLink?: React.ReactNode;
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState(() => {
@@ -1312,6 +1314,7 @@ export function CourseOperationsEditor({
                     action={isShortLinkField(item.field) ? <Button type="button" variant="outline" className="h-10 shrink-0" disabled={saving || issuingQrField !== null} onClick={() => void issueQr(item.field)}>{issuingQrField === item.field ? "발급 중…" : "발급"}</Button> : undefined}
                   />
                 ))}
+                {group.title === "기타링크" && replayGuideLink}
               </div>
               {index === 1 && <details className="mt-5"><summary className="cursor-pointer text-sm text-muted-foreground">유료수강생 단톡방</summary><div className="mt-4"><CourseLinkInput field="paidKakaoRoomLink" label="유료수강생단톡방" value={draft.paidKakaoRoomLink} onChange={updateField} /></div></details>}
 
