@@ -1625,10 +1625,15 @@ export function CourseOperationsEditor({
           <CardHeader className="border-b">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <CardTitle>링크 관리</CardTitle>
-              <div className="ml-auto flex items-center gap-2">
+              <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
                 <Button asChild variant="outline">
                   <a href="https://admin.systemnova.co.kr/" target="_blank" rel="noopener noreferrer">
                     <ExternalLink aria-hidden="true" />비즈업 어드민<span className="sr-only"> (새 탭에서 열기)</span>
+                  </a>
+                </Button>
+                <Button asChild variant="outline">
+                  <a href="https://bizup.im/" target="_blank" rel="noopener noreferrer">
+                    <ExternalLink aria-hidden="true" />비즈업 단축링크<span className="sr-only"> (새 탭에서 열기)</span>
                   </a>
                 </Button>
                 <LinkCopyDialog paymentQr={draft.paymentLink} inquiryQr={draft.inquiryLink} />
