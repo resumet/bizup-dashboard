@@ -1,3 +1,9 @@
+export const TEMPORARY_FREE_CHAT_URL = "https://open.kakao.com/o/g5PGIRPi";
+
+export function isTemporaryFreeChatUrl(value: string | null | undefined) {
+  return value?.trim().replace(/[?#].*$/u, "").replace(/\/$/u, "") === TEMPORARY_FREE_CHAT_URL;
+}
+
 export const COURSE_PAGE_LINKS = [
   { field: "landingPageLink", column: "landing_page_link", label: "기본 랜딩페이지" },
   { field: "landingPageQrLink", column: "landing_page_qr_link", label: "기본 랜딩 QR" },

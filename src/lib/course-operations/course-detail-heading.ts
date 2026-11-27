@@ -1,5 +1,5 @@
 import { formatDashboardCohort } from "../dashboard/course-metadata";
-import { toKoreaDate } from "./schedule";
+import { formatKoreaWeekday, toKoreaDate } from "./schedule";
 import { formatWebinarCountdownLabel } from "./webinar-proximity";
 
 type CourseDetailHeadingInput = {
@@ -47,7 +47,7 @@ export function formatCourseDetailSubtitle(
   const countdown = formatWebinarCountdownLabel(webinarAt ?? "", todayKoreaDate);
   if (webinarAt && countdown) {
     const date = new Date(webinarAt);
-    parts.push(countdown, WEBINAR_DATE_FORMATTER.format(date), WEBINAR_TIME_FORMATTER.format(date));
+    parts.push(countdown, `${WEBINAR_DATE_FORMATTER.format(date)} (${formatKoreaWeekday(webinarAt)})`, WEBINAR_TIME_FORMATTER.format(date));
   } else {
     parts.push("웨비나 일정 미정");
   }

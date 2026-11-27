@@ -38,8 +38,8 @@ test("기수와 강사명이 없으면 미지정 상태를 제목에 표시한�
 
 test("강의 제목 아래 기수·강사명·디데이·서울 날짜·시간을 표시한다", () => {
   const course = { cohort: "1기", instructorName: "신예영", webinarAt: "2026-12-07T01:30:00Z" };
-  assert.equal(formatCourseDetailSubtitle(course, "2026-12-07"), "1기 • 신예영 • D-Day • 2026. 12. 7. • 오전 10:30");
-  assert.equal(formatCourseDetailSubtitle({ ...course, cohort: "1" }, "2026-12-06"), "1기 • 신예영 • D-1일 • 2026. 12. 7. • 오전 10:30");
+  assert.equal(formatCourseDetailSubtitle(course, "2026-12-07"), "1기 • 신예영 • D-Day • 2026. 12. 7. (월) • 오전 10:30");
+  assert.equal(formatCourseDetailSubtitle({ ...course, cohort: "1" }, "2026-12-06"), "1기 • 신예영 • D-1일 • 2026. 12. 7. (월) • 오전 10:30");
 });
 
 test("기수, 강사, 웨비나 일정이 없으면 미정 상태를 표시한다", () => {

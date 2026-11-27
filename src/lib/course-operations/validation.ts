@@ -60,7 +60,7 @@ function optionalId(value: unknown, label: string) {
 
 export function parseCourseOperationsInput(
   value: unknown,
-  parseOptions: { ignoreYoutubeAppearances?: boolean } = {},
+  parseOptions: { ignoreYoutubeAppearances?: boolean; requireFreeChatUrl?: boolean } = {},
 ): CourseOperationsInput {
   const input =
     typeof value === "object" && value !== null
@@ -163,7 +163,7 @@ export function parseCourseOperationsInput(
     ),
     landingPageLink: url(input.landingPageLink, "기본 랜딩페이지 링크", false),
     landingPageQrLink: url(input.landingPageQrLink, "기본 랜딩 QR", false),
-    freeKakaoRoom1Link: url(input.freeKakaoRoom1Link, "무료카톡방 1번 링크", false),
+    freeKakaoRoom1Link: url(input.freeKakaoRoom1Link, "무료단톡방1 주소", Boolean(parseOptions.requireFreeChatUrl)),
     freeKakaoRoom2Link: url(input.freeKakaoRoom2Link, "무료카톡방 2번 링크", false),
     paidKakaoRoomLink: url(input.paidKakaoRoomLink, "유료수강생단톡방 링크", false),
     communicationRoomLink: url(input.communicationRoomLink, "소통방 링크", false),

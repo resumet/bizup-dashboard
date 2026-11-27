@@ -9,6 +9,16 @@ const WEBINAR_TIMES = new Set<string>(
   WEBINAR_TIME_OPTIONS.map((option) => option.value),
 );
 
+const KOREA_WEEKDAY_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
+  weekday: "short",
+});
+
+export function formatKoreaWeekday(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : KOREA_WEEKDAY_FORMATTER.format(date);
+}
+
 const KOREA_DATETIME_FORMATTER = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Seoul",
   year: "numeric",

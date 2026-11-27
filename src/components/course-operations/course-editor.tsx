@@ -23,7 +23,7 @@ import { CourseShareDialog } from "@/components/course-operations/course-share-d
 import { CourseManagementMenu } from "@/components/course-operations/course-management-menu";
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { LinkCopyDialog } from "@/components/course-operations/link-copy-dialog";
-import { COURSE_PAGE_LINKS } from "@/lib/course-operations/course-page-links";
+import { COURSE_PAGE_LINKS, isTemporaryFreeChatUrl, TEMPORARY_FREE_CHAT_URL } from "@/lib/course-operations/course-page-links";
 import { SHORT_LINK_TYPES, isShortLinkField, type ShortLinkField } from "@/lib/short-links/types";
 import { issueCourseShortLink } from "@/lib/short-links/browser";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -88,6 +88,7 @@ import {
   calculateTwelveMonthInstallment,
 } from "@/lib/course-operations/pricing";
 import {
+  formatKoreaWeekday,
   koreaDateTimeToIso,
   koreaDateToIso,
   nextKoreaDate,
@@ -137,10 +138,10 @@ type CourseLinkFieldKey =
   | "preQuestionFormLink"
   | "preQuestionResponsesLink";
 
-const COURSE_LINK_GROUPS: Array<{ title: string; items: ReadonlyArray<{ field: CourseLinkFieldKey; label: string }> }> = [
-  { title: "강의 페이지", items: COURSE_PAGE_LINKS },
+const COURSE_LINK_GROUPS: Array<{ title: string; items: ReadonlyArray<{ field: CourseLinkFieldKey; label: string; required?: boolean }> }> = [
+  { title: "강의 페이지", items: COURSE_PAGE_LINKS.map((link) => ({ ...link, required: true })) },
   { title: "소통링크", items: [
-    { field: "freeKakaoRoom1Link", label: "무료단톡방1" },
+    { field: "freeKakaoRoom1Link", label: "무료단톡방1", required: true },
     { field: "freeKakaoRoom2Link", label: "무료단톡방2" },
     { field: "communicationRoomLink", label: "소통방" },
   ] },
@@ -176,23 +177,29 @@ function CourseLinkInput({
   value,
   onChange,
   action,
+  required = false,
 }: {
   field: CourseLinkFieldKey;
   label: string;
   value: string;
   onChange: (field: CourseLinkFieldKey, value: string) => void;
   action?: React.ReactNode;
+  required?: boolean;
 }) {
   const openableLink = getOpenableLink(value);
   const inputId = `course-link-${field}`;
   return (
     <div className="grid min-w-0 gap-2">
-      <Label htmlFor={inputId}>{label}</Label>
+      <Label htmlFor={inputId}>
+        {label}
+        {required && <span className="text-destructive" aria-hidden="true">(*)</span>}
+      </Label>
       <div className="flex min-w-0 gap-2">
         <Input
           id={inputId}
           className="h-10 min-w-0 flex-1"
           type="url"
+          required={required}
           inputMode="url"
           placeholder="https://"
           maxLength={2_000}
@@ -440,6 +447,11 @@ export function CourseOperationsEditor({
   >({});
   const loadingSectionsRef = useRef(new Set<DeferredCourseEditorTab>());
   const bannerInputRef = useRef<HTMLInputElement>(null);
+  const previousFreeChatUrl = useRef("");
+  const temporaryFreeChat = isTemporaryFreeChatUrl(draft.freeKakaoRoom1Link);
+  const missingLinks = COURSE_LINK_GROUPS.flatMap(({ items }) =>
+    items.filter(({ required, field }) => required && !draft[field]?.trim()),
+  );
 
   useEffect(() => {
     const previewUrl = bannerSelection?.previewUrl;
@@ -774,6 +786,12 @@ export function CourseOperationsEditor({
 
   async function saveCourse() {
     if (issuingQrRef.current) return;
+    if (!courseId && !draft.freeKakaoRoom1Link?.trim()) {
+      changeTab("information");
+      toast("무료단톡방1 주소를 입력하거나 임시를 체크해 주세요.", { tone: "error" });
+      requestAnimationFrame(() => document.getElementById("course-link-freeKakaoRoom1Link")?.focus());
+      return;
+    }
     setSaving(true);
     setError("");
     setNotice("");
@@ -875,6 +893,8 @@ export function CourseOperationsEditor({
   );
   const bannerPreviewUrl = bannerSelection?.previewUrl ??
     (bannerRemoved ? "" : savedBannerUrl);
+  const webinarWeekday = formatKoreaWeekday(draft.freeWebinarAt);
+  const startWeekday = formatKoreaWeekday(draft.startsAt);
 
   const salesEventsCard = (
     <Card className="py-0">
@@ -1394,7 +1414,7 @@ export function CourseOperationsEditor({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="free-webinar-date">무료 웨비나 날짜</Label>
+                <Label htmlFor="free-webinar-date">무료 웨비나 날짜{webinarWeekday && ` (${webinarWeekday})`}</Label>
                 <Input
                   id="free-webinar-date"
                   className="h-10"
@@ -1431,7 +1451,7 @@ export function CourseOperationsEditor({
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="starts-at">개강일</Label>
+                <Label htmlFor="starts-at">개강일{startWeekday && ` (${startWeekday})`}</Label>
                 <Input
                   key={`starts-at-${draft.freeWebinarAt}`}
                   id="starts-at"
@@ -1604,6 +1624,15 @@ export function CourseOperationsEditor({
             </div>
           </CardHeader>
           <CardContent className="space-y-8">
+            {(temporaryFreeChat || missingLinks.length > 0) && (
+              <Alert variant="destructive" className="border-destructive/40 bg-destructive/5">
+                <AlertTitle>필수 링크 확인</AlertTitle>
+                <AlertDescription>
+                  {missingLinks.length > 0 && <div>미입력 필수 링크: {missingLinks.map(({ label }) => label).join(", ")}</div>}
+                  {temporaryFreeChat && <div>- 단톡방 주소가 임시 주소입니다. 광고 혹은 유튜브 라이브 전에 반드시 정식 단톡방 주소로 바꿔주세요.</div>}
+                </AlertDescription>
+              </Alert>
+            )}
             {COURSE_LINK_GROUPS.map((group, index) => <section key={group.title} aria-labelledby={`course-links-heading-${index}`} className={index ? "border-t pt-6" : undefined}>
               <h3 id={`course-links-heading-${index}`} className="mb-5 font-semibold">{group.title}</h3>
               <div className="grid gap-x-8 gap-y-5 lg:grid-cols-2">
@@ -1614,7 +1643,16 @@ export function CourseOperationsEditor({
                     label={item.label}
                     value={draft[item.field]}
                     onChange={updateField}
-                    action={isShortLinkField(item.field) ? <Button type="button" variant="outline" className="h-10 shrink-0" disabled={saving || issuingQrField !== null} onClick={() => void issueQr(item.field)}>{issuingQrField === item.field ? "발급 중…" : "발급"}</Button> : undefined}
+                    required={item.required}
+                    action={item.field === "freeKakaoRoom1Link" ? (
+                      <label className="inline-flex shrink-0 items-center gap-2 text-sm">
+                        <Checkbox checked={temporaryFreeChat} onCheckedChange={(checked) => {
+                          if (checked === true) previousFreeChatUrl.current = draft.freeKakaoRoom1Link || "";
+                          updateField("freeKakaoRoom1Link", checked === true ? TEMPORARY_FREE_CHAT_URL : previousFreeChatUrl.current);
+                        }} />
+                        임시
+                      </label>
+                    ) : isShortLinkField(item.field) ? <Button type="button" variant="outline" className="h-10 shrink-0" disabled={saving || issuingQrField !== null} onClick={() => void issueQr(item.field)}>{issuingQrField === item.field ? "발급 중…" : "발급"}</Button> : undefined}
                   />
                 ))}
                 {group.title === "기타링크" && replayGuideLink}

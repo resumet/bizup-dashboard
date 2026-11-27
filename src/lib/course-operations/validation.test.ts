@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { isTemporaryFreeChatUrl, TEMPORARY_FREE_CHAT_URL } from "./course-page-links";
 import { parseCourseOperationsInput } from "./validation";
 
 const validInput = {
@@ -52,6 +53,26 @@ const validInput = {
   messageProjectIds: [],
   freeAddressBookId: "",
 };
+
+test("새 강의는 무료단톡방1에 정식 또는 임시 주소가 필요하고 기존 강의는 빈 주소로 수정할 수 있다", () => {
+  const create = (freeKakaoRoom1Link?: string) => parseCourseOperationsInput(
+    { ...validInput, freeKakaoRoom1Link }, { requireFreeChatUrl: true },
+  );
+  for (const value of [undefined, "   ", "주소 오류"]) {
+    assert.throws(() => create(value), /무료단톡방1/u);
+  }
+  assert.equal(create(validInput.freeKakaoRoom1Link).freeKakaoRoom1Link, validInput.freeKakaoRoom1Link);
+  assert.equal(create(TEMPORARY_FREE_CHAT_URL).freeKakaoRoom1Link, TEMPORARY_FREE_CHAT_URL);
+  assert.equal(parseCourseOperationsInput({ ...validInput, freeKakaoRoom1Link: "" }).freeKakaoRoom1Link, "");
+});
+
+test("저장한 무료단톡방1이 임시 주소인 동안만 경고를 표시한다", () => {
+  assert.ok(isTemporaryFreeChatUrl(TEMPORARY_FREE_CHAT_URL));
+  assert.ok(isTemporaryFreeChatUrl(`${TEMPORARY_FREE_CHAT_URL}/?ref=copy`));
+  for (const value of [null, "", validInput.freeKakaoRoom1Link, `${TEMPORARY_FREE_CHAT_URL}other`]) {
+    assert.equal(isTemporaryFreeChatUrl(value), false);
+  }
+});
 
 test("강사 닉네임은 선택 입력이며 양끝 공백을 정리하고 최대 120자까지 저장한다", () => {
   assert.equal(parseCourseOperationsInput(validInput).instructorNickname, "");

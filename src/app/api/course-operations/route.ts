@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     if (sourceScheduleDraft?.memo && !user.email) {
       throw new Error("메모 작성자 이메일 정보를 확인할 수 없습니다.");
     }
-    const input = parseCourseOperationsInput(body);
+    const input = parseCourseOperationsInput(body, { requireFreeChatUrl: true });
     await assertLinkableItems(membership.workspace_id, input, null);
 
     const admin = createAdminClient();
