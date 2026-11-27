@@ -143,7 +143,7 @@ const COURSE_LINK_GROUPS: Array<{ title: string; items: ReadonlyArray<{ field: C
   { title: "강의 페이지", items: COURSE_PAGE_LINKS.map((link) => ({ ...link, required: true })) },
   { title: "소통링크", items: [
     { field: "freeKakaoRoom1Link", label: "무료단톡방1", required: true },
-    { field: "freeKakaoRoom1ShortLink", label: CHAT_SHORT_LINKS.freeKakaoRoom1ShortLink.label },
+    { field: "freeKakaoRoom1ShortLink", label: CHAT_SHORT_LINKS.freeKakaoRoom1ShortLink.label, required: true },
     { field: "freeKakaoRoom2Link", label: "무료단톡방2" },
     { field: "freeKakaoRoom2ShortLink", label: CHAT_SHORT_LINKS.freeKakaoRoom2ShortLink.label },
     { field: "communicationRoomLink", label: "소통방" },
@@ -455,8 +455,11 @@ export function CourseOperationsEditor({
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const previousFreeChatUrl = useRef("");
   const temporaryFreeChat = isTemporaryFreeChatUrl(draft.freeKakaoRoom1Link);
+  function isLinkDisabled(field: CourseLinkFieldKey) {
+    return temporaryFreeChat && (field === "freeKakaoRoom2Link" || isChatShortLinkField(field));
+  }
   const missingLinks = COURSE_LINK_GROUPS.flatMap(({ items }) =>
-    items.filter(({ required, field }) => required && !draft[field]?.trim()),
+    items.filter(({ required, field }) => required && !isLinkDisabled(field) && !draft[field]?.trim()),
   );
 
   useEffect(() => {
@@ -1653,7 +1656,7 @@ export function CourseOperationsEditor({
                     value={draft[item.field]}
                     onChange={updateField}
                     required={item.required}
-                    disabled={temporaryFreeChat && (item.field === "freeKakaoRoom2Link" || isChatShortLinkField(item.field))}
+                    disabled={isLinkDisabled(item.field)}
                     action={item.field === "freeKakaoRoom1Link" ? (
                       <label className="inline-flex shrink-0 items-center gap-2 text-sm">
                         <Checkbox checked={temporaryFreeChat} disabled={issuingQrField !== null} onCheckedChange={(checked) => {
