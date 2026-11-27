@@ -13,6 +13,7 @@ export const shortLinkInputSchema = z.object({
 
 export const shortLinkTypesSchema = z.object({ types: z.array(z.object({
   key: typeKeySchema, label: z.string().min(1).max(120), active: z.boolean(),
+  slots: z.array(z.object({ key: typeKeySchema, label: z.string().min(1) })).nullable().optional(),
 })) }).refine(({ types }) => new Set(types.map(item => item.key)).size === types.length);
 
 export const shortLinkResultSchema = z.object({
@@ -26,6 +27,7 @@ export type ShortLinkInput = z.input<typeof shortLinkInputSchema>;
 
 export const chatLinkRequest = shortLinkInputSchema.pick({ course_id: true, destination_url: true }).extend({
   field: z.enum(["freeKakaoRoom1ShortLink", "freeKakaoRoom2ShortLink"]),
+  idempotencyKey: z.string().uuid().optional(),
 });
 export type ChatLinkRequest = z.input<typeof chatLinkRequest>;
 

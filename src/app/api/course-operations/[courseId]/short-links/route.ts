@@ -31,7 +31,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ cou
       if (isTemporaryFreeChatUrl(course.free_kakao_room_1_link)) throw new ShortLinkError("무료단톡방1에 정식 주소를 저장한 뒤 발급해 주세요.", 409);
       const destination = course[config.column];
       if (!destination || new URL(destination).href !== new URL(parsed.data.destination_url).href) throw new ShortLinkError(`${config.sourceLabel} 주소를 먼저 저장해 주세요.`, 409);
-      const result = await createShortLink({ course_id: course.id, field: parsed.data.field, destination_url: destination, name: `${course.name} ${config.label}`.slice(0, 120) });
+      const nameLabel = parsed.data.field === "freeKakaoRoom1ShortLink" ? config.sourceLabel : config.label;
+      const result = await createShortLink({ course_id: course.id, field: parsed.data.field, destination_url: destination, name: `${course.name} ${nameLabel}`.slice(0, 120), idempotencyKey: parsed.data.idempotencyKey });
+      if (parsed.data.field === "freeKakaoRoom1ShortLink") {
+        const { data: saved, error: saveError } = await admin.from("courses")
+          .update({ free_kakao_room_1_short_link: result.short_url, updated_at: new Date().toISOString() })
+          .eq("id", course.id).eq("workspace_id", membership.workspace_id)
+          .eq("free_kakao_room_1_link", destination).select("id").maybeSingle();
+        if (saveError) throw new ShortLinkError("단축주소를 발급했지만 강의에 저장하지 못했습니다. 다시 눌러 기존 주소를 저장해 주세요.", 500);
+        if (!saved) throw new ShortLinkError("무료단톡방1 주소가 변경되었습니다. 새로고침한 뒤 다시 발급해 주세요.", 409);
+      }
       return Response.json(result, { status: result.existing ? 200 : 201, headers });
     }
     const result = "purpose" in parsed.data

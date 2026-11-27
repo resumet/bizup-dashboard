@@ -70,8 +70,8 @@ test("new server types need no local enum and old type-only bodies are rejected"
   assert.equal(shortLinkInputSchema.safeParse({ ...old, type: "0000" }).success, false);
 });
 
-test("each free chat room issues only its own active registered type", async () => {
-  for (const field of Object.keys(CHAT_SHORT_LINKS) as ChatShortLinkField[]) {
+test("room 2 issues only its own active registered type", async () => {
+  for (const field of ["freeKakaoRoom2ShortLink"] as ChatShortLinkField[]) {
     const label = CHAT_SHORT_LINKS[field].label;
     const registered = { key: "operator_assigned", label, active: true };
     const chat = { field, course_id: input.course_id, destination_url: input.destination_url, name: label };
@@ -88,4 +88,35 @@ test("each free chat room issues only its own active registered type", async () 
     }
     await assert.rejects(createShortLink({ ...input, type_key: registered.key }, { request: withTypes(issue, [registered]), loadKey }), /단축주소 발급 버튼/);
   }
+});
+
+const freeChat = { field: "freeKakaoRoom1ShortLink" as const, course_id: input.course_id, destination_url: "https://open.kakao.com/o/chat", name: "강의 무료단톡방1", idempotencyKey: "106805b1-bef2-47b8-8141-c4209eec0361" };
+const freeChatType = { key: "free_chat", label: "무료단톡방", active: true, slots: [{ key: "chat", label: "단톡방" }, { key: "youtube", label: "유튜브" }, { key: "zoom", label: "줌" }] };
+test("room 1 issues free_chat with slots and an idempotency header regardless of display label", async () => {
+  const request: typeof fetch = async (_url, options) => {
+    assert.deepEqual(JSON.parse(String(options?.body)), {
+      course_id: input.course_id, type_key: "free_chat", name: freeChat.name,
+      slot_urls: { chat: freeChat.destination_url, youtube: null, zoom: null },
+    });
+    assert.equal(new Headers(options?.headers).get("Idempotency-Key"), freeChat.idempotencyKey);
+    return Response.json({ short_url: "https://bizup.im/chat" }, { status: 201 });
+  };
+  assert.equal((await createShortLink(freeChat, { request: withTypes(request, [freeChatType]), loadKey })).existing, false);
+});
+test("room 1 reuses inactive existing free_chat without updating its destination", async () => {
+  let calls = 0;
+  const request: typeof fetch = async (url, options) => {
+    calls++;
+    assert.equal(url, "https://bizup.im/api/v1/short-links");
+    assert.equal(options?.method, "POST");
+    return Response.json({ error: { code: "LINK_TYPE_EXISTS", details: { short_url: "https://bizup.im/original" } } }, { status: 409 });
+  };
+  assert.deepEqual(await createShortLink(freeChat, { request: withTypes(request, [{ ...freeChatType, active: false }]), loadKey }), { short_url: "https://bizup.im/original", existing: true });
+  assert.equal(calls, 1);
+});
+test("room 1 never substitutes freekakaotalk1st or a type without chat slots", async () => {
+  for (const registry of [[{ key: "freekakaotalk1st", label: CHAT_SHORT_LINKS.freeKakaoRoom1ShortLink.label, active: true }], [{ key: "free_chat", label: "무료단톡방", active: true }]]) {
+    await assert.rejects(createShortLink(freeChat, { request: withTypes(async () => { assert.fail("must not issue"); }, registry), loadKey }));
+  }
+  await assert.rejects(createShortLink({ ...input, type_key: "free_chat" }, { request: withTypes(async () => { assert.fail("must not issue"); }, [freeChatType]), loadKey }), /단축주소 발급 버튼/);
 });

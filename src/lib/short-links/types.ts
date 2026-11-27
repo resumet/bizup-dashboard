@@ -16,7 +16,9 @@ export const SHORT_LINK_TYPES = {
 
 export type ShortLinkField = keyof typeof SHORT_LINK_TYPES;
 
-// The provider assigns a key when its operator registers each room's label.
+// free_chat is the provider's existing switchable chat / YouTube / Zoom type.
+export const FREE_CHAT_TYPE_KEY = "free_chat";
+// Room 2 continues to use its separately registered provider type.
 export const CHAT_SHORT_LINKS = {
   freeKakaoRoom1ShortLink: { label: "무료단톡방1 단축주소", sourceLabel: "무료단톡방1", sourceField: "freeKakaoRoom1Link", column: "free_kakao_room_1_link" },
   freeKakaoRoom2ShortLink: { label: "무료단톡방2 단축주소", sourceLabel: "무료단톡방2", sourceField: "freeKakaoRoom2Link", column: "free_kakao_room_2_link" },
@@ -35,7 +37,9 @@ export function isShortLinkField(field: string): field is ShortLinkField {
 }
 
 export function findShortLinkType(typeKey: string) {
-  return [...Object.values(SHORT_LINK_TYPES), POST_SALES_SHORT_LINK_TYPE].find(item => item.typeKey === typeKey);
+  return [...Object.values(SHORT_LINK_TYPES), POST_SALES_SHORT_LINK_TYPE, {
+    typeKey: FREE_CHAT_TYPE_KEY, label: CHAT_SHORT_LINKS.freeKakaoRoom1ShortLink.label, sourceField: "freeKakaoRoom1Link",
+  }].find(item => item.typeKey === typeKey);
 }
 
 // The provider assigns the key when its operator registers the replay guide.

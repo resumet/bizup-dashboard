@@ -644,13 +644,17 @@ export function CourseOperationsEditor({
     setIssuingQrField(field);
     try {
       const result = await issueCourseShortLink(isChatShortLinkField(field) ? {
-        course_id: courseId, field, destination_url: destinationUrl,
+        course_id: courseId, field, destination_url: destinationUrl, idempotencyKey: crypto.randomUUID(),
       } : {
         course_id: courseId, type_key: SHORT_LINK_TYPES[field].typeKey,
         destination_url: destinationUrl, name: `${draft.name || "강의"} ${config.label}`.slice(0, 120),
       });
       setDraft(current => ({ ...current, [field]: result.short_url }));
-      toast(result.existing ? "기존 짧은 주소를 입력했습니다. 강의를 저장해 주세요." : "짧은 주소를 발급했습니다. 강의를 저장해 주세요.");
+      if (field === "freeKakaoRoom1ShortLink") {
+        toast(result.existing ? "기존 무료단톡방1 단축주소를 불러와 저장했습니다. 연결 주소는 변경되지 않습니다." : "무료단톡방1 단축주소를 발급하고 저장했습니다.");
+      } else {
+        toast(result.existing ? "기존 짧은 주소를 입력했습니다. 강의를 저장해 주세요." : "짧은 주소를 발급했습니다. 강의를 저장해 주세요.");
+      }
     } catch (cause) {
       toast(cause instanceof Error ? cause.message : "짧은 주소를 발급하지 못했습니다.", { tone: "error" });
     } finally {
