@@ -1628,7 +1628,7 @@ export function CourseOperationsEditor({
               <Alert variant="destructive" className="border-destructive/40 bg-destructive/5">
                 <AlertTitle>필수 링크 확인</AlertTitle>
                 <AlertDescription>
-                  {missingLinks.length > 0 && <div>미입력 필수 링크: {missingLinks.map(({ label }) => label).join(", ")}</div>}
+                  {missingLinks.length > 0 && <div>- 미입력 필수 링크: {missingLinks.map(({ label }) => label).join(", ")}</div>}
                   {temporaryFreeChat && <div>- 단톡방 주소가 임시 주소입니다. 광고 혹은 유튜브 라이브 전에 반드시 정식 단톡방 주소로 바꿔주세요.</div>}
                 </AlertDescription>
               </Alert>
