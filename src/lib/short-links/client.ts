@@ -1,6 +1,7 @@
 import "server-only";
 import { loadShortUrlApiKey } from "@/lib/admin/short-url-key";
 import { shortLinkInputSchema, shortLinkTypesSchema, shortLinkResultSchema, type ShortLinkInput } from "./model";
+import { CHAT_SHORT_LINKS, findShortLinkType, type ChatShortLinkField } from "./types";
 
 export class ShortLinkError extends Error {
   constructor(message: string, public status = 502) { super(message); }
@@ -57,14 +58,30 @@ export async function listShortLinkTypes(dependencies = defaultDependencies) {
   return readTypes(await readKey(dependencies), dependencies);
 }
 
-export async function createShortLink(input: ShortLinkInput, dependencies = defaultDependencies) {
-  const parsed = shortLinkInputSchema.safeParse(input);
-  if (!parsed.success) throw new ShortLinkError("강의 UUID, 유형 식별자, 연결 주소와 이름을 확인해 주세요.", 400);
+type ChatLinkInput = Omit<ShortLinkInput, "type_key"> & { field: ChatShortLinkField; type_key?: never };
+export async function createShortLink(input: ShortLinkInput | ChatLinkInput, dependencies = defaultDependencies) {
+  const payload = "field" in input ? shortLinkInputSchema.omit({ type_key: true }).safeParse({
+    course_id: input.course_id, name: input.name, destination_url: input.destination_url,
+  }) : shortLinkInputSchema.safeParse(input);
+  if (!payload.success) throw new ShortLinkError("강의 UUID, 유형 식별자, 연결 주소와 이름을 확인해 주세요.", 400);
   const key = await readKey(dependencies);
   const types = await readTypes(key, dependencies);
-  if (!types.some(item => item.key === parsed.data.type_key)) throw new ShortLinkError(messages.UNKNOWN_LINK_TYPE, 422);
+  let typeKey: string;
+  if ("field" in input) {
+    const { label } = CHAT_SHORT_LINKS[input.field];
+    const matches = types.filter(item => item.active && item.label === label && !findShortLinkType(item.key));
+    if (matches.length !== 1) throw new ShortLinkError(`BZUP Link 운영자에게 ‘${label}’ 전용 유형 등록 또는 활성화를 요청해 주세요.`, 422);
+    typeKey = matches[0].key;
+  } else {
+    const type = types.find(item => item.key === input.type_key);
+    if (!type) throw new ShortLinkError(messages.UNKNOWN_LINK_TYPE, 422);
+    if (Object.values(CHAT_SHORT_LINKS).some(chat => chat.label === type.label)) {
+      throw new ShortLinkError("무료단톡방의 단축주소 발급 버튼을 사용해 주세요.", 400);
+    }
+    typeKey = type.key;
+  }
   // Inactive types may have an existing link: the provider decides between 409 and 422.
-  const response = await providerRequest("short-links", key, dependencies, parsed.data);
+  const response = await providerRequest("short-links", key, dependencies, { ...payload.data, type_key: typeKey });
   const body = await response.json().catch(() => null);
   const existing = response.status === 409 && body?.error?.code === "LINK_TYPE_EXISTS";
   if (response.status === 201 || existing) {

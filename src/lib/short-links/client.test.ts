@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createShortLink } from "./client";
 import { shortLinkInputSchema } from "./model";
+import { CHAT_SHORT_LINKS, type ChatShortLinkField } from "./types";
 
 const input = { course_id: "e226ccce-8d6c-47bf-92b8-0a8fe9c40cf3", type_key: "landing", destination_url: "https://example.com/landing", name: "Landing" };
 const loadKey = async () => "test-private-key";
@@ -67,4 +68,24 @@ test("new server types need no local enum and old type-only bodies are rejected"
   const { type_key: _key, ...old } = input;
   void _key;
   assert.equal(shortLinkInputSchema.safeParse({ ...old, type: "0000" }).success, false);
+});
+
+test("each free chat room issues only its own active registered type", async () => {
+  for (const field of Object.keys(CHAT_SHORT_LINKS) as ChatShortLinkField[]) {
+    const label = CHAT_SHORT_LINKS[field].label;
+    const registered = { key: "operator_assigned", label, active: true };
+    const chat = { field, course_id: input.course_id, destination_url: input.destination_url, name: label };
+    const issue: typeof fetch = async (_url, options) => {
+      const body = JSON.parse(String(options?.body));
+      assert.equal(body.type_key, registered.key);
+      assert.equal(body.destination_url, chat.destination_url);
+      assert.equal(body.field, undefined);
+      return Response.json({ short_url: "https://bizup.im/room" }, { status: 201 });
+    };
+    assert.equal((await createShortLink(chat, { request: withTypes(issue, [registered]), loadKey })).short_url, "https://bizup.im/room");
+    for (const registry of [types, [{ ...registered, active: false }], [{ ...registered, key: "landing" }], [registered, { ...registered, key: "duplicate" }]]) {
+      await assert.rejects(createShortLink(chat, { request: withTypes(issue, registry), loadKey }), /전용 유형/);
+    }
+    await assert.rejects(createShortLink({ ...input, type_key: registered.key }, { request: withTypes(issue, [registered]), loadKey }), /단축주소 발급 버튼/);
+  }
 });

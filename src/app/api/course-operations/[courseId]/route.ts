@@ -15,6 +15,7 @@ import {
   loadVideosSection,
 } from "@/lib/course-operations/detail-sections";
 import { parseCourseOperationsInput } from "@/lib/course-operations/validation";
+import { isTemporaryFreeChatUrl } from "@/lib/course-operations/course-page-links";
 import { invalidateCourseOperationsList } from "@/lib/course-operations/list-cache";
 import {
   readCourseOperationsRequest,
@@ -211,7 +212,11 @@ export async function PATCH(
         ...(typeof body === "object" && body !== null && "landingPageQrLink" in body
           ? { landing_page_qr_link: input.landingPageQrLink } : {}),
         free_kakao_room_1_link: input.freeKakaoRoom1Link,
-        free_kakao_room_2_link: input.freeKakaoRoom2Link,
+        ...(!isTemporaryFreeChatUrl(input.freeKakaoRoom1Link) && typeof body === "object" && body !== null ? {
+          ...("freeKakaoRoom1ShortLink" in body ? { free_kakao_room_1_short_link: input.freeKakaoRoom1ShortLink } : {}),
+          ...("freeKakaoRoom2Link" in body ? { free_kakao_room_2_link: input.freeKakaoRoom2Link } : {}),
+          ...("freeKakaoRoom2ShortLink" in body ? { free_kakao_room_2_short_link: input.freeKakaoRoom2ShortLink } : {}),
+        } : {}),
         ...(typeof body === "object" && body !== null && "paidKakaoRoomLink" in body
           ? { paid_kakao_room_link: input.paidKakaoRoomLink }
           : {}),

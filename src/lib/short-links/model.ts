@@ -24,6 +24,11 @@ export const shortLinkResultSchema = z.object({
 });
 export type ShortLinkInput = z.input<typeof shortLinkInputSchema>;
 
+export const chatLinkRequest = shortLinkInputSchema.pick({ course_id: true, destination_url: true }).extend({
+  field: z.enum(["freeKakaoRoom1ShortLink", "freeKakaoRoom2ShortLink"]),
+});
+export type ChatLinkRequest = z.input<typeof chatLinkRequest>;
+
 export const replayLinkRequest = z.object({
   course_id: z.uuid(), purpose: z.literal("replay-guide"),
 }).strict();

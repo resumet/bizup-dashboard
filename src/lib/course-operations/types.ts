@@ -57,7 +57,9 @@ export type CourseOperationsDraft = {
   landingPageLink: string;
   landingPageQrLink: string;
   freeKakaoRoom1Link: string;
+  freeKakaoRoom1ShortLink: string;
   freeKakaoRoom2Link: string;
+  freeKakaoRoom2ShortLink: string;
   paidKakaoRoomLink: string;
   communicationRoomLink: string;
   paymentLink: string;

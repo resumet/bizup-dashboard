@@ -24,7 +24,7 @@ import { CourseManagementMenu } from "@/components/course-operations/course-mana
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { LinkCopyDialog } from "@/components/course-operations/link-copy-dialog";
 import { COURSE_PAGE_LINKS, isTemporaryFreeChatUrl, TEMPORARY_FREE_CHAT_URL } from "@/lib/course-operations/course-page-links";
-import { SHORT_LINK_TYPES, isShortLinkField, type ShortLinkField } from "@/lib/short-links/types";
+import { CHAT_SHORT_LINKS, SHORT_LINK_TYPES, isChatShortLinkField, isShortLinkField, type ChatShortLinkField, type ShortLinkField } from "@/lib/short-links/types";
 import { issueCourseShortLink } from "@/lib/short-links/browser";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -122,6 +122,7 @@ type CourseLinkFieldKey =
   | "landingPageLink"
   | "landingPageQrLink"
   | "freeKakaoRoom1Link"
+  | ChatShortLinkField
   | "freeKakaoRoom2Link"
   | "paidKakaoRoomLink"
   | "communicationRoomLink"
@@ -142,7 +143,9 @@ const COURSE_LINK_GROUPS: Array<{ title: string; items: ReadonlyArray<{ field: C
   { title: "강의 페이지", items: COURSE_PAGE_LINKS.map((link) => ({ ...link, required: true })) },
   { title: "소통링크", items: [
     { field: "freeKakaoRoom1Link", label: "무료단톡방1", required: true },
+    { field: "freeKakaoRoom1ShortLink", label: CHAT_SHORT_LINKS.freeKakaoRoom1ShortLink.label },
     { field: "freeKakaoRoom2Link", label: "무료단톡방2" },
+    { field: "freeKakaoRoom2ShortLink", label: CHAT_SHORT_LINKS.freeKakaoRoom2ShortLink.label },
     { field: "communicationRoomLink", label: "소통방" },
   ] },
   { title: "기타링크", items: [
@@ -178,6 +181,7 @@ function CourseLinkInput({
   onChange,
   action,
   required = false,
+  disabled = false,
 }: {
   field: CourseLinkFieldKey;
   label: string;
@@ -185,8 +189,9 @@ function CourseLinkInput({
   onChange: (field: CourseLinkFieldKey, value: string) => void;
   action?: React.ReactNode;
   required?: boolean;
+  disabled?: boolean;
 }) {
-  const openableLink = getOpenableLink(value);
+  const openableLink = disabled ? "" : getOpenableLink(value);
   const inputId = `course-link-${field}`;
   return (
     <div className="grid min-w-0 gap-2">
@@ -200,6 +205,7 @@ function CourseLinkInput({
           className="h-10 min-w-0 flex-1"
           type="url"
           required={required}
+          disabled={disabled}
           inputMode="url"
           placeholder="https://"
           maxLength={2_000}
@@ -408,7 +414,7 @@ export function CourseOperationsEditor({
     };
   });
   const [saving, setSaving] = useState(false);
-  const [issuingQrField, setIssuingQrField] = useState<ShortLinkField | null>(null);
+  const [issuingQrField, setIssuingQrField] = useState<ShortLinkField | ChatShortLinkField | null>(null);
   const issuingQrRef = useRef(false);
   const [savedBannerUrl, setSavedBannerUrl] = useState(initialBannerUrl);
   const [bannerSelection, setBannerSelection] = useState<{
@@ -624,17 +630,20 @@ export function CourseOperationsEditor({
   }
 
   async function issueQr(field: string) {
-    if (!isShortLinkField(field)) return;
+    if (!isShortLinkField(field) && !isChatShortLinkField(field)) return;
+    if (temporaryFreeChat && isChatShortLinkField(field)) return;
     if (issuingQrRef.current) return;
     if (!courseId) { toast("강의를 먼저 저장해 주세요.", { tone: "info" }); return; }
-    const config = SHORT_LINK_TYPES[field];
+    const config = isChatShortLinkField(field) ? CHAT_SHORT_LINKS[field] : SHORT_LINK_TYPES[field];
     const destinationUrl = getOpenableLink(draft[config.sourceField].trim());
     if (!destinationUrl) { toast(`${config.sourceLabel}에 올바른 http/https 주소를 입력해 주세요.`, { tone: "error" }); return; }
     issuingQrRef.current = true;
     setIssuingQrField(field);
     try {
-      const result = await issueCourseShortLink({
-        course_id: courseId, type_key: config.typeKey,
+      const result = await issueCourseShortLink(isChatShortLinkField(field) ? {
+        course_id: courseId, field, destination_url: destinationUrl,
+      } : {
+        course_id: courseId, type_key: SHORT_LINK_TYPES[field].typeKey,
         destination_url: destinationUrl, name: `${draft.name || "강의"} ${config.label}`.slice(0, 120),
       });
       setDraft(current => ({ ...current, [field]: result.short_url }));
@@ -1644,15 +1653,23 @@ export function CourseOperationsEditor({
                     value={draft[item.field]}
                     onChange={updateField}
                     required={item.required}
+                    disabled={temporaryFreeChat && (item.field === "freeKakaoRoom2Link" || isChatShortLinkField(item.field))}
                     action={item.field === "freeKakaoRoom1Link" ? (
                       <label className="inline-flex shrink-0 items-center gap-2 text-sm">
-                        <Checkbox checked={temporaryFreeChat} onCheckedChange={(checked) => {
+                        <Checkbox checked={temporaryFreeChat} disabled={issuingQrField !== null} onCheckedChange={(checked) => {
                           if (checked === true) previousFreeChatUrl.current = draft.freeKakaoRoom1Link || "";
                           updateField("freeKakaoRoom1Link", checked === true ? TEMPORARY_FREE_CHAT_URL : previousFreeChatUrl.current);
                         }} />
                         임시
                       </label>
-                    ) : isShortLinkField(item.field) ? <Button type="button" variant="outline" className="h-10 shrink-0" disabled={saving || issuingQrField !== null} onClick={() => void issueQr(item.field)}>{issuingQrField === item.field ? "발급 중…" : "발급"}</Button> : undefined}
+                    ) : isShortLinkField(item.field) || isChatShortLinkField(item.field) ? (
+                      <Button type="button" variant="outline" className="h-10 shrink-0"
+                        disabled={saving || issuingQrField !== null || (isChatShortLinkField(item.field) &&
+                          (temporaryFreeChat || !courseId || !getOpenableLink(draft[CHAT_SHORT_LINKS[item.field].sourceField])))}
+                        onClick={() => void issueQr(item.field)}>
+                        {issuingQrField === item.field ? "발급 중…" : "발급"}
+                      </Button>
+                    ) : undefined}
                   />
                 ))}
                 {group.title === "기타링크" && replayGuideLink}

@@ -66,6 +66,15 @@ test("새 강의는 무료단톡방1에 정식 또는 임시 주소가 필요하
   assert.equal(parseCourseOperationsInput({ ...validInput, freeKakaoRoom1Link: "" }).freeKakaoRoom1Link, "");
 });
 
+test("무료단톡방 단축주소는 따로 저장하고 임시일 때 비활성 입력을 무시한다", () => {
+  const chatFields = { freeKakaoRoom1ShortLink: "https://bizup.im/one", freeKakaoRoom2ShortLink: "https://bizup.im/two" };
+  const saved = parseCourseOperationsInput({ ...validInput, ...chatFields });
+  assert.equal(saved.freeKakaoRoom1ShortLink, chatFields.freeKakaoRoom1ShortLink);
+  assert.equal(saved.freeKakaoRoom2ShortLink, chatFields.freeKakaoRoom2ShortLink);
+  const temporary = parseCourseOperationsInput({ ...validInput, ...chatFields, freeKakaoRoom1Link: TEMPORARY_FREE_CHAT_URL, freeKakaoRoom2Link: "입력 중" });
+  assert.deepEqual([temporary.freeKakaoRoom1ShortLink, temporary.freeKakaoRoom2Link, temporary.freeKakaoRoom2ShortLink], ["", "", ""]);
+});
+
 test("저장한 무료단톡방1이 임시 주소인 동안만 경고를 표시한다", () => {
   assert.ok(isTemporaryFreeChatUrl(TEMPORARY_FREE_CHAT_URL));
   assert.ok(isTemporaryFreeChatUrl(`${TEMPORARY_FREE_CHAT_URL}/?ref=copy`));

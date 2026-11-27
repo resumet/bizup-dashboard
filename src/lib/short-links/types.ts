@@ -16,6 +16,17 @@ export const SHORT_LINK_TYPES = {
 
 export type ShortLinkField = keyof typeof SHORT_LINK_TYPES;
 
+// The provider assigns a key when its operator registers each room's label.
+export const CHAT_SHORT_LINKS = {
+  freeKakaoRoom1ShortLink: { label: "무료단톡방1 단축주소", sourceLabel: "무료단톡방1", sourceField: "freeKakaoRoom1Link", column: "free_kakao_room_1_link" },
+  freeKakaoRoom2ShortLink: { label: "무료단톡방2 단축주소", sourceLabel: "무료단톡방2", sourceField: "freeKakaoRoom2Link", column: "free_kakao_room_2_link" },
+} as const;
+
+export type ChatShortLinkField = keyof typeof CHAT_SHORT_LINKS;
+export function isChatShortLinkField(field: string): field is ChatShortLinkField {
+  return Object.hasOwn(CHAT_SHORT_LINKS, field);
+}
+
 // Automatically synchronized after a post-sales page has a public URL.
 export const POST_SALES_SHORT_LINK_TYPE = { typeKey: "aftersales", label: "사후 세일즈", sourceField: "publicUrl", targetField: "freeGiftLink" } as const;
 

@@ -1,4 +1,5 @@
 import type { CourseOperationsInput } from "./types";
+import { isTemporaryFreeChatUrl } from "./course-page-links";
 import {
   isAllowedWebinarTime,
   isKoreaDateOnly,
@@ -142,6 +143,8 @@ export function parseCourseOperationsInput(
     throw new Error("개강일은 무료 웨비나 날짜 다음 날부터 선택해 주세요.");
   }
 
+  const freeKakaoRoom1Link = url(input.freeKakaoRoom1Link, "무료단톡방1 주소", Boolean(parseOptions.requireFreeChatUrl));
+  const temporaryChat = isTemporaryFreeChatUrl(freeKakaoRoom1Link);
   return {
     name: text(input.name, "강의명", 200),
     instructorName: text(input.instructorName, "강사명", 120),
@@ -163,8 +166,10 @@ export function parseCourseOperationsInput(
     ),
     landingPageLink: url(input.landingPageLink, "기본 랜딩페이지 링크", false),
     landingPageQrLink: url(input.landingPageQrLink, "기본 랜딩 QR", false),
-    freeKakaoRoom1Link: url(input.freeKakaoRoom1Link, "무료단톡방1 주소", Boolean(parseOptions.requireFreeChatUrl)),
-    freeKakaoRoom2Link: url(input.freeKakaoRoom2Link, "무료카톡방 2번 링크", false),
+    freeKakaoRoom1Link,
+    freeKakaoRoom1ShortLink: temporaryChat ? "" : url(input.freeKakaoRoom1ShortLink, "무료단톡방1 단축주소", false),
+    freeKakaoRoom2Link: temporaryChat ? "" : url(input.freeKakaoRoom2Link, "무료카톡방 2번 링크", false),
+    freeKakaoRoom2ShortLink: temporaryChat ? "" : url(input.freeKakaoRoom2ShortLink, "무료단톡방2 단축주소", false),
     paidKakaoRoomLink: url(input.paidKakaoRoomLink, "유료수강생단톡방 링크", false),
     communicationRoomLink: url(input.communicationRoomLink, "소통방 링크", false),
     paymentLink: url(input.paymentLink, "결제링크", false),
