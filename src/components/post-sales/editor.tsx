@@ -55,7 +55,7 @@ export function SalesEditor({ course, videos, ...initial }: Props) {
   function edit<K extends keyof SalesDraft>(field: K, value: SalesDraft[K]) {
     setDraft(prev => ({ ...prev, [field]: value }));
   }
-  async function saveImage(field: "videoImageUrl" | "recapImageUrl" | "concernImageUrl", file?: File) {
+  async function saveImage(field: "videoImageUrl" | "recapImageUrl" | "concernImageUrl" | "invitationImageUrl" | "cardImageUrl", file?: File) {
     if (pending.current) return false;
     pending.current = true;
     setBusy("image");
@@ -190,6 +190,7 @@ export function SalesEditor({ course, videos, ...initial }: Props) {
         </EditorSection>
         <EditorSection title="6. 주의">
           <label className={field}>{invitationHeading}<Textarea rows={4} maxLength={8000} placeholder="기억해야 할 내용을 입력해 주세요." value={draft.invitation} onChange={e => edit("invitation", e.target.value)} /></label>
+          <SalesImageEditor label="주의 안내 이미지" url={draft.invitationImageUrl} busy={!!busy} onSave={file => saveImage("invitationImageUrl", file)} onDelete={() => saveImage("invitationImageUrl")} />
         </EditorSection>
         <EditorSection title="7. 무료강의 다시보기">
           <label className={field}>무료강의 다시보기 링크<Input type="url" value={draft.replayUrl} onChange={e => edit("replayUrl", e.target.value)} /></label>
@@ -218,6 +219,7 @@ export function SalesEditor({ course, videos, ...initial }: Props) {
                   edit("cards", draft.cards.map((v, index) => index === i ? { ...v, [key]: months } : v));
                 }} /></td>)}</tr>)}</tbody></table>
           {draft.cardNotice && <p className="whitespace-pre-line break-words text-xs leading-relaxed text-muted-foreground">{draft.cardNotice}</p>}
+          <SalesImageEditor label="신용카드 무이자 할부 안내 이미지" url={draft.cardImageUrl} busy={!!busy} onSave={file => saveImage("cardImageUrl", file)} onDelete={() => saveImage("cardImageUrl")} />
         </EditorSection>
       </fieldset>
       <aside className="min-w-0 space-y-3 xl:sticky xl:top-20 xl:max-h-[calc(100dvh-6rem)] xl:overflow-y-auto">

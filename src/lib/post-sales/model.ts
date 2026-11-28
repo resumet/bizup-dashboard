@@ -84,6 +84,8 @@ export const draftSchema = z.object({
   videoImageUrl: imageField,
   recapImageUrl: imageField,
   concernImageUrl: imageField,
+  invitationImageUrl: imageField,
+  cardImageUrl: imageField,
   titleBackgroundColor: hexColor.default(defaultSalesColors.titleBackgroundColor),
   buttonColor: hexColor.default(defaultSalesColors.buttonColor),
   background: z.enum(Object.keys(pageBackgrounds) as (keyof typeof pageBackgrounds)[]).default("white"),
@@ -106,7 +108,7 @@ export type SalesPage = Omit<SalesDraft, "videoId"> & { instructor: string; cour
 export function newDraft(courseName: string, chatUrl: string, replayUrl: string): SalesDraft {
   return { title: courseName, background: "white", ...defaultSalesColors, videoImageUrl: "", recapImageUrl: "", concernImageUrl: "", intro: "", recap: "", gifts: "", invitation: "", chatUrl, giftUrl: "", replayUrl: youtubeId(replayUrl) ? replayUrl : "", videoId: "",
     concernQuestions: [...defaultConcernQuestions], concernExplanation: "",
-    cardText: "", cardNotice: "",
+    cardText: "", cardNotice: "", invitationImageUrl: "", cardImageUrl: "",
     cards: cardIssuers.map(issuer => ({ issuer, interestFree: issuer === "전북" ? 3 : shortTerm.has(issuer) ? 5 : 12 })) };
 }
 

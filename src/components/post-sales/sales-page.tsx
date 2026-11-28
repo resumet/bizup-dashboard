@@ -52,9 +52,10 @@ export function SalesPageView({ page }: { page: SalesPage }) {
       {(page.gifts || page.giftUrl) && <section className="space-y-4 rounded-xl border border-teal-100 bg-teal-50/60 p-5">
         <h2 className={heading}>{giftHeading}</h2>
         {page.gifts && <p className={paragraph}>{page.gifts}</p>}<Action buttonColor={buttonColor} href={page.giftUrl}><span aria-hidden>🎁</span>무료특강 선물 받기</Action></section>}
-      {page.invitation.trim() && <section className="space-y-3">
+      {(page.invitation.trim() || page.invitationImageUrl) && <section className="space-y-3">
         <h2 className={heading}>{invitationHeading}</h2>
-        <p className={paragraph}>{page.invitation}</p>
+        {page.invitation.trim() && <p className={paragraph}>{page.invitation}</p>}
+        <SectionImage url={page.invitationImageUrl} alt="주의 안내 이미지" />
       </section>}
       <section className="space-y-3 border-t pt-6"><h2 className={heading}>무료강의 다시보기</h2>
         <Action buttonColor={buttonColor} href={page.replayUrl}><span aria-hidden>▶️</span>무료강의 다시보기</Action></section>
@@ -68,6 +69,7 @@ export function SalesPageView({ page }: { page: SalesPage }) {
           <tbody>{page.cards.map(row => <tr key={row.issuer} className="border-b border-stone-100"><th scope="row" className="px-3 py-2 text-left font-medium">{row.issuer}</th>
             <td className="px-3">{row.interestFree ? `${row.interestFree}개월` : "미제공"}</td></tr>)}</tbody></table>
         {page.cardNotice && <p className="whitespace-pre-line break-words text-xs leading-relaxed text-slate-500">{page.cardNotice}</p>}
+        <SectionImage url={page.cardImageUrl} alt="신용카드 무이자 할부 안내 이미지" />
       </section>
     </div>
   </article>;

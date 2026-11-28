@@ -9,10 +9,15 @@ test("섹션 이미지는 기존 초안과 호환되고 공개 스냅샷에 보�
   const draft = newDraft("강의", "", "");
   assert.equal(draftSchema.parse({ ...draft, videoImageUrl: undefined }).videoImageUrl, "");
   assert.equal(draftSchema.safeParse({ ...draft, recapImageUrl: "javascript:alert(1)" }).success, false);
-  const images = { videoImageUrl: "https://example.org/video.webp", recapImageUrl: "https://example.org/recap.webp", concernImageUrl: "https://example.org/concern.webp" };
+  const images = { videoImageUrl: "https://example.org/video.webp", recapImageUrl: "https://example.org/recap.webp", concernImageUrl: "https://example.org/concern.webp", invitationImageUrl: "https://example.org/invitation.webp", cardImageUrl: "https://example.org/card.webp" };
   const parsed = draftSchema.parse({ ...draft, ...images });
   const snapshot = salesSnapshot(parsed, { name: "강의", instructor_name: "강사", payment_link: "" }, []);
-  for (const key of Object.keys(images) as (keyof typeof images)[]) assert.equal(snapshot[key], images[key]);
+  for (const key of Object.keys(images) as (keyof typeof images)[]) {
+    assert.equal(snapshot[key], images[key]);
+    assert.equal(draftSchema.parse({ ...draft, [key]: undefined })[key], "");
+    assert.equal(draftSchema.parse({ ...parsed, [key]: "" })[key], "");
+    assert.equal(draftSchema.safeParse({ ...draft, [key]: "javascript:alert(1)" }).success, false);
+  }
   assert.equal(draftSchema.parse({ ...parsed, recapImageUrl: "" }).recapImageUrl, "");
 });
 
